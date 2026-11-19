@@ -1,90 +1,70 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
-import dynamic from 'next/dynamic'
-import type { ColumnDef } from '@tanstack/react-table'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Loader2, MessageCircle, Pencil, RefreshCw, Trash2, Users } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import {
+  ArrowLeft,
+  Ellipsis,
+  FileUp,
+  Megaphone,
+  MessageCircle,
+  Pencil,
+  Phone,
+  Plus,
+  RefreshCw,
+  Search,
+  Trash2,
+  Users,
+} from 'lucide-react'
 
-import { AppDialog } from '@/components/app/AppDialog'
-import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import { AppShell } from '@/components/app/AppShell'
-import {
-  ModuleEmptyCard,
-  ModulePillFilterButton,
-  ModulePillRow,
-  ModuleScoreboard,
-} from '@/components/app/module-list-chrome'
-import { ErrorState } from '@/components/app/ErrorState'
-import { EntityListSkeleton } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
-import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
-import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
-import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
-import { SearchField } from '@/components/ui/SearchField'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { useAddAction } from '@/contexts/AddActionContext'
-import { queryKeys } from '@/lib/query-keys'
-import { getSupabase } from '@/lib/supabase/client'
+import { ClientStepForm, type ClientPrefill } from '@/components/clienti/ClientStepForm'
+import { ImportClientiSheet, WhatsappMessageSheet } from '@/components/clienti/ClientiMenuSheets'
 import {
-  createClienți as createClienti,
-  deleteClienți as deleteClienti,
-  getClienți as getClienti,
-  normalizeClientTip,
-  updateClienți as updateClienti,
-  type Client,
-  type ClientTip,
-  type ClientDuplicateWarning,
-} from '@/lib/supabase/queries/clienti'
+  BigInput,
+  BottomSheet,
+  Button,
+  EmptyState,
+  FilterPills,
+  ListRow,
+  Notice,
+  StatTile,
+  StatusPill,
+  buttonVariants,
+  kitText,
+} from '@/components/kit'
+import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
+import { DEFAULT_WA_MESSAGE, getWhatsappMessage } from '@/lib/clienti/import'
+import {
+  CLIENT_TIP_LABEL,
+  buildClientMetrics,
+  clientFilterCounts,
+  clientOrders,
+  clientPretLabel,
+  filterClients,
+  metricsOf,
+  type ClientFilter,
+} from '@/lib/clienti/view'
+import { localitateScurta } from '@/lib/comenzi/day-view'
+import { comandaStatus, phoneForLinks } from '@/lib/comenzi/display'
+import { formatKg, formatLei, formatNumber, initialsOf, relativeDayRo, shortDateRo } from '@/lib/format-ro'
+import { queryKeys } from '@/lib/query-keys'
+import { deleteClienți, getClienți, type Client } from '@/lib/supabase/queries/clienti'
 import { getComenzi } from '@/lib/supabase/queries/comenzi'
 import { getVanzari } from '@/lib/supabase/queries/vanzari'
-import { getTenantId } from '@/lib/tenant/get-tenant'
-import { normalizePhoneNumber } from '@/lib/utils/normalize-phone'
 import { toast } from '@/lib/ui/toast'
+import { useTodayIso } from '@/lib/ui/use-today-iso'
+import { cn } from '@/lib/utils'
 
-// Dialoguri deschise doar la interacțiune — code-split (ssr:false), ca în
-// modulele deja optimizate (Comenzi/Livrări/Recoltări). Nu randează DOM când
-// sunt închise, deci ies din First Load JS al rutei /clienti.
-const ConfirmDeleteDialog = dynamic(
-  () => import('@/components/app/ConfirmDeleteDialog').then((mod) => mod.ConfirmDeleteDialog),
-  { ssr: false }
-)
-const AddClientDialog = dynamic(
-  () => import('@/components/clienti/AddClientDialog').then((mod) => mod.AddClientDialog),
-  { ssr: false }
-)
-const EditClientDialog = dynamic(
-  () => import('@/components/clienti/EditClientDialog').then((mod) => mod.EditClientDialog),
-  { ssr: false }
-)
-
-type CreateClientMutationVariables = {
-  input: Parameters<typeof createClienti>[0]
-  onDuplicateWarning?: (existing: ClientDuplicateWarning) => void
-}
-
-interface ClientPageClientProps {
-  initialClienți: Client[]
-  googleSync: {
-    enabled: boolean
-    lastSyncAt: string | null
-  } | null
-}
+// ─── Legătura cu chatul AI (prin URL) ──────────────────────────────────────────
 
 export function hasAiClientOpenForm(searchParams: Pick<URLSearchParams, 'get'>): boolean {
   return searchParams.get('openForm') === '1'
 }
 
-export function parseAiClientPrefill(searchParams: Pick<URLSearchParams, 'get'>): {
-  nume_client: string
-  telefon: string
-  email: string
-  adresa: string
-  observatii: string
-} | null {
+export function parseAiClientPrefill(searchParams: Pick<URLSearchParams, 'get'>): ClientPrefill | null {
   if (!hasAiClientOpenForm(searchParams)) return null
   return {
     nume_client: searchParams.get('nume_client')?.trim() ?? '',
@@ -95,370 +75,9 @@ export function parseAiClientPrefill(searchParams: Pick<URLSearchParams, 'get'>)
   }
 }
 
-type ParsedClientRow = {
-  nume_client: string
-  telefon?: string | null
-  email?: string | null
-  adresa?: string | null
-  observatii?: string | null
-}
+const FORM_QUERY_PARAMS = ['add', 'openForm', 'nume_client', 'telefon', 'email', 'adresa', 'observatii', 'google_contacts'] as const
 
-function normalizeText(value: string | null | undefined): string {
-  return (value ?? '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-}
-
-function isIncasata(status: string | null | undefined): boolean {
-  const normalized = normalizeText(status)
-  return (
-    normalized.includes('incasata') ||
-    normalized.includes('incasat') ||
-    normalized.includes('platit') ||
-    normalized.includes('achitat')
-  )
-}
-
-function parseCsvLine(line: string): string[] {
-  const values: string[] = []
-  let current = ''
-  let insideQuotes = false
-
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index]
-    const next = line[index + 1]
-
-    if (char === '"') {
-      if (insideQuotes && next === '"') {
-        current += '"'
-        index += 1
-      } else {
-        insideQuotes = !insideQuotes
-      }
-      continue
-    }
-
-    if ((char === ',' || char === ';') && !insideQuotes) {
-      values.push(current.trim())
-      current = ''
-      continue
-    }
-
-    current += char
-  }
-
-  values.push(current.trim())
-  return values
-}
-
-type ImportPreview = {
-  rows: ParsedClientRow[]
-  totalParsed: number
-  skippedNoName: number
-  formulaFixCount: number
-  mappingSummary: string[]
-  unmappedColumns: string[]
-  hasNameColumn: boolean
-  hasPhoneColumn: boolean
-}
-
-type ImportResult = {
-  imported: number
-  skippedNoName: number
-  skippedDuplicate: number
-  failed: number
-  failedRows: Array<{ name: string; error: string }>
-}
-
-const DEFAULT_WA_MESSAGE = 'Bună ziua! Am început livrările de zmeură proaspătă. Vă așteptăm cu comanda! 🍓'
-
-function getClientTipBadge(tip: ClientTip): { label: string; className: string } | null {
-  if (tip === 'patiserie') {
-    return {
-      label: '🥐 Patiserie',
-      className: 'bg-[var(--badge-tip-bg)] text-[var(--badge-tip-text)] border border-[var(--badge-tip-border)]',
-    }
-  }
-  if (tip === 'magazin') {
-    return {
-      label: '🏪 Magazin',
-      className: 'bg-[var(--status-success-bg)] text-[var(--status-success-text)] border border-[var(--status-success-border)]',
-    }
-  }
-  return null
-}
-
-function isB2bClient(tip: ClientTip): boolean {
-  return tip === 'patiserie' || tip === 'magazin'
-}
-
-function buildClientWhatsappHref(phone: string, message: string): string | null {
-  const digits = phone.replace(/\D/g, '')
-  const local = digits.replace(/^0/, '')
-  if (!local) return null
-  return `https://wa.me/4${local}?text=${encodeURIComponent(message)}`
-}
-
-function normalizeHeader(value: string): string {
-  return normalizeText(value)
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-}
-
-function mapHeadersToClients(
-  normalizedHeaders: string[],
-  originalHeaders: string[],
-  dataRows: string[][]
-): ImportPreview {
-  const pick = (...aliases: string[]) =>
-    normalizedHeaders.findIndex((h) => aliases.includes(h))
-
-  const nameIndex = pick(
-    'display_name', 'displayname', 'full_name', 'fullname',
-    'nume_complet', 'nume_client', 'client', 'contact', 'persoana',
-    'name', 'denumire', 'nume'
-  )
-  const firstNameIndex = pick('first_name', 'given_name', 'prenume', 'firstname')
-  const lastNameIndex  = pick('last_name', 'family_name', 'surname', 'lastname', 'nume_familie')
-
-  const phoneIndex = pick(
-    'phone_1_value', 'phone', 'phone_number', 'phonenumber', 'mobile', 'nr_telefon',
-    'nr_tel', 'numar_telefon', 'numar_tel', 'telefon', 'tel', 'mobil'
-  )
-  const phone2Index = pick('phone_2_value', 'phone2', 'mobile2', 'telefon_alt', 'alt_telefon')
-
-  const emailIndex = pick('email', 'e_mail', 'email_address', 'mail', 'adresa_email', 'email_1_value')
-  const addressIndex = pick(
-    'delivery_location', 'location', 'city', 'oras', 'localitate',
-    'adresa', 'address', 'locatie', 'locatie_livrare', 'loc', 'sat', 'comuna'
-  )
-  const notesIndex = pick('notes', 'observatii', 'observatii_client', 'note', 'obs', 'detalii', 'comments')
-
-  const hasNameColumn = nameIndex >= 0 || firstNameIndex >= 0 || lastNameIndex >= 0
-  const hasPhoneColumn = phoneIndex >= 0 || phone2Index >= 0
-
-  const mappedIndices = new Set(
-    [nameIndex, firstNameIndex, lastNameIndex, phoneIndex, phone2Index, emailIndex, addressIndex, notesIndex]
-      .filter((i) => i >= 0)
-  )
-
-  const mappingSummary: string[] = []
-  if (nameIndex >= 0) {
-    mappingSummary.push(`"${originalHeaders[nameIndex]}" → Nume client ✓`)
-  } else if (firstNameIndex >= 0 || lastNameIndex >= 0) {
-    const parts = [
-      firstNameIndex >= 0 ? `"${originalHeaders[firstNameIndex]}"` : null,
-      lastNameIndex  >= 0 ? `"${originalHeaders[lastNameIndex]}"` : null,
-    ].filter(Boolean)
-    mappingSummary.push(`${parts.join(' + ')} → Nume client ✓`)
-  }
-  if (phoneIndex   >= 0) mappingSummary.push(`"${originalHeaders[phoneIndex]}" → Telefon ✓`)
-  if (phone2Index  >= 0) mappingSummary.push(`"${originalHeaders[phone2Index]}" → Telefon (rezervă) ✓`)
-  if (emailIndex   >= 0) mappingSummary.push(`"${originalHeaders[emailIndex]}" → Email ✓`)
-  if (addressIndex >= 0) mappingSummary.push(`"${originalHeaders[addressIndex]}" → Adresă ✓`)
-  if (notesIndex   >= 0) mappingSummary.push(`"${originalHeaders[notesIndex]}" → Observații ✓`)
-
-  const unmappedColumns = originalHeaders.filter((h, i) => !mappedIndices.has(i) && h.trim().length > 0)
-
-  let formulaFixCount = 0
-  const allRows = dataRows.map((columns) => {
-    let numeName = nameIndex >= 0 ? (columns[nameIndex] ?? '').trim() : ''
-
-    const isRawFormula = numeName.startsWith('=')
-    const isPlaceholder = /^Gospodar\s*Nou\b/i.test(numeName)
-    if (!numeName || isRawFormula || isPlaceholder) {
-      const first = firstNameIndex >= 0 ? (columns[firstNameIndex] ?? '').trim() : ''
-      const last  = lastNameIndex  >= 0 ? (columns[lastNameIndex]  ?? '').trim() : ''
-      const combined = [first, last].filter(Boolean).join(' ')
-      if (combined) {
-        formulaFixCount++
-        numeName = combined
-      } else {
-        numeName = ''
-      }
-    }
-
-    let phoneVal = phoneIndex >= 0 ? (columns[phoneIndex] ?? '').trim() : ''
-    if (!phoneVal && phone2Index >= 0) {
-      phoneVal = (columns[phone2Index] ?? '').trim()
-    }
-    return {
-      nume_client: numeName,
-      telefon:     phoneVal || null,
-      email:       emailIndex   >= 0 ? (columns[emailIndex]   ?? '').trim() || null : null,
-      adresa:      addressIndex >= 0 ? (columns[addressIndex] ?? '').trim() || null : null,
-      observatii:  notesIndex   >= 0 ? (columns[notesIndex]   ?? '').trim() || null : null,
-    }
-  })
-
-  const rows = allRows.filter((row) => row.nume_client.length > 0)
-  const totalParsed = allRows.length
-  const skippedNoName = totalParsed - rows.length
-
-  return { rows, totalParsed, skippedNoName, formulaFixCount, mappingSummary, unmappedColumns, hasNameColumn, hasPhoneColumn }
-}
-
-const HEADER_DETECTION_ALIASES = new Set([
-  'display_name', 'displayname', 'full_name', 'fullname', 'first_name', 'last_name',
-  'given_name', 'family_name', 'surname', 'firstname', 'lastname', 'nume_familie',
-  'nume_complet', 'nume_client', 'client', 'contact', 'persoana', 'name', 'denumire', 'prenume', 'nume',
-  'telefon', 'phone', 'phone_1_value', 'phone_2_value', 'phone_number', 'phonenumber',
-  'tel', 'mobil', 'mobile', 'mobile2', 'nr_telefon', 'numar_telefon',
-  'email', 'e_mail', 'email_1_value', 'email_address', 'mail', 'adresa_email',
-  'adresa', 'address', 'delivery_location', 'location', 'localitate', 'oras', 'city', 'loc', 'sat', 'comuna',
-  'notes', 'note', 'observatii', 'obs', 'detalii', 'comments',
-])
-
-function parseClientCsv(content: string): ImportPreview {
-  const raw = content.replace(/^\uFEFF/, '')
-  const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
-  if (!lines.length) return { rows: [], totalParsed: 0, skippedNoName: 0, formulaFixCount: 0, mappingSummary: [], unmappedColumns: [], hasNameColumn: false, hasPhoneColumn: false }
-
-  const firstRow     = parseCsvLine(lines[0])
-  const normalizedH  = firstRow.map(normalizeHeader)
-  const hasHeader    = normalizedH.some((h) => HEADER_DETECTION_ALIASES.has(h))
-
-  const originalHeaders = hasHeader ? firstRow : ['Nume', 'Telefon', 'Email', 'Adresa', 'Observatii']
-  const normalizedHeaders = hasHeader ? normalizedH : ['nume_client', 'telefon', 'email', 'adresa', 'observatii']
-  const dataLines = hasHeader ? lines.slice(1) : lines
-
-  return mapHeadersToClients(normalizedHeaders, originalHeaders, dataLines.map(parseCsvLine))
-}
-
-async function parseClientXlsx(buffer: ArrayBuffer): Promise<ImportPreview> {
-  const XLSX = await import('xlsx')
-  const workbook = XLSX.read(buffer, { type: 'array', cellFormula: false })
-  const firstSheetName = workbook.SheetNames[0]
-  if (!firstSheetName) throw new Error('Fișierul Excel nu conține foi de calcul.')
-
-  const sheet  = workbook.Sheets[firstSheetName]
-  const rawRows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' }) as unknown[][]
-  if (rawRows.length === 0) return { rows: [], totalParsed: 0, skippedNoName: 0, formulaFixCount: 0, mappingSummary: [], unmappedColumns: [], hasNameColumn: false, hasPhoneColumn: false }
-
-  const originalHeaders  = (rawRows[0] as unknown[]).map((c) => String(c ?? '').trim())
-  const normalizedHeaders = originalHeaders.map(normalizeHeader)
-  const dataRows = rawRows.slice(1).map((row) =>
-    (row as unknown[]).map((c) => String(c ?? '').trim())
-  )
-
-  return mapHeadersToClients(normalizedHeaders, originalHeaders, dataRows)
-}
-
-async function downloadImportTemplate() {
-  const XLSX = await import('xlsx')
-  const rows = [
-    ['Nume client', 'Telefon', 'Email', 'Adresă', 'Observații'],
-    ['Ion Popescu', '0745123456', 'ion@email.com', 'Suceava', ''],
-    ['Maria Ionescu', '0722334455', '', 'Fălticeni', 'Client fidel'],
-  ]
-  const ws = XLSX.utils.aoa_to_sheet(rows)
-  ws['!cols'] = [{ wch: 20 }, { wch: 15 }, { wch: 22 }, { wch: 16 }, { wch: 20 }]
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, 'Clienți')
-  XLSX.writeFile(wb, 'model-import-clienti.xlsx')
-}
-
-async function parseClientFile(file: File): Promise<ImportPreview> {
-  const ext = file.name.split('.').pop()?.toLowerCase()
-  if (ext === 'xlsx' || ext === 'xls') {
-    const buffer = await file.arrayBuffer()
-    return parseClientXlsx(buffer)
-  }
-  const content = await file.text()
-  return parseClientCsv(content)
-}
-
-function ClientCardNew({
-  client,
-  metrics,
-  onEdit,
-  waMessage,
-}: {
-  client: Client
-  metrics: {
-    totalRon: number
-    vanzariCount: number
-    unpaidRon: number
-    comenziCount: number
-  }
-  onEdit: () => void
-  waMessage: string
-}) {
-  const mainValue = metrics.totalRon > 0 ? `${metrics.totalRon.toFixed(0)} RON` : `${metrics.comenziCount} comenzi`
-  const subtitle = client.telefon || client.email || 'Fără contact'
-  const secondaryValue = [
-    metrics.comenziCount > 0 ? `${metrics.comenziCount} comenzi` : null,
-    metrics.vanzariCount > 0 ? `${metrics.vanzariCount} vânzări` : null,
-  ].filter(Boolean).join(' • ') || undefined
-  const tipBadge = getClientTipBadge(client.tip)
-  const whatsappHref =
-    isB2bClient(client.tip) && client.telefon
-      ? buildClientWhatsappHref(client.telefon, waMessage)
-      : null
-  const statusLabel =
-    metrics.unpaidRon > 0
-      ? `Neîncasat ${metrics.unpaidRon.toFixed(0)} RON`
-      : metrics.comenziCount > 0 || metrics.vanzariCount > 0
-        ? 'Activ'
-        : 'Fără activitate'
-  const statusTone =
-    metrics.unpaidRon > 0
-      ? 'warning'
-      : metrics.comenziCount > 0 || metrics.vanzariCount > 0
-        ? 'success'
-        : 'neutral'
-
-  return (
-    <MobileEntityCard
-      title={client.nume_client}
-      mainValue={mainValue}
-      subtitle={subtitle}
-      secondaryValue={secondaryValue}
-      statusLabel={statusLabel}
-      statusTone={statusTone}
-      showChevron
-      onClick={onEdit}
-      bottomSlot={
-        tipBadge || whatsappHref ? (
-          <div className="flex flex-wrap items-center gap-2">
-            {tipBadge ? (
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${tipBadge.className}`}>
-                {tipBadge.label}
-              </span>
-            ) : null}
-            {whatsappHref ? (
-              <a
-                href={whatsappHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 rounded-lg bg-[var(--whatsapp-green)] px-2 py-1 text-xs font-semibold text-white"
-              >
-                <MessageCircle className="h-3 w-3" />
-                WhatsApp
-              </a>
-            ) : null}
-          </div>
-        ) : null
-      }
-    />
-  )
-}
-
-// ─── Page component ───────────────────────────────────────────────────────────
-
-type GoogleSyncResponse = {
-  synced: number
-  skipped: number
-  errors: number
-  mode: 'full' | 'incremental'
-  lastSyncAt: string
-}
-
-const GOOGLE_CONTACTS_STATUS_MESSAGES: Record<
-  string,
-  { type: 'success' | 'error'; text: string }
-> = {
+const GOOGLE_CONTACTS_STATUS_MESSAGES: Record<string, { type: 'success' | 'error'; text: string }> = {
   connected: { type: 'success', text: 'Google Contacts a fost conectat cu succes.' },
   error: { type: 'error', text: 'Conectarea la Google Contacts a eșuat.' },
   error_denied: { type: 'error', text: 'Autorizarea Google a fost refuzată.' },
@@ -471,12 +90,11 @@ const GOOGLE_CONTACTS_STATUS_MESSAGES: Record<
   },
 }
 
-function formatGoogleSyncTitle(lastSyncAt: string | null): string {
-  if (!lastSyncAt) return 'Niciodată sincronizat'
+type GoogleSyncResponse = { synced: number; lastSyncAt: string }
 
-  const date = new Date(lastSyncAt)
-  if (Number.isNaN(date.getTime())) return 'Niciodată sincronizat'
-
+function formatGoogleSync(lastSyncAt: string | null): string {
+  const date = lastSyncAt ? new Date(lastSyncAt) : null
+  if (!date || Number.isNaN(date.getTime())) return 'Niciodată sincronizat'
   const formatted = new Intl.DateTimeFormat('ro-RO', {
     day: '2-digit',
     month: 'short',
@@ -484,139 +102,147 @@ function formatGoogleSyncTitle(lastSyncAt: string | null): string {
     minute: '2-digit',
     timeZone: 'Europe/Bucharest',
   }).format(date)
-
   return `Ultima sincronizare: ${formatted}`
 }
 
-export function ClientPageClient({
-  initialClienți,
-  googleSync,
-}: ClientPageClientProps) {
+interface ClientPageClientProps {
+  initialClienți: Client[]
+  /** `null` = ferma nu are sincronizarea cu Google Contacts. */
+  googleSync: { enabled: boolean; lastSyncAt: string | null } | null
+}
+
+const LIST_PAGE_SIZE = 60
+
+export function ClientPageClient({ initialClienți, googleSync }: ClientPageClientProps) {
+  useTrackModuleView('clienti')
+
   const queryClient = useQueryClient()
-  const { registerAddAction } = useAddAction()
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const queryString = searchParams.toString()
+  const todayIso = useTodayIso()
 
-  const [searchTerm, setSearchTerm] = useState('')
-  const [showOnlyUnpaid, setShowOnlyUnpaid] = useState(false)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editOpen, setEditOpen] = useState(false)
-  const [editingClient, setEditingClient] = useState<Client | null>(null)
-  const [deletingClient, setDeletingClient] = useState<Client | null>(null)
-  const [importingCsv, setImportingCsv] = useState(false)
-  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null)
-  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
-  const [isDeletingAll, setIsDeletingAll] = useState(false)
-  const [importHelpOpen, setImportHelpOpen] = useState(false)
-  const [importProgress, setImportProgress] = useState<{ done: number; total: number; phase: 'ids' | 'insert' } | null>(null)
-  const [importResult, setImportResult] = useState<ImportResult | null>(null)
-  const [showFailedRows, setShowFailedRows] = useState(false)
-  const [bulkDeleteProgress, setBulkDeleteProgress] = useState<{ done: number; total: number } | null>(null)
-  const [tenantId, setTenantId] = useState<string | null>(null)
-  const [waMessage, setWaMessage] = useState(DEFAULT_WA_MESSAGE)
-  const [editingWaMessage, setEditingWaMessage] = useState(false)
-  const [waMessageDraft, setWaMessageDraft] = useState(DEFAULT_WA_MESSAGE)
-  const [isSavingWaMessage, setIsSavingWaMessage] = useState(false)
-  const [lastSyncAt, setLastSyncAt] = useState(
-    googleSync?.lastSyncAt ?? null,
-  )
-  const [isSyncing, setIsSyncing] = useState(false)
-  const [addClientInitialValues, setAddClientInitialValues] = useState<{
-    nume_client: string
-    telefon: string
-    email: string
-    adresa: string
-    observatii: string
-  } | null>(null)
-  const addFromQuery = searchParams.get('add') === '1'
-  const openFormFromQuery = hasAiClientOpenForm(searchParams)
+  const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState<ClientFilter>('toti')
+  const [limit, setLimit] = useState(LIST_PAGE_SIZE)
+  const [openClientId, setOpenClientId] = useState<string | null>(null)
 
-  const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
-  const pendingDeletedItems = useRef<Record<string, Client>>({})
-  const deleteMutateRef = useRef<(id: string) => void>(() => {})
-  const csvInputRef = useRef<HTMLInputElement | null>(null)
+  const [formOpen, setFormOpen] = useState(false)
+  const [editing, setEditing] = useState<Client | null>(null)
+  const [prefill, setPrefill] = useState<ClientPrefill | null>(null)
 
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
+  const [waOpen, setWaOpen] = useState(false)
+  const [waMessage, setWaMessage] = useState<string | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [lastSyncAt, setLastSyncAt] = useState(googleSync?.lastSyncAt ?? null)
+  const [syncing, setSyncing] = useState(false)
+
+  // ─── Date ───
   const {
     data: clienti = initialClienți,
-    isLoading,
     isError,
     error,
+    refetch,
+    isRefetching,
   } = useQuery({
     queryKey: queryKeys.clienti,
-    queryFn: getClienti,
+    queryFn: getClienți,
     initialData: initialClienți,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   })
-
-  useMobileScrollRestore({
-    storageKey: 'scroll:clienti',
-    ready: !isLoading,
-  })
-
   const { data: comenzi = [] } = useQuery({
     queryKey: queryKeys.comenzi,
     queryFn: getComenzi,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   })
-
   const { data: vanzari = [] } = useQuery({
     queryKey: queryKeys.vanzari,
     queryFn: getVanzari,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   })
+  const { data: savedWaMessage } = useQuery({
+    queryKey: ['clienti', 'mesaj-whatsapp'] as const,
+    queryFn: getWhatsappMessage,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  })
+  const message = waMessage ?? savedWaMessage ?? DEFAULT_WA_MESSAGE
+
+  // Până se află ziua (prima randare), anul e 0: cifrele anului apar imediat după.
+  const year = todayIso ? Number(todayIso.slice(0, 4)) : 0
+  const metrics = useMemo(() => buildClientMetrics(clienti, comenzi, vanzari, year), [clienti, comenzi, vanzari, year])
+  const counts = useMemo(() => clientFilterCounts(clienti, metrics), [clienti, metrics])
+  const sorted = useMemo(
+    () => [...clienti].sort((left, right) => (left.nume_client || '').localeCompare(right.nume_client || '', 'ro')),
+    [clienti],
+  )
+  const visible = useMemo(() => filterClients(sorted, metrics, filter, search), [filter, metrics, search, sorted])
+  const openClient = clienti.find((client) => client.id === openClientId) ?? null
+  // Clientul deschis a dispărut (șters): revenim la listă.
+  if (openClientId !== null && openClient === null) setOpenClientId(null)
+
+  // ─── Deschiderea din adresă (`?add=1`, `?openForm=1&…`) și mesajele Google ───
+  const formRequestedInUrl = searchParams.get('add') === '1' || hasAiClientOpenForm(searchParams)
+  const googleStatus = searchParams.get('google_contacts')
+  const [seenQuery, setSeenQuery] = useState<string | null>(null)
+  const [pendingFromUrl, setPendingFromUrl] = useState<{ prefill: ClientPrefill | null } | null>(null)
+  if (seenQuery !== queryString) {
+    setSeenQuery(queryString)
+    if (formRequestedInUrl) {
+      setPendingFromUrl({ prefill: parseAiClientPrefill(searchParams) })
+    } else if (pendingFromUrl) {
+      setPendingFromUrl(null)
+      setPrefill(pendingFromUrl.prefill)
+      setEditing(null)
+      setFormOpen(true)
+    }
+  }
 
   useEffect(() => {
-    let active = true
-
-    void (async () => {
-      try {
-        const supabase = getSupabase()
-        const resolvedTenantId = await getTenantId(supabase)
-        if (!active) return
-        setTenantId(resolvedTenantId)
-
-        // Coloana `whatsapp_b2b_message` nu există (încă) în schema live a
-        // `tenant_settings`; select-ul eșuează și catch-ul de mai jos cade pe
-        // DEFAULT_WA_MESSAGE. Cast-ul păstrează comportamentul fără tipuri stale.
-        const { data, error } = (await supabase
-          .from('tenant_settings')
-          .select('whatsapp_b2b_message' as '*')
-          .eq('tenant_id', resolvedTenantId)
-          .maybeSingle()) as unknown as {
-          data: { whatsapp_b2b_message?: string | null } | null
-          error: { message?: string } | null
-        }
-
-        if (error) throw error
-        if (!active) return
-
-        const nextMessage = data?.whatsapp_b2b_message?.trim() || DEFAULT_WA_MESSAGE
-        setWaMessage(nextMessage)
-        setWaMessageDraft(nextMessage)
-      } catch {
-        if (!active) return
-        setWaMessage(DEFAULT_WA_MESSAGE)
-        setWaMessageDraft(DEFAULT_WA_MESSAGE)
-      }
-    })()
-
-    return () => {
-      active = false
+    if (!formRequestedInUrl && !googleStatus) return
+    if (googleStatus) {
+      const status = GOOGLE_CONTACTS_STATUS_MESSAGES[googleStatus]
+      if (status?.type === 'success') toast.success(status.text)
+      else if (status) toast.error(status.text)
     }
+    const nextParams = new URLSearchParams(queryString)
+    for (const name of FORM_QUERY_PARAMS) nextParams.delete(name)
+    const query = nextParams.toString()
+    const nextUrl = query ? `${pathname}?${query}` : pathname
+    window.history.replaceState(window.history.state, '', nextUrl)
+    router.replace(nextUrl, { scroll: false })
+  }, [formRequestedInUrl, googleStatus, pathname, queryString, router])
+
+  // ─── Acțiuni ───
+  const openCreate = useCallback(() => {
+    setPrefill(null)
+    setEditing(null)
+    setFormOpen(true)
   }, [])
 
-  const handleSyncGoogle = async () => {
-    setIsSyncing(true)
+  const openEdit = useCallback((client: Client) => {
+    setPrefill(null)
+    setEditing(client)
+    setFormOpen(true)
+  }, [])
 
+  const syncGoogle = async () => {
+    if (syncing) return
+    setSyncing(true)
     try {
       const response = await fetch('/api/integrations/google/sync-now', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-        },
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
       })
-
       if (!response.ok) throw new Error('sync failed')
-
       const result = (await response.json()) as GoogleSyncResponse
       setLastSyncAt(result.lastSyncAt)
       toast.success(
@@ -625,1117 +251,445 @@ export function ClientPageClient({
           : 'Sincronizare completă — nicio modificare nouă',
       )
       void queryClient.invalidateQueries({ queryKey: queryKeys.clienti })
+      setMenuOpen(false)
     } catch {
       toast.error('Sincronizarea a eșuat, încearcă din nou')
     } finally {
-      setIsSyncing(false)
+      setSyncing(false)
     }
   }
 
-  const createMutation = useMutation({
-    mutationFn: ({
-      input,
-      onDuplicateWarning,
-    }: CreateClientMutationVariables) => createClienti(input, { onDuplicateWarning }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.clienti })
-      toast.success('Client adăugat cu succes.')
-      setDialogOpen(false)
-    },
-    onError: (err: Error) => {
-      toast.error(err.message)
-    },
-  })
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof updateClienti>[1] }) =>
-      updateClienti(id, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.clienti })
-      toast.success('Client actualizat.')
-      setEditOpen(false)
-      setEditingClient(null)
-    },
-    onError: (err: Error) => {
-      toast.error(err.message)
-    },
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteClienti,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.clienti })
-      toast.success('Client șters.')
-    },
-    onError: (err: Error) => {
-      toast.error(err.message)
-      queryClient.invalidateQueries({ queryKey: queryKeys.clienti })
-    },
-  })
-
-  useEffect(() => {
-    deleteMutateRef.current = (id) => deleteMutation.mutate(id)
-  }, [deleteMutation])
-  useEffect(() => {
-    const pendingTimersRef = pendingDeleteTimers
-    const pendingItemsRef = pendingDeletedItems
-    return () => {
-      Object.keys(pendingTimersRef.current).forEach((id) => {
-        clearTimeout(pendingTimersRef.current[id])
-        if (pendingItemsRef.current[id]) {
-          delete pendingItemsRef.current[id]
-          deleteMutateRef.current(id)
-        }
-      })
-      pendingTimersRef.current = {}
-    }
-  }, [])
-
-  useEffect(() => {
-    const unregister = registerAddAction(() => {
-      setAddClientInitialValues(null)
-      setDialogOpen(true)
-    }, 'Adaugă client')
-    return unregister
-  }, [registerAddAction])
-
-  useEffect(() => {
-    if (!addFromQuery) return
-    setAddClientInitialValues(null)
-    setDialogOpen(true)
-    const nextParams = new URLSearchParams(searchParams.toString())
-    nextParams.delete('add')
-    const query = nextParams.toString()
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
-  }, [addFromQuery, pathname, router, searchParams])
-
-  useEffect(() => {
-    if (!openFormFromQuery) return
-    setAddClientInitialValues(parseAiClientPrefill(searchParams))
-    setDialogOpen(true)
-    const nextParams = new URLSearchParams(searchParams.toString())
-    nextParams.delete('openForm')
-    nextParams.delete('nume_client')
-    nextParams.delete('telefon')
-    nextParams.delete('email')
-    nextParams.delete('adresa')
-    nextParams.delete('observatii')
-    const query = nextParams.toString()
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
-  }, [openFormFromQuery, pathname, router, searchParams])
-
-  useEffect(() => {
-    const googleContactsStatus = searchParams.get('google_contacts')
-    if (!googleContactsStatus) return
-
-    const message = GOOGLE_CONTACTS_STATUS_MESSAGES[googleContactsStatus]
-    if (message) {
-      if (message.type === 'success') toast.success(message.text)
-      else toast.error(message.text)
-    }
-
-    const nextParams = new URLSearchParams(searchParams.toString())
-    nextParams.delete('google_contacts')
-    const query = nextParams.toString()
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
-  }, [pathname, router, searchParams])
-
-  const handleFileSelect = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file || importingCsv) return
-
-    const MAX_FILE_SIZE = 10 * 1024 * 1024
-    if (file.size > MAX_FILE_SIZE) {
-      toast.error('Fișierul este prea mare. Limita este 10MB.')
-      return
-    }
-
-    const ext = file.name.split('.').pop()?.toLowerCase()
-    if (!ext || !['csv', 'xlsx', 'xls'].includes(ext)) {
-      toast.error('Format neacceptat. Folosește Excel (.xlsx) sau CSV.')
-      return
-    }
-
+  const confirmDelete = async () => {
+    if (!openClient || deleting) return
+    setDeleting(true)
+    setDeleteError(null)
     try {
-      const preview = await parseClientFile(file)
-
-      if (preview.totalParsed === 0) {
-        toast.error('Fișierul nu conține date.')
-        return
-      }
-      if (!preview.hasNameColumn) {
-        toast.error('Nicio coloană cu numele clientului nu a fost detectată. Verifică fișierul.')
-        return
-      }
-      if (!preview.rows.length) {
-        toast.error('Fișierul conține doar antetul, fără date valide cu nume de client.')
-        return
-      }
-
-      setImportPreview(preview)
-    } catch (parseError) {
-      console.error('[clienti import] parse error:', parseError)
-      const message = parseError instanceof Error ? parseError.message : 'Nu am putut citi fișierul.'
-      toast.error(message)
-    }
-  }
-
-  const handleConfirmImport = async () => {
-    if (!importPreview?.rows.length || importingCsv) return
-
-    const { rows: validRows, skippedNoName } = importPreview
-    setImportingCsv(true)
-    setImportProgress({ done: 0, total: validRows.length, phase: 'ids' })
-
-    const failedRows: ImportResult['failedRows'] = []
-    let importedCount = 0
-    let duplicateCount = 0
-
-    try {
-      const supabase = getSupabase()
-      const tenantId = await getTenantId(supabase)
-
-      const { data: existingData } = await supabase
-        .from('clienti')
-        .select('nume_client,telefon,id_client')
-        .eq('tenant_id', tenantId)
-      const existingSet = new Set(
-        (existingData ?? []).map(
-          (c) => `${normalizeText(c.nume_client)}|${normalizeText(c.telefon ? normalizePhoneNumber(c.telefon) : '')}`
-        )
+      await deleteClienți(openClient.id)
+      queryClient.setQueryData<Client[]>(queryKeys.clienti, (previous) =>
+        previous ? previous.filter((client) => client.id !== openClient.id) : previous,
       )
-
-      let idCounter = 0
-      for (const row of existingData ?? []) {
-        const match = row.id_client?.match(/(\d+)$/)
-        if (match) {
-          const num = parseInt(match[1], 10)
-          if (num > idCounter) idCounter = num
-        }
-      }
-      idCounter++
-
-      const makeClientId = (): string => {
-        const n = idCounter++
-        return `C${String(n).padStart(3, '0')}`
-      }
-
-      type ImportRecord = {
-        supabaseRow: {
-          tenant_id: string; id_client: string; nume_client: string
-          telefon: string | null; email: string | null; adresa: string | null; observatii: string | null
-        }
-        sourceRow: ParsedClientRow
-      }
-      const records: ImportRecord[] = []
-
-      for (let i = 0; i < validRows.length; i++) {
-        const row = validRows[i]
-        const normalizedRowPhone = row.telefon ? normalizePhoneNumber(row.telefon) : ''
-        const dupKey = `${normalizeText(row.nume_client)}|${normalizeText(normalizedRowPhone)}`
-        if (existingSet.has(dupKey)) {
-          duplicateCount++
-          setImportProgress({ done: i + 1, total: validRows.length, phase: 'ids' })
-          continue
-        }
-        records.push({
-          supabaseRow: {
-            tenant_id: tenantId,
-            id_client: makeClientId(),
-            nume_client: row.nume_client.trim(),
-            telefon: normalizedRowPhone || null,
-            email: row.email || null,
-            adresa: row.adresa || null,
-            observatii: row.observatii || null,
-          },
-          sourceRow: row,
-        })
-        setImportProgress({ done: i + 1, total: validRows.length, phase: 'ids' })
-      }
-
-      const CHUNK_SIZE = 50
-      for (let i = 0; i < records.length; i += CHUNK_SIZE) {
-        const chunk = records.slice(i, i + CHUNK_SIZE)
-        const { error } = await supabase.from('clienti').insert(chunk.map((r) => r.supabaseRow))
-
-        if (error) {
-          const pgError = error as unknown as Record<string, unknown>
-          
-          for (const record of chunk) {
-            const { error: rowErr } = await supabase.from('clienti').insert([record.supabaseRow])
-            if (rowErr) {
-              const rowPg = rowErr as unknown as Record<string, unknown>
-              
-              failedRows.push({ name: record.sourceRow.nume_client, error: rowErr.message })
-            } else {
-              importedCount++
-            }
-          }
-        } else {
-          importedCount += chunk.length
-        }
-
-        setImportProgress({ done: Math.min(i + CHUNK_SIZE, records.length), total: records.length, phase: 'insert' })
-        if (i + CHUNK_SIZE < records.length) {
-          await new Promise<void>((resolve) => setTimeout(resolve, 50))
-        }
-      }
-
-      queryClient.invalidateQueries({ queryKey: queryKeys.clienti })
-      setImportPreview(null)
-      setImportResult({ imported: importedCount, skippedNoName, skippedDuplicate: duplicateCount, failed: failedRows.length, failedRows })
-    } catch (importError) {
-      console.error('[clienti import] fatal error:', importError)
-      const message = importError instanceof Error ? importError.message : 'Nu am putut salva clienții.'
-      toast.error(`Eroare: ${message}`)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.clienti })
+      toast.success('Client șters')
+      setDeleteOpen(false)
+      setOpenClientId(null)
+    } catch (cause) {
+      setDeleteError(cause instanceof Error && cause.message ? cause.message : 'Clientul nu s-a putut șterge.')
     } finally {
-      setImportingCsv(false)
-      setImportProgress(null)
+      setDeleting(false)
     }
   }
 
-  const scheduleDelete = (client: Client) => {
-    const clientId = client.id
-    pendingDeletedItems.current[clientId] = client
-    queryClient.setQueryData<Client[]>(
-      queryKeys.clienti,
-      (current = []) => current.filter((item) => item.id !== clientId)
+  const addButton = (
+    <Button type="button" variant="primary" size="touch-lg" className="w-full" onClick={openCreate}>
+      <Plus aria-hidden />
+      Client nou
+    </Button>
+  )
+
+  // ─── Fișa clientului ───
+  let body: React.ReactNode
+  let bottomButton: React.ReactNode = null
+
+  if (openClient) {
+    const clientMetrics = metricsOf(metrics, openClient.id)
+    const phone = phoneForLinks(openClient.telefon)
+    const pretLabel = clientPretLabel(openClient)
+    const orders = clientOrders(comenzi, openClient.id)
+    const isB2b = openClient.tip !== 'standard'
+    const newOrderHref = `/comenzi?client=${openClient.id}&nou=1`
+
+    bottomButton = (
+      <Button type="button" variant="primary" size="touch-lg" className="w-full" onClick={() => router.push(newOrderHref)}>
+        <Plus aria-hidden />
+        Comandă nouă
+      </Button>
     )
 
-    const timer = setTimeout(() => {
-      delete pendingDeleteTimers.current[clientId]
-      delete pendingDeletedItems.current[clientId]
-      deleteMutation.mutate(clientId)
-    }, 5000)
+    body = (
+      <>
+        <div className="flex items-center justify-between gap-2">
+          <Button type="button" variant="neutral" size="touch" onClick={() => setOpenClientId(null)}>
+            <ArrowLeft aria-hidden />
+            Clienți
+          </Button>
+          <Button
+            type="button"
+            variant="neutral"
+            size="icon-touch"
+            aria-label={`Editează clientul ${openClient.nume_client}`}
+            onClick={() => openEdit(openClient)}
+          >
+            <Pencil aria-hidden />
+          </Button>
+        </div>
 
-    pendingDeleteTimers.current[clientId] = timer
+        <div className="space-y-2">
+          <h2 className={cn('break-words font-extrabold text-fg', kitText.screen)}>{openClient.nume_client}</h2>
+          <div className="flex flex-wrap gap-1.5">
+            <StatusPill tone={isB2b ? 'info' : 'neutral'}>{pretLabel ?? CLIENT_TIP_LABEL[openClient.tip]}</StatusPill>
+            {clientMetrics.neincasatLei > 0 ? (
+              <StatusPill tone="warning">Neîncasat {formatLei(clientMetrics.neincasatLei)}</StatusPill>
+            ) : null}
+          </div>
+        </div>
 
-    toast.warning('Client programat pentru ștergere.', {
-      duration: 5000,
-      action: {
-        label: 'Undo',
-        onClick: () => {
-          const pendingTimer = pendingDeleteTimers.current[clientId]
-          if (!pendingTimer) return
-          clearTimeout(pendingTimer)
-          delete pendingDeleteTimers.current[clientId]
-          delete pendingDeletedItems.current[clientId]
-          queryClient.invalidateQueries({ queryKey: queryKeys.clienti })
-          toast.success('Ștergerea a fost anulată.')
-        },
-      },
-    })
-  }
+        {phone ? (
+          <div className="grid grid-cols-2 gap-2.5">
+            <a href={`tel:${phone.tel}`} className={buttonVariants({ variant: 'neutral', size: 'touch-lg' })}>
+              <Phone aria-hidden />
+              Sună
+            </a>
+            <a
+              href={`https://wa.me/${phone.wa}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonVariants({ variant: 'neutral', size: 'touch-lg' })}
+            >
+              <MessageCircle aria-hidden />
+              WhatsApp
+            </a>
+          </div>
+        ) : (
+          <Notice tone="info" title="Fără telefon">
+            Adaugă numărul din „Editează”, ca să poți suna și scrie pe WhatsApp.
+          </Notice>
+        )}
 
-  const handleBulkDelete = async () => {
-    const toDelete = [...clienti]
-    if (!toDelete.length) return
+        <dl className="space-y-3 px-1">
+          {openClient.telefon?.trim() ? (
+            <div>
+              <dt className={cn('font-medium text-fg-muted', kitText.secondary)}>Telefon</dt>
+              <dd className={cn('font-semibold text-fg', kitText.base)}>{openClient.telefon.trim()}</dd>
+            </div>
+          ) : null}
+          <div>
+            <dt className={cn('font-medium text-fg-muted', kitText.secondary)}>Adresă de livrare</dt>
+            <dd className={cn('break-words font-semibold text-fg', kitText.base)}>{openClient.adresa?.trim() || 'Fără adresă'}</dd>
+          </div>
+          {openClient.email?.trim() ? (
+            <div>
+              <dt className={cn('font-medium text-fg-muted', kitText.secondary)}>Email</dt>
+              <dd className={cn('break-words font-semibold text-fg', kitText.base)}>{openClient.email.trim()}</dd>
+            </div>
+          ) : null}
+        </dl>
 
-    setBulkDeleteOpen(false)
-    setIsDeletingAll(true)
-    setBulkDeleteProgress({ done: 0, total: toDelete.length })
+        <section aria-label={`Anul ${year}`} className="space-y-2">
+          <h3 className={cn('px-1 font-extrabold text-fg', kitText.card)}>Anul {year}</h3>
+          <div className="grid grid-cols-3 gap-2">
+            <StatTile value={clientMetrics.comenziAn} label="comenzi" />
+            <StatTile value={formatNumber(clientMetrics.kgAn)} unit="kg" label="livrate" />
+            <StatTile value={formatNumber(clientMetrics.incasatAn)} unit="lei" label="încasat" />
+          </div>
+        </section>
 
-    const supabase = getSupabase()
-    const tenantId = await getTenantId(supabase)
+        <section aria-label="Ultimele comenzi" className="space-y-2">
+          <h3 className={cn('px-1 font-extrabold text-fg', kitText.card)}>Ultimele comenzi</h3>
+          {orders.length === 0 ? (
+            <p className={cn('px-1 text-fg-muted', kitText.secondary)}>Nicio comandă încă.</p>
+          ) : (
+            <ul className="space-y-2">
+              {orders.map((comanda) => {
+                const status = comandaStatus(comanda, todayIso ?? '')
+                return (
+                  <li
+                    key={comanda.id}
+                    className="flex min-h-touch-lg items-center justify-between gap-3 rounded-box border border-border bg-surface px-4 py-2"
+                  >
+                    <span className="flex min-w-0 flex-col">
+                      <span className={cn('font-bold text-fg', kitText.base)}>
+                        {formatKg(comanda.cantitate_kg)} · {formatLei(comanda.total)}
+                      </span>
+                      <span className={cn('text-fg-muted', kitText.secondary)}>
+                        {comanda.data_livrare ? relativeDayRo(comanda.data_livrare, todayIso ?? '') : 'Fără dată'}
+                      </span>
+                    </span>
+                    <StatusPill tone={status.tone}>{status.label}</StatusPill>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </section>
 
-    let deletedCount = 0
-    const failedNames: string[] = []
-    const CHUNK = 50
+        {openClient.observatii?.trim() ? (
+          <section aria-label="Observații" className="space-y-1 px-1">
+            <h3 className={cn('font-extrabold text-fg', kitText.card)}>Observații</h3>
+            <p className={cn('whitespace-pre-line break-words text-fg', kitText.base)}>{openClient.observatii.trim()}</p>
+          </section>
+        ) : null}
 
-    for (let i = 0; i < toDelete.length; i += CHUNK) {
-      const chunk = toDelete.slice(i, i + CHUNK)
-      const ids = chunk.map((c) => c.id)
-
-      const { error } = await supabase
-        .from('clienti')
-        .delete()
-        .eq('tenant_id', tenantId)
-        .in('id', ids)
-
-      if (error) {
-        for (const client of chunk) {
-          try {
-            await deleteClienti(client.id)
-            deletedCount++
-          } catch {
-            failedNames.push(client.nume_client)
-          }
+        <div className="flex flex-col gap-2.5">
+          {/* Butonul fix de jos e ascuns pe desktop: aici rămâne și acolo. */}
+          <div className="hidden md:block">{bottomButton}</div>
+          {isB2b && phone ? (
+            <a
+              href={`https://wa.me/${phone.wa}?text=${encodeURIComponent(message)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(buttonVariants({ variant: 'neutral', size: 'touch' }), 'w-full')}
+            >
+              <Megaphone aria-hidden />
+              Trimite anunțul pe WhatsApp
+            </a>
+          ) : null}
+          <Button
+            type="button"
+            variant="quiet"
+            size="touch"
+            className="w-full text-danger-text"
+            onClick={() => {
+              setDeleteError(null)
+              setDeleteOpen(true)
+            }}
+          >
+            <Trash2 aria-hidden />
+            Șterge clientul
+          </Button>
+        </div>
+      </>
+    )
+  } else if (isError) {
+    body = (
+      <Notice
+        tone="danger"
+        title="Clienții nu s-au încărcat"
+        action={
+          <Button type="button" variant="neutral" size="touch" loading={isRefetching} onClick={() => void refetch()}>
+            Reîncearcă
+          </Button>
         }
-      } else {
-        deletedCount += chunk.length
-      }
-
-      setBulkDeleteProgress({ done: Math.min(i + CHUNK, toDelete.length), total: toDelete.length })
-      if (i + CHUNK < toDelete.length) {
-        await new Promise<void>((resolve) => setTimeout(resolve, 50))
-      }
-    }
-
-    queryClient.invalidateQueries({ queryKey: queryKeys.clienti })
-
-    if (failedNames.length) {
-      toast.warning(`${deletedCount} șterși. ${failedNames.length} nu pot fi șterși (au date asociate).`)
-    } else {
-      toast.success(`${deletedCount} clienți șterși.`)
-    }
-
-    setIsDeletingAll(false)
-    setBulkDeleteProgress(null)
-  }
-
-  // ── Computed data ──────────────────────────────────────────────────────────
-
-  const metricsByClient = useMemo(() => {
-    const map: Record<
-      string,
-      {
-        totalRon: number
-        totalKg: number
-        vanzariCount: number
-        unpaidRon: number
-        hasRecentSales: boolean
-        lastVanzare?: { data: string; kg: number; totalRon: number } | null
-        comenziCount: number
-        lastComanda?: { data: string; kg: number; status: string } | null
-      }
-    > = {}
-
-    const now = Date.now()
-    for (const client of clienti) {
-      map[client.id] = {
-        totalRon: 0, totalKg: 0, vanzariCount: 0, unpaidRon: 0,
-        hasRecentSales: false, lastVanzare: null, comenziCount: 0, lastComanda: null,
-      }
-    }
-
-    for (const vanzare of vanzari) {
-      if (!vanzare.client_id || !map[vanzare.client_id]) continue
-      const totalRon = Number(vanzare.cantitate_kg || 0) * Number(vanzare.pret_lei_kg || 0)
-      const entry = map[vanzare.client_id]
-      entry.totalRon += totalRon
-      entry.totalKg += Number(vanzare.cantitate_kg || 0)
-      entry.vanzariCount += 1
-      if (!isIncasata(vanzare.status_plata)) entry.unpaidRon += totalRon
-      const saleDate = new Date(vanzare.data)
-      if (!Number.isNaN(saleDate.getTime())) {
-        const daysDiff = (now - saleDate.getTime()) / (1000 * 60 * 60 * 24)
-        if (daysDiff <= 30) entry.hasRecentSales = true
-      }
-      if (!entry.lastVanzare || vanzare.data > entry.lastVanzare.data) {
-        entry.lastVanzare = { data: vanzare.data, kg: Number(vanzare.cantitate_kg || 0), totalRon }
-      }
-    }
-
-    for (const comanda of comenzi) {
-      if (!comanda.client_id || !map[comanda.client_id]) continue
-      const entry = map[comanda.client_id]
-      entry.comenziCount += 1
-      const date = comanda.data_livrare || comanda.data_comanda
-      if (!entry.lastComanda || date > entry.lastComanda.data) {
-        entry.lastComanda = { data: date, kg: Number(comanda.cantitate_kg || 0), status: comanda.status }
-      }
-    }
-
-    return map
-  }, [clienti, comenzi, vanzari])
-
-  const totalOpenOrders = useMemo(
-    () => comenzi.filter((row) => row.status !== 'livrata' && row.status !== 'anulata').length,
-    [comenzi]
-  )
-
-  const totalUnpaidRon = useMemo(
-    () =>
-      vanzari.reduce((sum, row) => {
-        const value = Number(row.cantitate_kg || 0) * Number(row.pret_lei_kg || 0)
-        return isIncasata(row.status_plata) ? sum : sum + value
-      }, 0),
-    [vanzari]
-  )
-
-  const filteredClienti = useMemo(() => {
-    const term = normalizeText(searchTerm.trim())
-    let rows = clienti
-
-    if (term) {
-      rows = rows.filter((client) =>
-        [client.nume_client, client.telefon, client.email, client.adresa, client.observatii]
-          .filter(Boolean)
-          .some((value) => normalizeText(value).includes(term))
-      )
-    }
-
-    if (showOnlyUnpaid) {
-      rows = rows.filter((client) => (metricsByClient[client.id]?.unpaidRon ?? 0) > 0)
-    }
-
-    return rows
-  }, [clienti, metricsByClient, searchTerm, showOnlyUnpaid])
-
-  const saveWaMessage = async () => {
-    if (!tenantId) {
-      toast.error('Nu am putut identifica ferma curentă.')
-      return
-    }
-
-    setIsSavingWaMessage(true)
-    try {
-      const supabase = getSupabase()
-      const message = waMessageDraft.trim() || DEFAULT_WA_MESSAGE
-      const { error } = await supabase
-        .from('tenant_settings')
-        .upsert(
-          {
-            tenant_id: tenantId,
-            whatsapp_b2b_message: message,
-          },
-          { onConflict: 'tenant_id' },
-        )
-
-      if (error) throw error
-
-      setWaMessage(message)
-      setWaMessageDraft(message)
-      setEditingWaMessage(false)
-      toast.success('Mesaj salvat.')
-    } catch (err: unknown) {
-      const message = (err as { message?: string })?.message ?? 'Nu am putut salva mesajul.'
-      toast.error(message)
-    } finally {
-      setIsSavingWaMessage(false)
-    }
-  }
-
-  const desktopColumns = useMemo<ColumnDef<Client>[]>(() => [
-    {
-      accessorKey: 'nume_client',
-      header: 'Nume',
-      cell: ({ row }) => {
-        const tipBadge = getClientTipBadge(row.original.tip)
-
-        return (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-medium">{row.original.nume_client}</span>
-            {tipBadge ? (
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${tipBadge.className}`}>
-                {tipBadge.label}
-              </span>
-            ) : null}
-          </div>
-        )
-      },
-    },
-    {
-      accessorKey: 'telefon',
-      header: 'Telefon',
-      cell: ({ row }) => row.original.telefon || '-',
-    },
-    {
-      accessorKey: 'email',
-      header: 'Email',
-      cell: ({ row }) => row.original.email || '-',
-    },
-    {
-      id: 'comenziCount',
-      header: 'Nr. comenzi',
-      accessorFn: (row) => metricsByClient[row.id]?.comenziCount ?? 0,
-      cell: ({ row }) => metricsByClient[row.original.id]?.comenziCount ?? 0,
-      meta: {
-        searchValue: (row: Client) => metricsByClient[row.id]?.comenziCount ?? 0,
-        numeric: true,
-      },
-    },
-    {
-      id: 'actions',
-      header: 'Acțiuni',
-      enableSorting: false,
-      cell: ({ row }) => {
-        const whatsappHref =
-          isB2bClient(row.original.tip) && row.original.telefon
-            ? buildClientWhatsappHref(row.original.telefon, waMessage)
-            : null
-
-        return (
-          <div className="flex items-center justify-end gap-1">
-            {whatsappHref ? (
-              <a
-                href={whatsappHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 rounded-lg bg-[var(--whatsapp-green)] px-2 py-1 text-xs font-semibold text-white"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <MessageCircle className="h-3 w-3" />
-                WA
-              </a>
-            ) : null}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-xs"
-              aria-label="Editează clientul"
-              onClick={(event) => {
-                event.stopPropagation()
-                setEditingClient(row.original)
-                setEditOpen(true)
-              }}
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-xs"
-              aria-label="Șterge clientul"
-              onClick={(event) => {
-                event.stopPropagation()
-                setDeletingClient(row.original)
-              }}
-            >
-              <Trash2 className="h-4 w-4 text-[var(--soft-danger-text)]" />
+      >
+        {(error as Error | null)?.message || 'Verifică internetul și încearcă din nou.'}
+      </Notice>
+    )
+  } else if (clienti.length === 0) {
+    body = (
+      <EmptyState
+        icon={<Users />}
+        title="Niciun client încă"
+        description="Adaugă primul client sau importă-i dintr-un fișier."
+        action={
+          <div className="flex w-64 max-w-full flex-col gap-2.5">
+            {addButton}
+            <Button type="button" variant="neutral" size="touch" className="w-full" onClick={() => setImportOpen(true)}>
+              <FileUp aria-hidden />
+              Importă din fișier
             </Button>
           </div>
-        )
-      },
-      meta: {
-        searchable: false,
-        sticky: 'right',
-        headerClassName: 'w-[180px] text-right',
-        cellClassName: 'w-[180px] text-right',
-      },
-    },
-  ], [metricsByClient, waMessage])
+        }
+      />
+    )
+  } else {
+    const shown = visible.slice(0, limit)
+    bottomButton = addButton
+    body = (
+      <>
+        <div className="flex gap-2.5">
+          <BigInput
+            wrapperClassName="min-w-0 flex-1"
+            aria-label="Caută după nume sau telefon"
+            placeholder="Nume sau telefon"
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value)
+              setLimit(LIST_PAGE_SIZE)
+            }}
+            leading={<Search aria-hidden />}
+            autoComplete="off"
+            enterKeyHint="search"
+          />
+          <Button
+            type="button"
+            variant="neutral"
+            size="icon-touch"
+            className="size-14 shrink-0"
+            aria-label="Mai multe: import, Google Contacts, mesajul WhatsApp"
+            onClick={() => setMenuOpen(true)}
+          >
+            <Ellipsis aria-hidden />
+          </Button>
+        </div>
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+        <FilterPills<ClientFilter>
+          aria-label="Ce clienți arăt"
+          value={filter}
+          onValueChange={(next) => {
+            setFilter(next)
+            setLimit(LIST_PAGE_SIZE)
+          }}
+          options={[
+            { value: 'toti', label: 'Toți', count: counts.toti },
+            { value: 'persoane', label: 'Persoane', count: counts.persoane },
+            { value: 'patiserii', label: 'Patiserii', count: counts.patiserii },
+            { value: 'magazine', label: 'Magazine', count: counts.magazine },
+            { value: 'neincasat', label: 'Neîncasat', count: counts.neincasat },
+          ]}
+        />
+
+        <div className="hidden md:block">{addButton}</div>
+
+        {shown.length === 0 ? (
+          <EmptyState icon={<Search />} title="Niciun client găsit" description="Schimbă filtrul sau căutarea." />
+        ) : (
+          <ul className="space-y-2">
+            {shown.map((client) => {
+              const clientMetrics = metricsOf(metrics, client.id)
+              const pretLabel = client.tip !== 'standard' ? clientPretLabel(client) : null
+              const detail = [
+                pretLabel,
+                localitateScurta(client.adresa),
+                clientMetrics.ultimaComanda ? `ultima: ${shortDateRo(clientMetrics.ultimaComanda.data)}` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')
+              return (
+                <li key={client.id}>
+                  <ListRow
+                    avatar={initialsOf(client.nume_client)}
+                    title={client.nume_client}
+                    detail={detail || client.telefon?.trim() || 'Fără detalii'}
+                    onClick={() => setOpenClientId(client.id)}
+                    aria-label={`Deschide fișa: ${client.nume_client}${clientMetrics.neincasatLei > 0 ? `, neîncasat ${formatLei(clientMetrics.neincasatLei)}` : ''}`}
+                    trailing={
+                      clientMetrics.neincasatLei > 0 ? (
+                        <span className="flex flex-col items-end">
+                          <span className={cn('font-extrabold text-warning-text', kitText.secondary)}>
+                            {formatLei(clientMetrics.neincasatLei)}
+                          </span>
+                          <span className={cn('text-fg-muted', kitText.helper)}>neîncasat</span>
+                        </span>
+                      ) : undefined
+                    }
+                  />
+                </li>
+              )
+            })}
+          </ul>
+        )}
+        {visible.length > shown.length ? (
+          <Button type="button" variant="neutral" size="touch" className="w-full" onClick={() => setLimit((value) => value + LIST_PAGE_SIZE)}>
+            Arată încă {Math.min(LIST_PAGE_SIZE, visible.length - shown.length)}
+          </Button>
+        ) : null}
+      </>
+    )
+  }
 
   return (
     <AppShell
       header={
         <PageHeader
           title="Clienți"
-          subtitle="Administrare clienți"
-          contentVariant="centered"
-          expandRightSlotOnMobile={Boolean(googleSync)}
-          rightSlot={
-            <>
-              {googleSync?.enabled ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9 min-w-9 px-2 sm:px-3"
-                  onClick={() => {
-                    void handleSyncGoogle()
-                  }}
-                  disabled={isSyncing}
-                  title={formatGoogleSyncTitle(lastSyncAt)}
-                  aria-label={
-                    isSyncing
-                      ? 'Se sincronizează contactele Google'
-                      : 'Sincronizează contactele Google'
-                  }
-                >
-                  {isSyncing ? (
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                  ) : (
-                    <RefreshCw className="h-4 w-4" aria-hidden />
-                  )}
-                  <span className="ml-2 hidden sm:inline">
-                    {isSyncing ? 'Se sincronizează...' : 'Sincronizează'}
-                  </span>
-                </Button>
-              ) : null}
-              {googleSync && !googleSync.enabled ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9 min-w-9 border-[var(--soft-danger-border)] px-2 text-[var(--soft-danger-text)] sm:px-3"
-                  asChild
-                  title="Sincronizarea Google Contacts necesită reconectare"
-                >
-                  <a href="/api/integrations/google/connect">
-                    <RefreshCw className="h-4 w-4" aria-hidden />
-                    <span className="ml-2 hidden sm:inline">Reconectează Google</span>
-                  </a>
-                </Button>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => {
-                  setWaMessageDraft(waMessage)
-                  setEditingWaMessage(true)
-                }}
-                className="hidden text-xs text-[var(--text-secondary)] underline underline-offset-2 md:inline"
-              >
-                ✏️ Mesaj WA implicit
-              </button>
-              <Users className="hidden h-5 w-5 shrink-0 text-[var(--agri-text-muted)] md:block" aria-hidden />
-            </>
-          }
+          subtitle={`${clienti.length} ${clienti.length === 1 ? 'client' : 'clienți'}`}
+          contentVariant="workspace"
         />
       }
+      bottomBarFixed
+      bottomBar={
+        // Butonul mare ține locul butonului plutitor (+). Loc liber în stânga pentru bula „beta”.
+        bottomButton ? (
+          <div className="mx-auto w-full max-w-md pl-18 pr-4">
+            <div className="rounded-box shadow-2">{bottomButton}</div>
+          </div>
+        ) : undefined
+      }
     >
-      <DashboardContentShell variant="centered" className="mt-2 space-y-3 py-3 sm:mt-0 sm:py-3">
-        <input ref={csvInputRef} type="file" accept=".csv,.xlsx,.xls,text/csv" className="hidden" onChange={handleFileSelect} />
+      <div className="mx-auto w-full max-w-xl space-y-4 pt-3">{body}</div>
 
-        <ModuleScoreboard tone="tinted" className="gap-x-3.5 gap-y-1">
-          <span className="text-[15px] font-bold text-[var(--pill-active-text)]">{clienti.length} clienți</span>
-          {totalOpenOrders > 0 ? (
-            <>
-              <span className="text-[color-mix(in_srgb,var(--pill-active-text)_25%,transparent)]">·</span>
-              <span className="text-[13px] text-[color-mix(in_srgb,var(--pill-active-text)_72%,transparent)]">
-                {totalOpenOrders} comenzi deschise
-              </span>
-            </>
-          ) : null}
-          {totalUnpaidRon > 0 ? (
-            <>
-              <span className="text-[color-mix(in_srgb,var(--pill-active-text)_25%,transparent)]">·</span>
-              <span className="text-[13px] font-semibold text-[var(--status-danger-text)]">
-                {totalUnpaidRon.toFixed(0)} RON neîncasat
-              </span>
-            </>
-          ) : null}
-        </ModuleScoreboard>
+      <ClientStepForm open={formOpen} onOpenChange={setFormOpen} clienti={clienti} editing={editing} prefill={prefill} />
 
-        <div className="flex flex-col gap-2">
-          <SearchField
-            containerClassName="md:hidden"
-            placeholder="Caută după nume, telefon sau email"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            aria-label="Caută clienți"
-          />
-          <ModulePillRow className="gap-2">
-            <ModulePillFilterButton active={!showOnlyUnpaid} onClick={() => setShowOnlyUnpaid(false)}>
-              Toți
-            </ModulePillFilterButton>
-            <ModulePillFilterButton
-              active={showOnlyUnpaid}
-              activeTone="danger"
-              onClick={() => setShowOnlyUnpaid(true)}
-            >
-              💸 Neîncasat
-            </ModulePillFilterButton>
-          </ModulePillRow>
-        </div>
-
-        {/* Import buttons */}
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          <Button type="button" variant="outline" className="h-11" disabled={importingCsv || isDeletingAll} onClick={() => csvInputRef.current?.click()}>
-            {importProgress?.phase === 'insert'
-              ? `Import ${importProgress.done}/${importProgress.total}...`
-              : importProgress?.phase === 'ids'
-                ? `Pregătire ${importProgress.done}/${importProgress.total}...`
-                : importingCsv
-                  ? 'Se importă...'
-                  : 'Importă din fișier'}
-          </Button>
-          <Button type="button" variant="outline" className="h-11" onClick={() => setDialogOpen(true)} disabled={isDeletingAll}>
-            Client nou
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="col-span-2 h-11 border-[var(--status-danger-border)] text-[var(--status-danger-text)] hover:bg-[var(--status-danger-bg)] sm:col-span-1"
-            disabled={clienti.length === 0 || isDeletingAll || importingCsv}
-            onClick={() => setBulkDeleteOpen(true)}
-          >
-            <Trash2 className="h-4 w-4" />
-            {bulkDeleteProgress
-              ? `Se șterge... ${bulkDeleteProgress.done}/${bulkDeleteProgress.total}`
-              : isDeletingAll
-                ? 'Se șterge...'
-                : 'Șterge toți'}
-          </Button>
-        </div>
-
-        <p className="text-xs text-[var(--agri-text-muted)]">
-          Acceptă fișiere CSV sau Excel (.xlsx).{' '}
-          <button
-            type="button"
-            className="inline text-[var(--agri-primary)] underline-offset-2 hover:underline"
-            onClick={() => setImportHelpOpen(true)}
-          >
-            ℹ️ Cum trebuie să arate fișierul?
-          </button>
-        </p>
-
-        {/* Import preview */}
-        {importPreview && (
-          <div className="space-y-3 rounded-xl border border-[var(--soft-success-border)] bg-[var(--soft-success-bg)] p-4">
-            <div className="space-y-1">
-              <p className="text-sm font-semibold text-[var(--soft-success-text)]">
-                {importPreview.totalParsed} contacte găsite
-                {importPreview.skippedNoName > 0
-                  ? `, ${importPreview.rows.length} cu nume valid, ${importPreview.skippedNoName} fără nume (vor fi sărite)`
-                  : `, ${importPreview.rows.length} cu nume valid`}
-              </p>
-              {!importPreview.hasPhoneColumn && (
-                <p className="text-xs font-medium text-[var(--soft-warning-text)]">⚠️ Nu s-a detectat coloana de telefon</p>
-              )}
-              {importPreview.formulaFixCount > 0 && (
-                <p className="text-xs font-medium text-[var(--soft-info-text)]">
-                  ℹ️ {importPreview.formulaFixCount} {importPreview.formulaFixCount === 1 ? 'contact are' : 'contacte au'} nume din formulă .xlsx — s-a folosit coloana &ldquo;First Name&rdquo;
-                </p>
-              )}
-            </div>
-            {importPreview.mappingSummary.length > 0 && (
-              <div className="space-y-0.5">
-                <p className="text-xs font-medium uppercase tracking-wide text-[var(--soft-success-text)]">Coloane detectate</p>
-                {importPreview.mappingSummary.map((line) => (
-                  <p key={line} className="text-xs text-[var(--soft-success-text)]">{line}</p>
-                ))}
-              </div>
-            )}
-            {importPreview.unmappedColumns.length > 0 && (
-              <div className="space-y-0.5">
-                <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-tertiary)]">Coloane nerecunoscute (ignorate)</p>
-                <p className="text-xs text-[var(--text-tertiary)]">{importPreview.unmappedColumns.join(', ')}</p>
-              </div>
-            )}
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium uppercase tracking-wide text-[var(--soft-success-text)]">Primele rânduri</p>
-              {importPreview.rows.slice(0, 5).map((row, i) => (
-                <div key={i} className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-[var(--agri-text)]">
-                  <span className="font-semibold">{row.nume_client}</span>
-                  {row.telefon ? <span className="text-[var(--agri-text-muted)]">{row.telefon}</span> : null}
-                  {row.email ? <span className="text-[var(--agri-text-muted)]">{row.email}</span> : null}
-                  {row.adresa ? <span className="text-[var(--agri-text-muted)]">{row.adresa}</span> : null}
-                </div>
-              ))}
-              {importPreview.rows.length > 5 ? (
-                <p className="text-xs text-[var(--agri-text-muted)]">...și încă {importPreview.rows.length - 5} contacte</p>
-              ) : null}
-            </div>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                className="bg-[var(--cta-recoltare-bg)] text-white hover:opacity-90"
-                onClick={handleConfirmImport}
-                disabled={importingCsv || !importPreview.rows.length}
-              >
-                {importProgress
-                  ? importProgress.phase === 'ids'
-                    ? `Pregătire ${importProgress.done}/${importProgress.total}...`
-                    : `Import ${importProgress.done}/${importProgress.total}...`
-                  : importingCsv
-                    ? 'Se importă...'
-                    : `Importă ${importPreview.rows.length} contacte`}
-              </Button>
-              <Button type="button" size="sm" variant="outline" onClick={() => setImportPreview(null)} disabled={importingCsv}>
-                Anulează
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Error */}
-        {isError ? (
-          <ErrorState
-            title="Eroare la încărcare"
-            message={(error as Error).message}
-            onRetry={() => queryClient.invalidateQueries({ queryKey: queryKeys.clienti })}
-          />
-        ) : null}
-
-        {/* Loading skeleton */}
-        {isLoading ? <EntityListSkeleton /> : null}
-
-        {!isLoading && !isError && filteredClienti.length === 0 ? (
-          <ModuleEmptyCard emoji="🤝" title="Niciun client adăugat" hint="Adaugă primul client pentru a începe" />
-        ) : null}
-
-        {/* Cards */}
-        {!isLoading && !isError && filteredClienti.length > 0 ? (
-          <ResponsiveDataView
-            columns={desktopColumns}
-            data={filteredClienti}
-            getRowId={(row) => row.id}
-            searchPlaceholder="Caută în clienți..."
-            emptyMessage="Nu am găsit clienți pentru filtrele curente."
-            renderCard={(client) => {
-              const metrics = metricsByClient[client.id]
-              return (
-                <ClientCardNew
-                  client={client}
-                  metrics={{
-                    totalRon: metrics?.totalRon ?? 0,
-                    vanzariCount: metrics?.vanzariCount ?? 0,
-                    unpaidRon: metrics?.unpaidRon ?? 0,
-                    comenziCount: metrics?.comenziCount ?? 0,
-                  }}
-                  waMessage={waMessage}
-                  onEdit={() => {
-                    setEditingClient(client)
-                    setEditOpen(true)
-                  }}
+      <BottomSheet open={menuOpen} onOpenChange={setMenuOpen} title="Mai multe">
+        <ul className="space-y-2">
+          <li>
+            <ListRow
+              avatar={false}
+              leading={<MenuIcon><FileUp aria-hidden /></MenuIcon>}
+              title="Importă din fișier"
+              detail="Excel sau CSV, inclusiv exportul din Google Contacts"
+              onClick={() => {
+                // O foaie se închide înainte să se deschidă alta.
+                setMenuOpen(false)
+                setImportOpen(true)
+              }}
+            />
+          </li>
+          {googleSync ? (
+            <li>
+              {googleSync.enabled ? (
+                <ListRow
+                  avatar={false}
+                  leading={<MenuIcon><RefreshCw aria-hidden className={syncing ? 'animate-spin' : undefined} /></MenuIcon>}
+                  title={syncing ? 'Se sincronizează…' : 'Sincronizează cu Google Contacts'}
+                  detail={formatGoogleSync(lastSyncAt)}
+                  disabled={syncing}
+                  chevron={false}
+                  onClick={() => void syncGoogle()}
                 />
-              )
-            }}
-          />
-        ) : null}
-      </DashboardContentShell>
-
-      {/* Dialogs */}
-      <AddClientDialog
-        open={dialogOpen}
-        onOpenChange={(open) => {
-          setDialogOpen(open)
-          if (!open) setAddClientInitialValues(null)
-        }}
-        initialValues={addClientInitialValues ?? undefined}
-        onSubmit={async (data) => {
-          await createMutation.mutateAsync({
-            input: {
-              nume_client: data.nume_client,
-              tip: normalizeClientTip(data.tip),
-              telefon: data.telefon || null,
-              email: data.email || null,
-              adresa: data.adresa || null,
-              pret_negociat_lei_kg: data.pret_negociat_lei_kg ? Number(data.pret_negociat_lei_kg) : null,
-              observatii: data.observatii || null,
-            },
-            onDuplicateWarning: (existing) => {
-              toast.warning(`Un client cu un nume similar există deja: ${existing.nume_client}. Continui.`)
-            },
-          })
-        }}
-      />
-
-      <EditClientDialog
-        client={editingClient}
-        open={editOpen}
-        onOpenChange={(open) => {
-          setEditOpen(open)
-          if (!open) setEditingClient(null)
-        }}
-        onSubmit={async (id, data) => {
-          await updateMutation.mutateAsync({
-            id,
-            payload: {
-              nume_client: data.nume_client,
-              tip: normalizeClientTip(data.tip),
-              telefon: data.telefon || null,
-              email: data.email || null,
-              adresa: data.adresa || null,
-              pret_negociat_lei_kg: data.pret_negociat_lei_kg ? Number(data.pret_negociat_lei_kg) : null,
-              observatii: data.observatii || null,
-            },
-          })
-        }}
-      />
-
-      <ConfirmDeleteDialog
-        open={Boolean(deletingClient)}
-        onOpenChange={(open) => {
-          if (!open) setDeletingClient(null)
-        }}
-        itemType="Client"
-        itemName={deletingClient?.nume_client}
-        description={`Ștergi clientul ${deletingClient?.nume_client || 'selectat'}?`}
-        loading={deleteMutation.isPending}
-        onConfirm={() => {
-          if (!deletingClient) return
-          scheduleDelete(deletingClient)
-          setDeletingClient(null)
-        }}
-      />
-
-      <AppDialog
-        open={editingWaMessage}
-        onOpenChange={(open) => {
-          setEditingWaMessage(open)
-          if (!open) setWaMessageDraft(waMessage)
-        }}
-        title="Mesaj WhatsApp implicit"
-        footer={
-          <div className="flex w-full gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1"
-              onClick={() => setEditingWaMessage(false)}
-              disabled={isSavingWaMessage}
-            >
-              Anulează
-            </Button>
-            <Button
-              type="button"
-              className="flex-1 bg-[var(--agri-primary)] text-white"
-              onClick={() => { void saveWaMessage() }}
-              disabled={isSavingWaMessage}
-            >
-              {isSavingWaMessage ? 'Se salvează...' : 'Salvează'}
-            </Button>
-          </div>
-        }
-      >
-        <div className="space-y-3">
-          <p className="text-sm text-[var(--text-secondary)]">
-            Mesajul este folosit pentru butonul WhatsApp afișat clienților de tip patiserie și magazin.
-          </p>
-          <Textarea
-            value={waMessageDraft}
-            onChange={(event) => setWaMessageDraft(event.target.value)}
-            rows={4}
-            className="w-full rounded-xl border border-[var(--divider)] bg-[var(--surface-card)] p-3 text-sm"
-          />
-        </div>
-      </AppDialog>
-
-      <AppDialog
-        open={importHelpOpen}
-        onOpenChange={setImportHelpOpen}
-        title="Format fișier import clienți"
-        footer={
-          <Button
-            type="button"
-            variant="outline"
-            className="gap-2"
-            onClick={() => { void downloadImportTemplate() }}
-          >
-            ⬇️ Descarcă model .xlsx
-          </Button>
-        }
-      >
-        <div className="space-y-4 text-sm text-[var(--agri-text-muted)]">
-          <p>
-            Poți încărca clienți dintr-un fișier <strong className="text-[var(--agri-text)]">.xlsx</strong> sau{' '}
-            <strong className="text-[var(--agri-text)]">CSV</strong>.
-          </p>
-          <p>
-            Fișierul trebuie să aibă un <strong className="text-[var(--agri-text)]">rând de antet</strong> (header)
-            pe prima linie cu numele coloanelor.
-          </p>
-          <div className="space-y-2">
-            <p className="font-medium text-[var(--agri-text)]">Coloane recunoscute:</p>
-            <ul className="space-y-1.5 pl-1">
-              {[
-                { field: 'Nume client (obligatoriu)', aliases: 'Display Name, Name, Nume, Nume client' },
-                { field: 'Telefon', aliases: 'Phone, Phone 1 - Value, Telefon, Tel, Mobil, Nr telefon' },
-                { field: 'Email', aliases: 'Email, E-mail' },
-                { field: 'Adresă', aliases: 'Adresa, Address, Localitate, City, Delivery Location' },
-                { field: 'Observații', aliases: 'Observatii, Notes, Note' },
-              ].map(({ field, aliases }) => (
-                <li key={field} className="flex flex-col gap-0.5">
-                  <span className="font-medium text-[var(--agri-text)]">{field}</span>
-                  <span className="text-xs text-[var(--agri-text-muted)]">acceptă: {aliases}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="space-y-2">
-            <p className="font-medium text-[var(--agri-text)]">Exemplu:</p>
-            <div className="overflow-hidden rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)]">
-              <Table className="text-xs">
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    {['Nume client', 'Telefon', 'Email', 'Adresă'].map((h) => (
-                      <TableHead key={h}>{h}</TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow>
-                    <TableCell className="text-xs text-[var(--agri-text)]">Ion Popescu</TableCell>
-                    <TableCell className="text-xs text-[var(--agri-text)]">0745123456</TableCell>
-                    <TableCell className="text-xs text-[var(--agri-text)]">ion@email.com</TableCell>
-                    <TableCell className="text-xs text-[var(--agri-text)]">Suceava</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="text-xs text-[var(--agri-text)]">Maria Ionescu</TableCell>
-                    <TableCell className="text-xs text-[var(--agri-text)]">0722334455</TableCell>
-                    <TableCell className="text-xs text-[var(--agri-text-muted)]">—</TableCell>
-                    <TableCell className="text-xs text-[var(--agri-text)]">Fălticeni</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-          <p className="rounded-lg bg-[var(--agri-surface-muted)] px-3 py-2 text-xs">
-            Fișierele exportate din <strong className="text-[var(--agri-text)]">Google Contacts</strong> sau din{' '}
-            <strong className="text-[var(--agri-text)]">agenda telefonului</strong> sunt recunoscute automat.
-          </p>
-        </div>
-      </AppDialog>
-
-      <AppDialog
-        open={Boolean(importResult)}
-        onOpenChange={(open) => {
-          if (!open) { setImportResult(null); setShowFailedRows(false) }
-        }}
-        title="Import finalizat!"
-        footer={
-          <Button type="button" onClick={() => { setImportResult(null); setShowFailedRows(false) }}>
-            OK
-          </Button>
-        }
-      >
-        {importResult && (
-          <div className="space-y-3 text-sm">
-            <div className="space-y-2">
-              <p className="flex items-center gap-2 text-[var(--status-success-text)]">
-                <span className="text-base">✅</span>
-                <span><strong>{importResult.imported}</strong> clienți importați</span>
-              </p>
-              {importResult.skippedNoName > 0 && (
-                <p className="flex items-center gap-2 text-[var(--text-secondary)]">
-                  <span className="text-base">⏭️</span>
-                  <span><strong>{importResult.skippedNoName}</strong> fără nume — săriți</span>
-                </p>
-              )}
-              {importResult.skippedDuplicate > 0 && (
-                <p className="flex items-center gap-2 text-[var(--text-secondary)]">
-                  <span className="text-base">⏭️</span>
-                  <span><strong>{importResult.skippedDuplicate}</strong> {importResult.skippedDuplicate === 1 ? 'duplicat' : 'duplicate'} — sărite</span>
-                </p>
-              )}
-              {importResult.failed > 0 && (
-                <p className="flex items-center gap-2 text-[var(--status-danger-text)]">
-                  <span className="text-base">❌</span>
-                  <span><strong>{importResult.failed}</strong> erori</span>
-                </p>
-              )}
-            </div>
-            {importResult.failed > 0 && (
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  className="text-xs text-[var(--agri-primary)] underline-offset-2 hover:underline"
-                  onClick={() => setShowFailedRows((v) => !v)}
+              ) : (
+                <a
+                  href="/api/integrations/google/connect"
+                  className={cn(buttonVariants({ variant: 'neutral', size: 'touch-lg' }), 'w-full justify-start')}
                 >
-                  {showFailedRows ? 'Ascunde detalii' : 'Vezi detalii erori'}
-                </button>
-                {showFailedRows && (
-                  <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg bg-[var(--status-danger-bg)] p-3 text-xs text-[var(--status-danger-text)]">
-                    {importResult.failedRows.map((r, i) => (
-                      <p key={i}><strong>{r.name}</strong>: {r.error}</p>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </AppDialog>
+                  <RefreshCw aria-hidden />
+                  Reconectează Google Contacts
+                </a>
+              )}
+            </li>
+          ) : null}
+          <li>
+            <ListRow
+              avatar={false}
+              leading={<MenuIcon><Megaphone aria-hidden /></MenuIcon>}
+              title="Mesajul WhatsApp implicit"
+              detail="Anunțul pentru patiserii și magazine"
+              onClick={() => {
+                setMenuOpen(false)
+                setWaOpen(true)
+              }}
+            />
+          </li>
+        </ul>
+        <p className={cn('mt-4 px-1 text-fg-muted', kitText.helper)}>
+          „Șterge toți clienții” s-a mutat în Setări › Date.
+        </p>
+      </BottomSheet>
 
-      <ConfirmDeleteDialog
-        open={bulkDeleteOpen}
-        onOpenChange={(open) => {
-          if (!isDeletingAll) setBulkDeleteOpen(open)
-        }}
-        title="Ștergi toți clienții?"
-        description={`Ești sigur că vrei să ștergi toți cei ${clienti.length} clienți? Acțiunea nu poate fi anulată.`}
-        confirmText="Șterge toți"
-        loading={isDeletingAll}
-        onConfirm={handleBulkDelete}
-      />
+      <ImportClientiSheet open={importOpen} onOpenChange={setImportOpen} />
+      <WhatsappMessageSheet open={waOpen} onOpenChange={setWaOpen} message={message} onSaved={setWaMessage} />
+
+      <BottomSheet
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Ștergi clientul?"
+        description={openClient?.nume_client}
+      >
+        <div className="space-y-4">
+          {deleteError ? (
+            <Notice tone="danger" title="Clientul nu s-a șters">
+              {deleteError}
+            </Notice>
+          ) : (
+            <p className={cn('text-fg', kitText.base)}>
+              Un client cu comenzi sau vânzări nu poate fi șters: istoricul lui rămâne.
+            </p>
+          )}
+          <Button type="button" variant="danger" size="touch-lg" className="w-full" loading={deleting} onClick={() => void confirmDelete()}>
+            Șterge clientul
+          </Button>
+          <Button type="button" variant="neutral" size="touch-lg" className="w-full" onClick={() => setDeleteOpen(false)}>
+            Renunță
+          </Button>
+        </div>
+      </BottomSheet>
     </AppShell>
   )
 }
 
-
+function MenuIcon({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-surface-muted text-fg [&_svg]:size-5">
+      {children}
+    </span>
+  )
+}

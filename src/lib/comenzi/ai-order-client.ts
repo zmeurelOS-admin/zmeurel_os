@@ -1,4 +1,4 @@
-import { clientSchema } from '@/components/clienti/ClientForm'
+import { clientSchema } from '@/lib/clienti/schema'
 import { normalizeRomanianMobilePhone, ROMANIAN_PHONE_ERROR } from '@/lib/shop/phone'
 import type { Client, ClientTip, CreateClientInput } from '@/lib/supabase/queries/clienti'
 
