@@ -145,7 +145,7 @@ export function ActionCard({
                   disabled={item.disabled}
                   aria-describedby={item.disabled && item.disabledReason ? reasonId : undefined}
                   onClick={item.onClick}
-                  className="min-w-0 px-3"
+                  className={cn('min-w-0 gap-1.5 px-2 has-[>svg]:px-2', kitText.secondary)}
                 >
                   {item.icon}
                   <span className="truncate">{item.label}</span>

@@ -124,9 +124,9 @@ export interface TileProps {
   value?: string
   title: ReactNode
   subtitle?: ReactNode
-  /** Insignă în colțul din dreapta sus (ex. „✓ azi 35 kg”). */
+  /** Insignă pe ultimul rând al plăcii (ex. „✓ azi 35 kg”). */
   badge?: ReactNode
-  /** Inițială sau iconiță într-un cerc, în stânga sus. */
+  /** Inițială sau iconiță într-un cerc, deasupra titlului. */
   leading?: ReactNode
   /** `lg` = placă înaltă, pe mai multe rânduri; `sm` = placă scurtă, pe un rând (cantitate, dată). */
   size?: 'lg' | 'sm'
@@ -176,7 +176,7 @@ export function Tile({
         'relative flex w-full rounded-box border-2 transition-transform active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45 disabled:active:scale-100',
         kitFocus,
         size === 'lg'
-          ? 'min-h-[88px] flex-col items-start justify-between gap-2 p-4 text-left'
+          ? 'min-h-[88px] flex-col items-start gap-2 p-4 text-left'
           : 'min-h-touch-lg flex-col items-center justify-center gap-0.5 px-2 py-2 text-center',
         selected
           ? 'border-primary bg-primary text-primary-contrast'
@@ -186,32 +186,16 @@ export function Tile({
         className,
       )}
     >
-      {leading || badge ? (
-        <span className="flex w-full items-start justify-between gap-2">
-          {leading ? (
-            <span
-              className={cn(
-                'flex size-11 shrink-0 items-center justify-center rounded-full font-extrabold [&_svg]:size-5',
-                kitText.base,
-                selected ? 'bg-primary-contrast/20' : 'bg-surface-muted text-fg',
-              )}
-              aria-hidden
-            >
-              {leading}
-            </span>
-          ) : (
-            <span />
+      {leading ? (
+        <span
+          className={cn(
+            'flex size-11 shrink-0 items-center justify-center rounded-full font-extrabold [&_svg]:size-5',
+            kitText.base,
+            selected ? 'bg-primary-contrast/20' : 'bg-surface-muted text-fg',
           )}
-          {badge ? (
-            <span
-              className={cn(
-                'inline-flex min-h-7 items-center rounded-control bg-success-bg px-2 font-bold text-success-text',
-                kitText.secondary,
-              )}
-            >
-              {badge}
-            </span>
-          ) : null}
+          aria-hidden
+        >
+          {leading}
         </span>
       ) : null}
       <span className={cn('flex min-w-0 max-w-full flex-col', size === 'sm' && 'items-center')}>
@@ -222,6 +206,16 @@ export function Tile({
           </span>
         ) : null}
       </span>
+      {badge ? (
+        <span
+          className={cn(
+            'mt-auto inline-flex min-h-7 max-w-full items-center rounded-control bg-success-bg px-2 font-bold text-success-text',
+            kitText.secondary,
+          )}
+        >
+          <span className="truncate">{badge}</span>
+        </span>
+      ) : null}
     </button>
   )
 }

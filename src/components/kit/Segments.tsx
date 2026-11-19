@@ -69,7 +69,7 @@ export function Segments<T extends string = string>({
             tabIndex={selected ? 0 : -1}
             onClick={() => onValueChange(option.value)}
             className={cn(
-              'flex h-touch min-w-0 items-center justify-center gap-1.5 rounded-control px-2 font-bold',
+              'flex h-touch min-w-0 items-center justify-center gap-1 rounded-control px-1 font-bold',
               kitText.secondary,
               kitFocus,
               selected ? 'bg-surface text-fg shadow-1' : 'text-fg-muted',

@@ -6,7 +6,9 @@ import { cn } from '@/lib/utils'
 import { kitFocus, kitText } from './text'
 
 export interface ListRowProps {
+  /** Pe un singur rând; ce nu încape se taie cu „…”. */
   title: ReactNode
+  /** Cel mult două rânduri (o adresă trebuie să se poată citi). */
   detail?: ReactNode
   /**
    * Conținutul cercului din stânga. Implicit: inițiala titlului (când titlul e text).
@@ -59,7 +61,7 @@ export function ListRow({
         ) : null)}
       <span className="flex min-w-0 flex-1 flex-col">
         <span className={cn('truncate font-bold text-fg', kitText.base)}>{title}</span>
-        {detail ? <span className={cn('truncate text-fg-muted', kitText.secondary)}>{detail}</span> : null}
+        {detail ? <span className={cn('line-clamp-2 text-fg-muted', kitText.secondary)}>{detail}</span> : null}
       </span>
       {trailing ? <span className="flex shrink-0 items-center gap-2">{trailing}</span> : null}
       {showChevron ? <ChevronRight className="size-5 shrink-0 text-fg-muted" aria-hidden /> : null}
