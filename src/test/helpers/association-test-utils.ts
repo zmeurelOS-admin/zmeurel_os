@@ -70,6 +70,7 @@ export function mockAssociationOrder(overrides?: Partial<ComandaRow>): ComandaRo
     tenant_id: ASSOCIATION_TEST_IDS.tenantId,
     cantitate_kg: 5,
     pret_per_kg: 25,
+    prioritara: false,
     total: 125,
     status: 'noua',
     data_comanda: ISO.split('T')[0]!,

@@ -1,5 +1,6 @@
 import { getSupabase } from '../client'
 import { getTenantId } from '@/lib/tenant/get-tenant'
+import { loadSchemaFeaturesSafe } from '@/lib/schema-features'
 import { getSellableCal1StockSummary } from './miscari-stoc'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/supabase'
 import { type Vanzare } from './vanzari'
@@ -55,9 +56,16 @@ export interface Comanda {
   client_nume?: string | null
   /** Poziție manuală în traseul de livrare (drag-and-drop din /livrari); null = ordine FIFO. */
   ordine_livrare?: number | null
+  /**
+   * Se livrează cu prioritate. `false` și cât coloana nu există în baza de date
+   * (migrarea `20261120090000_redesign_noapte.sql`; vezi `lib/schema-features`).
+   */
+  prioritara?: boolean
 }
 
 export interface CreateComandaInput {
+  /** Se trimite doar dacă există coloana. */
+  prioritara?: boolean
   client_id?: string | null
   client_nume_manual?: string | null
   telefon?: string | null
@@ -72,6 +80,8 @@ export interface CreateComandaInput {
 }
 
 export interface UpdateComandaInput {
+  /** Se trimite doar dacă există coloana. */
+  prioritara?: boolean
   client_id?: string | null
   client_nume_manual?: string | null
   telefon?: string | null
@@ -147,7 +157,7 @@ type ComandaUpdateCompat = Omit<TablesUpdate<'comenzi'>, 'data_livrare'> & {
   order_kind?: string
 }
 
-const COMANDA_SELECT_FIELDS: string = `
+const COMANDA_BASE_SELECT_FIELDS: string = `
   id,
   tenant_id,
   client_id,
@@ -183,6 +193,17 @@ const COMANDA_SELECT_FIELDS: string = `
     shop_order_id
   )
 `
+
+/**
+ * Coloanele cerute la citire. `prioritara` se cere doar dacă există: altfel PostgREST respinge tot `select`-ul.
+ */
+async function resolveComandaSelect(): Promise<{ fields: string; hasPrioritara: boolean }> {
+  const { comenziPrioritara } = await loadSchemaFeaturesSafe()
+  return {
+    fields: comenziPrioritara ? `prioritara,${COMANDA_BASE_SELECT_FIELDS}` : COMANDA_BASE_SELECT_FIELDS,
+    hasPrioritara: comenziPrioritara,
+  }
+}
 
 type ComenziRpcClient = ReturnType<typeof getSupabase> & {
   rpc: {
@@ -325,6 +346,7 @@ function mapComanda(row: ComandaQueryRow): Comanda {
     data_origin: row.data_origin ?? null,
     dup_phone_warning: row.dup_phone_warning ?? null,
     last_call_status: row.last_call_status === 'no_answer' ? 'no_answer' : null,
+    prioritara: row.prioritara === true,
     client_nume: row.clienti?.nume_client ?? null,
     ordine_livrare: row.ordine_livrare ?? null,
   }
@@ -365,9 +387,10 @@ async function selectComandaRowById(
   id: string,
   tenantId: string,
 ): Promise<ComandaQueryRow> {
+  const { fields } = await resolveComandaSelect()
   const { data, error } = await supabase
     .from('comenzi')
-    .select(COMANDA_SELECT_FIELDS)
+    .select(fields)
     .eq('id', id)
     .eq('tenant_id', tenantId)
     .single()
@@ -389,9 +412,10 @@ export async function getComenzi(
   const tenantId = await getTenantId(supabase)
   const includeAssociation =
     typeof includeAssociationOrContext === 'boolean' ? includeAssociationOrContext : false
+  const { fields } = await resolveComandaSelect()
   let query = supabase
     .from('comenzi')
-    .select(COMANDA_SELECT_FIELDS)
+    .select(fields)
     .eq('tenant_id', tenantId)
 
   // Păstrăm comenzile legacy/manuale fără `data_origin`, dar ascundem cele venite
@@ -415,7 +439,10 @@ export async function createComanda(input: CreateComandaInput): Promise<Comanda>
   const {
     data: { user },
   } = await supabase.auth.getUser()
+  const { fields, hasPrioritara } = await resolveComandaSelect()
   const payload: ComandaInsertCompat = {
+    // Coloana nouă pleacă spre server doar dacă există (altfel PostgREST respinge toată cererea).
+    ...(hasPrioritara && input.prioritara !== undefined ? { prioritara: input.prioritara } : {}),
     tenant_id: tenantId,
     client_id: input.client_id ?? null,
     client_nume_manual: input.client_nume_manual?.trim() || null,
@@ -437,7 +464,7 @@ export async function createComanda(input: CreateComandaInput): Promise<Comanda>
   const { data, error } = await supabase
     .from('comenzi')
     .insert(payload as TablesInsert<'comenzi'>)
-    .select(COMANDA_SELECT_FIELDS)
+    .select(fields)
     .single()
 
   if (error) throw toReadableError(error, 'Nu am putut salva comanda.')
@@ -476,8 +503,10 @@ export async function updateComanda(id: string, input: UpdateComandaInput): Prom
 
   const current = await selectComandaRowById(supabase, id, tenantId)
   const shouldSetInDelivery = input.status === 'in_livrare'
+  const { hasPrioritara } = await resolveComandaSelect()
 
   const payload: ComandaUpdateCompat = {
+    ...(hasPrioritara && input.prioritara !== undefined ? { prioritara: input.prioritara } : {}),
     ...(input.client_id !== undefined ? { client_id: input.client_id ?? null } : {}),
     ...(input.client_nume_manual !== undefined ? { client_nume_manual: input.client_nume_manual?.trim() || null } : {}),
     ...(input.telefon !== undefined ? { telefon: input.telefon?.trim() || null } : {}),
@@ -754,9 +783,10 @@ export async function getKgAngajatInLivrare(): Promise<number> {
 export async function fetchComenziManualInLivrare(): Promise<Comanda[]> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
+  const { fields } = await resolveComandaSelect()
   const { data, error } = await supabase
     .from('comenzi')
-    .select(COMANDA_SELECT_FIELDS)
+    .select(fields)
     .eq('tenant_id', tenantId)
     .eq('status', 'in_livrare')
     .or('data_origin.is.null,data_origin.not.in.(shop_order_bridge,magazin_asociatie)')

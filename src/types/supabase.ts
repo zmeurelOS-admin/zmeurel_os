@@ -1066,6 +1066,10 @@ export type Database = {
           google_resource_name: string | null
           id: string
           id_client: string
+          latitudine: number | null
+          locatie_precizie_m: number | null
+          locatie_salvata_la: string | null
+          longitudine: number | null
           nume_client: string
           observatii: string | null
           pret_negociat_lei_kg: number | null
@@ -1086,6 +1090,10 @@ export type Database = {
           google_resource_name?: string | null
           id?: string
           id_client: string
+          latitudine?: number | null
+          locatie_precizie_m?: number | null
+          locatie_salvata_la?: string | null
+          longitudine?: number | null
           nume_client: string
           observatii?: string | null
           pret_negociat_lei_kg?: number | null
@@ -1106,6 +1114,10 @@ export type Database = {
           google_resource_name?: string | null
           id?: string
           id_client?: string
+          latitudine?: number | null
+          locatie_precizie_m?: number | null
+          locatie_salvata_la?: string | null
+          longitudine?: number | null
           nume_client?: string
           observatii?: string | null
           pret_negociat_lei_kg?: number | null
@@ -1204,6 +1216,7 @@ export type Database = {
           order_kind: string
           parent_comanda_id: string | null
           pret_per_kg: number
+          prioritara: boolean | null
           produs_id: string | null
           status: string
           stock_deducted: boolean
@@ -1239,6 +1252,7 @@ export type Database = {
           order_kind?: string
           parent_comanda_id?: string | null
           pret_per_kg: number
+          prioritara?: boolean | null
           produs_id?: string | null
           status?: string
           stock_deducted?: boolean
@@ -1274,6 +1288,7 @@ export type Database = {
           order_kind?: string
           parent_comanda_id?: string | null
           pret_per_kg?: number
+          prioritara?: boolean | null
           produs_id?: string | null
           status?: string
           stock_deducted?: boolean
@@ -4143,25 +4158,52 @@ export type Database = {
       tenant_settings: {
         Row: {
           created_at: string | null
+          acasa_extrasezon_afiseaza: Json | null
+          acasa_perioada_mod: string | null
+          extrasezon_amanat_pana: string | null
+          extrasezon_inceput_la: string | null
+          extrasezon_intrebare_din: string | null
           id: string
           latitudine_default: number | null
           longitudine_default: number | null
+          pret_standard_inceput_lei_kg: number | null
+          pret_standard_mediu_lei_kg: number | null
+          pret_standard_perioada: string | null
+          pret_standard_varf_lei_kg: number | null
           tenant_id: string
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
+          acasa_extrasezon_afiseaza?: Json | null
+          acasa_perioada_mod?: string | null
+          extrasezon_amanat_pana?: string | null
+          extrasezon_inceput_la?: string | null
+          extrasezon_intrebare_din?: string | null
           id?: string
           latitudine_default?: number | null
           longitudine_default?: number | null
+          pret_standard_inceput_lei_kg?: number | null
+          pret_standard_mediu_lei_kg?: number | null
+          pret_standard_perioada?: string | null
+          pret_standard_varf_lei_kg?: number | null
           tenant_id: string
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
+          acasa_extrasezon_afiseaza?: Json | null
+          acasa_perioada_mod?: string | null
+          extrasezon_amanat_pana?: string | null
+          extrasezon_inceput_la?: string | null
+          extrasezon_intrebare_din?: string | null
           id?: string
           latitudine_default?: number | null
           longitudine_default?: number | null
+          pret_standard_inceput_lei_kg?: number | null
+          pret_standard_mediu_lei_kg?: number | null
+          pret_standard_perioada?: string | null
+          pret_standard_varf_lei_kg?: number | null
           tenant_id?: string
           updated_at?: string | null
         }
@@ -4269,6 +4311,8 @@ export type Database = {
           client_sync_id: string
           comanda_id: string | null
           conflict_flag: boolean | null
+          data_incasare_partiala: string | null
+          suma_incasata_partial_lei: number | null
           created_at: string
           created_by: string | null
           data: string
@@ -4292,6 +4336,8 @@ export type Database = {
           client_sync_id?: string
           comanda_id?: string | null
           conflict_flag?: boolean | null
+          data_incasare_partiala?: string | null
+          suma_incasata_partial_lei?: number | null
           created_at?: string
           created_by?: string | null
           data: string
@@ -4315,6 +4361,8 @@ export type Database = {
           client_sync_id?: string
           comanda_id?: string | null
           conflict_flag?: boolean | null
+          data_incasare_partiala?: string | null
+          suma_incasata_partial_lei?: number | null
           created_at?: string
           created_by?: string | null
           data?: string
