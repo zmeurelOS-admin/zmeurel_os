@@ -2,21 +2,41 @@
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Scale } from 'lucide-react'
+import { CalendarDays, Plus, Scale } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import { AppShell } from '@/components/app/AppShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { PageHeader } from '@/components/app/PageHeader'
-import { Button, EmptyState, ListRow, Notice, StatHero, kitText, longDayRo, todayIso as readTodayIso } from '@/components/kit'
+import {
+  Button,
+  CalendarSheet,
+  EmptyState,
+  ListRow,
+  Notice,
+  StatHero,
+  addDaysIso,
+  kitText,
+  longDayRo,
+  todayIso as readTodayIso,
+} from '@/components/kit'
+import { CulegatorCantaririSheet } from '@/components/recoltari/CulegatorCantaririSheet'
 import { RecoltareStepForm, type RecoltareAiPrefill } from '@/components/recoltari/RecoltareStepForm'
+import { useRecoltareDeleteWithUndo } from '@/components/recoltari/useRecoltareDeleteWithUndo'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { queryKeys } from '@/lib/query-keys'
 import { aggregateRecoltariByCulegator, type RecoltareWorkerAggregate } from '@/lib/recoltari/aggregate-by-culegator'
-import { formatKg, formatKgValue, formatLei, recoltariOfDay, summarizeRecoltariDay } from '@/lib/recoltari/day-view'
+import {
+  formatKg,
+  formatKgValue,
+  formatLei,
+  recoltariOfDay,
+  shortDayLabel,
+  summarizeRecoltariDay,
+} from '@/lib/recoltari/day-view'
 import { getCulegatori } from '@/lib/supabase/queries/culegatori'
 import { getParcele } from '@/lib/supabase/queries/parcele'
-import { getRecoltari } from '@/lib/supabase/queries/recoltari'
+import { getRecoltari, type Recoltare } from '@/lib/supabase/queries/recoltari'
 import { cn } from '@/lib/utils'
 
 // ─── Legătura cu chatul AI (prin URL) ──────────────────────────────────────────
@@ -77,12 +97,22 @@ export function RecoltariPageClient() {
 
   const { memberRole, accessLevel } = useDashboardAuth()
   const canWriteRecoltari = memberRole !== 'operator' || accessLevel === 'write'
+  const canDeleteRecoltari = memberRole !== 'operator'
 
   // Ziua se citește doar în browser: serverul are alt fus orar, iar după miezul nopții ar afișa ziua greșită.
   const todayIso = useSyncExternalStore(subscribeToDayChange, readTodayIso, noServerDay)
 
+  // Pagina arată o singură zi: azi, sau una anterioară aleasă din calendar (pentru corecturi).
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
+  const [dayPickerOpen, setDayPickerOpen] = useState(false)
+  const day = todayIso && selectedDay && selectedDay < todayIso ? selectedDay : todayIso
+  const isToday = day === todayIso
+
   const [formOpen, setFormOpen] = useState(false)
   const [aiPrefill, setAiPrefill] = useState<RecoltareAiPrefill | null>(null)
+  // Rămâne setată până la următoarea deschidere, ca formularul să nu-și schimbe conținutul cât se închide.
+  const [editing, setEditing] = useState<Recoltare | null>(null)
+  const [openWorkerKey, setOpenWorkerKey] = useState<string | null>(null)
 
   // ─── Deschiderea din adresă (`?add=1`, `?openForm=1&…` din chatul AI) ───
   const pathname = usePathname()
@@ -103,6 +133,7 @@ export function RecoltariPageClient() {
       setPendingFromUrl(null)
       if (canWriteRecoltari) {
         setAiPrefill(pendingFromUrl.prefill)
+        setEditing(null)
         setFormOpen(true)
       }
     }
@@ -120,8 +151,23 @@ export function RecoltariPageClient() {
 
   const openForm = useCallback(() => {
     setAiPrefill(null)
+    setEditing(null)
     setFormOpen(true)
   }, [])
+
+  const openEdit = useCallback((recoltare: Recoltare) => {
+    // Foaia se închide înainte să se deschidă formularul: două ferestre suprapuse s-ar închide amândouă la „înapoi”.
+    setOpenWorkerKey(null)
+    setAiPrefill(null)
+    setEditing(recoltare)
+    setFormOpen(true)
+  }, [])
+
+  const handleWorkerSheetOpenChange = useCallback((open: boolean) => {
+    if (!open) setOpenWorkerKey(null)
+  }, [])
+
+  const scheduleDelete = useRecoltareDeleteWithUndo({ canDelete: canDeleteRecoltari })
 
   // ─── Date ───
   const {
@@ -152,10 +198,7 @@ export function RecoltariPageClient() {
     refetchOnWindowFocus: false,
   })
 
-  const dayRecoltari = useMemo(
-    () => (todayIso ? recoltariOfDay(recoltari, todayIso) : []),
-    [recoltari, todayIso],
-  )
+  const dayRecoltari = useMemo(() => (day ? recoltariOfDay(recoltari, day) : []), [recoltari, day])
   const summary = useMemo(() => summarizeRecoltariDay(dayRecoltari), [dayRecoltari])
   const workers = useMemo(() => {
     const names = new Map(culegatori.map((culegator) => [culegator.id, culegator.nume_prenume]))
@@ -165,8 +208,44 @@ export function RecoltariPageClient() {
     })
   }, [culegatori, dayRecoltari])
 
-  const loading = todayIso === null || isLoading
+  const parcelaNames = useMemo(
+    () => new Map(parcele.map((parcela) => [parcela.id, parcela.nume_parcela?.trim() || 'Parcelă fără nume'])),
+    [parcele],
+  )
+  const parcelaName = useCallback(
+    (parcelaId: string | null) => (parcelaId ? parcelaNames.get(parcelaId) : undefined) ?? 'Parcelă necunoscută',
+    [parcelaNames],
+  )
+
+  const loading = todayIso === null || day === null || isLoading
   const hasRows = workers.length > 0
+  const openWorker = workers.find((worker) => worker.workerKey === openWorkerKey) ?? null
+  // Culegătorul deschis nu mai are nicio cântărire în ziua afișată (ultima a fost ștearsă sau s-a schimbat ziua):
+  // foaia se închide de tot, ca să nu se redeschidă singură când el reapare în listă.
+  if (openWorkerKey !== null && openWorker === null && !loading) setOpenWorkerKey(null)
+  const dayName = day ? longDayRo(day) : ''
+
+  // Ziua afișată: discret, deasupra totalului. O zi anterioară se deschide pentru corecturi.
+  const dayRow =
+    todayIso && day ? (
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          variant="neutral"
+          size="touch"
+          aria-label={`Ziua afișată: ${dayName}. Alege altă zi`}
+          onClick={() => setDayPickerOpen(true)}
+        >
+          <CalendarDays aria-hidden />
+          {shortDayLabel(day, todayIso)}
+        </Button>
+        {isToday ? null : (
+          <Button type="button" variant="quiet" size="touch" onClick={() => setSelectedDay(null)}>
+            Înapoi la azi
+          </Button>
+        )}
+      </div>
+    ) : null
 
   const addButton = (
     <Button type="button" variant="primary" size="touch-lg" className="w-full" onClick={openForm}>
@@ -212,8 +291,9 @@ export function RecoltariPageClient() {
           <PageSkeleton />
         ) : hasRows ? (
           <>
+            {dayRow}
             <StatHero
-              label="Total azi"
+              label={isToday ? 'Total azi' : `Total ${dayName}`}
               value={formatKgValue(summary.totalKg)}
               unit="kg"
               items={[
@@ -226,9 +306,9 @@ export function RecoltariPageClient() {
 
             {canWriteRecoltari ? <div className="hidden md:block">{addButton}</div> : null}
 
-            <section aria-labelledby="recoltari-notati-azi" className="space-y-2">
-              <h2 id="recoltari-notati-azi" className={cn('px-1 font-extrabold text-fg', kitText.card)}>
-                Notați azi
+            <section aria-labelledby="recoltari-notati" className="space-y-2">
+              <h2 id="recoltari-notati" className={cn('px-1 font-extrabold text-fg', kitText.card)}>
+                {isToday ? 'Notați azi' : `Notați ${dayName}`}
               </h2>
               <ul className="space-y-2">
                 {workers.map((worker) => (
@@ -236,6 +316,9 @@ export function RecoltariPageClient() {
                     <ListRow
                       title={worker.workerName}
                       detail={workerDetail(worker)}
+                      onClick={() => setOpenWorkerKey(worker.workerKey)}
+                      chevron={false}
+                      aria-label={`${worker.workerName}, ${formatKg(worker.totalKg)}, ${formatLei(worker.totalPaymentLei)}. Vezi cântăririle`}
                       trailing={
                         <span className="flex flex-col items-end">
                           <span className={cn('font-extrabold text-fg', kitText.base)}>{formatKg(worker.totalKg)}</span>
@@ -249,30 +332,61 @@ export function RecoltariPageClient() {
             </section>
           </>
         ) : (
-          <EmptyState
-            icon={<Scale />}
-            title="Nimic notat azi"
-            description={
-              canWriteRecoltari
-                ? 'Seara, notează kilogramele culese de fiecare culegător.'
-                : 'Kilogramele culese azi apar aici după ce sunt notate.'
-            }
-            action={canWriteRecoltari ? <div className="w-64 max-w-full">{addButton}</div> : undefined}
-          />
+          <>
+            {dayRow}
+            <EmptyState
+              icon={<Scale />}
+              title={isToday ? 'Nimic notat azi' : `Nimic notat ${dayName}`}
+              description={
+                canWriteRecoltari
+                  ? isToday
+                    ? 'Seara, notează kilogramele culese de fiecare culegător.'
+                    : 'Poți adăuga o cântărire uitată pentru această zi.'
+                  : 'Kilogramele culese apar aici după ce sunt notate.'
+              }
+              action={canWriteRecoltari ? <div className="w-64 max-w-full">{addButton}</div> : undefined}
+            />
+          </>
         )}
       </div>
 
-      {todayIso ? (
-        <RecoltareStepForm
-          open={formOpen}
-          onOpenChange={setFormOpen}
-          recoltari={recoltari}
-          parcele={parcele}
-          culegatori={culegatori}
-          todayIso={todayIso}
-          defaultDate={todayIso}
-          prefill={aiPrefill}
-        />
+      {todayIso && day ? (
+        <>
+          <CalendarSheet
+            open={dayPickerOpen}
+            onOpenChange={setDayPickerOpen}
+            title="Ce zi vrei să vezi?"
+            value={day}
+            onChange={(iso) => setSelectedDay(iso === todayIso ? null : iso)}
+            max={todayIso}
+            shortcuts={[
+              { label: 'Azi', value: todayIso },
+              { label: 'Ieri', value: addDaysIso(todayIso, -1) },
+              { label: 'Alaltăieri', value: addDaysIso(todayIso, -2) },
+            ]}
+          />
+          <CulegatorCantaririSheet
+            open={openWorker !== null}
+            onOpenChange={handleWorkerSheetOpenChange}
+            worker={openWorker}
+            parcelaName={parcelaName}
+            canEdit={canWriteRecoltari}
+            canDelete={canDeleteRecoltari}
+            onEdit={openEdit}
+            onDelete={scheduleDelete}
+          />
+          <RecoltareStepForm
+            open={formOpen}
+            onOpenChange={setFormOpen}
+            recoltari={recoltari}
+            parcele={parcele}
+            culegatori={culegatori}
+            todayIso={todayIso}
+            defaultDate={day}
+            prefill={aiPrefill}
+            editing={editing}
+          />
+        </>
       ) : null}
     </AppShell>
   )
