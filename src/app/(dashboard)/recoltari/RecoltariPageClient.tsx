@@ -259,7 +259,8 @@ export function RecoltariPageClient() {
       header={
         <PageHeader
           title="Recoltări"
-          subtitle={todayIso ? capitalize(longDayRo(todayIso)) : undefined}
+          // Ziua afișată, nu neapărat azi: aceeași cu pastila de dată de sub antet.
+          subtitle={day ? capitalize(longDayRo(day)) : undefined}
           contentVariant="workspace"
         />
       }
