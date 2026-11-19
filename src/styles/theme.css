@@ -6,7 +6,21 @@
  *    `@theme inline` din src/app/globals.css.
  * ============================================================================
  */
-:root {
+
+/*
+ * `.theme-light`: subarbore forțat pe tema de zi, indiferent de tema aleasă
+ * (paginile din `(auth)`). Blocurile de zi din toate cele trei secțiuni sunt
+ * declarate și pe `.theme-light`, ca aliasurile să se recalculeze acolo.
+ * Varianta `dark:` exclude subarborele (globals.css). Vezi tokens.md.
+ */
+.theme-light {
+  color-scheme: light;
+  /* `body` își ia culoarea de text pe <html> (noaptea: deschisă); aici se recalculează pe zi. */
+  color: var(--agri-text);
+}
+
+:root,
+.theme-light {
   /* Suprafețe */
   --page: #ffffff;
   --surface: #ffffff;
@@ -109,7 +123,8 @@
  *    Un alias se șterge când numărul lui de utilizări ajunge la 0.
  * ============================================================================
  */
-:root {
+:root,
+.theme-light {
   /* → --page */
   --surface-page: var(--page);
   --agri-bg: var(--page);
@@ -252,7 +267,8 @@
  *    păstrează valoarea. Nu se folosesc în cod nou.
  * ============================================================================
  */
-:root {
+:root,
+.theme-light {
   --surface-elevated-hover: #f8fafc;
   --card-border-default: #e0dee8;
   --agri-border-w: 1px;

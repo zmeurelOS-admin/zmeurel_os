@@ -1,8 +1,11 @@
 @import "tailwindcss";
 @import "../styles/theme.css";
 
-/* `dark:` urmează tema aleasă în aplicație (clasa `.dark` pusă de next-themes), nu tema telefonului. */
-@custom-variant dark (&:where(.dark, .dark *));
+/*
+ * `dark:` urmează tema aleasă în aplicație (clasa `.dark` pusă de next-themes), nu tema telefonului.
+ * Subarborele `.theme-light` (paginile din `(auth)`) rămâne pe tema de zi.
+ */
+@custom-variant dark (&:where(.dark, .dark *):not(:where(.theme-light, .theme-light *)));
 
 /*
  * Culorile, umbrele și aliasurile vechi stau în src/styles/theme.css (singura sursă).
@@ -299,7 +302,8 @@ html[data-modal-open='true'] [data-mobile-fab='true'] {
   color: var(--agri-text-muted);
 }
 
-html.high-visibility-mode {
+html.high-visibility-mode,
+html.high-visibility-mode .theme-light {
   --agri-bg: #eef3ee;
   --agri-surface: #ffffff;
   --agri-surface-muted: #d7e3d9;
