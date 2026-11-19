@@ -1,37 +1,9 @@
 import type { AppSelectOption } from '@/components/ui/app-select'
-import { CATEGORII_CHELTUIELI, CATEGORII_INVESTITII } from '@/lib/financial/categories'
 import {
   getSistemConducereLabel,
   getTipCicluSoiLabel,
 } from '@/lib/parcele/configurare-sezon'
 import type { StadiuCod } from '@/lib/parcele/stadii-canonic'
-
-/** Emoji per categorie OPEX — sursă unică pentru AppSelect în cheltuieli. */
-export const CHELTUIELI_CATEGORY_EMOJI: Record<(typeof CATEGORII_CHELTUIELI)[number], string> = {
-  Fertilizanți: '🌱',
-  'Tratamente fitosanitare': '🧪',
-  Ambalaje: '📦',
-  'Forță de muncă': '👷',
-  'Combustibil și energie': '⛽',
-  Consumabile: '🔩',
-  'Transport și livrare': '🚚',
-  'Reparații și întreținere': '🔧',
-  'Servicii și taxe': '📋',
-  'Diverse operaționale': '💼',
-}
-
-/** Emoji per categorie CAPEX — sursă unică pentru AppSelect în investiții. */
-export const INVESTITII_CATEGORY_EMOJI: Record<(typeof CATEGORII_INVESTITII)[number], string> = {
-  'Material săditor': '🌿',
-  'Irigații și fertigare': '💧',
-  'Sisteme de susținere și protecție': '🏗️',
-  'Construcții și amenajări': '🏠',
-  'Utilaje și echipamente': '🚜',
-  'Depozitare și răcire': '❄️',
-  'Infrastructură și utilități': '⚡',
-  'IT și automatizări': '💻',
-  'Alte investiții': '📦',
-}
 
 export const COHORTA_APP_SELECT_OPTIONS: AppSelectOption[] = [
   { value: '', label: 'Selectează cohorta' },
@@ -112,31 +84,6 @@ export const DOZA_UNITATE_APP_SELECT_OPTIONS: AppSelectOption[] = [
   { value: 'l/ha', label: 'l/ha', emoji: '🌾' },
 ]
 
-export function buildCategoryCheltuieliOptions(
-  placeholder = 'Selectează categoria'
-): AppSelectOption[] {
-  return [
-    { value: '', label: placeholder },
-    ...CATEGORII_CHELTUIELI.map((label) => ({
-      value: label,
-      label,
-      emoji: CHELTUIELI_CATEGORY_EMOJI[label],
-    })),
-  ]
-}
-
-export function buildCategoryInvestitiiOptions(
-  placeholder = 'Selectează categoria'
-): AppSelectOption[] {
-  return [
-    { value: '', label: placeholder },
-    ...CATEGORII_INVESTITII.map((label) => ({
-      value: label,
-      label,
-      emoji: INVESTITII_CATEGORY_EMOJI[label],
-    })),
-  ]
-}
 
 export function buildStadiuAppSelectOptions(
   options: ReadonlyArray<{ value: string; label: string; emoji?: string }>,

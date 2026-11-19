@@ -13,6 +13,7 @@ import {
   type PasteToXRouteDeps,
 } from '@/lib/ai/paste-to-x-handler-factory'
 import { apiError } from '@/lib/api/route-security'
+import { resolveCheltuialaCategorie } from '@/lib/financial/categories'
 import { generateBusinessId } from '@/lib/supabase/business-ids'
 import { createClient } from '@/lib/supabase/server'
 import { getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
@@ -85,7 +86,8 @@ export function createPasteToCheltuieliHandler(
           tenant_id: tenantId,
           id_cheltuiala: idCheltuiala,
           data: parsed.data,
-          categorie: parsed.categorie,
+          // Textul liber al modelului („motorină”, „Combustibil și energie”) devine una dintre categoriile noi.
+          categorie: parsed.categorie ? resolveCheltuialaCategorie(parsed.categorie) : parsed.categorie,
           descriere: parsed.descriere,
           suma_lei: parsed.suma_lei,
           furnizor: parsed.furnizor,

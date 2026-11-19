@@ -13,6 +13,7 @@ import {
   type PasteToXRouteDeps,
 } from '@/lib/ai/paste-to-x-handler-factory'
 import { apiError } from '@/lib/api/route-security'
+import { resolveInvestitieCategorie } from '@/lib/financial/categories'
 import { generateBusinessId } from '@/lib/supabase/business-ids'
 import { createClient } from '@/lib/supabase/server'
 import { getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
@@ -114,7 +115,7 @@ export function createPasteToInvestitiiHandler(
           tenant_id: tenantId,
           id_investitie: idInvestitie,
           data: parsed.data,
-          categorie: parsed.categorie,
+          categorie: parsed.categorie ? resolveInvestitieCategorie(parsed.categorie) : parsed.categorie,
           descriere: parsed.descriere,
           suma_lei: parsed.suma_lei,
           furnizor: parsed.furnizor,

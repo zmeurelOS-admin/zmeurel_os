@@ -2,7 +2,12 @@
 // Deterministic routing: Cheltuiala (OPEX) vs Investiție (CAPEX) vs Ambiguous
 // Edge cases handled explicitly before falling back to LLM.
 
-import type { CategorieCheltuiala, CategorieInvestitie } from './categories'
+// Routerul chatului lucrează cu numele de dinainte de 20.11.2026 (cele din promptul AI);
+// formularele le aduc la categoriile noi prin `resolveCheltuialaCategorie` / `resolveInvestitieCategorie`.
+import type {
+  CategorieCheltuialaVeche as CategorieCheltuiala,
+  CategorieInvestitieVeche as CategorieInvestitie,
+} from './categories'
 
 // ─── Result types ─────────────────────────────────────────────────────────────
 

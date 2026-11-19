@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/table'
 import { butasiRevenueBetween, butasiRevenueDate, type ButasiRevenueSource } from '@/lib/vanzari-butasi/revenue'
 import { calculateProfit } from '@/lib/calculations/profit'
+import { resolveCheltuialaCategorie } from '@/lib/financial/categories'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { calculatePauseStatus } from '@/lib/supabase/queries/activitati-agricole'
 
@@ -332,7 +333,8 @@ export function RapoartePageClient({
     if (reportType === 'costuri_totale') {
       const grouped = new Map<string, number>()
       filteredCheltuieli.forEach((row) => {
-        const key = row.categorie || 'Fără categorie'
+        // Categoria din bază poate avea numele vechi: o aducem la cele noi, ca să nu apară de două ori.
+        const key = row.categorie ? resolveCheltuialaCategorie(row.categorie) : 'Fără categorie'
         grouped.set(key, (grouped.get(key) ?? 0) + Number(row.suma_lei || 0))
       })
       return Array.from(grouped.entries())

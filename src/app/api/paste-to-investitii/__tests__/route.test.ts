@@ -198,7 +198,8 @@ describe('POST /api/paste-to-investitii', () => {
       tenant_id: 'tenant-1',
       id_investitie: 'INV-0001',
       data: '2026-06-22',
-      categorie: 'Utilaje și echipamente',
+      // În bază ajunge una dintre categoriile noi.
+      categorie: 'Utilaje și unelte',
       descriere: 'Motocoasă nouă',
       suma_lei: 500,
       furnizor: 'Agro Util',

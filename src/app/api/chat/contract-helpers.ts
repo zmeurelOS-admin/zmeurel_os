@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { CATEGORII_CHELTUIELI, CATEGORII_INVESTITII } from '@/lib/financial/categories'
+import { CATEGORII_CHELTUIELI_ACCEPTATE, CATEGORII_INVESTITII_ACCEPTATE } from '@/lib/financial/categories'
 
 const FORM_MESSAGE_FALLBACK = 'Am înțeles, îți pregătesc asta. Verifică și salvează.'
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -101,14 +101,15 @@ const OpenFormSchema = z.object({
 
 const CheltuialaPrefillSchema = z.object({
   suma: z.coerce.number().positive().max(100_000_000),
-  categorie: z.enum(CATEGORII_CHELTUIELI).optional(),
+  // Chatul trimite numele vechi (cele din promptul lui); formularul le aduce la categoriile noi.
+  categorie: z.enum(CATEGORII_CHELTUIELI_ACCEPTATE).optional(),
   data: z.string().regex(ISO_DATE_RE),
   descriere: z.string().trim().min(1).max(200).optional(),
 }).strict()
 
 const InvestitiePrefillSchema = z.object({
   suma: z.coerce.number().positive().max(100_000_000),
-  categorie: z.enum(CATEGORII_INVESTITII),
+  categorie: z.enum(CATEGORII_INVESTITII_ACCEPTATE),
   data: z.string().regex(ISO_DATE_RE),
   descriere: z.string().trim().min(1).max(200).optional(),
 }).strict()

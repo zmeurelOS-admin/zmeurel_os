@@ -206,7 +206,8 @@ describe('POST /api/paste-to-cheltuieli', () => {
       tenant_id: 'tenant-1',
       id_cheltuiala: 'CH-0001',
       data: '2026-06-22',
-      categorie: 'Combustibil',
+      // În bază ajunge una dintre categoriile noi, nu textul liber al modelului.
+      categorie: 'Motorină și curent',
       descriere: 'Motorină pentru transport',
       suma_lei: 245.5,
       furnizor: 'Petrom',
