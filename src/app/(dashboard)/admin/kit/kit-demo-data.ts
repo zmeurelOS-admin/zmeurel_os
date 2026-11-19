@@ -23,6 +23,16 @@ export const PRIMITIVE_TOC: KitTocEntry[] = [
   { id: 'exemple', title: 'Exemple din mockup-uri' },
 ]
 
+export const COMPUSE_TOC: KitTocEntry[] = [
+  { id: 'foaie', title: 'Foaie de jos' },
+  { id: 'calendar', title: 'Calendar' },
+  { id: 'numar', title: 'Număr cu pași' },
+  { id: 'tastatura', title: 'Tastatură și kg' },
+  { id: 'recapitulare', title: 'Recapitulare' },
+  { id: 'reusita', title: 'Reușită' },
+  { id: 'formular', title: 'Formular pe pași' },
+]
+
 export interface DemoCulegator {
   id: string
   prenume: string

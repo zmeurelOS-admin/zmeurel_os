@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 
 import { KitShowcase } from './KitShowcaseClient'
-import { PRIMITIVE_TOC } from './kit-demo-data'
+import { COMPUSE_TOC, PRIMITIVE_TOC } from './kit-demo-data'
+import { CompuseSections } from './sections-compuse'
 import { PrimitiveSections } from './sections-primitive'
 
 export const metadata: Metadata = {
@@ -12,8 +13,9 @@ export const metadata: Metadata = {
 /** Pagina kitului. Accesul e verificat de `admin/layout.tsx` (doar superadmin). */
 export default function AdminKitPage() {
   return (
-    <KitShowcase toc={PRIMITIVE_TOC}>
+    <KitShowcase toc={[...PRIMITIVE_TOC, ...COMPUSE_TOC]}>
       <PrimitiveSections />
+      <CompuseSections />
     </KitShowcase>
   )
 }
