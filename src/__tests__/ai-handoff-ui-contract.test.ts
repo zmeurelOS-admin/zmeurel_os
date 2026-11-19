@@ -106,17 +106,16 @@ describe('AI handoff UI contract - openForm consumption', () => {
     )
 
     const parsed = parseAiComandaPrefill(params)
+    // Forma cerută de formularul pe pași (`ComandaPrefill`): text, posibil gol.
     expect(parsed).toEqual({
-      client_id: 'client-1',
-      client_nume_manual: 'Ion Popescu',
+      clientId: 'client-1',
+      clientName: 'Ion Popescu',
       telefon: '0712345678',
-      locatie_livrare: '',
-      data_livrare: '2026-03-26',
-      cantitate_kg: '18',
-      pret_per_kg: '24',
-      order_kind: 'manual',
+      adresa: '',
+      dataLivrare: '2026-03-26',
+      cantitateKg: '18',
+      pretPerKg: '24',
       observatii: 'Sursa: Delniwa',
-      status: 'confirmata',
     })
   })
 

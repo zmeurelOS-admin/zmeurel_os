@@ -3,21 +3,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
+import { Search } from 'lucide-react'
 
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
-import { Textarea } from '@/components/ui/textarea'
+  BigInput,
+  BigTextarea,
+  BottomSheet,
+  Button,
+  Notice,
+  StatusPill,
+  kitText,
+  type NoticeTone,
+  type StatusTone,
+} from '@/components/kit'
 import {
   planOrderClientPersistence,
   resolveExistingClientByPhone,
@@ -28,6 +26,7 @@ import { queryKeys } from '@/lib/query-keys'
 import { createClienți, type ClientTip } from '@/lib/supabase/queries/clienti'
 import { createComanda } from '@/lib/supabase/queries/comenzi'
 import { toast } from '@/lib/ui/toast'
+import { cn } from '@/lib/utils'
 
 export type ParsedOrder = {
   nume_client: string | null
@@ -108,10 +107,10 @@ function normalizeClientTip(value: string | null | undefined): ClientTip {
   return value === 'patiserie' || value === 'magazin' ? value : 'standard'
 }
 
-function badgeVariantForTip(tip: ClientTip): 'secondary' | 'warning' | 'info' {
+function pillToneForTip(tip: ClientTip): StatusTone {
   if (tip === 'patiserie') return 'warning'
   if (tip === 'magazin') return 'info'
-  return 'secondary'
+  return 'neutral'
 }
 
 function cleanPhone(value: string | null): string | null {
@@ -196,20 +195,8 @@ function getClientMatchUi(
   }
 }
 
-function getToneClasses(tone: ConfidenceUiTone | 'neutral'): string {
-  if (tone === 'success') {
-    return 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
-  }
-
-  if (tone === 'warning') {
-    return 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
-  }
-
-  if (tone === 'danger') {
-    return 'border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]'
-  }
-
-  return 'border-[var(--border-default)] bg-[var(--surface-card-muted)] text-[var(--text-secondary)]'
+function noticeTone(tone: ConfidenceUiTone | 'neutral'): NoticeTone {
+  return tone === 'neutral' ? 'info' : tone
 }
 
 function buildDeliveryLocation(locality: string, addressDetails: string): string | null {
@@ -253,6 +240,10 @@ function buildDraftFromParsed(
   }
 }
 
+/**
+ * „Din mesaj”: lipești mesajul clientului (WhatsApp, SMS), datele se extrag și le corectezi înainte de salvare.
+ * Logica e cea dinainte de refacerea Comenzilor; s-a schimbat doar înfățișarea (foaie și câmpuri din kit).
+ */
 export function ComenziDinMesajSheet({
   clienti,
   open,
@@ -510,7 +501,7 @@ export function ComenziDinMesajSheet({
     try {
       await createOrderMutation.mutateAsync(draft)
     } catch {
-      // onError deja afișează mesajul și păstrează sheet-ul deschis pentru corecturi.
+      // onError deja afișează mesajul și păstrează foaia deschisă pentru corecturi.
     }
   }
 
@@ -533,282 +524,194 @@ export function ComenziDinMesajSheet({
     onOpenChange(nextOpen)
   }
 
+  const existingTip = clientMatch?.status === 'existing' ? normalizeClientTip(clientMatch.client.tip) : null
+
   return (
-    <Sheet open={open} onOpenChange={handleSheetOpenChange}>
-      <SheetContent
-        side="bottom"
-        className="flex h-[100dvh] max-h-[100dvh] flex-col pb-0 sm:h-auto sm:max-h-[92svh]"
-      >
-        <SheetHeader>
-          <SheetTitle>Din mesaj</SheetTitle>
-          <SheetDescription>
-            Lipește mesajul clientului, extrage datele și corectează-le direct aici înainte de salvare.
-          </SheetDescription>
-        </SheetHeader>
-
-        <div className="flex-1 space-y-4 overflow-y-auto px-4 pb-5 sm:px-5">
-          <div className="space-y-2">
-            <Label htmlFor="order-message-input">Mesaj client</Label>
-            <Textarea
-              id="order-message-input"
-              ref={messageRef}
-              rows={5}
-              value={mesaj}
-              onChange={(event) => {
-                setMesaj(event.target.value)
-                setParsed(null)
-                setDraft(defaultDraft())
-                setClientMatch(null)
-                setParseError(null)
-                setFormError(null)
-              }}
-              placeholder="Lipește mesajul clientului (WhatsApp, SMS, orice...)"
-              className="agri-control min-h-32"
-            />
-          </div>
-
+    <BottomSheet
+      open={open}
+      onOpenChange={handleSheetOpenChange}
+      title="Din mesaj"
+      description="Lipește mesajul clientului, extrage datele și corectează-le aici înainte de salvare."
+      footer={
+        <div className="flex w-full flex-col gap-2.5">
+          {clientMatch?.status === 'ambiguous' ? (
+            <Button type="button" variant="neutral" size="touch" className="w-full" onClick={handleOpenFullForm}>
+              Deschide formularul complet
+            </Button>
+          ) : null}
           <Button
             type="button"
-            className="h-11 w-full"
-            onClick={handleParse}
-            disabled={isParsing || createOrderMutation.isPending || !mesaj.trim()}
+            variant="primary"
+            size="touch-lg"
+            className="w-full"
+            disabled={!parsed || isParsing || createOrderMutation.isPending}
+            loading={createOrderMutation.isPending}
+            onClick={handleCreateOrder}
           >
-            {isParsing ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
-            {isParsing ? 'Se extrag datele...' : '🔍 Extrage datele'}
+            {createOrderMutation.isPending ? 'Se salvează...' : 'Creează comanda'}
           </Button>
-
-          {parseError ? (
-            <section className="rounded-2xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 py-3 shadow-[var(--shadow-sm)]">
-              <p className="text-sm font-semibold text-[var(--status-warning-text)]">{parseError}</p>
-            </section>
-          ) : null}
-
-          {parsed ? (
-            <div className="space-y-3">
-              {confidenceUi ? (
-                <section className={`rounded-2xl border px-3 py-3 shadow-[var(--shadow-sm)] ${getToneClasses(confidenceUi.tone)}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold">{confidenceUi.title}</p>
-                      <p className="text-xs opacity-90">{confidenceUi.description}</p>
-                    </div>
-                    <Badge
-                      variant={
-                        confidenceUi.tone === 'success'
-                          ? 'default'
-                          : confidenceUi.tone === 'warning'
-                            ? 'warning'
-                            : 'destructive'
-                      }
-                    >
-                      {confidenceUi.badgeLabel}
-                    </Badge>
-                  </div>
-                </section>
-              ) : null}
-
-              {missingFieldMessages.length > 0 ? (
-                <section className="rounded-2xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 py-3 shadow-[var(--shadow-sm)]">
-                  <p className="text-sm font-semibold text-[var(--status-warning-text)]">
-                    Mai trebuie completate câteva date
-                  </p>
-                  <ul className="mt-2 space-y-1 text-sm text-[var(--status-warning-text)]">
-                    {missingFieldMessages.map((message) => (
-                      <li key={message}>• {message}</li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-
-              {shouldShowManualWarning ? (
-                <section className="rounded-2xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 py-3 shadow-[var(--shadow-sm)]">
-                  <p className="text-sm font-semibold text-[var(--status-warning-text)]">
-                    Poți continua, dar verifică și completează câmpurile lipsă.
-                  </p>
-                </section>
-              ) : null}
-
-              {clientMatch && clientMatchUi ? (
-                clientMatch.status === 'existing' ? (
-                  <div className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm ${getToneClasses(clientMatchUi.tone)}`}>
-                    <div className="min-w-0">
-                      <span className="block truncate font-semibold">{clientMatchUi.title}</span>
-                      {clientMatchUi.description ? (
-                        <span className="block truncate text-xs opacity-80">{clientMatchUi.description}</span>
-                      ) : null}
-                    </div>
-                    <ClientTipBadge tip={normalizeClientTip(clientMatch.client.tip)} />
-                  </div>
-                ) : (
-                  <div className={`rounded-xl border px-3 py-2 text-sm ${getToneClasses(clientMatchUi.tone)}`}>
-                    <span className="block font-semibold">{clientMatchUi.title}</span>
-                    {clientMatchUi.description ? (
-                      <span className="block text-xs opacity-80">{clientMatchUi.description}</span>
-                    ) : null}
-                  </div>
-                )
-              ) : null}
-
-              {formError ? (
-                <section className="rounded-2xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 py-3 shadow-[var(--shadow-sm)]">
-                  <p className="text-sm font-semibold text-[var(--status-danger-text)]">{formError}</p>
-                </section>
-              ) : null}
-
-              <section className="space-y-3 rounded-2xl bg-[var(--surface-card-muted)] p-3 shadow-[var(--shadow-sm)]">
-                <p className="text-sm font-semibold text-[var(--text-primary)]">Date extrase</p>
-
-                <div className="space-y-2">
-                  <Label htmlFor="ai-order-client-name">Client</Label>
-                  <Input
-                    id="ai-order-client-name"
-                    value={draft.clientName}
-                    readOnly={clientMatch?.status === 'existing'}
-                    onChange={(event) =>
-                      setDraft((current) => ({ ...current, clientName: event.target.value }))
-                    }
-                  />
-                  {clientMatch?.status === 'existing' ? (
-                    <p className="text-xs text-[var(--text-secondary)]">
-                      Numele vine din clientul existent găsit după telefon.
-                    </p>
-                  ) : null}
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="ai-order-phone">Telefon</Label>
-                    <Input
-                      id="ai-order-phone"
-                      type="tel"
-                      value={draft.phone}
-                      onChange={(event) =>
-                        setDraft((current) => ({ ...current, phone: event.target.value }))
-                      }
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="ai-order-quantity">Cantitate (kg)</Label>
-                    <Input
-                      id="ai-order-quantity"
-                      type="number"
-                      inputMode="decimal"
-                      min="0"
-                      step="0.01"
-                      value={draft.quantityKg}
-                      onChange={(event) =>
-                        setDraft((current) => ({ ...current, quantityKg: event.target.value }))
-                      }
-                    />
-                    {parsed.unitate === 'caserole' && typeof parsed.cantitate === 'number' ? (
-                      <p className="text-xs text-[var(--text-secondary)]">
-                        Mesajul a fost convertit automat în kg pentru salvare.
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="ai-order-price">Preț (lei/kg)</Label>
-                    <Input
-                      id="ai-order-price"
-                      type="number"
-                      inputMode="decimal"
-                      min="0"
-                      step="0.01"
-                      value={draft.pricePerKg}
-                      onChange={(event) =>
-                        setDraft((current) => ({ ...current, pricePerKg: event.target.value }))
-                      }
-                    />
-                    {priceFromAi ? (
-                      <p className="text-xs text-[var(--text-secondary)]">(extras din mesaj)</p>
-                    ) : null}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="ai-order-delivery-date">Data livrării</Label>
-                    <Input
-                      id="ai-order-delivery-date"
-                      type="date"
-                      value={draft.deliveryDate}
-                      onChange={(event) =>
-                        setDraft((current) => ({ ...current, deliveryDate: event.target.value }))
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="ai-order-locality">Localitate</Label>
-                  <Input
-                    id="ai-order-locality"
-                    value={draft.locality}
-                    onChange={(event) =>
-                      setDraft((current) => ({ ...current, locality: event.target.value }))
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="ai-order-address">Adresă / detalii livrare</Label>
-                  <Textarea
-                    id="ai-order-address"
-                    rows={3}
-                    value={draft.addressDetails}
-                    onChange={(event) =>
-                      setDraft((current) => ({ ...current, addressDetails: event.target.value }))
-                    }
-                    className="min-h-24"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="ai-order-notes">Observații</Label>
-                  <Textarea
-                    id="ai-order-notes"
-                    rows={3}
-                    value={draft.notes}
-                    onChange={(event) =>
-                      setDraft((current) => ({ ...current, notes: event.target.value }))
-                    }
-                    className="min-h-24"
-                  />
-                </div>
-              </section>
-            </div>
-          ) : null}
         </div>
+      }
+    >
+      <div className="space-y-4">
+        <BigTextarea
+          id="order-message-input"
+          ref={messageRef}
+          label="Mesaj client"
+          rows={5}
+          value={mesaj}
+          onChange={(event) => {
+            setMesaj(event.target.value)
+            setParsed(null)
+            setDraft(defaultDraft())
+            setClientMatch(null)
+            setParseError(null)
+            setFormError(null)
+          }}
+          placeholder="Lipește mesajul clientului (WhatsApp, SMS, orice...)"
+        />
 
-        <SheetFooter className="sticky bottom-0">
-          <div className="flex w-full flex-col gap-2">
-            {clientMatch?.status === 'ambiguous' ? (
-              <Button type="button" variant="outline" className="h-11 w-full" onClick={handleOpenFullForm}>
-                Deschide formularul complet
-              </Button>
+        <Button
+          type="button"
+          variant="neutral"
+          size="touch-lg"
+          className="w-full"
+          onClick={handleParse}
+          disabled={isParsing || createOrderMutation.isPending || !mesaj.trim()}
+          loading={isParsing}
+        >
+          {isParsing ? null : <Search aria-hidden />}
+          {isParsing ? 'Se extrag datele...' : 'Extrage datele'}
+        </Button>
+
+        {parseError ? <Notice tone="warning" title={parseError} /> : null}
+
+        {parsed ? (
+          <div className="space-y-3">
+            {confidenceUi ? (
+              <Notice tone={noticeTone(confidenceUi.tone)} title={confidenceUi.title}>
+                {confidenceUi.description}
+                <span className="mt-2 block">
+                  <StatusPill tone={confidenceUi.tone}>{confidenceUi.badgeLabel}</StatusPill>
+                </span>
+              </Notice>
             ) : null}
-            <Button
-              type="button"
-              className="h-11 w-full"
-              disabled={!parsed || isParsing || createOrderMutation.isPending}
-              onClick={handleCreateOrder}
-            >
-              {createOrderMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
-              {createOrderMutation.isPending ? 'Se salvează...' : 'Creează comanda'}
-            </Button>
-          </div>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
-  )
-}
 
-function ClientTipBadge({ tip }: { tip: ClientTip }) {
-  return (
-    <Badge variant={badgeVariantForTip(tip)} className="shrink-0">
-      {CLIENT_TIP_LABELS[tip]}
-    </Badge>
+            {missingFieldMessages.length > 0 ? (
+              <Notice tone="warning" title="Mai trebuie completate câteva date">
+                <ul className="space-y-1">
+                  {missingFieldMessages.map((message) => (
+                    <li key={message}>• {message}</li>
+                  ))}
+                </ul>
+              </Notice>
+            ) : null}
+
+            {shouldShowManualWarning ? (
+              <Notice tone="warning" title="Poți continua, dar verifică și completează câmpurile lipsă." />
+            ) : null}
+
+            {clientMatch && clientMatchUi ? (
+              <Notice tone={noticeTone(clientMatchUi.tone)} title={clientMatchUi.title}>
+                {clientMatchUi.description || existingTip ? (
+                  <span className="flex flex-wrap items-center gap-2">
+                    {clientMatchUi.description ? <span>{clientMatchUi.description}</span> : null}
+                    {existingTip ? (
+                      <StatusPill tone={pillToneForTip(existingTip)}>{CLIENT_TIP_LABELS[existingTip]}</StatusPill>
+                    ) : null}
+                  </span>
+                ) : null}
+              </Notice>
+            ) : null}
+
+            {formError ? <Notice tone="danger" title={formError} /> : null}
+
+            <section className="space-y-3 rounded-box bg-surface-muted p-3">
+              <p className={cn('font-bold text-fg', kitText.base)}>Date extrase</p>
+
+              <BigInput
+                id="ai-order-client-name"
+                label="Client"
+                value={draft.clientName}
+                readOnly={clientMatch?.status === 'existing'}
+                onChange={(event) => setDraft((current) => ({ ...current, clientName: event.target.value }))}
+                hint={
+                  clientMatch?.status === 'existing' ? 'Numele vine din clientul existent găsit după telefon.' : undefined
+                }
+              />
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <BigInput
+                  id="ai-order-phone"
+                  label="Telefon"
+                  type="tel"
+                  value={draft.phone}
+                  onChange={(event) => setDraft((current) => ({ ...current, phone: event.target.value }))}
+                />
+                <BigInput
+                  id="ai-order-quantity"
+                  label="Cantitate (kg)"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  value={draft.quantityKg}
+                  onChange={(event) => setDraft((current) => ({ ...current, quantityKg: event.target.value }))}
+                  hint={
+                    parsed.unitate === 'caserole' && typeof parsed.cantitate === 'number'
+                      ? 'Mesajul a fost convertit automat în kg pentru salvare.'
+                      : undefined
+                  }
+                />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <BigInput
+                  id="ai-order-price"
+                  label="Preț (lei/kg)"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  value={draft.pricePerKg}
+                  onChange={(event) => setDraft((current) => ({ ...current, pricePerKg: event.target.value }))}
+                  hint={priceFromAi ? '(extras din mesaj)' : undefined}
+                />
+                <BigInput
+                  id="ai-order-delivery-date"
+                  label="Data livrării"
+                  type="date"
+                  value={draft.deliveryDate}
+                  onChange={(event) => setDraft((current) => ({ ...current, deliveryDate: event.target.value }))}
+                />
+              </div>
+
+              <BigInput
+                id="ai-order-locality"
+                label="Localitate"
+                value={draft.locality}
+                onChange={(event) => setDraft((current) => ({ ...current, locality: event.target.value }))}
+              />
+
+              <BigTextarea
+                id="ai-order-address"
+                label="Adresă / detalii livrare"
+                rows={3}
+                value={draft.addressDetails}
+                onChange={(event) => setDraft((current) => ({ ...current, addressDetails: event.target.value }))}
+              />
+
+              <BigTextarea
+                id="ai-order-notes"
+                label="Observații"
+                rows={3}
+                value={draft.notes}
+                onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))}
+              />
+            </section>
+          </div>
+        ) : null}
+      </div>
+    </BottomSheet>
   )
 }
