@@ -10,6 +10,7 @@ import { toast } from '@/lib/ui/toast'
 
 import { AppDialog } from '@/components/app/AppDialog'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
+import { SETARI_FERMA_NAV, SetariFerma } from '@/components/setari/SetariFerma'
 import { AppShell } from '@/components/app/AppShell'
 import { FarmSwitcher } from '@/components/app/FarmSwitcher'
 import { PageHeader } from '@/components/app/PageHeader'
@@ -279,6 +280,7 @@ export default function SettingsPage() {
       { id: 'documente-legale', label: 'Documente legale' },
       { id: 'locatie', label: 'Locație' },
       { id: 'parola', label: 'Parolă' },
+      ...SETARI_FERMA_NAV,
       { id: 'gdpr', label: 'Date și export' },
       { id: 'notificari-push', label: 'Notificări push' },
       { id: 'echipa', label: 'Echipa mea' },
@@ -1111,6 +1113,9 @@ export default function SettingsPage() {
           </div>
 
         </section>
+
+        {/* Secțiunile noi, pe kit: Preț standard, Ce arată Acasă, Date (ștergerea tuturor clienților). */}
+        <SetariFerma />
 
         <section id="notificari-push" className="agri-card scroll-mt-24 space-y-3 p-6 md:scroll-mt-28">
           <div className="space-y-1">

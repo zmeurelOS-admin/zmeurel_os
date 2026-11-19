@@ -22,6 +22,14 @@ export const KIT_RULE_DIRS = [
   'src/lib/livrari',
   // Acasă pe telefon (grila de desktop din `components/dashboard` nu e refăcută)
   'src/components/acasa',
+  // Clienți, Culegători și secțiunile noi din Setări
+  'src/app/(dashboard)/clienti',
+  'src/components/clienti',
+  'src/lib/clienti',
+  'src/app/(dashboard)/culegatori',
+  'src/components/culegatori',
+  'src/lib/culegatori',
+  'src/components/setari',
 ]
 
 /**
