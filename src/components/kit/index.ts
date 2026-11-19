@@ -67,6 +67,7 @@ export { SuccessScreen, type SuccessScreenAction, type SuccessScreenProps } from
 // Logică fără React, refolosibilă în module
 export {
   applyKeypadKey,
+  keypadValueFrom,
   parseKeypadValue,
   type KeypadKey,
   type KeypadOptions,

@@ -265,17 +265,22 @@ function TastaturaDemo() {
         <span className={cn('font-extrabold text-fg', kitText.card)}>{formatLei(total * TARIF_LEI_KG)}</span>
       </div>
       <NumericKeypad onKey={fields.press} listenToKeyboard={false} />
-      <Button
-        variant="quiet"
-        size="touch"
-        className="w-full"
-        onClick={() => {
-          fields.reset()
-          setCuCal2(false)
-        }}
-      >
-        Golește
-      </Button>
+      <div className="grid grid-cols-2 gap-2">
+        {/* O valoare care există deja (editare, cantitate dictată) se pune cu `setValue`, nu se propune. */}
+        <Button variant="neutral" size="touch" onClick={() => fields.setValue(fields.active, 27.35)}>
+          Pune 27,35
+        </Button>
+        <Button
+          variant="quiet"
+          size="touch"
+          onClick={() => {
+            fields.reset()
+            setCuCal2(false)
+          }}
+        >
+          Golește
+        </Button>
+      </div>
     </div>
   )
 }

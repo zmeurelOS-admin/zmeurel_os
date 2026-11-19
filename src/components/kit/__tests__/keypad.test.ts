@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   applyKeypadKey,
   keypadKeyFromKeyboard,
+  keypadValueFrom,
   parseKeypadValue,
   pressKeypadField,
   type KeypadKey,
@@ -68,6 +69,51 @@ describe('tastatura numerică — valoarea', () => {
     expect(parseKeypadValue('27,35')).toBe(27.35)
     expect(parseKeypadValue('27,')).toBe(27)
     expect(parseKeypadValue('0,')).toBe(0)
+  })
+})
+
+describe('tastatura numerică — valoare venită din afară (keypadValueFrom)', () => {
+  it('scrie numărul cu virgulă, fără zerouri de umplutură', () => {
+    expect(keypadValueFrom(27.35)).toBe('27,35')
+    expect(keypadValueFrom(27.3)).toBe('27,3')
+    expect(keypadValueFrom(12)).toBe('12')
+    expect(keypadValueFrom(0)).toBe('0')
+  })
+
+  it('rotunjește la numărul de zecimale al câmpului, nu taie', () => {
+    expect(keypadValueFrom(27.356)).toBe('27,36')
+    expect(keypadValueFrom(27.6, { maxDecimals: 0 })).toBe('28')
+  })
+
+  it('primește și text, cu virgulă sau cu punct', () => {
+    expect(keypadValueFrom('27,35')).toBe('27,35')
+    expect(keypadValueFrom('27.35')).toBe('27,35')
+    expect(keypadValueFrom(' 12 ')).toBe('12')
+  })
+
+  it('lasă câmpul gol când valoarea lipsește sau nu e un număr', () => {
+    expect(keypadValueFrom(null)).toBe('')
+    expect(keypadValueFrom(undefined)).toBe('')
+    expect(keypadValueFrom('')).toBe('')
+    expect(keypadValueFrom('douăzeci')).toBe('')
+    expect(keypadValueFrom(Number.NaN)).toBe('')
+    expect(keypadValueFrom(-5)).toBe('')
+    expect(keypadValueFrom('-5')).toBe('')
+  })
+
+  it('lasă câmpul gol când numărul nu încape în partea întreagă', () => {
+    expect(keypadValueFrom(9999.99)).toBe('9999,99')
+    expect(keypadValueFrom(10000)).toBe('')
+    expect(keypadValueFrom(9999.999)).toBe('')
+    expect(keypadValueFrom(150, { maxIntegerDigits: 2 })).toBe('')
+  })
+
+  it('dă un text pe care tastele l-ar fi putut scrie', () => {
+    for (const raw of [27.35, 27.3, 12, 0, 0.05, 9999.99, '3,5']) {
+      const value = keypadValueFrom(raw)
+      const typed = Array.from(value).reduce((current, char) => applyKeypadKey(current, char as KeypadKey), '')
+      expect(typed).toBe(value)
+    }
   })
 })
 

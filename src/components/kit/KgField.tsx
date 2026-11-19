@@ -4,7 +4,13 @@ import { useState } from 'react'
 
 import { cn } from '@/lib/utils'
 
-import { parseKeypadValue, pressKeypadField, type KeypadKey, type KeypadOptions } from './lib/keypad'
+import {
+  keypadValueFrom,
+  parseKeypadValue,
+  pressKeypadField,
+  type KeypadKey,
+  type KeypadOptions,
+} from './lib/keypad'
 import { kitFocus, kitText } from './text'
 
 // ─── Starea câmpurilor scrise cu tastatura din aplicație ───────────────────────
@@ -21,6 +27,7 @@ function emptyValues<K extends string>(fields: readonly K[]): Record<K, string> 
 /**
  * Ține valorile (text, cu virgulă) și câmpul activ. Toate câmpurile pornesc GOALE, fără valoare propusă.
  * `press` se leagă de `NumericKeypad`, `values` și `active` de `KgField`.
+ * `setValue` e pentru o valoare care există deja (înregistrarea editată, o cantitate dictată), nu pentru propuneri.
  */
 export function useKeypadFields<K extends string>({ fields, maxDecimals, maxIntegerDigits }: UseKeypadFieldsOptions<K>) {
   const [values, setValues] = useState<Record<K, string>>(() => emptyValues(fields))
@@ -33,6 +40,10 @@ export function useKeypadFields<K extends string>({ fields, maxDecimals, maxInte
   /** Golește un câmp (ex. când „calitatea 2” e scoasă). */
   const clear = (field: K) => setValues((prev) => ({ ...prev, [field]: '' }))
 
+  /** Pune într-un câmp o valoare venită din afară; trece prin aceleași limite ca tastele. Nevalid → câmp gol. */
+  const setValue = (field: K, raw: number | string | null | undefined) =>
+    setValues((prev) => ({ ...prev, [field]: keypadValueFrom(raw, options) }))
+
   const reset = () => {
     setValues(emptyValues(fields))
     setActive(fields[0])
@@ -43,7 +54,7 @@ export function useKeypadFields<K extends string>({ fields, maxDecimals, maxInte
     number | null
   >
 
-  return { values, numbers, active, setActive, press, clear, reset }
+  return { values, numbers, active, setActive, press, clear, setValue, reset }
 }
 
 // ─── Câmpul ────────────────────────────────────────────────────────────────────

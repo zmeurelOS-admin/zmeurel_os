@@ -1,5 +1,7 @@
 /** Logica tastaturii numerice din aplicație (fără React). Valoarea e text, cu virgulă zecimală. */
 
+import { formatDecimal, parseDecimal, roundTo } from './number'
+
 export type KeypadDigit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
 export type KeypadKey = KeypadDigit | ',' | 'backspace'
 
@@ -42,6 +44,24 @@ export function parseKeypadValue(value: string): number | null {
   if (value === '') return null
   const parsed = Number(value.replace(',', '.'))
   return Number.isFinite(parsed) ? parsed : null
+}
+
+/**
+ * Textul câmpului pentru o valoare venită din afară (o înregistrare salvată, un mesaj), nu tastată.
+ * 27.35 → „27,35”; 27.3 → „27,3”; 12 → „12”. Rotunjește la `maxDecimals` (nu taie).
+ * `null`, text nevalid, număr negativ sau prea mare pentru câmp → text gol (câmp necompletat).
+ */
+export function keypadValueFrom(raw: number | string | null | undefined, options: KeypadOptions = {}): string {
+  const { maxDecimals = 2, maxIntegerDigits = 4 } = options
+
+  const parsed = typeof raw === 'string' ? parseDecimal(raw) : (raw ?? null)
+  if (parsed === null || !Number.isFinite(parsed) || parsed < 0) return ''
+
+  const decimals = Math.max(0, maxDecimals)
+  const rounded = roundTo(parsed, decimals)
+  if (rounded >= 10 ** maxIntegerDigits) return ''
+
+  return formatDecimal(rounded, decimals)
 }
 
 /** Apasă o tastă în câmpul activ; celelalte câmpuri rămân neschimbate. */

@@ -27,6 +27,12 @@ function Cantar() {
       <button type="button" onClick={fields.reset}>
         Golește
       </button>
+      <button type="button" onClick={() => fields.setValue('cal1', 27.35)}>
+        Pune valoarea salvată
+      </button>
+      <button type="button" onClick={() => fields.setValue('cal2', 'nu e număr')}>
+        Pune text nevalid
+      </button>
     </>
   )
 }
@@ -96,6 +102,29 @@ describe('KgField cu tastatura din aplicație', () => {
 
     await user.keyboard('{Backspace}')
     expect(screen.getByRole('button', { name: 'Calitatea 1, 12, kg, activ' })).toBeInTheDocument()
+  })
+
+  it('setValue pune o valoare existentă, iar tastele scriu în continuarea ei', async () => {
+    const user = userEvent.setup()
+    render(<Cantar />)
+
+    await user.click(screen.getByRole('button', { name: 'Pune valoarea salvată' }))
+    expect(screen.getByRole('button', { name: 'Calitatea 1, 27,35 kg, activ' })).toBeInTheDocument()
+    expect(screen.getByTestId('numere')).toHaveTextContent('{"cal1":27.35,"cal2":null}')
+
+    await press(user, ['backspace', '8'])
+    expect(screen.getByRole('button', { name: 'Calitatea 1, 27,38 kg, activ' })).toBeInTheDocument()
+  })
+
+  it('setValue cu o valoare nevalidă lasă câmpul necompletat și nu atinge celelalte câmpuri', async () => {
+    const user = userEvent.setup()
+    render(<Cantar />)
+
+    await press(user, ['9'])
+    await user.click(screen.getByRole('button', { name: 'Pune text nevalid' }))
+
+    expect(screen.getByRole('button', { name: 'Calitatea 1, 9 kg, activ' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Calitatea 2, necompletat' })).toBeInTheDocument()
   })
 
   it('golirea readuce toate câmpurile la necompletat și primul câmp activ', async () => {
