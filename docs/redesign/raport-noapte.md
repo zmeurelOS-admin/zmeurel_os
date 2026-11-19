@@ -10,7 +10,7 @@ Lanț de branch-uri; fiecare pornește din vârful celui dinainte, deci merge-ur
 | # | Modul | Branch | Ultimul commit | Stare |
 |---|---|---|---|---|
 | 1 | Comenzi (+ migrarea comună, + prețul standard) | `redesign/comenzi` | vezi `git log -1 origin/redesign/comenzi` | **gata, împins** |
-| 2 | Livrări | `redesign/livrari` | — | neînceput |
+| 2 | Livrări | `redesign/livrari` | vezi `git log -1 origin/redesign/livrari` | **gata, împins** |
 | 3 | Acasă (telefon) | `redesign/acasa` | — | neînceput |
 | 4 | Clienți + Culegători + Setări | `redesign/clienti-culegatori` | — | neînceput |
 | 5 | Cheltuieli + Investiții + Vânzări | `redesign/cheltuieli-vanzari` | — | neînceput |
@@ -112,7 +112,8 @@ Comenzile venite din campanie apar ca orice comandă.
 
 - **Notificările push pentru prioritare** (07:00 și 18:00): în afara nopții, conform promptului.
 - **Test de componentă pentru pagina nouă.** Există teste pentru logică (`lib/comenzi/__tests__/day-view.test.ts`, 21 de teste; `lib/__tests__/redesign-settings.test.ts`, 16 teste) și testul „Din mesaj” (trece neschimbat). Pagina, formularul și foile au fost verificate doar în browser.
-- **`UnifiedOrderCard`, `EditOrderSheet`, `PaymentStatusToggle`** rămân în `src/components/comenzi` până la modulul 2 (le folosește Livrări) și sunt exceptate din `check:kit` prin `KIT_RULE_PENDING_FILES`.
+- **`UnifiedOrderCard`, `EditOrderSheet`, `PaymentStatusToggle`** au rămas în `src/components/comenzi` doar pe acest branch (le folosea Livrări). Sunt șterse pe `redesign/livrari`.
+- **Mesajele WhatsApp cu text** („am primit comanda”, „va fi livrată la adresa…”), care înainte se deschideau la schimbarea statusului, lipsesc pe acest branch. Revin pe `redesign/livrari`, ca butoane în foaia comenzii și în meniul opririi.
 - **Ramurile de eroare** (`STOC_INSUFICIENT` la trimiterea în livrare, salvare fără internet) nu au fost provocate în browser.
 
 ### Verificare
@@ -157,3 +158,93 @@ Preview: `https://zmeurel-git-redesign-comenzi-zmeurelos-admins-projects.vercel.
 | 14 | „Din mesaj” cu un mesaj lipit | Extrage datele și creează comanda, ca înainte. |
 | 15 | Chatul AI → o comandă dictată | Formularul se deschide cu datele puse. |
 | 16 | `/comenzi/campanie` scris de mână | Pagină inexistentă (404). |
+
+## 4. Modulul 2 — Livrări (`redesign/livrari`)
+
+### Ce e gata
+
+- **Ecranul din mașină.** Sus progresul: „x din y livrate”, kg rămase, lei de încasat. **Următoarea oprire** mare: numărul pe traseu, client, adresă, cantitate, suma de încasat, nota, „N-a răspuns” cu ora, apoi **Sună / Navighează / Livrat** (56 px). Sub ea, restul opririlor numerotate; cele livrate azi, strânse într-un rând care se deschide.
+- **Confirmarea livrării** (foaie de jos): Cash / Transfer / Nu a plătit; suma încasată precompletată cu totalul; livrare parțială (restul rămâne într-o comandă nouă, ca înainte); „Da, livrat”. Folosește `set_comanda_delivered`, neschimbat.
+- **După apel.** „Sună” pornește apelul; la întoarcerea în aplicație apare „Cum a fost apelul?”: „A răspuns, merg” / „Nu a răspuns” (cu „Mut-o la finalul traseului”, pornit) / „Mută pe altă zi” (Mâine / Poimâine / Altă dată + notă). Aceleași acțiuni sunt în meniul opririi („Mai multe pentru această oprire” sau atingerea unei opriri din listă).
+- **Păstrate:** „N-a răspuns” (`last_call_status`), „Copiază pentru livrarea următoare” (`deliver_and_clone_comanda`), scoaterea din traseu înapoi la Comenzi, editarea (deschide formularul din Comenzi), anunțul pe WhatsApp cu textul de dinainte.
+- **Navigare.** Google Maps implicit; Waze pentru o singură oprire, din „Setările traseului” (ținut minte pe telefon). „Pornește în Maps” trimite câte 9 opriri, apoi următoarele 9. „Navighează” e inactiv, cu „fără locație încă”, cât clientul n-are locație.
+- **Aranjarea traseului:** săgeți mari sus / jos pe fiecare oprire; ordinea se salvează în `ordine_livrare` (aceeași pe orice telefon).
+- **Optimizarea:** `POST /api/livrari/optimizeaza` apelează OpenRouteService (Vroom) doar de pe server. Fără cheie întoarce 503, iar ecranul spune „Optimizarea nu e configurată încă”.
+- Tema coral (`zmeurel-orders.module.css`) a dispărut cu totul; Livrări are zi și noapte din tokeni.
+
+### Ce așteaptă migrarea sau cheia ORS
+
+| Ce | De ce depinde | Până atunci |
+|---|---|---|
+| „Salvează locația de aici”, precizia afișată, „Livrezi aici și de acum?” | coloanele de locație din `clienti` | Comutatorul nu apare; aplicația nu cere locația telefonului. |
+| „Navighează” și „Pornește în Maps” | locațiile salvate | Inactive, cu motivul scris. Rămâne „Caută adresa pe hartă” în meniul opririi. |
+| „A dat X lei, rest Y lei” | coloanele de plată parțială din `vanzari` | O sumă mai mică decât totalul trece vânzarea ca neîncasată, simplu. |
+| Optimizarea traseului | locațiile **și** `ORS_API_KEY` în Vercel | Butonul e inactiv, cu motivul scris; se aranjează cu săgețile. |
+
+**Cheia ORS.** Variabila `ORS_API_KEY` (cheie HeiGIT / OpenRouteService), pusă doar în mediul de server din Vercel. Adresa serviciului e `https://api.heigit.org/vroom/v0`: vechiul `api.openrouteservice.org/optimization` a fost retras în 2026 ([anunțul](https://ask.openrouteservice.org/t/deprecating-api-openrouteservice-org-in-favour-of-api-heigit-org/7912)). Se poate schimba cu `ORS_OPTIMIZATION_URL`, fără cod nou. **Apelul real nu a fost încercat** (nu am cheie): e verificat doar cu teste pe un serviciu simulat. La primul traseu optimizat, dacă apare „Serviciul de rutare nu a răspuns”, primul lucru de verificat e adresa.
+
+### Ce am ales singur
+
+1. **Cash și Transfer se salvează la fel** (vânzare încasată). Nu există o coloană pentru felul plății și nu era în migrare. Alegerea e pe ecran, cum s-a decis, dar azi nu se păstrează nicăieri. **De hotărât:** o coloană nouă sau două opțiuni în loc de trei.
+2. **„Livrate azi” se numără după ultima modificare a comenzii** (`updated_at`), fiindcă nu există o coloană cu momentul livrării. O comandă livrată ieri și modificată azi ar apărea la azi.
+3. **Ora de la „N-a răspuns” se ține pe telefon** (`localStorage`), nu în baza de date: există doar marcajul, fără oră. Pe alt telefon apare „N-a răspuns”, fără oră.
+4. **„Caută adresa pe hartă”** în meniul opririi, când clientul nu are locație dar comanda are adresă. Deschide căutarea în Google Maps, nu navigarea la punct fix. „Navighează” rămâne inactiv, cum s-a decis.
+5. **Telefonul din fișa clientului** e folosit când comanda nu are unul scris (și în Comenzi). Comenzile demo, de exemplu, nu au telefon pe comandă.
+6. **Mesajele WhatsApp cu text** nu se mai deschid singure la schimbarea statusului (cu „Pune în livrare azi” ar fi fost câte o fereastră pe comandă). Sunt butoane: „Confirmă comanda pe WhatsApp” / „Anunță livrarea pe WhatsApp” în foaia comenzii și în meniul opririi. Textele sunt cele vechi.
+7. **Traseul nu se optimizează sub două opriri cu locație**, iar opririle fără locație rămân la final, în ordinea lor.
+8. **Comenzile de azi care nu sunt încă în livrare** apar ca o notă cu legătură spre Comenzi, nu ca listă desfăcută.
+9. **Aranjarea traseului** e o vedere a paginii (nu o foaie), cu „Gata”. Tragerea cu degetul a fost scoasă: au rămas săgețile.
+
+### Ce am mutat și ce am scos
+
+| Înainte | Acum |
+|---|---|
+| Card cu toate butoanele pe el (`UnifiedOrderCard`) | Următoarea oprire mare + meniul opririi. |
+| Fereastră de confirmare cu „Livrat parțial →” | Foaia „Confirmi livrarea?”, cu „Livrare parțială” ca comutator. |
+| „Reordonează” prin tragere | „Aranjează traseul” cu săgeți. |
+| „Retrimite la comenzi” | „Scoate din traseu (înapoi la Comenzi)” în meniul opririi. |
+| Schimbarea datei de pe card | „Mută pe altă zi” (comanda devine „Programată” și iese din traseu). |
+| Foaia de editare din Livrări | „Editează comanda” deschide formularul din Comenzi (`/comenzi?edit=<id>`). |
+| Butonul de reîncărcare din antet | „Setările traseului” → „Reîncarcă livrările”. |
+| Insigna „✅ Livrate N” (toate, de când lumea) | „x din y livrate” azi. |
+
+**Șterse:** `UnifiedOrderCard`, `EditOrderSheet`, `PaymentStatusToggle` (cu testele lor), testul paginii vechi, `lib/livrari/types.ts` (fără importuri), `styles/zmeurel-orders.module.css`.
+
+### Ce n-am terminat și de ce
+
+- **Apelul real către OpenRouteService** și **tot ce ține de locații** nu au putut fi încercate: lipsesc coloanele și cheia. Logica lor e acoperită de teste (`lib/livrari/__tests__/route.test.ts`, 14 teste; `api/livrari/__tests__/optimizeaza.test.ts`, 9 teste).
+- **„Cum a fost apelul?”** depinde de întoarcerea în aplicație după un apel real; în browserul de desktop nu se poate provoca.
+- **Test de componentă** pentru pagină și pentru foaia opririi: nu există; verificate doar în browser.
+
+### Verificare
+
+- `typecheck`, `check:kit` (68 de fișiere), `build`: trec. `lint`: aceleași 2 erori vechi.
+- `test:critical:unit`: 349 din 351; cele două picate sunt expirările cunoscute din `integrations/google`.
+- Local, cont demo, 390×844, **pe noapte**:
+  - ecranul principal: nimic nu iese din cadru; toate țintele au cel puțin 48 px; „Livrat” are 56 px;
+  - meniul opririi: toate acțiunile prezente, „Navighează” inactiv cu motivul scris;
+  - confirmarea livrării: suma precompletată (456 lei); cu 400 lei scris apare „Mai puțin decât totalul: vânzarea se trece ca neîncasată”; după „Da, livrat”: „5 din 5”, „Traseul e gata”;
+  - aranjarea: săgeata „mai jos” a mutat prima oprire pe locul 2;
+  - `POST /api/livrari/optimizeaza` fără cheie: 503 `ORS_NOT_CONFIGURED`.
+- **Neverificat local:** tema de zi (doar noaptea), desktopul, „Mută pe altă zi”, „Copiază pentru livrarea următoare”, „Nu a răspuns”, livrarea parțială, „Pornește în Maps”, Waze.
+
+### De verificat pe telefon — Livrări
+
+Preview: `https://zmeurel-git-redesign-livrari-zmeurelos-admins-projects.vercel.app/livrari`. **Livrările de probă doar în cont demo.**
+
+| # | Unde | Ce verificați |
+|---|---|---|
+| 1 | Seara, în mașină, pe „Noapte” | Suma de încasat și adresa se citesc dintr-o privire; butoanele se nimeresc fără să vă uitați lung. |
+| 2 | „Sună” → vorbiți → vă întoarceți în aplicație | Apare „Cum a fost apelul?”. |
+| 3 | „Nu a răspuns”, cu „Mut-o la finalul traseului” pornit | Oprirea coboară ultima și are eticheta „N-a răspuns · ora”. |
+| 4 | „Mută pe altă zi” → Mâine, cu o notă | Comanda dispare din traseu și apare în Comenzi, la Mâine, cu nota. |
+| 5 | „Livrat” → „Da, livrat” | Oprirea trece la livrate; următoarea devine oprirea mare. |
+| 6 | „Livrat” cu o sumă mai mică decât totalul | Vânzarea apare ca neîncasată (în Comenzi → ⋯ → Neîncasate). |
+| 7 | „Livrat” → „Livrare parțială” | Restul apare ca o comandă nouă în Comenzi. |
+| 8 | Meniul opririi → „Copiază pentru livrarea următoare” | Comanda de azi e livrată, iar una nouă apare la ziua aleasă. |
+| 9 | „Aranjează traseul” | Săgețile mută opririle; „Gata”; ordinea rămâne și după reîncărcare. |
+| 10 | „Setările traseului” → Waze | „Navighează” deschide Waze (după migrare, la un client cu locație). |
+| 11 | Android, o foaie deschisă → „înapoi” | Se închide foaia, nu se schimbă pagina. |
+| 12 | **După migrare:** „Da, livrat” la un client fără locație | Comutatorul „Salvează locația de aici” e pornit și arată precizia. După salvare, „Navighează” devine activ. |
+| 13 | **După migrare:** livrare la peste 150 m de locația salvată | „Livrezi aici și de acum?” → „Da, actualizează” / „Nu, doar de data asta”. |
+| 14 | **După migrare și cheie:** „Aranjează traseul” → „Optimizează traseul” | Opririle se așază pe drum, pornind de unde sunteți; cele fără locație rămân la final. |
