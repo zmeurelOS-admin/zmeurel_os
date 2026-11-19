@@ -1,6 +1,6 @@
 # Redesign UI — progres
 
-Ultima actualizare: 19 noiembrie 2026, după corecturile fundației (prompt 03b).
+Ultima actualizare: 19 noiembrie 2026, după kitul de componente (prompt 04).
 
 | Fază | Stare |
 |---|---|
@@ -8,7 +8,7 @@ Ultima actualizare: 19 noiembrie 2026, după corecturile fundației (prompt 03b)
 | 0b — Audit analytics | **gata**: Anexa G, secțiunile 4 și 6 din `audit.md` |
 | — Ștergerea fișierelor nefolosite (Anexa E) | decisă; pas separat înainte de Faza 1 |
 | 1a — Fundația: modul noapte, straturi, tokeni | **gata** pe branch `redesign/fundatie` (nemergeuit): `docs/redesign/tokens.md` |
-| 1b — Componentele kitului + `/admin/kit` | neîncepută (prompt 04) |
+| 1b — Componentele kitului + `/admin/kit` | **gata** pe branch `redesign/kit` (nemergeuit): `src/components/kit/`, `/admin/kit`, regulile din `CLAUDE.md` |
 | 2 — Mockupuri pe module | neîncepută |
 | 3 — Implementare modul cu modul | neîncepută |
 
@@ -234,3 +234,94 @@ Branch `redesign/fundatie`. Nimic în baza de date. Nemergeuit în `main`.
 | 3 | Fereastră de 768–1023 px, noaptea → `/dashboard` | „Editează” și meniul de profil se citesc. |
 | 4 | `/comenzi`, `/livrari`, `/recoltari`, desktop, noaptea | Antetul arată ca înainte (tema coral). |
 | 5 | Telefon pe întunecat, tema „Sistem” → `/login`, `/reset-password`, `/update-password` | Pagini luminoase, etichete și câmpuri lizibile. Ziua arată ca înainte. |
+
+# Kitul de componente (prompt 04, 19.11.2026)
+
+Branch `redesign/kit`. Nimic în baza de date, nicio migrare. Nemergeuit în `main`, fără PR. Niciun modul refăcut; paginile existente arată ca înainte.
+
+## Ce s-a făcut
+
+**Etapa A — primitive**
+
+- `ui/button.tsx`: mărimile `touch` (48), `touch-lg` (56), `icon-touch`; variantele `primary`, `neutral`, `danger`, `quiet`; prop-ul `loading`. Variantele și mărimile existente sunt neschimbate.
+- `src/components/kit/`: `Tile` + `TileGroup`, `Segments`, `FilterPills`, `StatTile`, `StatHero`, `StatusPill`, `EmptyState`, `BigInput` + `BigTextarea`, `ListRow`, `ToggleRow`, `CheckRow`, `Notice`, `ProgressBar`, `ActionCard` + `ActionCardChip`; scara de text în `kit/text.ts`.
+- `npm run check:kit` (`scripts/kit-rules.mjs`, `scripts/check-kit-rules.mjs`).
+- `/admin/kit`, cu link în meniul „Mai mult” și în bara laterală (doar superadmin).
+
+**Etapa B — compuse**
+
+- `BottomSheet`: rădăcina `Dialog` din `ui/dialog` + `SheetContent` din `ui/sheet`. `ui/sheet` singur nu ascunde butonul plutitor și nu ascultă „înapoi” pe Android; rădăcina `Dialog` le face pe amândouă. Fișierele din `ui/` sunt neatinse.
+- `StepForm` + `useStepForm`: navigarea, întoarcerea din recapitulare, resetul la deschidere, ciclul de analytics și cheia de idempotență (`client_sync_id`) sunt în carcasă.
+- `CalendarSheet` + `CalendarPanel`, `NumberStepper`, `NumericKeypad`, `KgField` + `useKeypadFields`, `SummaryRow` + `SummaryList`, `SuccessScreen`.
+- Regulile kitului în `CLAUDE.md`; scara de text în `tokens.md`.
+
+## Decizii (Andrei, la aprobarea planului și după Etapa A)
+
+- Variantele noi de buton se numesc `primary` / `neutral` / `danger` / `quiet`.
+- Scara de text e în `kit/text.ts`, ca șiruri de clase, fără tokeni noi în `globals.css`.
+- Link spre `/admin/kit` în `MoreMenuDrawer.tsx` și `Sidebar.tsx`.
+- `check:kit` are trei reguli în plus față de prompt: `text-xs`, `zIndex` în `style`, clase `z-40` și mai mari.
+- `KgField` nu e `<input>`: e buton cu `aria-pressed`, eticheta spune câmpul, valoarea și starea („Calitatea 1, 27,35 kg, activ”), iar valoarea se anunță la schimbare (`aria-live` politicos).
+- `StatusPill` rămâne la 13 px: nu e apăsabilă, nici când stă într-un rând apăsabil.
+- „Programate” nu încape într-un rând de 4 segmente la 390 px; se rezolvă în Comenzi cu o etichetă scurtă.
+
+## Abateri față de plan (semnalate)
+
+- `BigInput` e componentă de kit, nu variantă în `ui/input.tsx` (acolo toate clasele sunt pe `--agri-*`). `ui/input.tsx` e neatins.
+- `kit/text.ts` exportă și `kitFocus` (conturul de focus comun).
+- Insigna plăcii (`Tile`, „✓ azi 35 kg”) stă pe un rând propriu, jos; lângă inițială nu încăpea pe două coloane.
+- `ListRow`: detaliul are cel mult două rânduri (o adresă trebuie să se poată citi); titlul rămâne pe un rând.
+- `ActionCard`: butoanele secundare au text de 15 px, ca „Navighează” să încapă pe jumătate de lățime.
+- `StepForm` are în plus zona `dock`, fixă între conținut și butoane. Fără ea, la 390×800 ultimul rând al tastaturii cerea derulare.
+- Zilele din calendar au 2 px între ele (nu 4), ca să rămână de cel puțin 48 px lățime la 390 px.
+- Logica de selecție a plăcilor e în `Tile.tsx`, nu într-un fișier separat `lib/selection.ts`. Testul calendarului e `date.test.tsx` (acoperă și `CalendarPanel`).
+- Exporturi ajutătoare, pe lângă lista din prompt: `StatHero`, `BigTextarea`, `ActionCardChip`, `CalendarPanel`, `StepFormFrame`, `StepFormTitle`, `SummaryList`.
+
+## Fișiere atinse
+
+Create: `src/components/kit/` (21 de componente, `index.ts`, `text.ts`, `lib/` cu 4 fișiere, `__tests__/` cu 9 fișiere), `src/app/(dashboard)/admin/kit/` (5 fișiere), `scripts/kit-rules.mjs`, `scripts/check-kit-rules.mjs`.
+
+Modificate: `src/components/ui/button.tsx`, `src/components/app/MoreMenuDrawer.tsx`, `src/components/layout/Sidebar.tsx`, `package.json`, `vitest.critical.config.ts`, `CLAUDE.md`, `docs/redesign/tokens.md`, acest fișier.
+
+Neatinse: `ui/input.tsx`, `ui/sheet.tsx`, `ui/dialog.tsx`, `globals.css`, `theme.css`, `src/lib/utils.ts`, toate modulele (inclusiv Material săditor), `public/sw.js`.
+
+## Verificare
+
+- `typecheck`: trece. `check:kit`: trece, 32 de fișiere. `build`: trece. `lint`: aceleași 3 erori și 14 avertismente vechi, niciuna în kit.
+- Testele kitului: 107 din 107, în 9 fișiere (tastatura și `KgField`, `Tile`, `CheckRow`, `StepForm`, `BottomSheet`, calendar, numere, regulile `check:kit`).
+- `test:critical:unit`: 242 din 244. Cele două picate sunt expirări la 5 secunde în `src/app/api/integrations/google/__tests__/` (`callback.route`, `connect.route`). Pică la fel și fără testele kitului și trec rulate singure; nu vin din acest prompt.
+- Local (Chromium), zi și noapte, la 390 și 790 px, pe o rută temporară, ștearsă după și necomisă (pagina reală cere cont de superadmin): toate țintele au cel puțin 48 px, nimic nu iese din cadru, niciun text sub 15 px ca text al unui element apăsabil.
+- Comportament verificat local: foaia și formularul pun `data-modal-open` pe `<html>` și marcajul în istoric, se închid la „înapoi” și curăță după ele; formularul demonstrativ merge cap-coadă (întoarcerea din recapitulare, aceeași cheie de idempotență pe o deschidere, alta la „încă o cântărire”, câmpul de kg gol după restart).
+- **Etapa A verificată de Andrei pe preview** (zi + noapte, 412 px).
+- **Neverificat pe telefon:** Etapa B. Lista e mai jos.
+
+## Rămase
+
+- **„Vizibilitate ridicată” pe setul canonic.** Suprascrie doar numele `--agri-*`; cere modificări în `theme.css` / `globals.css`, deci a rămas în afara promptului 04. Până atunci, în acest mod kitul are țintele mărite (52 / 60), dar culorile obișnuite.
+- **Contrastul `--fg-subtle` noaptea** (#6c737d pe #12161d, sub 4,5:1). Cere modificare în `theme.css`. Kitul îl folosește doar pe placeholder.
+- **Segmente cu 4 opțiuni la 390 px:** o etichetă de peste 8–9 litere se taie. În Comenzi, „Programate” are nevoie de o formă scurtă.
+- **Ferestre suprapuse** (o foaie deschisă peste un formular pe pași): fiecare pune propriul marcaj în istoric. Neverificat cu „înapoi” pe Android; de verificat la primul modul care are nevoie.
+- **`ui/sheet.tsx` folosit direct** în module nerefăcute rămâne fără ascunderea butonului plutitor și fără „înapoi”. Se rezolvă pe rând, la refacerea fiecărui modul, prin `BottomSheet`.
+- **Material săditor** nu e migrat pe kit (la cerere). Foaia lui locală cu `createPortal` rămâne.
+- **Mărimea implicită a butonului** (`ui/button.tsx`, 40 px) e neschimbată; se schimbă la final, cum cere auditul.
+- **Expirările din testele `integrations/google`** la rularea întregii suite pe această mașină.
+
+## De verificat pe telefon (preview, `/admin/kit`)
+
+Din „Mai mult” → Admin → „Kit de componente”. Comutatorul „Tema aplicației” de sus schimbă tema pentru foile și ferestrele reale.
+
+| # | Unde | Ce verificați |
+|---|---|---|
+| 1 | Foaie de jos → „Deschide” | Urcă peste bara de jos; se văd mânerul și colțurile rotunjite; butonul „Da, livrat” nu e acoperit de bara telefonului. |
+| 2 | Aceeași foaie, pe Android | Butonul „înapoi” al telefonului închide foaia și rămâneți pe pagină. |
+| 3 | Foaie de jos → „Conținut lung” | Lista se derulează; titlul și „Gata” rămân pe loc. |
+| 4 | Calendar → „Alege data livrării” | Zilele trecute nu se pot apăsa; după alegere foaia se închide și butonul arată data. Zilele se nimeresc ușor cu degetul. |
+| 5 | Număr cu pași | − și + merg; la minim butonul − devine inactiv. La atingerea cifrei se deschide tastatura numerică a telefonului, iar pagina NU se mărește (iPhone). |
+| 6 | Tastatură și câmp de kg | Câmpul e gol la început. Tastați 27,35: a doua virgulă și a treia zecimală sunt ignorate. Tastatura telefonului NU se deschide. |
+| 7 | Tastatură → „Adaugă calitatea 2” | Apare al doilea câmp, cu contur verde; tastele scriu doar în el. Atingerea primului câmp mută scrisul înapoi. |
+| 8 | Formular pe pași → „Adaugă kg” | Se deschide pe tot ecranul. La pasul 2, toate cele 4 rânduri de taste și butonul „Continuă” se văd fără derulare. |
+| 9 | Același formular, până la „Verificare” | „Schimbă” la culegător duce la pasul 1, iar după alegere vă întoarce la verificare. Cheia afișată jos rămâne aceeași. |
+| 10 | „Salvează”, apoi „Încă o cântărire” | Apare ecranul de reușită; formularul nou pornește gol, iar la verificare cheia e alta. |
+| 11 | Același formular, pe Android | „Înapoi” al telefonului închide formularul. |
+| 12 | Toate de mai sus, cu tema aplicației pe „Noapte” | Textul se citește, câmpul activ are contur vizibil, tastele se disting de fundal. |
+| 13 | Cu un cititor de ecran (TalkBack / VoiceOver), la câmpul de kg | Se aude „Calitatea 1, necompletat, activ”; după fiecare tastă se aude valoarea nouă. |

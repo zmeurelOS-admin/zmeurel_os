@@ -98,17 +98,19 @@ Minim 48 pentru orice e apăsabil, 56 pentru acțiunea principală. Valorile urm
 
 ## Scara de text
 
-Nu sunt tokeni încă (îi fixează kitul, prompt 04). Regula:
+Fixată de kit (prompt 04) ca șiruri de clase în `src/components/kit/text.ts`, nu ca tokeni în `@theme`. Se folosește `kitText.<treaptă>`, cu greutatea și culoarea adăugate la locul folosirii: `cn(kitText.card, 'font-extrabold text-fg')`. Într-un `cn(...)`, `kitText.*` se pune înaintea unei clase `leading-*` proprii (mărimea de font o șterge pe cea de dinainte).
 
-| Treaptă | Mărime | Pentru |
-|---|---|---|
-| Cifră mare | 64px | câmpul numeric de pe un ecran dedicat (cantitate) |
-| Titlu de ecran | 26px | |
-| Titlu de secțiune | 22px | |
-| Titlu de card | 19px | |
-| Text de bază, câmpuri | 17px | câmpurile de introducere au minimum 16px (sub 16, Safari pe iPhone mărește pagina la focus); folosim 17 |
-| Text secundar | 15px | |
-| Text ajutător | 13px | doar text ajutător; niciodată pe ceva apăsabil. Nimic sub 13. |
+| Treaptă | Mărime | `kitText` | Pentru |
+|---|---|---|---|
+| Cifră mare | 64px | `figure` | câmpul numeric de pe un ecran dedicat (cantitate) |
+| Titlu de ecran | 26px | `screen` | |
+| Titlu de secțiune | 22px | `section` | și sumele din carduri |
+| Titlu de card | 19px | `card` | |
+| Text de bază, câmpuri | 17px | `base` | câmpurile de introducere au minimum 16px (sub 16, Safari pe iPhone mărește pagina la focus); folosim 17 |
+| Text secundar | 15px | `secondary` | cea mai mică mărime pe ceva apăsabil |
+| Text ajutător | 13px | `helper` | doar text ajutător; niciodată ca text al unui element apăsabil. Nimic sub 13. Pastila de status (`StatusPill`) are 13 px: nu e apăsabilă, nici când stă într-un rând apăsabil. |
+
+`npm run check:kit` pică la `text-[…]` sub 13 px și la `text-xs` în folderele kitului.
 
 ## Scara de straturi
 
@@ -184,7 +186,7 @@ Fără efect vizibil (0 utilizări): `--bg-secondary` #f7f8fa → #ededeb, `--ag
 | `--skeleton-base` | #243449 | #1d232c |
 | `--agri-shadow` | 0 1px 2px rgba(0,0,0,.2), 0 6px 20px rgba(0,0,0,.24) | 0 8px 20px rgba(0,0,0,.5) |
 
-De știut: `--fg-subtle` noaptea (#6c737d pe #12161d) are contrast sub 4,5:1. Valoarea e cea de dinainte; se reglează în kit.
+De știut: `--fg-subtle` noaptea (#6c737d pe #12161d) are contrast sub 4,5:1. Valoarea e cea de dinainte. Reglarea a fost amânată din promptul 04 (cere modificări în `theme.css`); kitul îl folosește doar pe placeholder. Vezi „Rămase” în `progres.md`.
 
 ## Antetul paginii noaptea (`agri-hero`, prompt 03b)
 
@@ -244,5 +246,5 @@ Rezultatul așteptat este un singur rând: `--assoc-ink` (magazinul asociației;
 
 - `src/styles/zmeurel-orders.module.css` (tema coral) e neatins; dispare la refacerea Recoltărilor, apoi a perechii Comenzi + Livrări.
 - `gusta-brand.css`, `association-shop.css`, `comanda/comanda.module.css` (magazinul public) și `src/lib/design-tokens.ts` au valorile lor și nu țin de acest set.
-- „Vizibilitate ridicată" suprascrie doar numele `--agri-*`, ca înainte. Trecerea ei pe setul canonic se face odată cu kitul.
+- „Vizibilitate ridicată" suprascrie doar numele `--agri-*`, ca înainte. Trecerea ei pe setul canonic a fost amânată din promptul 04 (cere modificări în `theme.css` / `globals.css`). Până atunci, în acest mod kitul are țintele mărite (52 / 60), dar culorile obișnuite. Vezi „Rămase” în `progres.md`.
 - `tailwind.config.ts` nu e încărcat de nimic (Tailwind 4 citește doar CSS-ul); poate fi șters într-un pas de curățenie.

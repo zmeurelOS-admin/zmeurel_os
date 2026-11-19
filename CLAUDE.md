@@ -10,6 +10,7 @@ npm run lint         # ESLint
 npm run typecheck    # tsc --noEmit
 npm run build        # next build --webpack (runs check-env.js first)
 npm run check        # lint + typecheck + build (full CI gate)
+npm run check:kit    # regulile kitului de componente (tokeni canonici, text ≥ 13 px, straturi)
 npm run test:e2e     # Playwright e2e tests (`e2e/admin-access.spec.ts`: acces admin; dacă DB-ul blochează `is_superadmin` via service role, setează E2E_SUPERADMIN_EMAIL/PASSWORD în `.env.local`)
 ```
 
@@ -120,6 +121,37 @@ Migrations live in `supabase/migrations/` as `.sql` files. Run them manually in 
 - After mutations that affect cached data, call the appropriate `queryClient.invalidateQueries({ queryKey: queryKeys.X })`
 - Conflict errors (status 409 / code `23505`) from Supabase are treated as success (idempotent creates)
 - Form dialogs track `open_create_form` → `create_success`/`create_failed`/`form_abandoned` lifecycle using a `submittedRef` + `hasOpenedRef` pattern
+
+## Kitul de componente (`src/components/kit/`)
+
+Baza modulelor refăcute (Recoltări, apoi Comenzi + Livrări). Totul se importă din `@/components/kit`. Pagina vie, zi și noapte: `/admin/kit` (doar superadmin). Referință: `docs/redesign/tokens.md`.
+
+**Ce există**
+
+- Butonul rămâne unul singur, `ui/button.tsx`. Pentru kit: variantele `primary` / `neutral` / `danger` / `quiet`, mărimile `touch` (48) / `touch-lg` (56) / `icon-touch`, prop-ul `loading`. Variantele și mărimile vechi sunt pentru modulele nerefăcute.
+- Primitive: `Tile` + `TileGroup`, `Segments`, `FilterPills`, `StatTile`, `StatHero`, `StatusPill`, `EmptyState`, `BigInput` + `BigTextarea`, `ListRow`, `ToggleRow`, `CheckRow`, `Notice`, `ProgressBar`, `ActionCard`.
+- Compuse: `BottomSheet`, `StepForm` + `useStepForm`, `CalendarSheet` + `CalendarPanel`, `NumberStepper`, `NumericKeypad`, `KgField` + `useKeypadFields`, `SummaryRow` + `SummaryList`, `SuccessScreen`.
+
+**Reguli pentru kit și pentru modulele refăcute**
+
+- Doar tokenii canonici din `tokens.md`: fără hex, fără `dark:`, fără `--agri-*` / `--text-primary` / `--surface-card` / `--status-*` / `--soft-*`, fără `text-[...]` sub 13 px și fără `text-xs`, fără z-index numeric (`z-[...]`, `z-40` și mai mari, `zIndex` în `style`); doar clasele de strat.
+- Scara de text 26 / 22 / 19 / 17 / 15 / 13 (+ 64 cifra mare), din `kitText` (`kit/text.ts`). 13 e doar text ajutător, niciodată textul unui element apăsabil. Câmpurile au minimum 16 px (folosim 17).
+- Ținte de atingere de cel puțin 48 px, acțiunea principală 56 px, prin `h-touch` / `h-touch-lg` (citesc `--touch-control-h*`: densitate, vizibilitate ridicată). Excepție: tastele `NumericKeypad` au 60 px, fix.
+- Foile și ferestrele se deschid în portal, peste bara de jos (`z-modal`): `BottomSheet` și `StepForm`, nu `createPortal` și nu `ui/sheet` direct (`ui/sheet` singur nu ascunde butonul plutitor și nu ascultă „înapoi” pe Android).
+- Text în română; ARIA corect: roluri `radio` / `checkbox` / `switch` / `tablist`, `aria-pressed` / `aria-checked`, etichete pe butoanele doar-iconiță.
+- Fiecare componentă e exportată din `src/components/kit/index.ts`.
+
+**Formulare pe pași**
+
+- `useStepForm` ține navigarea, resetul la deschidere, ciclul de analytics (`open_create_form` → `create_success` / `create_failed` / `form_abandoned`) și cheia de idempotență. Modulul nu mai scrie `submittedRef` / `hasOpenedRef`.
+- `form.clientSyncId` se trimite ca `client_sync_id` la creare. E aceeași cât e deschis formularul (și la reîncercarea după eroare) și alta la `form.restart()` și la următoarea deschidere. La o cheie nouă, modulul își golește câmpurile.
+- După salvare: `form.markSuccess()`; la eroare: `form.markFailed()`. Cu `mode: 'edit'` sau `analytics: false` nu se trimite niciun eveniment.
+- Tastatura din aplicație se pune în `dock` (zona fixă a carcasei), ca să rămână întreagă pe ecran. Câmpul de kg (`KgField`) pornește gol, fără valoare propusă.
+- Un calendar într-un pas se pune cu `CalendarPanel`, în pagină; `CalendarSheet` e pentru paginile obișnuite.
+
+**Verificare automată**
+
+`npm run check:kit` (`scripts/check-kit-rules.mjs`) pică la orice abatere de la regulile de mai sus în folderele din `KIT_RULE_DIRS` (`scripts/kit-rules.mjs`): acum `src/components/kit` și `src/app/(dashboard)/admin/kit`. Folderul fiecărui modul refăcut se adaugă pe listă când începe refacerea lui. Testele kitului sunt în `src/components/kit/__tests__/` și rulează cu `npm run test:critical:unit`.
 
 ## AI Chat Widget
 
