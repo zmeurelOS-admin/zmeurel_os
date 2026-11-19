@@ -1,6 +1,6 @@
 # Raportul nopții — 19 → 20 noiembrie 2026 (prompt 08)
 
-Stare: **în lucru**. Se actualizează la finalul fiecărui modul. Nimic nu e mergeuit în `main`, niciun PR deschis.
+Stare: **toate cele 5 module sunt gata și împinse**, fiecare pe branch-ul lui. Nimic nu e mergeuit în `main`, niciun PR deschis.
 Nimic scris în baza de date din cod: migrarea e doar un fișier.
 
 ## 1. Ordinea merge-urilor
@@ -13,7 +13,9 @@ Lanț de branch-uri; fiecare pornește din vârful celui dinainte, deci merge-ur
 | 2 | Livrări | `redesign/livrari` | vezi `git log -1 origin/redesign/livrari` | **gata, împins** |
 | 3 | Acasă (telefon) | `redesign/acasa` | vezi `git log -1 origin/redesign/acasa` | **gata, împins** |
 | 4 | Clienți + Culegători + Setări | `redesign/clienti-culegatori` | vezi `git log -1 origin/redesign/clienti-culegatori` | **gata, împins** |
-| 5 | Cheltuieli + Investiții + Vânzări | `redesign/cheltuieli-vanzari` | — | neînceput |
+| 5 | Cheltuieli + Investiții + Vânzări | `redesign/cheltuieli-vanzari` | vezi `git log -1 origin/redesign/cheltuieli-vanzari` | **gata, împins** |
+
+Ultimul branch le conține pe toate: dacă mergeți doar `redesign/cheltuieli-vanzari`, intră toate cele 5 module.
 
 Preview: `https://zmeurel-git-redesign-<x>-zmeurelos-admins-projects.vercel.app` (`<x>` = numele de după `redesign/`).
 
@@ -407,3 +409,124 @@ Preview: `https://zmeurel-git-redesign-clienti-culegatori-zmeurelos-admins-proje
 | 12 | Setări → „Date: șterge toți clienții” (**doar în cont demo**) | Butonul e inactiv până scrieți ȘTERGE. Clienții cu comenzi rămân. |
 | 13 | **După migrare:** Setări → Preț standard | Schimbați perioada activă; o comandă nouă pentru o persoană primește prețul ei. |
 | 14 | Android, formularul deschis → „înapoi” | Cu ceva scris, întreabă „Renunți…?”. |
+
+## 7. Modulul 5 — Cheltuieli + Investiții + Vânzări (`redesign/cheltuieli-vanzari`)
+
+### Ce e gata
+
+**Cheltuieli + Investiții**
+
+- **O singură pagină „Cheltuieli”, cu două file**: Cheltuieli (pe lună) și Investiții (pe an). Tabelele rămân separate. `/investitii` redirecționează la `/cheltuieli?fila=investitii` și duce mai departe toți parametrii (meniul, semnele de carte și linkurile din chatul AI merg ca înainte).
+- **Perioada** se schimbă cu săgețile ‹ › (luna, respectiv anul); nu se poate merge în viitor.
+- **Sus:** card mare cu totalul perioadei și numărul de înregistrări + card cu „Tot anul” (la Investiții: „Anul trecut”).
+- **Rândul:** iconița categoriei, ce s-a cumpărat, categorie · dată · furnizor (· parcelă la investiții), suma. Căutare după categorie, furnizor, descriere sau parcelă, când sunt mai mult de 5 rânduri.
+- **Manopera generată din Recoltări** are eticheta „Automat din Recoltări”; foaia ei nu are „Editează” și „Șterge”, ci explicația „Se schimbă doar din Recoltări”.
+- **Foaia unui rând:** suma, data, categoria, furnizorul, parcela, descrierea; „Vezi bonul” (dacă rândul are deja un document), „Editează”, „Șterge” cu confirmare în aceeași foaie.
+- **Formularul în 2 pași**, același pentru cheltuieli și investiții, adăugare și editare:
+  - pasul 1: „Pe ce ai dat banii?” / „În ce ai investit?”, plăci cu categoriile; atingerea trece mai departe;
+  - pasul 2: suma pe tastatura din aplicație, pastila categoriei (duce înapoi la plăci), data (azi implicit; calendarul nu trece de azi), „Furnizor / ce ai cumpărat” (cu furnizorii folosiți des), „Parcelă” la investiții; „Salvează X lei” direct de aici;
+  - închiderea cu ceva nesalvat cere confirmare; după salvare: „Încă o cheltuială / investiție”.
+- **Deschidere prin URL:** `?add=1`, `?openForm=1&suma=…&data=…&categorie=…&descriere=…` (chatul AI), cu `&fila=investitii` pentru investiții. Suma venită din chat are eticheta „Din chat — verifică suma”.
+
+**Categoriile noi** (`src/lib/financial/categories.ts`)
+
+- 8 de cheltuieli și 6 de investiții, cele din mockup. **Nimic nu se modifică în baza de date**: numele vechi se afișează sub cele noi prin `resolveCheltuialaCategorie` / `resolveInvestitieCategorie`, care întorc mereu o categorie nouă (nume nou, nume vechi, text liber după cuvinte-cheie, altfel „Altele”).
+- Am verificat prin citirea migrărilor: nu există `check` sau enum pe coloanele `categorie`. Înregistrările noi se scriu cu numele noi.
+- Cititorii trecuți prin normalizare: lista și formularele, Rapoarte (gruparea costurilor), rutele `paste-to-cheltuieli` și `paste-to-investitii`, salvările din chatul AI. Dashboardul nu citește categorii.
+- Generatorul de manoperă din Recoltări scrie tot „Manoperă cules” (neatins); se afișează la „Manoperă”.
+
+**Vânzări**
+
+- **Registrul:** luna cu săgeți ‹ ›; card „Încasat în <lună>” (lei, kg, număr) + card „Neîncasat” (lei, număr), care deschide fila „Neîncasate”; segmente Toate / Neîncasate · N; lista pe zile; rândul: client, „kg × preț”, total, Încasat / Neîncasat. Căutare după client când sunt mai mult de 5 rânduri.
+- **Foaia unei vânzări:** client, dată, „din comanda livrată” / „vânzare rapidă”, status; cantitate, preț, total; „Marchează încasat azi” (56 px), „Sună clientul”, „WhatsApp”, „Vezi comanda”, „Marchează neîncasat” pentru cele încasate.
+- **„A dat doar o parte…”** (doar cu coloanele din migrare): suma primită; vânzarea rămâne Neîncasată, iar rândul și foaia arată „A dat 50 lei · rest 70 lei”.
+- **Venitul pe lună** se socotește după `data_incasare`, cu toată suma (`incasatInLuna`); o plată parțială nu e venit până nu vine restul.
+- **Vânzarea rapidă** (butonul mare de jos): kilogramele pe tastatura din aplicație, prețul standard al perioadei active (se poate schimba; prima tastă îl înlocuiește), client opțional („Fără client · la poartă” / „Alege client”), „Rămas în stoc cal. 1” care scade pe măsură ce scrii. Se salvează încasată pe loc. Dacă nu ajunge stocul, butonul e inactiv și scrie „Ai doar X kg în stoc cal. 1”.
+- „Rest de încasat” din Acasă duce acum direct la fila „Neîncasate” (`/vanzari?fila=neincasate`).
+- `check:kit` acoperă în plus `src/app/(dashboard)/cheltuieli`, `…/investitii`, `…/vanzari`, `src/components/cheltuieli`, `src/components/vanzari`, `src/lib/financial`, `src/lib/vanzari`.
+
+### Ce am ales singur
+
+1. **Vânzarea rapidă nu folosește `create_vanzare_with_stock`.** RPC-ul acela scrie în registrul vechi `miscari_stoc` și verifică stocul de acolo, paralel cu disponibilul derivat (de aceea a fost scos din frontend în iulie; vezi capul fișierului `queries/vanzari.ts`). Am folosit „echivalentul găsit”: se creează o comandă pentru azi și se livrează pe loc, încasată, prin `set_comanda_delivered`. Scade din stocul cal. 1 exact ca o livrare și refuză cu `STOC_INSUFICIENT`.
+2. **Urmarea:** o vânzare rapidă apare și în Comenzi, la „Livrate”, cu numele „La poartă” (sau clientul ales) și nota „Vânzare rapidă”. După notă o recunoaște registrul.
+3. **Idempotența vânzării rapide.** `comenzi` nu are `client_sync_id`, deci cheia din `StepForm` nu ajunge în bază. Formularul ține minte comanda creată: o reîncercare o refolosește. Dacă livrarea eșuează, comanda abia creată se șterge. **Caz rămas:** dacă internetul cade exact după crearea comenzii și înainte de răspuns, poate rămâne în Comenzi o comandă „La poartă” pentru azi, nelivrată. Se șterge de acolo.
+4. **Prețul vânzării rapide:** cel negociat al clientului ales, dacă are; altfel prețul standard al perioadei active.
+5. **Perioada cu săgeți**, nu cu o pastilă care deschide un calendar: o atingere pe lună.
+6. **„Toate” arată vânzările făcute în luna aleasă** (după data vânzării). **„Neîncasate” arată tot ce e de primit, din orice lună**, ca să fie aceeași cifră ca în Acasă și în Clienți. Cardul „Încasat” merge după data încasării.
+7. **„Marchează încasat azi” scrie ziua de pe telefon.** Înainte se scria ziua UTC: între miezul nopții și 2–3 dimineața ieșea ziua de ieri.
+8. **Plata parțială:** suma trebuie să fie mai mică decât totalul (pentru toată suma: „Marchează încasat azi”). O sumă nouă o înlocuiește pe cea veche, nu se adună.
+9. **„Vezi comanda”** duce la Comenzi › arhiva „Livrate”, nu la comanda anume (ca înainte, când ducea la `/comenzi`).
+10. **Titlul rândului de cheltuială** e descrierea, dacă există; altfel categoria.
+11. **La editare, categoria se rescrie în bază doar dacă o schimbi.** Un rând vechi editat doar la sumă își păstrează numele vechi în bază.
+12. **Investițiile nu au cheie de idempotență în bază:** o cheie de formular se trimite o singură dată (a doua apăsare arată direct „Salvat”). Cheltuielile trimit `client_sync_id`.
+13. **Chatul AI** poate trimite încă numele vechi de categorii: validarea acceptă și vechi, și noi; la salvare și în formular se normalizează.
+14. **Ștergerea** cere confirmare în foaie. Înainte, cheltuiala se ștergea imediat, cu „Undo” într-o notificare.
+
+### Ce am mutat și ce am scos
+
+| Înainte | Acum |
+|---|---|
+| Pagina `/investitii` | Fila „Investiții” din Cheltuieli (adresa veche redirecționează). |
+| Pastilele Luna / Săpt. / Toate (Cheltuieli, Vânzări) | Luna cu săgeți ‹ ›. „Săpt.” nu mai există. |
+| Pastilele pe categorii din Investiții | Căutarea (găsește și după categorie). |
+| Ferestrele „Adaugă” / „Editează” cheltuială și investiție | Formularul comun în 2 pași. |
+| Cardul de vânzare desfăcut în listă | Foaia vânzării. |
+| „Undo” după ștergerea unei cheltuieli | Confirmare înainte de ștergere. |
+| „Adaugă vânzare” (nu exista; registrul era doar de citit) | „Vânzare rapidă”. |
+
+**Scoase:** tabelele de desktop și panoul de detalii din dreapta (Cheltuieli, Investiții, Vânzări) — acum aceeași listă, pe coloană centrată.
+
+**Fișiere șterse:** `AddCheltuialaDialog`, `EditCheltuialaDialog`, `CheltuialaFormSummary`, `AddInvestitieDialog`, `EditInvestitieDialog`, `InvestitieFormSummary` (cu cele două teste ale ferestrelor vechi), `CheltuialaPageClient`, `InvestitiiPageClient`, `investitii/loading.tsx`. Din `app-select-maps.ts` au ieșit emoji-urile și opțiunile de categorii, iar din `queries/investitii.ts` culorile de insignă: nu le mai folosea nimeni.
+
+### Ce așteaptă migrarea
+
+- „A dat doar o parte…” în foaia unei vânzări și „A dat X lei · rest Y lei” pe rând. Fără coloane, butonul nu apare.
+- Prețul standard pe perioade în vânzarea rapidă: până atunci e 35 lei/kg.
+
+### Ce n-am terminat și de ce
+
+- **„+ Poză bon” nu există în formular.** Promptul cerea „fluxul existent pentru `document_url`”, dar în cod nu există niciun flux de încărcare: pagina veche trimitea mereu `document_url: undefined` și doar afișa un link dacă rândul avea deja unul. Am păstrat ce exista: „Vezi bonul” în foaia rândului. Un flux nou cere un loc de stocare (bucket + politici), adică o hotărâre a voastră.
+- **Editarea din chatul AI** („modifică cheltuiala de azi”): chatul trimite și un `id` în prefill, dar nici pagina veche, nici cea nouă nu deschid rândul după `id`. Se deschide formularul de adăugare precompletat, ca înainte.
+- **Desktopul** nu a fost deschis în browser pentru acest modul.
+
+### Verificare
+
+- `typecheck`, `check:kit` (104 fișiere), `build`: trec. `lint`: aceleași 2 erori vechi (`analytics-magazin/page.tsx`, `ui/app-date-picker.tsx`). `test:critical:unit`: 397 din 397 la ultima rulare. La o rulare dinainte a picat o dată expirarea Google cunoscută (`connect.route.test.ts`), care trece rulată singură (19 din 19).
+- Teste noi: `src/lib/__tests__/cheltuieli-vanzari.test.ts` (21): maparea categoriilor, perioada și totalurile, registrul de vânzări, venitul pe luna încasării, stocul rămas.
+- **Local, cont demo, 390×844, ziua:**
+  - Cheltuieli: lista și cardurile; adăugat „Ambalaje · 12,50 lei” cu furnizor și descriere; editat la 12,80; șters. Plăcile, tastatura și „Salvează” se văd fără derulare; toate țintele au cel puțin 48 px, „Salvează” 56 px.
+  - Investiții: `/investitii?openForm=1&suma=1500&…&categorie=Irigații și fertigare` a redirecționat și a deschis formularul precompletat („Irigație”, „Ieri”, 1500 „Din chat — verifică suma”); ales parcela, salvat, apărut în listă, șters.
+  - Vânzări: registrul, foaia; „Marchează încasat azi” și „Marchează neîncasat” (cardurile s-au recalculat); vânzare rapidă 2,5 kg × 30 lei, fără client: salvată, „Rămas în stoc cal. 1: 222,5 kg”, apărută în registru ca „La poartă · vânzare rapidă”; la 999 kg: „Ai doar 222,5 kg…” și butonul inactiv.
+- **Noaptea:** doar registrul de vânzări și formularul vânzării rapide.
+- **Neverificat în browser:** căutarea din Cheltuieli și cele două retușuri de text din vânzarea rapidă (adăugate după sesiunea de browser; trec `typecheck`, `lint`, `build`), „A dat doar o parte…” (cere migrarea), vânzarea rapidă cu client cu preț negociat, ștergerea comenzii la o livrare eșuată, `?fila=neincasate`, rândul „Automat din Recoltări” (contul demo nu avea unul în luna curentă).
+- **Rămas în contul demo:** o vânzare rapidă „La poartă”, 2,5 kg, 75 lei (și comanda ei livrată). „Vecinu' Ion” a rămas Neîncasat, ca înainte.
+
+### De știut
+
+- **Widgetul „Ești în beta”, când e desfăcut, acoperă butonul mare de jos** (pe toate paginile refăcute, nu doar aici). Restrâns, are loc lângă buton. Nu l-am atins: e în afara modulelor.
+- În panoul de browser al aplicației Claude, ținut ascuns, pagina nu se hidrata până la o captură de ecran (acolo nu rulează `requestAnimationFrame`). Nu e o problemă a aplicației, dar explică de ce nu am putut măsura timpi de încărcare.
+- `CLAUDE.md` spune încă „acum” doar folderele Recoltărilor la `KIT_RULE_DIRS`. Lista adevărată e în `scripts/kit-rules.mjs` (toate modulele nopții). Nu am modificat `CLAUDE.md`.
+- O abatere de la regulile nopții: `ComandaClientStep.tsx` (titlu și „Client nou” opționale) a fost modificat o dată printr-un script rulat din shell, nu cu unealta de editare. Rezultatul e cel din commit; l-am verificat cu `git diff`.
+
+### De verificat pe telefon — Cheltuieli, Investiții, Vânzări
+
+Preview: `https://zmeurel-git-redesign-cheltuieli-vanzari-zmeurelos-admins-projects.vercel.app`. **Salvările doar în cont demo.**
+
+| # | Unde | Ce verificați |
+|---|---|---|
+| 1 | `/cheltuieli`, zi și noapte | Luna cu săgeți, cele două carduri, lista. Categoriile vechi apar sub numele noi; totalul lunii e cel știut. |
+| 2 | Fila „Investiții” | Anul cu săgeți, „Anul trecut”, parcela pe rând. |
+| 3 | „Mai mult” → Investiții | Ajunge la fila „Investiții”. |
+| 4 | „Adaugă cheltuială” | Plăcile încap pe ecran; după alegere, tastatura și „Salvează X lei” se văd fără derulare. |
+| 5 | Pasul 2 → pastila datei, „Furnizor / ce ai cumpărat” | Se deschid în pas și se întorc cu „înapoi”; furnizorii folosiți des apar ca butoane. |
+| 6 | O cheltuială → „Editează” | Formularul pe sumă, cu valorile salvate. „Șterge” cere confirmare. |
+| 7 | O zi cu recoltări plătite (contul real, doar citire) | Rândul „Manoperă cules · Automat din Recoltări”; foaia lui nu are „Editează” / „Șterge”. |
+| 8 | Chatul AI: „am dat 200 lei pe motorină” | Linkul deschide formularul cu „Motorină și curent” și 200, cu „Din chat — verifică suma”. |
+| 9 | `/rapoarte` | Costurile sunt grupate pe categoriile noi; totalul e același ca înainte. |
+| 10 | `/vanzari`, zi și noapte | „Încasat în <lună>” și „Neîncasat” sunt cifrele știute; „Neîncasat” e egal cu „Rest de încasat” din Acasă. |
+| 11 | Cardul „Neîncasat” | Deschide fila „Neîncasate”, cu vânzări din toate lunile. |
+| 12 | O vânzare neîncasată → „Marchează încasat azi” (demo) | Trece la Încasat, cu data de azi; „Încasat în <lună>” crește cu toată suma. |
+| 13 | „Vânzare rapidă” (demo) | Kilogramele, prețul (atingeți „Preț” ca să-l schimbați), „Rămas în stoc cal. 1”. După salvare: apare în registru, iar stocul din Comenzi a scăzut. |
+| 14 | „Vânzare rapidă” cu mai mult decât stocul | „Ai doar X kg în stoc cal. 1”, butonul inactiv. |
+| 15 | **După migrare:** o vânzare neîncasată → „A dat doar o parte…” | Rândul arată „A dat X · rest Y”; „Neîncasat” scade cu X; venitul lunii nu se schimbă până la „Marchează încasat azi”. |
+| 16 | Android, formularul deschis → „înapoi” | Cu ceva scris, întreabă „Renunți…?”. |

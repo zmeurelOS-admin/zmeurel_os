@@ -10,7 +10,7 @@ Ultima actualizare: noaptea de 19 → 20 noiembrie 2026 (prompt 08). Starea la z
 | 1a — Fundația: modul noapte, straturi, tokeni | **gata** pe branch `redesign/fundatie` (nemergeuit): `docs/redesign/tokens.md` |
 | 1b — Componentele kitului + `/admin/kit` | **gata** pe branch `redesign/kit` (nemergeuit): `src/components/kit/`, `/admin/kit`, regulile din `CLAUDE.md` |
 | 2 — Mockupuri pe module | neîncepută |
-| 3 — Implementare modul cu modul | **Recoltări (pilot): gata** pe branch `redesign/recoltari`. **Comenzi: gata** pe `redesign/comenzi` (nemergeuit), cu migrarea comună scrisă și neaplicată. Urmează, în lanț: Livrări, Acasă, Clienți + Culegători + Setări, Cheltuieli + Investiții + Vânzări. Detalii: `raport-noapte.md` |
+| 3 — Implementare modul cu modul | **Recoltări (pilot): gata** pe branch `redesign/recoltari`. **Gata, în lanț, nemergeuite** (noaptea de 19 → 20.11.2026): Comenzi pe `redesign/comenzi` (cu migrarea comună scrisă și neaplicată), Livrări pe `redesign/livrari`, Acasă pe `redesign/acasa`, Clienți + Culegători + Setări pe `redesign/clienti-culegatori`, Cheltuieli + Investiții + Vânzări pe `redesign/cheltuieli-vanzari`. Ordinea merge-urilor, migrarea și listele de verificat: `raport-noapte.md` |
 
 ## Ce s-a făcut în Faza 0
 
