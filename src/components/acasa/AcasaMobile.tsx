@@ -266,7 +266,7 @@ export function AcasaMobile({
             ) : null}
             {afiseaza.rest_incasat ? (
               <StatLink
-                href="/vanzari"
+                href="/vanzari?fila=neincasate"
                 tone={extrasezon.restLei > 0 ? 'warning' : 'neutral'}
                 value={formatLei(extrasezon.restLei)}
                 label={`Rest de încasat · ${extrasezon.restCount} ${extrasezon.restCount === 1 ? 'vânzare' : 'vânzări'}`}
@@ -311,7 +311,7 @@ export function AcasaMobile({
                     leading={<RowIcon tone="warning"><Banknote aria-hidden /></RowIcon>}
                     title={`${extrasezon.restCount} ${extrasezon.restCount === 1 ? 'încasare restantă' : 'încasări restante'}`}
                     detail={`${formatLei(extrasezon.restLei)} de primit`}
-                    onClick={go('/vanzari')}
+                    onClick={go('/vanzari?fila=neincasate')}
                   />
                 </li>
               ) : null}

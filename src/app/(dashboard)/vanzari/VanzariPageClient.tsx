@@ -1,568 +1,542 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { toast } from '@/lib/ui/toast'
+import { ChevronLeft, ChevronRight, MessageCircle, Phone, ReceiptText, Search, ShoppingBasket, Zap } from 'lucide-react'
 
 import { AppShell } from '@/components/app/AppShell'
-import { DashboardContentShell } from '@/components/app/DashboardContentShell'
-import { ErrorState } from '@/components/app/ErrorState'
-import { TableCardsSkeleton } from '@/components/app/ModuleSkeletons'
+import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { PageHeader } from '@/components/app/PageHeader'
-import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
-import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
-import { SearchField } from '@/components/ui/SearchField'
+import {
+  BigInput,
+  BottomSheet,
+  Button,
+  EmptyState,
+  ListRow,
+  Notice,
+  Segments,
+  StatTile,
+  StatusPill,
+  SummaryList,
+  SummaryRow,
+  buttonVariants,
+  kitFocus,
+  kitText,
+  parseDecimal,
+} from '@/components/kit'
+import { VanzareRapidaForm } from '@/components/vanzari/VanzareRapidaForm'
 import { track } from '@/lib/analytics/track'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
-import { getComenzi } from '@/lib/supabase/queries/comenzi'
-import { getClienți } from '@/lib/supabase/queries/clienti'
+import { phoneForLinks } from '@/lib/comenzi/display'
+import { groupByDay, isSameMonth, monthOfIso, shiftMonthRef, type MonthRef } from '@/lib/financial/view'
 import {
-  getVanzari,
-  setVanzareStatusPlata,
-  type Vanzare,
-  type VanzareStatusPlataUpdate,
-} from '@/lib/supabase/queries/vanzari'
+  capitalizeRo,
+  formatKg,
+  formatLei,
+  formatLeiKg,
+  formatNumber,
+  monthYearRo,
+  relativeDayRo,
+  round2,
+  shortDateRo,
+  weekdayDateRo,
+} from '@/lib/format-ro'
 import { queryKeys } from '@/lib/query-keys'
+import { useSchemaFeatures } from '@/lib/schema-features'
+import { getClienți } from '@/lib/supabase/queries/clienti'
+import { getComenzi } from '@/lib/supabase/queries/comenzi'
+import { getVanzari, setVanzarePlataPartiala, setVanzareStatusPlata } from '@/lib/supabase/queries/vanzari'
+import { restDeIncasat } from '@/lib/vanzari/incasari'
+import {
+  buildVanzareRows,
+  incasatInLuna,
+  searchVanzari,
+  sortVanzari,
+  vanzariDinLuna,
+  vanzariNeincasate,
+  type VanzareRow,
+} from '@/lib/vanzari/view'
+import { toast } from '@/lib/ui/toast'
+import { useTodayIso } from '@/lib/ui/use-today-iso'
+import { cn } from '@/lib/utils'
 
-// Vânzările se creează exclusiv prin livrarea comenzilor (set_comanda_delivered).
-// Pagina este un registru read-only; singura acțiune permisă e statusul plății.
+type Tab = 'toate' | 'neincasate'
+type SheetView = 'detalii' | 'parte'
 
-interface Client {
-  id: string
-  nume: string
-  telefon: string | null
+/** Vânzările care depind de o plată: registrul, comenzile (statusul plății) și Acasă. */
+const PAYMENT_INVALIDATED = [queryKeys.vanzari, queryKeys.comenzi, queryKeys.dashboard] as const
+
+function errorText(cause: unknown, fallback: string): string {
+  return cause instanceof Error && cause.message ? cause.message : fallback
 }
 
-interface VanzariPageClientProps {
-  initialVanzari?: Vanzare[]
-  clienti?: Client[]
-}
-
-type TemporalFilter = 'luna' | 'sapt' | 'toate'
-
-function toDateOnly(value: string | null | undefined): string {
-  return (value ?? '').slice(0, 10)
-}
-
-function toIsoDate(value: Date): string {
-  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
-}
-
-function getStartOfWeek(value: Date): Date {
-  const date = new Date(value)
-  date.setHours(0, 0, 0, 0)
-  const weekday = date.getDay()
-  const shift = weekday === 0 ? 6 : weekday - 1
-  date.setDate(date.getDate() - shift)
-  return date
-}
-
-function getStartOfMonth(value: Date): Date {
-  const date = new Date(value)
-  date.setHours(0, 0, 0, 0)
-  date.setDate(1)
-  return date
-}
-
-function normalizeText(value: string | null | undefined): string {
-  return (value ?? '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-}
-
-function isIncasata(status: string | null | undefined): boolean {
-  const normalized = normalizeText(status)
-  return normalized.includes('incasat') || normalized.includes('platit') || normalized.includes('achitat')
-}
-
-function formatData(value: string): string {
-  const d = new Date(value)
-  return d.toLocaleDateString('ro-RO', { day: '2-digit', month: 'short' })
-}
-
-function formatRon(value: number): string {
-  return new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(value)
-}
-
-interface EnrichedVanzare extends Vanzare {
-  clientNume: string
-  telefon: string | null
-  totalRon: number
-  incasata: boolean
-}
-
-interface VanzareCardNewProps {
-  vanzare: EnrichedVanzare
-  isExpanded: boolean
-  onToggle: () => void
-  onMarkPaid: () => void
-  onMarkUnpaid: () => void
-  onOpenComanda: () => void
-}
-
-function VanzareCardNew({ vanzare, isExpanded, onToggle, onMarkPaid, onMarkUnpaid, onOpenComanda }: VanzareCardNewProps) {
-  const subtitle = new Date(vanzare.data).toLocaleDateString('ro-RO')
-  const secondaryValue = `${Number(vanzare.cantitate_kg || 0).toFixed(1)} kg • ${Number(vanzare.pret_lei_kg || 0).toFixed(2)} RON/kg`
-  const meta = vanzare.comanda_id ? 'Din comandă' : undefined
-
-  return (
-    <MobileEntityCard
-      title={vanzare.clientNume}
-      mainValue={`${formatRon(vanzare.totalRon)} RON`}
-      subtitle={subtitle}
-      secondaryValue={secondaryValue}
-      meta={meta}
-      statusLabel={vanzare.incasata ? 'Încasat' : 'Neîncasat'}
-      statusTone={vanzare.incasata ? 'success' : 'warning'}
-      showChevron
-      onClick={onToggle}
-      bottomSlot={isExpanded ? (
-        <>
-          {/* DETALII */}
-          <div className="flex flex-wrap gap-2 text-xs text-[var(--agri-text)]">
-            <span>
-              <span className="text-[var(--agri-text-muted)]">Cantitate: </span>
-              <span className="font-semibold">{Number(vanzare.cantitate_kg || 0).toFixed(2)} kg</span>
-            </span>
-            <span>
-              <span className="text-[var(--agri-text-muted)]">Preț: </span>
-              <span className="font-semibold">{Number(vanzare.pret_lei_kg || 0).toFixed(2)} RON/kg</span>
-            </span>
-            <span>
-              <span className="text-[var(--agri-text-muted)]">Total: </span>
-              <span className="font-semibold text-[var(--value-positive)]">{formatRon(vanzare.totalRon)} RON</span>
-            </span>
-            <span>
-              <span className="text-[var(--agri-text-muted)]">Data: </span>
-              <span className="font-semibold">{new Date(vanzare.data).toLocaleDateString('ro-RO')}</span>
-            </span>
-            <span>
-              <span className="text-[var(--agri-text-muted)]">Încasat: </span>
-              <span
-                className="font-semibold"
-                style={{
-                  color: vanzare.incasata ? 'var(--status-success-text)' : 'var(--status-warning-text)',
-                }}
-              >
-                {vanzare.incasata ? 'Da' : 'Nu'}
-              </span>
-            </span>
-          </div>
-
-          {/* LINK COMANDA */}
-          {vanzare.comanda_id ? (
-            <div className="mt-3">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onOpenComanda()
-                }}
-                className="min-h-9 rounded-lg border border-[var(--soft-info-border)] bg-[var(--soft-info-bg)] px-3 text-[11px] font-semibold text-[var(--soft-info-text)]"
-              >
-                Vezi comanda
-              </button>
-            </div>
-          ) : null}
-
-          {/* CONTACT BUTTONS */}
-          {vanzare.telefon ? (
-            <div className="mt-3 flex gap-2">
-              <a
-                href={`tel:${vanzare.telefon}`}
-                onClick={(e) => e.stopPropagation()}
-                className="flex-1 min-h-11 rounded-xl border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-center text-sm font-semibold leading-[44px] text-[var(--button-muted-text)]"
-              >
-                Sună
-              </a>
-              <a
-                href={`https://wa.me/${vanzare.telefon.replace(/\D/g, '')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="flex-1 min-h-11 rounded-xl border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-3 text-center text-sm font-semibold leading-[44px] text-[var(--status-success-text)]"
-              >
-                WhatsApp
-              </a>
-            </div>
-          ) : null}
-
-          {/* TOGGLE INCASARE */}
-          {!vanzare.incasata ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onMarkPaid()
-              }}
-              className="mt-3 min-h-11 w-full rounded-xl bg-[var(--brand-blue)] px-3 text-sm font-bold text-white"
-            >
-              Marchează ca încasat
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onMarkUnpaid()
-              }}
-              className="mt-3 min-h-11 w-full rounded-xl border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-sm font-semibold text-[var(--agri-text-muted)]"
-            >
-              Marchează ca neîncasat
-            </button>
-          )}
-        </>
-      ) : undefined}
-    />
-  )
-}
-
-export function VanzariPageClient({ initialVanzari = [], clienti: initialClienți = [] }: VanzariPageClientProps) {
+/**
+ * Registrul de vânzări. Vânzările se creează singure la livrarea unei comenzi; de aici se marchează
+ * încasările și se face o „Vânzare rapidă” (la poartă, la piață).
+ */
+export function VanzariPageClient() {
   useTrackModuleView('vanzari')
+
   const router = useRouter()
   const queryClient = useQueryClient()
-  const hasInitialVanzari = initialVanzari.length > 0
-  const hasInitialClienti = initialClienți.length > 0
+  const { memberRole, accessLevel } = useDashboardAuth()
+  const canWrite = memberRole !== 'operator' || accessLevel === 'write'
+  const todayIso = useTodayIso()
+  const { vanzariPlataPartiala } = useSchemaFeatures()
 
-  const [searchTerm, setSearchTerm] = useState('')
-  const [temporalFilter, setTemporalFilter] = useState<TemporalFilter>('luna')
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [tab, setTab] = useState<Tab>(() =>
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('fila') === 'neincasate' ? 'neincasate' : 'toate',
+  )
+  const [monthOffset, setMonthOffset] = useState(0)
+  const [query, setQuery] = useState('')
+  const [rapidaOpen, setRapidaOpen] = useState(false)
 
-  const {
-    data: vanzari = initialVanzari,
-    isLoading,
-    isError,
-    error,
-  } = useQuery({
+  const [openedId, setOpenedId] = useState<string | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [sheetView, setSheetView] = useState<SheetView>('detalii')
+  const [parteText, setParteText] = useState('')
+  const [busy, setBusy] = useState<'incasat' | 'neincasat' | 'parte' | null>(null)
+  const [sheetError, setSheetError] = useState<string | null>(null)
+
+  // ─── Date ───
+  const vanzariQuery = useQuery({
     queryKey: queryKeys.vanzari,
     queryFn: getVanzari,
-    initialData: hasInitialVanzari ? initialVanzari : undefined,
     staleTime: 30000,
     refetchOnWindowFocus: false,
   })
-
   const { data: comenzi = [] } = useQuery({
     queryKey: queryKeys.comenzi,
-    queryFn: getComenzi,
+    queryFn: () => getComenzi(),
     staleTime: 30000,
     refetchOnWindowFocus: false,
   })
-
-  const { data: clienti = initialClienți } = useQuery({
+  const { data: clienti = [] } = useQuery({
     queryKey: queryKeys.clienti,
-    queryFn: async () => {
-      const rows = await getClienți()
-      return rows.map((client) => ({
-        id: client.id,
-        nume: client.nume_client,
-        telefon: client.telefon,
-      }))
-    },
-    initialData: hasInitialClienti ? initialClienți : undefined,
+    queryFn: getClienți,
     staleTime: 30000,
     refetchOnWindowFocus: false,
   })
 
-  const statusPlataMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: VanzareStatusPlataUpdate }) =>
-      setVanzareStatusPlata(id, status),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.vanzari, exact: true })
-      queryClient.invalidateQueries({ queryKey: queryKeys.comenzi, exact: true })
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard, exact: true })
-      toast.success(variables.status === 'platit' ? '✓ Marcat ca încasat' : 'Marcat ca neîncasat')
-    },
-    onError: (err: Error) => {
-      toast.error(err.message)
-    },
-  })
+  const rows = useMemo(
+    () => sortVanzari(buildVanzareRows(vanzariQuery.data ?? [], clienti, comenzi)),
+    [vanzariQuery.data, clienti, comenzi],
+  )
+
+  // ─── Perioada ───
+  const currentMonth: MonthRef | null = todayIso ? monthOfIso(todayIso) : null
+  const month = currentMonth ? shiftMonthRef(currentMonth, monthOffset) : null
+  const monthLabel = month ? monthYearRo(month.year, month.month) : ''
+  const atPresent = Boolean(month && currentMonth && isSameMonth(month, currentMonth))
+
+  const incasat = useMemo(() => (month ? incasatInLuna(rows, month) : { lei: 0, kg: 0, count: 0 }), [rows, month])
+  const rest = useMemo(() => restDeIncasat(rows), [rows])
+  const neincasate = useMemo(() => vanzariNeincasate(rows), [rows])
+  const monthRows = useMemo(() => (month ? vanzariDinLuna(rows, month) : []), [rows, month])
+
+  const tabRows = tab === 'neincasate' ? neincasate : monthRows
+  const visible = useMemo(() => searchVanzari(tabRows, query), [tabRows, query])
+  const days = useMemo(() => groupByDay(visible), [visible])
+  const opened = openedId ? (rows.find((row) => row.id === openedId) ?? null) : null
 
   useEffect(() => {
-    const query = searchTerm.trim()
-    if (!query) return
-
-    const timer = setTimeout(() => {
-      track('search', { module: 'vanzari', query })
-    }, 500)
-
+    const text = query.trim()
+    if (!text) return
+    const timer = setTimeout(() => track('search', { module: 'vanzari', query: text }), 500)
     return () => clearTimeout(timer)
-  }, [searchTerm])
+  }, [query])
 
-  const clientMap = useMemo(() => {
-    const map: Record<string, string> = {}
-    clienti.forEach((c) => { map[c.id] = c.nume })
-    return map
-  }, [clienti])
-
-  const clientPhoneMap = useMemo(() => {
-    const map: Record<string, string | null> = {}
-    clienti.forEach((c) => { map[c.id] = c.telefon })
-    return map
-  }, [clienti])
-
-  const comandaMap = useMemo(() => {
-    const map = new Map<string, (typeof comenzi)[number]>()
-    for (const row of comenzi) {
-      map.set(row.id, row)
-    }
-    return map
-  }, [comenzi])
-
-  const allVanzari = useMemo<EnrichedVanzare[]>(() => {
-    return vanzari.map((row) => {
-      const fromComanda = row.comanda_id ? comandaMap.get(row.comanda_id) : null
-      const fallbackClient = fromComanda?.client_nume || fromComanda?.client_nume_manual || 'Client necunoscut'
-      const clientNume = row.client_id ? clientMap[row.client_id] || fallbackClient : fallbackClient
-      const telefon = row.client_id ? clientPhoneMap[row.client_id] || fromComanda?.telefon || null : fromComanda?.telefon || null
-
-      return {
-        ...row,
-        clientNume,
-        telefon,
-        totalRon: Number(row.cantitate_kg || 0) * Number(row.pret_lei_kg || 0),
-        incasata: isIncasata(row.status_plata),
-      }
-    })
-  }, [vanzari, clientMap, clientPhoneMap, comandaMap])
-
-  const temporalVanzari = useMemo(() => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const todayIso = toIsoDate(today)
-    const weekStartIso = toIsoDate(getStartOfWeek(today))
-    const monthStartIso = toIsoDate(getStartOfMonth(today))
-
-    if (temporalFilter === 'toate') return allVanzari
-
-    return allVanzari.filter((row) => {
-      const rowDate = toDateOnly(row.data)
-      if (temporalFilter === 'sapt') return rowDate >= weekStartIso && rowDate <= todayIso
-      return rowDate >= monthStartIso && rowDate <= todayIso
-    })
-  }, [allVanzari, temporalFilter])
-
-  const filteredVanzari = useMemo(() => {
-    const term = normalizeText(searchTerm)
-    if (!term) return temporalVanzari
-    return temporalVanzari.filter((row) =>
-      normalizeText(row.clientNume).includes(term) ||
-      normalizeText(row.status_plata).includes(term) ||
-      normalizeText(row.observatii_ladite).includes(term)
-    )
-  }, [temporalVanzari, searchTerm])
-
-  const scoreboard = useMemo(() => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const todayIso = toIsoDate(today)
-    const monthStartIso = toIsoDate(getStartOfMonth(today))
-
-    const lunaVanzari = allVanzari.filter((row) => {
-      const rowDate = toDateOnly(row.data)
-      return rowDate >= monthStartIso && rowDate <= todayIso
-    })
-
-    const vanzariLunaRon = lunaVanzari.reduce((sum, row) => sum + row.totalRon, 0)
-    const vanzariLunaKg = lunaVanzari.reduce((sum, row) => sum + Number(row.cantitate_kg || 0), 0)
-    const neincasatRon = allVanzari.reduce((sum, row) => sum + (!row.incasata ? row.totalRon : 0), 0)
-
-    return { vanzariLunaRon, vanzariLunaKg, neincasatRon }
-  }, [allVanzari])
-
-  const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.vanzari, exact: true })
+  // ─── Foaia unei vânzări ───
+  const openRow = (row: VanzareRow) => {
+    setOpenedId(row.id)
+    setSheetView('detalii')
+    setParteText('')
+    setSheetError(null)
+    setSheetOpen(true)
   }
 
-  const PILL_FILTERS: { key: TemporalFilter; label: string }[] = [
-    { key: 'luna', label: 'Luna' },
-    { key: 'sapt', label: 'Săpt.' },
-    { key: 'toate', label: 'Toate' },
-  ]
-  const desktopColumns = useMemo<ColumnDef<EnrichedVanzare>[]>(() => [
-    {
-      accessorKey: 'data',
-      header: 'Data',
-      cell: ({ row }) => formatData(row.original.data),
-      meta: {
-        searchValue: (row: EnrichedVanzare) => row.data,
-      },
-    },
-    {
-      accessorKey: 'clientNume',
-      header: 'Client',
-      cell: ({ row }) => <span className="font-medium">{row.original.clientNume}</span>,
-    },
-    {
-      id: 'produse',
-      header: 'Produse',
-      cell: () => '1',
-      meta: {
-        searchValue: () => '1',
-        numeric: true,
-      },
-    },
-    {
-      accessorKey: 'cantitate_kg',
-      header: 'Cantitate',
-      cell: ({ row }) => `${Number(row.original.cantitate_kg || 0).toFixed(1)} kg`,
-      meta: {
-        searchValue: (row: EnrichedVanzare) => row.cantitate_kg,
-        numeric: true,
-      },
-    },
-    {
-      accessorKey: 'totalRon',
-      header: 'Valoare',
-      cell: ({ row }) => `${formatRon(row.original.totalRon)} RON`,
-      meta: {
-        searchValue: (row: EnrichedVanzare) => row.totalRon,
-        numeric: true,
-      },
-    },
-    {
-      id: 'incasare',
-      header: 'Încasare',
-      enableSorting: false,
-      cell: ({ row }) => (
-        <span
-          className="text-xs font-semibold"
-          style={{
-            color: row.original.incasata ? 'var(--status-success-text)' : 'var(--status-warning-text)',
-          }}
-        >
-          {row.original.incasata ? 'Încasat' : 'Neîncasat'}
-        </span>
-      ),
-      meta: {
-        searchable: false,
-        headerClassName: 'w-[104px] text-right',
-        cellClassName: 'w-[104px] text-right',
-      },
-    },
-  ], [])
+  const refreshPayments = () => {
+    for (const queryKey of PAYMENT_INVALIDATED) void queryClient.invalidateQueries({ queryKey })
+  }
+
+  const markStatus = async (row: VanzareRow, status: 'platit' | 'restanta') => {
+    if (busy || !todayIso) return
+    setBusy(status === 'platit' ? 'incasat' : 'neincasat')
+    setSheetError(null)
+    try {
+      await setVanzareStatusPlata(row.id, status, todayIso)
+      toast.success(status === 'platit' ? `Încasat: ${formatLei(row.total)}` : 'Trecută ca neîncasată')
+      setSheetOpen(false)
+    } catch (cause) {
+      setSheetError(errorText(cause, 'Nu s-a salvat. Verifică internetul și încearcă din nou.'))
+    } finally {
+      refreshPayments()
+      setBusy(null)
+    }
+  }
+
+  const parteLei = parseDecimal(parteText)
+  const parteValid = opened !== null && parteLei !== null && parteLei > 0 && parteLei < opened.total
+
+  const savePartial = async () => {
+    if (busy || !opened || !parteValid || parteLei === null || !todayIso) return
+    setBusy('parte')
+    setSheetError(null)
+    try {
+      await setVanzarePlataPartiala(opened.id, parteLei, todayIso)
+      toast.success(`A dat ${formatLei(parteLei)} · rest ${formatLei(round2(opened.total - parteLei))}`)
+      setSheetView('detalii')
+    } catch (cause) {
+      setSheetError(errorText(cause, 'Nu s-a salvat. Verifică internetul și încearcă din nou.'))
+    } finally {
+      refreshPayments()
+      setBusy(null)
+    }
+  }
+
+  const loading = todayIso === null || vanzariQuery.isLoading
+  const phone = opened ? phoneForLinks(opened.telefon) : null
+
+  const rapidaButton = (
+    <Button type="button" variant="primary" size="touch-lg" className="w-full" onClick={() => setRapidaOpen(true)}>
+      <Zap aria-hidden />
+      Vânzare rapidă
+    </Button>
+  )
 
   return (
     <AppShell
-      header={<PageHeader title="Vânzări" subtitle="Registrul livrărilor finalizate" contentVariant="centered" />}
-      bottomBar={null}
-    >
-      <DashboardContentShell variant="centered" className="mt-2 py-3 sm:mt-0 sm:py-3">
-
-        {/* SCOREBOARD */}
-        {scoreboard.vanzariLunaRon > 0 ? (
-          <div style={{
-            background: 'var(--agri-surface)', borderRadius: 12, padding: '10px 14px',
-            border: '1px solid var(--agri-border)', marginBottom: 8,
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-              <span>
-                <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--value-positive)', letterSpacing: '-0.03em' }}>
-                  {formatRon(scoreboard.vanzariLunaRon)}
-                </span>
-                <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-hint)', marginLeft: 4 }}>RON luna</span>
-              </span>
-              {scoreboard.vanzariLunaKg > 0 ? (
-                <span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--agri-text)' }}>
-                    {scoreboard.vanzariLunaKg.toFixed(1)}
-                  </span>
-                  <span style={{ fontSize: 11, color: 'var(--agri-text-muted)', marginLeft: 2 }}>kg</span>
-                </span>
-              ) : null}
-            </div>
-            {scoreboard.neincasatRon > 0 ? (
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 10, color: 'var(--agri-text-muted)' }}>neîncasat</div>
-                <div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--status-warning-text)' }}>
-                    {formatRon(scoreboard.neincasatRon)}
-                  </span>
-                  <span style={{ fontSize: 10, color: 'var(--text-hint)', marginLeft: 2 }}>RON</span>
-                </div>
-              </div>
-            ) : null}
+      header={<PageHeader title="Vânzări" subtitle={monthLabel ? capitalizeRo(monthLabel) : undefined} contentVariant="workspace" />}
+      bottomBarFixed
+      bottomBar={
+        // Butonul mare ține locul butonului plutitor (+). Loc liber în stânga pentru bula „beta”.
+        canWrite && todayIso ? (
+          <div className="mx-auto w-full max-w-md pl-18 pr-4">
+            <div className="rounded-box shadow-2">{rapidaButton}</div>
           </div>
-        ) : null}
-
-        {/* PILLS */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
-          {PILL_FILTERS.map(({ key, label }) => {
-            const active = temporalFilter === key
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setTemporalFilter(key)}
-                style={{
-                  padding: '6px 14px', fontSize: 11, fontWeight: 600,
-                  borderRadius: 20, border: 'none', cursor: 'pointer',
-                  background: active ? 'var(--pill-active-bg)' : 'var(--pill-inactive-bg)',
-                  color: active ? 'var(--pill-active-text)' : 'var(--pill-inactive-text)',
-                }}
-              >
-                {label}
-              </button>
-            )
-          })}
+        ) : undefined
+      }
+    >
+      <div className="mx-auto w-full max-w-xl space-y-4 pt-3">
+        {/* Luna: schimbă cardul „Încasat” și lista „Toate”. */}
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="neutral" size="icon-touch" aria-label="Luna dinainte" onClick={() => setMonthOffset((value) => value - 1)}>
+            <ChevronLeft aria-hidden />
+          </Button>
+          <p className={cn('min-w-0 flex-1 truncate text-center font-extrabold text-fg', kitText.card)} aria-live="polite">
+            {monthLabel ? capitalizeRo(monthLabel) : '…'}
+          </p>
+          <Button
+            type="button"
+            variant="neutral"
+            size="icon-touch"
+            aria-label="Luna următoare"
+            disabled={atPresent}
+            onClick={() => setMonthOffset((value) => value + 1)}
+          >
+            <ChevronRight aria-hidden />
+          </Button>
         </div>
 
-        {/* SEARCH */}
-        {allVanzari.length > 5 ? (
-          <div style={{ marginBottom: 10 }}>
-            <SearchField
-              containerClassName="md:hidden"
-              placeholder="Caută după client..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              aria-label="Caută vânzări"
-            />
-          </div>
+        {vanzariQuery.isError ? (
+          <Notice
+            tone="danger"
+            title="Vânzările nu s-au încărcat"
+            action={
+              <Button type="button" variant="neutral" size="touch" loading={vanzariQuery.isRefetching} onClick={() => void vanzariQuery.refetch()}>
+                Reîncearcă
+              </Button>
+            }
+          >
+            {errorText(vanzariQuery.error, 'Verifică internetul și încearcă din nou.')}
+          </Notice>
         ) : null}
 
-        {isError ? <ErrorState title="Eroare la încărcare" message={(error as Error).message} onRetry={refresh} /> : null}
-        {isLoading ? <TableCardsSkeleton /> : null}
-
-        {/* EMPTY STATE */}
-        {!isLoading && !isError && filteredVanzari.length === 0 ? (
-          <div style={{
-            background: 'var(--agri-surface)', borderRadius: 14, padding: '36px 20px',
-            textAlign: 'center', border: '1px solid var(--agri-border)',
-          }}>
-            <div style={{ fontSize: 36, marginBottom: 8 }}>💰</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--agri-text)', marginBottom: 6 }}>Nicio vânzare încă</div>
-            <div style={{ fontSize: 12, color: 'var(--text-hint)' }}>
-              Vânzările se creează automat când livrezi o comandă
-            </div>
-          </div>
-        ) : null}
-
-        {/* LIST */}
-        {!isLoading && !isError && filteredVanzari.length > 0 ? (
-          <ResponsiveDataView
-            columns={desktopColumns}
-            data={filteredVanzari}
-            mobileContainerClassName="grid-cols-1"
-            getRowId={(row) => row.id}
-            searchPlaceholder="Caută în vânzări..."
-            emptyMessage="Nu am găsit vânzări pentru filtrele curente."
-            renderCard={(vanzare) => (
-              <VanzareCardNew
-                vanzare={vanzare}
-                isExpanded={expandedId === vanzare.id}
-                onToggle={() => setExpandedId(expandedId === vanzare.id ? null : vanzare.id)}
-                onMarkPaid={() => statusPlataMutation.mutate({ id: vanzare.id, status: 'platit' })}
-                onMarkUnpaid={() => statusPlataMutation.mutate({ id: vanzare.id, status: 'restanta' })}
-                onOpenComanda={() => router.push('/comenzi')}
+        <div className="grid grid-cols-2 gap-2.5">
+          <StatTile
+            tone="inverse"
+            value={formatLei(incasat.lei)}
+            label={`Încasat în ${monthLabel.split(' ')[0] || 'lună'} · ${formatKg(incasat.kg)} · ${incasat.count} ${incasat.count === 1 ? 'vânzare' : 'vânzări'}`}
+          />
+          {rest.count > 0 ? (
+            <button
+              type="button"
+              className={cn('min-w-0 rounded-box text-left', kitFocus)}
+              aria-label={`Neîncasat: ${formatLei(rest.lei)}, ${rest.count} ${rest.count === 1 ? 'vânzare' : 'vânzări'}. Vezi-le`}
+              onClick={() => setTab('neincasate')}
+            >
+              <StatTile
+                tone="warning"
+                className="h-full"
+                value={formatLei(rest.lei)}
+                label={`Neîncasat · ${rest.count} ${rest.count === 1 ? 'vânzare' : 'vânzări'} · vezi`}
               />
-            )}
+            </button>
+          ) : (
+            <StatTile value={formatLei(0)} label="Neîncasat · totul e încasat" />
+          )}
+        </div>
+
+        {canWrite ? <div className="hidden md:block">{rapidaButton}</div> : null}
+
+        <Segments<Tab>
+          aria-label="Ce vânzări arăt"
+          panelId="vanzari-lista"
+          value={tab}
+          onValueChange={setTab}
+          options={[
+            { value: 'toate', label: 'Toate' },
+            { value: 'neincasate', label: 'Neîncasate', count: rest.count },
+          ]}
+        />
+
+        {tabRows.length > 5 ? (
+          <BigInput
+            aria-label="Caută după client"
+            placeholder="Caută după client"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            leading={<Search aria-hidden />}
+            autoComplete="off"
+            autoCorrect="off"
+            enterKeyHint="search"
           />
         ) : null}
 
-      </DashboardContentShell>
+        <section id="vanzari-lista" role="tabpanel" aria-label={tab === 'neincasate' ? 'Vânzări neîncasate' : 'Toate vânzările lunii'} className="space-y-4">
+          {tab === 'neincasate' && neincasate.length > 0 ? (
+            <p className={cn('px-1 text-fg-muted', kitText.secondary)}>Din toate lunile, cele mai noi întâi.</p>
+          ) : null}
+
+          {loading ? (
+            <div className="space-y-2" aria-busy="true" aria-label="Se încarcă">
+              <div className="h-[68px] animate-pulse rounded-box bg-surface-muted" />
+              <div className="h-[68px] animate-pulse rounded-box bg-surface-muted" />
+            </div>
+          ) : visible.length === 0 ? (
+            query.trim() ? (
+              <EmptyState icon={<Search />} title="Nicio vânzare găsită" description="Verifică numele clientului." />
+            ) : tab === 'neincasate' ? (
+              <EmptyState icon={<ReceiptText />} title="Totul e încasat" description="Nu ai nimic de primit de la clienți." />
+            ) : (
+              <EmptyState
+                icon={<ReceiptText />}
+                title="Nicio vânzare în această lună"
+                description="Vânzările apar singure când livrezi o comandă. La poartă sau la piață, folosește „Vânzare rapidă”."
+              />
+            )
+          ) : (
+            days.map((day) => (
+              <section key={day.day} aria-label={weekdayDateRo(day.day)} className="space-y-2">
+                <h3 className={cn('px-1 font-bold text-fg-muted', kitText.secondary)}>
+                  {todayIso ? capitalizeRo(relativeDayRo(day.day, todayIso)) : shortDateRo(day.day)}
+                </h3>
+                <ul className="space-y-2">
+                  {day.rows.map((row) => (
+                    <li key={row.id}>
+                      <ListRow
+                        title={row.clientNume}
+                        detail={
+                          row.primit > 0 && !row.incasata
+                            ? `A dat ${formatLei(row.primit)} · rest ${formatLei(row.rest)}`
+                            : `${formatKg(Number(row.cantitate_kg) || 0)} × ${formatLeiKg(Number(row.pret_lei_kg) || 0)}`
+                        }
+                        onClick={() => openRow(row)}
+                        chevron={false}
+                        aria-label={`${row.clientNume}, ${formatLei(row.total)}, ${row.incasata ? 'încasat' : 'neîncasat'}. Deschide`}
+                        trailing={
+                          <span className="flex flex-col items-end gap-1">
+                            <span className={cn('font-extrabold text-fg', kitText.base)}>{formatLei(row.total)}</span>
+                            <StatusPill tone={row.incasata ? 'success' : 'warning'}>{row.incasata ? 'Încasat' : 'Neîncasat'}</StatusPill>
+                          </span>
+                        }
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))
+          )}
+        </section>
+      </div>
+
+      {todayIso ? (
+        <VanzareRapidaForm open={rapidaOpen} onOpenChange={setRapidaOpen} todayIso={todayIso} clienti={clienti} comenzi={comenzi} />
+      ) : null}
+
+      <BottomSheet
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        title={sheetView === 'parte' ? 'Cât a dat?' : (opened?.clientNume ?? 'Vânzare')}
+        description={
+          opened
+            ? sheetView === 'parte'
+              ? `${opened.clientNume} · total ${formatLei(opened.total)}`
+              : `${capitalizeRo(weekdayDateRo(opened.data))} · ${opened.rapida ? 'vânzare rapidă' : opened.comanda_id ? 'din comanda livrată' : 'vânzare directă'}`
+            : undefined
+        }
+      >
+        {opened ? (
+          sheetView === 'parte' ? (
+            <form
+              className="space-y-4"
+              onSubmit={(event) => {
+                event.preventDefault()
+                void savePartial()
+              }}
+            >
+              {sheetError ? (
+                <Notice tone="danger" title="Nu s-a salvat">
+                  {sheetError}
+                </Notice>
+              ) : null}
+              <BigInput
+                label="Suma primită"
+                inputMode="decimal"
+                autoComplete="off"
+                enterKeyHint="done"
+                placeholder="ex. 50"
+                value={parteText}
+                onChange={(event) => setParteText(event.target.value)}
+                trailing={<span className={cn('font-bold text-fg-muted', kitText.base)}>lei</span>}
+                hint={
+                  parteLei !== null && parteLei >= opened.total
+                    ? 'E toată suma: întoarce-te și apasă „Marchează încasat azi”.'
+                    : parteValid && parteLei !== null
+                      ? `Rămâne de primit ${formatLei(round2(opened.total - parteLei))}. Vânzarea rămâne Neîncasată până vine restul.`
+                      : 'Vânzarea rămâne Neîncasată până vine restul.'
+                }
+              />
+              <Button type="submit" variant="primary" size="touch-lg" className="w-full" loading={busy === 'parte'} disabled={!parteValid}>
+                {parteValid && parteLei !== null ? `Notează ${formatLei(parteLei)}` : 'Notează suma'}
+              </Button>
+              <Button
+                type="button"
+                variant="neutral"
+                size="touch-lg"
+                className="w-full"
+                onClick={() => {
+                  setSheetError(null)
+                  setSheetView('detalii')
+                }}
+              >
+                Înapoi
+              </Button>
+            </form>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex">
+                <StatusPill tone={opened.incasata ? 'success' : 'warning'}>
+                  {opened.incasata
+                    ? opened.data_incasare
+                      ? `Încasat · ${shortDateRo(opened.data_incasare)}`
+                      : 'Încasat'
+                    : 'Neîncasat'}
+                </StatusPill>
+              </div>
+
+              {sheetError ? (
+                <Notice tone="danger" title="Nu s-a salvat">
+                  {sheetError}
+                </Notice>
+              ) : null}
+
+              <SummaryList>
+                <SummaryRow label="Cantitate" value={formatKg(Number(opened.cantitate_kg) || 0)} />
+                <SummaryRow label="Preț" value={formatLeiKg(Number(opened.pret_lei_kg) || 0)} />
+                <SummaryRow label="Total" value={formatLei(opened.total)} />
+                {!opened.incasata && opened.primit > 0 ? (
+                  <>
+                    <SummaryRow
+                      label="A dat"
+                      value={`${formatLei(opened.primit)}${opened.data_incasare_partiala ? ` · ${shortDateRo(opened.data_incasare_partiala)}` : ''}`}
+                    />
+                    <SummaryRow label="Rest de primit" value={formatLei(opened.rest)} />
+                  </>
+                ) : null}
+              </SummaryList>
+
+              <div className="flex flex-col gap-2.5">
+                {canWrite && !opened.incasata ? (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="touch-lg"
+                    className="w-full"
+                    loading={busy === 'incasat'}
+                    disabled={busy !== null}
+                    onClick={() => void markStatus(opened, 'platit')}
+                  >
+                    Marchează încasat azi
+                  </Button>
+                ) : null}
+                {canWrite && !opened.incasata && vanzariPlataPartiala ? (
+                  <Button
+                    type="button"
+                    variant="neutral"
+                    size="touch"
+                    className="w-full"
+                    disabled={busy !== null}
+                    onClick={() => {
+                      setSheetError(null)
+                      setParteText(opened.primit > 0 ? formatNumber(opened.primit) : '')
+                      setSheetView('parte')
+                    }}
+                  >
+                    A dat doar o parte…
+                  </Button>
+                ) : null}
+                {phone ? (
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <a href={`tel:${phone.tel}`} className={cn(buttonVariants({ variant: 'neutral', size: 'touch' }), 'w-full')}>
+                      <Phone aria-hidden />
+                      Sună clientul
+                    </a>
+                    <a
+                      href={`https://wa.me/${phone.wa}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={cn(buttonVariants({ variant: 'neutral', size: 'touch' }), 'w-full')}
+                    >
+                      <MessageCircle aria-hidden />
+                      WhatsApp
+                    </a>
+                  </div>
+                ) : null}
+                {opened.comanda_id && !opened.rapida ? (
+                  <Button
+                    type="button"
+                    variant="neutral"
+                    size="touch"
+                    className="w-full"
+                    onClick={() => {
+                      setSheetOpen(false)
+                      router.push('/comenzi?filter=livrate')
+                    }}
+                  >
+                    <ShoppingBasket aria-hidden />
+                    Vezi comanda
+                  </Button>
+                ) : null}
+                {canWrite && opened.incasata ? (
+                  <Button
+                    type="button"
+                    variant="quiet"
+                    size="touch"
+                    className="w-full"
+                    loading={busy === 'neincasat'}
+                    disabled={busy !== null}
+                    onClick={() => void markStatus(opened, 'restanta')}
+                  >
+                    Marchează neîncasat
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          )
+        ) : null}
+      </BottomSheet>
     </AppShell>
   )
 }

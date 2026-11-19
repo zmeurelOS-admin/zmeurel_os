@@ -72,12 +72,24 @@ export interface ComandaClientStepProps {
   /** Ce e scris în căutare la deschidere (ex. numele venit din chat sau de pe o comandă fără client). */
   initialQuery?: string
   onPick: (client: Client) => void
-  /** Deschide „Client nou”, cu ce s-a scris în căutare pus deja în câmpuri. */
-  onAddNew: (seed: { nume: string; telefon: string }) => void
+  /** Deschide „Client nou”, cu ce s-a scris în căutare pus deja în câmpuri. Fără el, butonul nu apare. */
+  onAddNew?: (seed: { nume: string; telefon: string }) => void
+  /** Întrebarea de sus. Implicit: „Pentru cine e comanda?”. */
+  title?: string
+  /** Ce stă între căutare și listă (ex. „Fără client”). */
+  extra?: React.ReactNode
 }
 
 /** Căutare după nume sau telefon, clienții recenți și „Client nou”. Atingerea unui client trece la detalii. */
-export function ComandaClientStep({ clienti, comenzi, initialQuery = '', onPick, onAddNew }: ComandaClientStepProps) {
+export function ComandaClientStep({
+  clienti,
+  comenzi,
+  initialQuery = '',
+  onPick,
+  onAddNew,
+  title = 'Pentru cine e comanda?',
+  extra,
+}: ComandaClientStepProps) {
   const [query, setQuery] = useState(initialQuery)
   const recent = useMemo(() => recentClients(comenzi, clienti), [comenzi, clienti])
   const results = useMemo(() => searchClients(clienti, query), [clienti, query])
@@ -92,7 +104,7 @@ export function ComandaClientStep({ clienti, comenzi, initialQuery = '', onPick,
 
   return (
     <div className="space-y-4">
-      <StepFormTitle>Pentru cine e comanda?</StepFormTitle>
+      <StepFormTitle>{title}</StepFormTitle>
 
       <BigInput
         aria-label="Caută după nume sau telefon"
@@ -105,10 +117,13 @@ export function ComandaClientStep({ clienti, comenzi, initialQuery = '', onPick,
         enterKeyHint="search"
       />
 
-      <Button type="button" variant="neutral" size="touch" className="w-full" onClick={() => onAddNew(seedFromQuery())}>
-        <UserPlus aria-hidden />
-        Client nou
-      </Button>
+      {onAddNew ? (
+        <Button type="button" variant="neutral" size="touch" className="w-full" onClick={() => onAddNew(seedFromQuery())}>
+          <UserPlus aria-hidden />
+          Client nou
+        </Button>
+      ) : null}
+      {extra}
 
       <section aria-labelledby="comanda-clienti-lista" className="space-y-2">
         <h3 id="comanda-clienti-lista" className={cn('px-1 font-bold text-fg-muted', kitText.secondary)}>
@@ -116,7 +131,13 @@ export function ComandaClientStep({ clienti, comenzi, initialQuery = '', onPick,
         </h3>
         {list.length === 0 ? (
           <Notice tone="info" title={searching ? 'Niciun client găsit' : 'Nu ai niciun client încă'}>
-            {searching ? 'Verifică numele sau adaugă-l ca „Client nou”.' : 'Adaugă primul client cu butonul de mai sus.'}
+            {searching
+              ? onAddNew
+                ? 'Verifică numele sau adaugă-l ca „Client nou”.'
+                : 'Verifică numele sau telefonul.'
+              : onAddNew
+                ? 'Adaugă primul client cu butonul de mai sus.'
+                : 'Clienții se adaugă din pagina Clienți.'}
           </Notice>
         ) : (
           <ul className="space-y-2">

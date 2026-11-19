@@ -140,10 +140,12 @@ export async function setVanzarePlataPartiala(id: string, sumaLei: number, dataI
 export async function setVanzareStatusPlata(
   id: string,
   status: VanzareStatusPlataUpdate,
+  /** Ziua încasării, pe calendarul telefonului. Fără ea: ziua UTC (noaptea poate fi cea de ieri). */
+  dataIncasareIso?: string,
 ): Promise<Vanzare> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
-  const today = new Date().toISOString().split('T')[0]
+  const today = dataIncasareIso || new Date().toISOString().split('T')[0]
 
   const { data, error } = await supabase
     .from('vanzari')

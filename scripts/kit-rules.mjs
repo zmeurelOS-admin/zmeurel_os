@@ -30,6 +30,14 @@ export const KIT_RULE_DIRS = [
   'src/components/culegatori',
   'src/lib/culegatori',
   'src/components/setari',
+  // Cheltuieli + Investiții (o pagină, două file) și Vânzări
+  'src/app/(dashboard)/cheltuieli',
+  'src/app/(dashboard)/investitii',
+  'src/components/cheltuieli',
+  'src/lib/financial',
+  'src/app/(dashboard)/vanzari',
+  'src/components/vanzari',
+  'src/lib/vanzari',
 ]
 
 /**
