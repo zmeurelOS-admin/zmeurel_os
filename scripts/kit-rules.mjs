@@ -16,18 +16,17 @@ export const KIT_RULE_DIRS = [
   'src/app/(dashboard)/comenzi',
   'src/components/comenzi',
   'src/lib/comenzi',
+  // Livrări
+  'src/app/(dashboard)/livrari',
+  'src/components/livrari',
+  'src/lib/livrari',
 ]
 
 /**
  * Fișiere vechi dintr-un folder deja verificat, folosite încă de un modul nerefăcut.
- * Se scot de aici (și se șterg) când modulul respectiv e refăcut.
+ * Se scot de aici (și se șterg) când modulul respectiv e refăcut. Acum: niciunul.
  */
-export const KIT_RULE_PENDING_FILES = [
-  // Folosite de Livrări până la refacerea ei (modulul 2).
-  'src/components/comenzi/UnifiedOrderCard.tsx',
-  'src/components/comenzi/EditOrderSheet.tsx',
-  'src/components/comenzi/PaymentStatusToggle.tsx',
-]
+export const KIT_RULE_PENDING_FILES = []
 
 const TEXT_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.css'])
 const EXCLUDED_PATH_PATTERNS = [/\/__tests__\//, /\.test\.[cm]?[jt]sx?$/]
