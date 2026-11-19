@@ -25,6 +25,8 @@ Modul **separat** de Livrări (decizie: două module, interfețe separate).
   - **în traseul din Livrări NU au loc special**: ordinea pe drum rămâne cea geografică (optimizare / aranjare manuală).
   - Orele notificărilor modificabile din Setări.
 
-## Deschise
+## Decise ulterior (19.11.2026)
 
-- Avansul: notat la comandă sau doar la livrare.
+- **Avansul se notează doar la livrare**; formularul comenzii nu are câmp de bani încasați.
+- **Se scoate tot ce ține de campanie** din aplicație (pagina `comenzi/campanie` și tot ce o leagă). Sezonul viitor se face un magazin nou pentru comenzi online. Datele din baza de date rămân neatinse; comenzile venite din campanie apar ca orice comandă. Magazinul separat `comanda.zmeurel.ro` nu se atinge.
+- **Prețul standard** pentru persoane fizice vine din setarea pe fermă (perioada activă: Început / Vârf / Mediu) — vezi `clienti-culegatori.md`.
