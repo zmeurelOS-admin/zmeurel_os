@@ -1,26 +1,18 @@
-// src/app/(dashboard)/investitii/page.tsx
+import { redirect } from 'next/navigation'
 
-import { createClient } from '@/lib/supabase/server'
-import { InvestitiiPageClient } from './InvestitiiPageClient'
+type SearchParams = Record<string, string | string[] | undefined>
 
-export default async function InvestitiiPage() {
-  const supabase = await createClient()
-
-  const { data: investitii } = await supabase
-    .from('investitii')
-    .select('id,id_investitie,data,parcela_id,categorie,furnizor,descriere,document_url,suma_lei,created_at,updated_at,tenant_id')
-    .order('data', { ascending: false })
-
-  const { data: parcele } = await supabase
-    .from('parcele')
-    .select('id, id_parcela, nume_parcela')
-    .order('created_at', { ascending: false })
-
-  return (
-    <InvestitiiPageClient
-      initialInvestitii={investitii ?? []}
-      parcele={parcele ?? []}
-    />
-  )
+/**
+ * Investițiile stau acum pe pagina „Cheltuieli”, în fila a doua. Adresa veche rămâne bună
+ * (meniu, semne de carte, linkurile din chatul AI): parametrii merg mai departe neschimbați.
+ */
+export default async function InvestitiiPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const params = await searchParams
+  const next = new URLSearchParams()
+  for (const [name, value] of Object.entries(params)) {
+    if (name === 'fila' || value === undefined) continue
+    for (const item of Array.isArray(value) ? value : [value]) next.append(name, item)
+  }
+  next.set('fila', 'investitii')
+  redirect(`/cheltuieli?${next.toString()}`)
 }
-

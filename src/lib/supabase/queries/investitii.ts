@@ -12,18 +12,6 @@ import { resolveInvestitieCategorie } from '@/lib/financial/categories'
 
 export { CATEGORII_INVESTITII } from '@/lib/financial/categories'
 
-// BADGE COLORS (pentru UI)
-export const BADGE_COLORS: Record<string, string> = {
-  'Material săditor': 'bg-green-100 text-green-700',
-  'Irigații și fertigare': 'bg-blue-100 text-blue-700',
-  'Sisteme de susținere și protecție': 'bg-purple-100 text-purple-700',
-  'Construcții și amenajări': 'bg-orange-100 text-orange-700',
-  'Utilaje și echipamente': 'bg-yellow-100 text-yellow-700',
-  'Depozitare și răcire': 'bg-indigo-100 text-indigo-700',
-  'Infrastructură și utilități': 'bg-cyan-100 text-cyan-700',
-  'IT și automatizări': 'bg-violet-100 text-violet-700',
-  'Alte investiții': 'bg-gray-100 text-gray-700',
-}
 
 // ===============================
 // TYPES
@@ -53,7 +41,8 @@ export interface CreateInvestitieInput {
 
 export interface UpdateInvestitieInput {
   data?: string
-  parcela_id?: string
+  /** `null` scoate parcela (investiție pentru toată ferma). */
+  parcela_id?: string | null
   categorie?: string
   furnizor?: string
   descriere?: string
