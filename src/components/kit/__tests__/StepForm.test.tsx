@@ -472,3 +472,106 @@ describe('StepForm — carcasa', () => {
     await waitFor(() => expect(eventNames()).toEqual(['open_create_form', 'form_abandoned']))
   })
 })
+
+// ─── Garda de închidere ────────────────────────────────────────────────────────
+
+function FormularCuGarda({ guard }: { guard: () => boolean }) {
+  const [open, setOpen] = useState(false)
+  const form = useStepForm({ steps: ['kg'], open })
+
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>
+        Adaugă kg
+      </button>
+      <StepForm form={form} open={open} onOpenChange={setOpen} title="Adaugă kilograme" closeGuard={guard}>
+        <button type="button" onClick={() => setOpen(false)}>
+          Renunță
+        </button>
+      </StepForm>
+    </>
+  )
+}
+
+const pressBack = () =>
+  act(() => {
+    window.dispatchEvent(new PopStateEvent('popstate'))
+  })
+
+describe('StepForm — garda de închidere', () => {
+  it('X nu închide formularul cât garda spune că e ceva nesalvat', async () => {
+    const user = userEvent.setup()
+    const guard = vi.fn(() => true)
+    render(<FormularCuGarda guard={guard} />)
+
+    await user.click(screen.getByRole('button', { name: 'Adaugă kg' }))
+    await screen.findByRole('dialog')
+    await user.click(screen.getByRole('button', { name: 'Închide' }))
+
+    expect(guard).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('fără nimic nesalvat, X închide direct', async () => {
+    const user = userEvent.setup()
+    const guard = vi.fn(() => false)
+    render(<FormularCuGarda guard={guard} />)
+
+    await user.click(screen.getByRole('button', { name: 'Adaugă kg' }))
+    await screen.findByRole('dialog')
+    await user.click(screen.getByRole('button', { name: 'Închide' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('„înapoi” oprit de gardă lasă formularul deschis și pune la loc intrarea din istoric', async () => {
+    const user = userEvent.setup()
+    const guard = vi.fn(() => true)
+    render(<FormularCuGarda guard={guard} />)
+
+    await user.click(screen.getByRole('button', { name: 'Adaugă kg' }))
+    await screen.findByRole('dialog')
+    const lengthWhileOpen = window.history.length
+
+    pressBack()
+
+    expect(guard).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(window.history.length).toBe(lengthWhileOpen + 1)
+    expect(window.history.state?.__zmeurelDialog).toBe(true)
+  })
+
+  it('al doilea „înapoi” întreabă din nou garda (ui/dialog nu mai ascultă după primul)', async () => {
+    const user = userEvent.setup()
+    const guard = vi.fn(() => true)
+    render(<FormularCuGarda guard={guard} />)
+
+    await user.click(screen.getByRole('button', { name: 'Adaugă kg' }))
+    await screen.findByRole('dialog')
+
+    pressBack()
+    pressBack()
+    expect(guard).toHaveBeenCalledTimes(2)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+    // Când nu mai e nimic nesalvat, „înapoi” închide.
+    guard.mockReturnValue(false)
+    pressBack()
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('închiderea hotărâtă de modul după un „înapoi” oprit scoate marcajul din istoric', async () => {
+    const user = userEvent.setup()
+    render(<FormularCuGarda guard={() => true} />)
+
+    await user.click(screen.getByRole('button', { name: 'Adaugă kg' }))
+    await screen.findByRole('dialog')
+    pressBack()
+    expect(window.history.state?.__zmeurelDialog).toBe(true)
+
+    await user.click(screen.getByRole('button', { name: 'Renunță' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(window.history.state?.__zmeurelDialog).toBeUndefined()
+  })
+})

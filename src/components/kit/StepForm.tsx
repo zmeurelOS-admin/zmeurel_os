@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronLeft, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { generateClientId } from '@/lib/offline/generateClientId'
+import { DIALOG_HISTORY_MARKER, stripDialogHistoryMarker } from '@/lib/ui/dialog-history'
 import { cn } from '@/lib/utils'
 
 import {
@@ -314,15 +315,75 @@ export interface StepFormProps extends Omit<StepFormFrameProps, 'onClose' | 'cla
   /** Numele ferestrei pentru cititoarele de ecran (ex. „Adaugă kilograme”). */
   title: string
   description?: string
+  /**
+   * Întrebat la orice încercare de închidere (X, Esc, atingere în afară, „înapoi” pe Android).
+   * Dacă întoarce `true`, formularul rămâne deschis și modulul arată confirmarea (ex. „Renunți la 2 kg?”).
+   * Închiderea hotărâtă de modul (după confirmare, după salvare) se face direct cu `onOpenChange(false)`.
+   */
+  closeGuard?: () => boolean
+}
+
+/**
+ * Trece cererile de închidere prin `closeGuard` și ține istoricul în ordine când o închidere prin „înapoi”
+ * e oprită: `ui/dialog` și-a consumat deja intrarea din istoric și nu mai ascultă, așa că punem alta la loc
+ * și ascultăm noi următorul „înapoi”. Întoarce o funcție stabilă (altfel `ui/dialog` își pierde ascultătorul).
+ */
+function useGuardedOpenChange(open: boolean, onOpenChange: (open: boolean) => void, closeGuard?: () => boolean) {
+  const latest = useRef({ onOpenChange, closeGuard })
+  useEffect(() => {
+    latest.current = { onOpenChange, closeGuard }
+  })
+
+  const inPopState = useRef(false)
+  const ownsHistoryEntry = useRef(false)
+
+  const requestOpenChange = useCallback((next: boolean) => {
+    const current = latest.current
+    if (next || !current.closeGuard?.()) {
+      current.onOpenChange(next)
+      return
+    }
+    if (inPopState.current && !ownsHistoryEntry.current) {
+      window.history.pushState({ ...(window.history.state ?? {}), [DIALOG_HISTORY_MARKER]: true }, '')
+      ownsHistoryEntry.current = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!open) return
+    // În faza de captură: rulează înaintea ascultătorului din `ui/dialog`, care cere închiderea.
+    const handlePopState = () => {
+      inPopState.current = true
+      window.setTimeout(() => {
+        inPopState.current = false
+      }, 0)
+      if (!ownsHistoryEntry.current) return
+      ownsHistoryEntry.current = false
+      requestOpenChange(false)
+    }
+    window.addEventListener('popstate', handlePopState, true)
+    return () => window.removeEventListener('popstate', handlePopState, true)
+  }, [open, requestOpenChange])
+
+  useEffect(() => {
+    if (open || !ownsHistoryEntry.current) return
+    // Închis de modul cât intrarea pusă de noi e încă în istoric: scoatem doar marcajul, fără navigare.
+    ownsHistoryEntry.current = false
+    stripDialogHistoryMarker()
+  }, [open])
+
+  return requestOpenChange
 }
 
 /**
  * Formular pe pași într-o fereastră: ecran plin pe telefon, card de 480 px pe desktop.
  * Peste `ui/dialog` (portal, capcană de focus, Esc, ascunderea butonului plutitor, „înapoi” pe Android).
  */
-export function StepForm({ open, onOpenChange, title, description, ...frameProps }: StepFormProps) {
+export function StepForm({ open, onOpenChange, title, description, closeGuard, ...frameProps }: StepFormProps) {
+  const requestOpenChange = useGuardedOpenChange(open, onOpenChange, closeGuard)
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={requestOpenChange}>
       <DialogContent
         showCloseButton={false}
         mobileFullHeight
@@ -330,7 +391,7 @@ export function StepForm({ open, onOpenChange, title, description, ...frameProps
       >
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <DialogDescription className="sr-only">{description ?? 'Completezi pas cu pas.'}</DialogDescription>
-        <StepFormFrame {...frameProps} onClose={() => onOpenChange(false)} />
+        <StepFormFrame {...frameProps} onClose={() => requestOpenChange(false)} />
       </DialogContent>
     </Dialog>
   )
