@@ -40,6 +40,12 @@ import {
   comandaStatus,
   phoneForLinks,
 } from '@/lib/comenzi/display'
+import {
+  canSendOrderMessage,
+  deliveryAnnouncementMessage,
+  orderConfirmationMessage,
+  whatsappMessageUrl,
+} from '@/lib/comenzi/whatsapp-messages'
 import { formatKg, formatLei, formatLeiKg, formatNumber, round2, weekdayDateRo } from '@/lib/format-ro'
 import type { Comanda, ComandaPaymentStatus } from '@/lib/supabase/queries/comenzi'
 import { toast } from '@/lib/ui/toast'
@@ -57,6 +63,8 @@ export interface ComandaSheetProps {
   onOpenChange: (open: boolean) => void
   comanda: Comanda | null
   clientName: string
+  /** Telefonul din fișa clientului, folosit când comanda nu are unul scris. */
+  clientTelefon?: string | null
   todayIso: string
   canWrite: boolean
   canDelete: boolean
@@ -92,6 +100,7 @@ export function ComandaSheet({
   onOpenChange,
   comanda,
   clientName,
+  clientTelefon = null,
   todayIso,
   canWrite,
   canDelete,
@@ -129,11 +138,21 @@ export function ComandaSheet({
   const plata = comandaPlata(comanda)
   const kind = comandaKindLabel(comanda)
   const nota = comandaNota(comanda)
-  const phone = phoneForLinks(comanda.telefon)
+  // Telefonul de pe comandă, altfel cel din fișa clientului.
+  const telefon = comanda.telefon?.trim() || clientTelefon?.trim() || ''
+  const phone = phoneForLinks(telefon)
   const isOpen = comanda.status !== 'livrata' && comanda.status !== 'anulata'
   const inLivrare = comanda.status === 'in_livrare'
   const day = comanda.data_livrare?.slice(0, 10) || null
   const zeroPrice = comanda.order_kind === 'cadou' || comanda.order_kind === 'consum_propriu'
+  // Mesajele de dinainte: „am primit comanda” pentru una deschisă, „va fi livrată la adresa…” pentru una în livrare.
+  const announceUrl =
+    isOpen && canSendOrderMessage(comanda)
+      ? whatsappMessageUrl(
+          telefon,
+          inLivrare ? deliveryAnnouncementMessage(comanda, clientName) : orderConfirmationMessage(comanda, clientName),
+        )
+      : null
 
   const close = () => onOpenChange(false)
 
@@ -381,7 +400,7 @@ export function ComandaSheet({
             label="Livrare"
             value={day ? livrareLabel(comandaDayLabel(comanda, todayIso), weekdayDateRo(day)) : 'Fără dată'}
           />
-          {comanda.telefon?.trim() ? <SummaryRow label="Telefon" value={comanda.telefon.trim()} /> : null}
+          {telefon ? <SummaryRow label="Telefon" value={telefon} /> : null}
         </SummaryList>
 
         {/* Adresa și nota se citesc întregi, pe câte rânduri au nevoie. */}
@@ -522,13 +541,24 @@ export function ComandaSheet({
                 Salvează în Clienți
               </Button>
             ) : null}
-            {comanda.telefon?.trim() ? (
+            {announceUrl ? (
+              <a
+                href={announceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(buttonVariants({ variant: 'quiet', size: 'touch' }), 'w-full')}
+              >
+                <MessageCircle aria-hidden />
+                {inLivrare ? 'Anunță livrarea pe WhatsApp' : 'Confirmă comanda pe WhatsApp'}
+              </a>
+            ) : null}
+            {telefon ? (
               <Button
                 type="button"
                 variant="quiet"
                 size="touch"
                 className="w-full"
-                onClick={() => downloadVCard(clientName, comanda.telefon?.trim() ?? '')}
+                onClick={() => downloadVCard(clientName, telefon)}
               >
                 Salvează contactul în telefon
               </Button>

@@ -610,6 +610,7 @@ export function ComenziPageClient() {
             onOpenChange={setSheetOpen}
             comanda={openedComanda}
             clientName={openedComanda ? clientName(openedComanda) : ''}
+            clientTelefon={openedComanda?.client_id ? clientMap.get(openedComanda.client_id)?.telefon : null}
             todayIso={todayIso}
             canWrite={canWrite}
             canDelete={canDelete}

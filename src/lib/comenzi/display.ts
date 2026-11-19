@@ -70,6 +70,14 @@ export function comandaDinMagazin(comanda: Pick<Comanda, 'data_origin'>): boolea
   return isShopOrderOrigin(comanda.data_origin)
 }
 
+/** Telefonul de sunat: cel scris pe comandă, altfel cel din fișa clientului. */
+export function comandaTelefon(
+  comanda: Pick<Comanda, 'telefon'>,
+  client?: Pick<Client, 'telefon'> | null,
+): string | null {
+  return comanda.telefon?.trim() || client?.telefon?.trim() || null
+}
+
 /** Nota comenzii, fără metadatele tehnice puse de magazinul online. */
 export function comandaNota(comanda: Pick<Comanda, 'observatii' | 'data_origin'>): string {
   return getDisplayOrderObservatii(comanda.observatii, comandaDinMagazin(comanda))

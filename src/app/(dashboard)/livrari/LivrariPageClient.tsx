@@ -1,847 +1,686 @@
 'use client'
 
-import { useCallback, useMemo, useState, type ButtonHTMLAttributes } from 'react'
-import dynamic from 'next/dynamic'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, GripVertical, RefreshCw } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  closestCenter,
-  DndContext,
-  DragEndEvent,
-  DragOverlay,
-  DragStartEvent,
-  KeyboardSensor,
-  MeasuringStrategy,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core'
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Ellipsis,
+  Flag,
+  ListOrdered,
+  MapPinned,
+  Navigation,
+  Phone,
+  PhoneMissed,
+  RefreshCw,
+  Truck,
+} from 'lucide-react'
 
 import { AppShell } from '@/components/app/AppShell'
-import { ErrorState } from '@/components/app/ErrorState'
-import { EntityListSkeleton } from '@/components/app/ListSkeleton'
-import { PaymentStatusToggle } from '@/components/comenzi/PaymentStatusToggle'
-import { UnifiedOrderCard } from '@/components/comenzi/UnifiedOrderCard'
-import zmeurelTheme from '@/styles/zmeurel-orders.module.css'
+import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
+import { PageHeader } from '@/components/app/PageHeader'
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
+  ActionCard,
+  ActionCardChip,
+  BottomSheet,
+  Button,
+  EmptyState,
+  ListRow,
+  Notice,
+  ProgressBar,
+  Segments,
+  StatTile,
+  StatusPill,
+  buttonVariants,
+  kitText,
+  longDayRo,
+} from '@/components/kit'
+import { AranjeazaTraseu } from '@/components/livrari/AranjeazaTraseu'
+import { StopSheet, type RouteStop, type StopSheetEntry } from '@/components/livrari/StopSheet'
+import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
+import { bucketOfComanda } from '@/lib/comenzi/day-view'
+import { comandaClientName, comandaNota, comandaTelefon, phoneForLinks } from '@/lib/comenzi/display'
+import { capitalizeRo, formatKg, formatLei, formatNumber } from '@/lib/format-ro'
+import { OptimizeRouteError, getDevicePosition, requestOptimizedRoute } from '@/lib/livrari/device'
+import { readNavApp, readNoAnswerTime, writeNavApp, writeNoAnswerTime } from '@/lib/livrari/prefs'
 import {
-  getUnifiedOrderEffectiveDate,
-  mapB2bToUnified,
-  type UnifiedOrderItem,
-} from '@/lib/comenzi/unified-orders'
+  applyOptimizedOrder,
+  clientLocation,
+  deliveredToday,
+  leiDeIncasat,
+  mapsBatches,
+  mapsRouteUrl,
+  moveStop,
+  moveStopToEnd,
+  navigateUrl,
+  routeProgress,
+  routeStops,
+  type NavApp,
+} from '@/lib/livrari/route'
 import { queryKeys } from '@/lib/query-keys'
-import { formatLei, todayBucharestDate } from '@/lib/shop/b2c-order-helpers'
-import { getClienți, type Client } from '@/lib/supabase/queries/clienti'
-import {
-  deliverAndCloneComanda,
-  deliverComanda,
-  getComenzi,
-  updateComanda,
-  updateOrdineLivrare,
-  type Comanda,
-  type ComandaPaymentStatus,
-} from '@/lib/supabase/queries/comenzi'
+import { useSchemaFeatures } from '@/lib/schema-features'
+import { getClienți } from '@/lib/supabase/queries/clienti'
+import { getComenzi, updateOrdineLivrare, type Comanda } from '@/lib/supabase/queries/comenzi'
 import { toast } from '@/lib/ui/toast'
+import { useTodayIso } from '@/lib/ui/use-today-iso'
+import { cn } from '@/lib/utils'
 
-// Sheet de editare deschis doar la interacțiune — code-split ca în
-// RecoltariPageClient, ca să nu intre în First Load JS al rutei /livrari.
-const EditOrderSheet = dynamic(
-  () => import('@/components/comenzi/EditOrderSheet').then((mod) => mod.EditOrderSheet),
-  { ssr: false }
-)
+type OptimizeMessage = { tone: 'success' | 'warning' | 'danger'; title: string; text?: string }
 
-type EditTarget = Comanda | null
+/** Cât trebuie să fi stat aplicația în fundal ca întoarcerea să fie luată drept „am terminat apelul”. */
+const MIN_CALL_MS = 1500
 
-type DeliveryTarget = UnifiedOrderItem & {
-  total_lei: number
-  cantitate_kg: number
-  customer_name: string
-  delivery_address: string | null
-  _comanda?: Comanda
-}
-
-function getDeliverableKg(order: UnifiedOrderItem): number {
-  return Math.round(order.quantity * 100) / 100
-}
-
-function compareUnifiedDeliveryFifo(a: UnifiedOrderItem, b: UnifiedOrderItem): number {
-  // Ordinea manuală (drag-and-drop, salvată în comenzi.ordine_livrare) are prioritate
-  // și e comună tuturor utilizatorilor tenantului; comenzile fără poziție cad la coadă,
-  // sortate ca înainte după FIFO.
-  const aPos = a.b2bComanda?.ordine_livrare ?? null
-  const bPos = b.b2bComanda?.ordine_livrare ?? null
-  if (aPos !== null && bPos !== null && aPos !== bPos) return aPos - bPos
-  if (aPos !== null && bPos === null) return -1
-  if (aPos === null && bPos !== null) return 1
-
-  const aDate = Date.parse(`${getUnifiedOrderEffectiveDate(a)}T12:00:00.000Z`)
-  const bDate = Date.parse(`${getUnifiedOrderEffectiveDate(b)}T12:00:00.000Z`)
-  if (aDate !== bDate) return aDate - bDate
-
-  const createdDiff = Date.parse(a.createdAt) - Date.parse(b.createdAt)
-  if (createdDiff !== 0) return createdDiff
-
-  return a.id.localeCompare(b.id)
-}
-
-function toDeliveryTarget(order: UnifiedOrderItem): DeliveryTarget {
-  const deliveryAddress = order.b2bComanda?.locatie_livrare?.trim() || null
-
-  return {
-    ...order,
-    total_lei: order.totalLei,
-    cantitate_kg: getDeliverableKg(order),
-    customer_name: order.customerName,
-    delivery_address: deliveryAddress,
-    _comanda: order.b2bComanda,
-  }
-}
-
+/**
+ * Livrări, ecranul din mașină: progresul zilei, următoarea oprire mare (Sună / Navighează / Livrat),
+ * restul opririlor în ordinea drumului și cele livrate, strânse într-un rând.
+ */
 export function LivrariPageClient() {
-  const queryClient = useQueryClient()
-  const [deliverTarget, setDeliverTarget] = useState<DeliveryTarget | null>(null)
-  const [editTarget, setEditTarget] = useState<EditTarget>(null)
-  const [deliveredInSession, setDeliveredInSession] = useState<DeliveryTarget[]>([])
-  const [scheduledTodayExpanded, setScheduledTodayExpanded] = useState(false)
+  useTrackModuleView('livrari')
 
-  const ordersQuery = useQuery({
+  const queryClient = useQueryClient()
+  const { memberRole, accessLevel } = useDashboardAuth()
+  const canWrite = memberRole !== 'operator' || accessLevel === 'write'
+  const features = useSchemaFeatures()
+  const todayIso = useTodayIso()
+
+  const [sheet, setSheet] = useState<{ stop: RouteStop; entry: StopSheetEntry } | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [arranging, setArranging] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [deliveredOpen, setDeliveredOpen] = useState(false)
+  const [navApp, setNavApp] = useState<NavApp>(() => (typeof window === 'undefined' ? 'google' : readNavApp()))
+  const [noAnswerVersion, setNoAnswerVersion] = useState(0)
+  const [optimizing, setOptimizing] = useState(false)
+  const [optimizeMessage, setOptimizeMessage] = useState<OptimizeMessage | null>(null)
+  const [mapsBatch, setMapsBatch] = useState<{ anchor: string; index: number }>({ anchor: '', index: 0 })
+
+  // ─── Date ───
+  const {
+    data: comenzi = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useQuery({
     queryKey: queryKeys.comenzi,
     queryFn: getComenzi,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   })
-  const clientiQuery = useQuery({
+  const { data: clienti = [] } = useQuery({
     queryKey: queryKeys.clienti,
     queryFn: getClienți,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   })
 
-  const allOrders = useMemo(() => ordersQuery.data ?? [], [ordersQuery.data])
-  const livrateCount = useMemo(
-    () => allOrders.filter((order) => order.status === 'livrata').length,
-    [allOrders],
-  )
-  const deliveryOrders = useMemo(
-    () => allOrders.filter((order) => order.status === 'in_livrare'),
-    [allOrders],
-  )
-  const clientMap = useMemo(() => {
-    const map: Record<string, Client> = {}
-    for (const client of clientiQuery.data ?? []) {
-      map[client.id] = client
-    }
-    return map
-  }, [clientiQuery.data])
-  const scheduledToday = useMemo(
+  const clientMap = useMemo(() => new Map(clienti.map((client) => [client.id, client])), [clienti])
+
+  const stops = useMemo<RouteStop[]>(
     () =>
-      allOrders
-        .filter(
-          (order) =>
-            order.data_livrare === todayBucharestDate() &&
-            (order.status === 'noua' || order.status === 'confirmata' || order.status === 'programata'),
-        )
-        .map((order) => mapB2bToUnified(order, clientMap)),
-    [allOrders, clientMap],
+      routeStops(comenzi).map((comanda, index) => {
+        const client = comanda.client_id ? clientMap.get(comanda.client_id) ?? null : null
+        return {
+          comanda,
+          client,
+          name: comandaClientName(comanda, clientMap),
+          location: clientLocation(client),
+          position: index + 1,
+        }
+      }),
+    [clientMap, comenzi],
   )
-  const deliveryItems = useMemo(
+  const delivered = useMemo(() => (todayIso ? deliveredToday(comenzi, todayIso) : []), [comenzi, todayIso])
+  const progress = useMemo(() => routeProgress(stops.map((stop) => stop.comanda), delivered.length), [delivered.length, stops])
+  const notInDelivery = useMemo(
     () =>
-      deliveryOrders.map((comanda) => mapB2bToUnified(comanda, clientMap)).sort(compareUnifiedDeliveryFifo),
-    [clientMap, deliveryOrders],
+      todayIso
+        ? comenzi.filter((comanda) => comanda.status !== 'in_livrare' && bucketOfComanda(comanda, todayIso) === 'azi')
+        : [],
+    [comenzi, todayIso],
   )
-  const editUnified = useMemo(() => {
-    if (!editTarget) return null
-    return mapB2bToUnified(editTarget, clientMap)
-  }, [clientMap, editTarget])
-  const totalLei = deliveryItems.reduce((sum, order) => sum + order.totalLei, 0)
-  // O singură cantitate totală, indiferent de sursă (B2B/clienți/shop) — utilizatorul nu vrea
-  // detaliere pe canal în capul de pagină, doar cât e comandat în total.
-  const totalKg = deliveryItems.reduce((sum, item) => sum + getDeliverableKg(item), 0)
-  const [isReorderMode, setIsReorderMode] = useState(false)
 
-  // Ordinea vine direct din `comenzi.ordine_livrare` (vezi compareUnifiedDeliveryFifo),
-  // deci e aceeași pentru orice utilizator al tenantului, pe orice dispozitiv.
-  const orderedDeliveryItems = deliveryItems
+  const stopIdsKey = stops.map((stop) => stop.comanda.id).join(',')
+  const noAnswerTimes = useMemo(() => {
+    const times: Record<string, string | null> = {}
+    // `noAnswerVersion` crește la fiecare scriere, ca orele să fie recitite din telefon.
+    if (!todayIso || typeof window === 'undefined' || noAnswerVersion < 0) return times
+    for (const id of stopIdsKey ? stopIdsKey.split(',') : []) times[id] = readNoAnswerTime(id, todayIso)
+    return times
+  }, [stopIdsKey, todayIso, noAnswerVersion])
 
-  const saveOrdineLivrareMutation = useMutation({
-    mutationFn: (ids: string[]) => updateOrdineLivrare(ids),
-    onError: (error: Error) => {
-      toast.error(error.message || 'Nu am putut salva ordinea livrărilor.')
-      // Resincronizăm cu serverul dacă update-ul optimist a rămas nesalvat.
-      void queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
-    },
-  })
-
+  // ─── Ordinea pe drum ───
   const saveOrder = useCallback(
     (ids: string[]) => {
-      // Update optimist al cache-ului, ca reordonarea să se vadă instant,
-      // fără să aștepte răspunsul serverului.
+      // Optimist: ordinea se vede pe loc; la eroare, lista se reîncarcă de pe server.
       queryClient.setQueryData<Comanda[]>(queryKeys.comenzi, (current) => {
         if (!current) return current
         const position = new Map(ids.map((id, index) => [id, index]))
-        return current.map((order) =>
-          position.has(order.id) ? { ...order, ordine_livrare: position.get(order.id)! } : order,
+        return current.map((comanda) =>
+          position.has(comanda.id) ? { ...comanda, ordine_livrare: position.get(comanda.id) ?? null } : comanda,
         )
       })
-      saveOrdineLivrareMutation.mutate(ids)
+      updateOrdineLivrare(ids).catch((cause: unknown) => {
+        toast.error(cause instanceof Error && cause.message ? cause.message : 'Ordinea nu s-a salvat.')
+        void queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
+      })
     },
-    [queryClient, saveOrdineLivrareMutation],
+    [queryClient],
   )
 
-  const [activeDragId, setActiveDragId] = useState<string | null>(null)
+  const currentIds = useCallback(
+    () => routeStops(queryClient.getQueryData<Comanda[]>(queryKeys.comenzi) ?? []).map((comanda) => comanda.id),
+    [queryClient],
+  )
 
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveDragId(String(event.active.id))
+  const handleMove = useCallback(
+    (comandaId: string, direction: -1 | 1) => saveOrder(moveStop(currentIds(), comandaId, direction)),
+    [currentIds, saveOrder],
+  )
+  const handleMoveToEnd = useCallback(
+    (comandaId: string) => saveOrder(moveStopToEnd(currentIds(), comandaId)),
+    [currentIds, saveOrder],
+  )
+
+  const locatedStops = stops.filter((stop) => stop.location !== null)
+  const optimizeBlockedReason = !features.clientiLocatie
+    ? 'Optimizarea are nevoie de locațiile clienților. Se activează după actualizarea bazei de date.'
+    : locatedStops.length < 2
+      ? 'Trebuie cel puțin două opriri cu locație salvată. Până atunci, aranjează cu săgețile.'
+      : null
+
+  const optimize = async () => {
+    if (optimizing || optimizeBlockedReason) return
+    setOptimizing(true)
+    setOptimizeMessage(null)
+    try {
+      const start = await getDevicePosition()
+      const result = await requestOptimizedRoute({
+        start: { lat: start.lat, lng: start.lng },
+        stops: locatedStops.map((stop) => ({ id: stop.comanda.id, lat: stop.location!.lat, lng: stop.location!.lng })),
+      })
+      const ids = stops.map((stop) => stop.comanda.id)
+      saveOrder(applyOptimizedOrder(ids, result.order))
+      const leftOut = ids.length - result.order.length
+      setOptimizeMessage({
+        tone: 'success',
+        title: 'Traseu optimizat',
+        text:
+          leftOut > 0
+            ? `${result.order.length} opriri așezate pe drum; ${leftOut} fără locație au rămas la final.`
+            : `${result.order.length} opriri așezate pe drum, pornind de unde ești.`,
+      })
+    } catch (cause) {
+      if (cause instanceof OptimizeRouteError && cause.code === 'ORS_NOT_CONFIGURED') {
+        setOptimizeMessage({
+          tone: 'warning',
+          title: 'Optimizarea nu e configurată încă',
+          text: 'Aranjează traseul cu săgețile.',
+        })
+      } else {
+        setOptimizeMessage({
+          tone: 'danger',
+          title: 'Traseul nu s-a putut optimiza',
+          text: cause instanceof Error ? cause.message : 'Aranjează traseul cu săgețile.',
+        })
+      }
+    } finally {
+      setOptimizing(false)
+    }
+  }
+
+  // ─── Foaia unei opriri ───
+  const openStop = useCallback((stop: RouteStop, entry: StopSheetEntry) => {
+    setSheet({ stop, entry })
+    setSheetOpen(true)
   }, [])
 
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      setActiveDragId(null)
-      const { active, over } = event
-      if (!over || active.id === over.id) return
-      const ids = orderedDeliveryItems.map((i) => i.id)
-      const from = ids.indexOf(active.id as string)
-      const to = ids.indexOf(over.id as string)
-      if (from === -1 || to === -1) return
-      const newIds = arrayMove(ids, from, to)
-      saveOrder(newIds)
+  // Datele la zi ale opririi deschise. După livrare oprirea iese din traseu, dar foaia mai are nevoie de ea
+  // (întrebarea despre locație vine chiar atunci): rămâne cea de la deschidere.
+  const sheetStop = sheet ? stops.find((stop) => stop.comanda.id === sheet.stop.comanda.id) ?? sheet.stop : null
 
-    },
-    [orderedDeliveryItems, saveOrder],
-  )
+  // ─── Sună → „Cum a fost apelul?” la întoarcerea în aplicație ───
+  const pendingCall = useRef<{ stop: RouteStop; at: number } | null>(null)
+  const handleCall = useCallback((stop: RouteStop) => {
+    const phone = phoneForLinks(comandaTelefon(stop.comanda, stop.client))
+    if (!phone) return
+    setSheetOpen(false)
+    pendingCall.current = { stop, at: Date.now() }
+    window.location.href = `tel:${phone.tel}`
+  }, [])
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  )
+  useEffect(() => {
+    if (!canWrite) return
+    const onVisible = () => {
+      const call = pendingCall.current
+      if (document.visibilityState !== 'visible' || !call) return
+      if (Date.now() - call.at < MIN_CALL_MS) return
+      pendingCall.current = null
+      openStop(call.stop, 'apel')
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [canWrite, openStop])
 
-  const measuring = useMemo(
-    () => ({ droppable: { strategy: MeasuringStrategy.Always } }),
-    [],
-  )
+  const handleNoAnswer = useCallback((comandaId: string, at: Date | null) => {
+    writeNoAnswerTime(comandaId, at)
+    setNoAnswerVersion((version) => version + 1)
+  }, [])
 
-  const orderedOrders = useMemo(
-    () => orderedDeliveryItems.map(toDeliveryTarget),
-    [orderedDeliveryItems],
-  )
-  const isFetchingAny = ordersQuery.isFetching
+  const chooseNavApp = (app: NavApp) => {
+    setNavApp(app)
+    writeNavApp(app)
+  }
 
-  const refreshAll = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
-    void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
-    void queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal })
-    void queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobalCal1 })
-  }, [queryClient])
+  // ─── „Pornește în Maps”: câte 9 opriri ───
+  const batches = mapsBatches(stops)
+  const anchor = stops[0]?.comanda.id ?? ''
+  const batchIndex = mapsBatch.anchor === anchor ? Math.min(mapsBatch.index, Math.max(batches.length - 1, 0)) : 0
+  const batch = batches[batchIndex] ?? []
+  const batchUrl = mapsRouteUrl(batch.map((stop) => stop.location!).filter(Boolean))
+  const batchFrom = batch[0]?.position
+  const batchTo = batch[batch.length - 1]?.position
 
-  const updateManualOrderMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof updateComanda>[1] }) =>
-      updateComanda(id, payload),
-    onSuccess: (_, variables) => {
-      if (variables.payload.status === 'noua' && variables.payload.data_livrare === null) {
-        toast.success('Comanda a fost retrimisă la comenzi noi.')
-      } else if (variables.payload.data_livrare !== undefined) {
-        toast.success(
-          variables.payload.data_livrare
-            ? 'Data livrării a fost actualizată.'
-            : 'Data livrării a fost ștearsă.',
-        )
-      } else if (variables.payload.last_call_status !== undefined) {
-        toast.success(
-          variables.payload.last_call_status === 'no_answer'
-            ? 'Marcat: sunat, nu a răspuns.'
-            : 'Marcajul de apel a fost eliminat.',
-        )
-      }
-      refreshAll()
-    },
-    onError: (error: Error) => {
-      toast.error(error.message)
-    },
-  })
+  const loading = todayIso === null || isLoading
+  const next = stops[0] ?? null
+  const rest = stops.slice(1)
+  const deliveredLei = delivered.reduce((sum, comanda) => sum + leiDeIncasat(comanda), 0)
 
-  const deliverPartialManualMutation = useMutation({
-    mutationFn: async ({
-      comanda,
-      kgLivrat,
-      statusPlata,
-    }: {
-      comanda: Comanda
-      kgLivrat: number
-      statusPlata: ComandaPaymentStatus
-    }) =>
-      deliverComanda({
-        comandaId: comanda.id,
-        cantitateLivrataKg: kgLivrat,
-        statusPlata,
-        dataLivrareRamasa: null,
-      }),
-    onSuccess: (result) => {
-      toast.success('Livrare parțială înregistrată')
-      setDeliveredInSession((current) => [
-        toDeliveryTarget(mapB2bToUnified(result.deliveredOrder, clientMap)),
-        ...current.filter((item) => item.id !== result.deliveredOrder.id),
-      ])
-      setDeliverTarget(null)
-      void queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
-    },
-    onError: (error: Error) => {
-      toast.error(error.message)
-    },
-  })
+  let body: React.ReactNode
+  if (isError) {
+    body = (
+      <Notice
+        tone="danger"
+        title="Livrările nu s-au încărcat"
+        action={
+          <Button type="button" variant="neutral" size="touch" loading={isFetching} onClick={() => void refetch()}>
+            Reîncearcă
+          </Button>
+        }
+      >
+        {(error as Error | null)?.message || 'Verifică internetul și încearcă din nou.'}
+      </Notice>
+    )
+  } else if (loading) {
+    body = <PageSkeleton />
+  } else if (arranging) {
+    body = (
+      <AranjeazaTraseu
+        stops={stops}
+        onMove={handleMove}
+        onDone={() => {
+          setArranging(false)
+          setOptimizeMessage(null)
+        }}
+        optimizeBlockedReason={optimizeBlockedReason}
+        optimizing={optimizing}
+        onOptimize={() => void optimize()}
+        optimizeMessage={optimizeMessage}
+      />
+    )
+  } else if (stops.length === 0 && delivered.length === 0) {
+    body = (
+      <>
+        <EmptyState
+          icon={<Truck />}
+          title="Nicio livrare în drum"
+          description="Comenzile apar aici după ce le pui în livrare din Comenzi."
+          action={
+            <Link href="/comenzi" className={cn(buttonVariants({ variant: 'primary', size: 'touch' }), 'w-64 max-w-full')}>
+              Deschide Comenzi
+            </Link>
+          }
+        />
+        {notInDelivery.length > 0 ? <NotInDeliveryNotice count={notInDelivery.length} /> : null}
+      </>
+    )
+  } else {
+    const nextLei = next ? leiDeIncasat(next.comanda) : 0
+    const nextPhone = next ? phoneForLinks(comandaTelefon(next.comanda, next.client)) : null
+    const nextNota = next ? comandaNota(next.comanda) : ''
+    const nextNoAnswer = next?.comanda.last_call_status === 'no_answer'
 
-  const handleConfirmPartial = useCallback(
-    (kgLivrat: number, statusPlata: ComandaPaymentStatus) => {
-      if (!deliverTarget) return
-      if (deliverTarget.b2bComanda) {
-        deliverPartialManualMutation.mutate({
-          comanda: deliverTarget.b2bComanda,
-          kgLivrat,
-          statusPlata,
-        })
-      }
-    },
-    [deliverPartialManualMutation, deliverTarget],
-  )
+    body = (
+      <>
+        <section aria-label="Progresul zilei" className="space-y-2.5 rounded-card border border-border bg-surface p-4 shadow-1">
+          <ProgressBar
+            label="Livrate azi"
+            valueLabel={`${progress.deliveredCount} din ${progress.totalCount}`}
+            value={progress.deliveredCount}
+            max={Math.max(progress.totalCount, 1)}
+            tone="success"
+          />
+          <div className="grid grid-cols-2 gap-2.5">
+            <StatTile value={formatNumber(progress.kgRamase)} unit="kg" label="rămase de livrat" />
+            <StatTile tone="inverse" value={formatLei(progress.leiDeIncasat)} label="de încasat" />
+          </div>
+        </section>
 
-  const handleManualStatusChange = useCallback(
-    (id: string, status: Parameters<typeof updateComanda>[1]['status']) => {
-      const order = deliveryItems.find((item) => item.id === id)
-      if (!order?.b2bComanda || !status) return
-      if (status === 'livrata') {
-        setDeliverTarget(toDeliveryTarget(order))
-        return
-      }
-      updateManualOrderMutation.mutate({ id, payload: { status } })
-    },
-    [deliveryItems, updateManualOrderMutation],
-  )
+        {notInDelivery.length > 0 ? <NotInDeliveryNotice count={notInDelivery.length} /> : null}
 
-  const handleResendToOrders = useCallback(
-    (id: string) => {
-      const order = deliveryItems.find((item) => item.id === id)
-      if (!order?.b2bComanda) return undefined
-      return updateManualOrderMutation
-        .mutateAsync({ id, payload: { status: 'noua', data_livrare: null } })
-        .then(() => undefined)
-    },
-    [deliveryItems, updateManualOrderMutation],
-  )
+        {next ? (
+          <section aria-label="Următoarea oprire" className="space-y-2.5">
+            <h2 className={cn('px-1 font-extrabold text-fg', kitText.card)}>Următoarea oprire</h2>
+            <ActionCard
+              emphasis="hero"
+              leading={next.position}
+              title={<span className="line-clamp-2 break-words">{next.name}</span>}
+              meta={<span className="line-clamp-3 break-words">{next.comanda.locatie_livrare?.trim() || next.client?.adresa?.trim() || 'Fără adresă'}</span>}
+              amount={nextLei > 0 ? formatLei(nextLei) : formatKg(next.comanda.cantitate_kg)}
+              amountLabel={nextLei > 0 ? 'de încasat' : 'fără bani'}
+              pills={
+                <>
+                  <ActionCardChip>{formatKg(next.comanda.cantitate_kg)}</ActionCardChip>
+                  {next.comanda.prioritara ? (
+                    <StatusPill tone="warning" icon={<Flag aria-hidden />}>
+                      Prioritară
+                    </StatusPill>
+                  ) : null}
+                  {nextNoAnswer ? (
+                    <StatusPill tone="warning" icon={<PhoneMissed aria-hidden />}>
+                      {noAnswerTimes[next.comanda.id] ? `N-a răspuns · ${noAnswerTimes[next.comanda.id]}` : 'N-a răspuns'}
+                    </StatusPill>
+                  ) : null}
+                </>
+              }
+              note={nextNota || undefined}
+              secondaryActions={[
+                {
+                  label: 'Sună',
+                  icon: <Phone aria-hidden />,
+                  onClick: () => handleCall(next),
+                  disabled: !nextPhone,
+                  disabledReason: 'fără telefon',
+                },
+                {
+                  label: navApp === 'waze' ? 'Waze' : 'Navighează',
+                  icon: <Navigation aria-hidden />,
+                  onClick: () => {
+                    if (next.location) window.open(navigateUrl(next.location, navApp), '_blank', 'noopener,noreferrer')
+                  },
+                  disabled: !next.location,
+                  disabledReason: 'fără locație încă',
+                },
+              ]}
+              action={
+                canWrite
+                  ? { label: 'Livrat', icon: <Check aria-hidden />, onClick: () => openStop(next, 'livrat') }
+                  : undefined
+              }
+            />
+            <Button
+              type="button"
+              variant="neutral"
+              size="touch"
+              className="w-full"
+              aria-label={`Mai multe pentru oprirea ${next.name}: nu a răspuns, mută, copiază`}
+              onClick={() => openStop(next, 'meniu')}
+            >
+              <Ellipsis aria-hidden />
+              Mai multe pentru această oprire
+            </Button>
+          </section>
+        ) : (
+          <Notice tone="success" title="Traseul e gata">
+            {delivered.length} {delivered.length === 1 ? 'livrare făcută' : 'livrări făcute'} azi.
+          </Notice>
+        )}
 
-  const deliverAndCloneMutation = useMutation({
-    mutationFn: (input: Parameters<typeof deliverAndCloneComanda>[0]) => deliverAndCloneComanda(input),
-    onSuccess: () => {
-      toast.success('Comanda a fost livrată și o comandă nouă a fost creată pentru livrarea următoare.')
-      refreshAll()
-    },
-    onError: (error: Error) => {
-      toast.error(error.message)
-    },
-  })
+        {stops.length > 0 ? (
+          <div className="space-y-2">
+            {batchUrl ? (
+              <a
+                href={batchUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(buttonVariants({ variant: 'neutral', size: 'touch-lg' }), 'w-full')}
+                onClick={() => {
+                  // După deschidere, butonul trece la următoarele 9 (dacă mai sunt).
+                  if (batchIndex + 1 < batches.length) setMapsBatch({ anchor, index: batchIndex + 1 })
+                }}
+              >
+                <MapPinned aria-hidden />
+                {batches.length > 1
+                  ? `Pornește în Maps: opririle ${batchFrom}–${batchTo}`
+                  : `Pornește în Maps (${batch.length} ${batch.length === 1 ? 'oprire' : 'opriri'})`}
+              </a>
+            ) : (
+              <Button type="button" variant="neutral" size="touch-lg" className="w-full" disabled aria-describedby="maps-fara-locatii">
+                <MapPinned aria-hidden />
+                Pornește în Maps
+              </Button>
+            )}
+            <p id="maps-fara-locatii" className={cn('px-1 text-fg-muted', kitText.helper)}>
+              {batchUrl
+                ? batches.length > 1
+                  ? `Google Maps primește câte 9 opriri. Grupul ${batchIndex + 1} din ${batches.length}.`
+                  : locatedStops.length < stops.length
+                    ? `${stops.length - locatedStops.length} ${stops.length - locatedStops.length === 1 ? 'oprire nu are' : 'opriri nu au'} locație și nu intră în traseu.`
+                    : 'Traseul pornește de unde ești.'
+                : 'Nicio oprire nu are locație salvată încă.'}
+            </p>
+            {batches.length > 1 && batchIndex > 0 ? (
+              <Button type="button" variant="quiet" size="touch" className="w-full" onClick={() => setMapsBatch({ anchor, index: 0 })}>
+                Înapoi la primele 9
+              </Button>
+            ) : null}
 
-  const handleDeliverAndClone = useCallback(
-    (id: string, input: { cantitateKg: number; dataLivrare: string }) => {
-      const order = deliveryItems.find((item) => item.id === id)
-      if (!order?.b2bComanda) return Promise.resolve()
-      return deliverAndCloneMutation
-        .mutateAsync({
-          comandaId: id,
-          newCantitateKg: input.cantitateKg,
-          newDataLivrare: input.dataLivrare,
-        })
-        .then(() => undefined)
-    },
-    [deliveryItems, deliverAndCloneMutation],
-  )
+            <div className="flex gap-2.5">
+              {canWrite && stops.length > 1 ? (
+                <Button type="button" variant="neutral" size="touch" className="min-w-0 flex-1" onClick={() => setArranging(true)}>
+                  <ListOrdered aria-hidden />
+                  <span className="truncate">Aranjează traseul</span>
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                variant="neutral"
+                size={canWrite && stops.length > 1 ? 'icon-touch' : 'touch'}
+                className={canWrite && stops.length > 1 ? 'shrink-0' : 'flex-1'}
+                aria-label="Setările traseului: aplicația de navigare, reîncărcare"
+                onClick={() => setMenuOpen(true)}
+              >
+                <Ellipsis aria-hidden />
+                {canWrite && stops.length > 1 ? null : 'Setările traseului'}
+              </Button>
+            </div>
+          </div>
+        ) : null}
 
-  const headerSubtitle =
-    deliveryItems.length === 0
-      ? deliveredInSession.length > 0
-        ? 'Traseul este gata'
-        : 'Nicio comandă în drum'
-      : `${totalKg.toFixed(1)} kg · ${formatLei(totalLei)} lei`
+        {rest.length > 0 ? (
+          <section aria-labelledby="livrari-urmatoarele" className="space-y-2">
+            <h2 id="livrari-urmatoarele" className={cn('px-1 font-extrabold text-fg', kitText.card)}>
+              Apoi ({rest.length})
+            </h2>
+            <ul className="space-y-2">
+              {rest.map((stop) => {
+                const lei = leiDeIncasat(stop.comanda)
+                const noAnswer = stop.comanda.last_call_status === 'no_answer'
+                return (
+                  <li key={stop.comanda.id}>
+                    <ListRow
+                      avatar={false}
+                      leading={<StopNumber>{stop.position}</StopNumber>}
+                      title={stop.name}
+                      detail={[
+                        noAnswer
+                          ? noAnswerTimes[stop.comanda.id]
+                            ? `N-a răspuns ${noAnswerTimes[stop.comanda.id]}`
+                            : 'N-a răspuns'
+                          : null,
+                        stop.comanda.locatie_livrare?.trim() || stop.client?.adresa?.trim() || 'Fără adresă',
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                      onClick={() => openStop(stop, 'meniu')}
+                      chevron={false}
+                      aria-label={`Oprirea ${stop.position}: ${stop.name}, ${formatKg(stop.comanda.cantitate_kg)}${lei > 0 ? `, ${formatLei(lei)} de încasat` : ''}. Deschide`}
+                      trailing={
+                        <span className="flex flex-col items-end">
+                          <span className={cn('font-extrabold text-fg', kitText.base)}>{formatKg(stop.comanda.cantitate_kg)}</span>
+                          <span className={cn('text-fg-muted', kitText.secondary)}>{lei > 0 ? formatLei(lei) : 'fără bani'}</span>
+                        </span>
+                      }
+                    />
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        ) : null}
+
+        {delivered.length > 0 ? (
+          <section aria-label="Livrate azi" className="space-y-2">
+            <button
+              type="button"
+              aria-expanded={deliveredOpen}
+              onClick={() => setDeliveredOpen((value) => !value)}
+              className="flex min-h-touch-lg w-full items-center gap-3 rounded-box border border-success-border bg-success-bg px-4 py-2 text-left text-success-text outline-none focus-visible:ring-[3px] focus-visible:ring-primary/40"
+            >
+              <Check aria-hidden className="size-5 shrink-0" />
+              <span className={cn('min-w-0 flex-1 font-bold', kitText.base)}>
+                {delivered.length} {delivered.length === 1 ? 'livrată' : 'livrate'} azi
+                {deliveredLei > 0 ? ` · ${formatLei(deliveredLei)}` : ''}
+              </span>
+              {deliveredOpen ? <ChevronUp aria-hidden className="size-5 shrink-0" /> : <ChevronDown aria-hidden className="size-5 shrink-0" />}
+            </button>
+            {deliveredOpen ? (
+              <ul className="space-y-2">
+                {delivered.map((comanda) => (
+                  <li
+                    key={comanda.id}
+                    className="flex min-h-touch items-center justify-between gap-3 rounded-box border border-border bg-surface px-4 py-2"
+                  >
+                    <span className={cn('min-w-0 truncate font-semibold text-fg', kitText.secondary)}>
+                      {comandaClientName(comanda, clientMap)}
+                    </span>
+                    <span className={cn('shrink-0 text-fg-muted', kitText.secondary)}>
+                      {formatKg(comanda.cantitate_kg)}
+                      {comanda.linked_vanzare?.status_plata === 'neplatit' ? ' · neîncasat' : ''}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </section>
+        ) : null}
+      </>
+    )
+  }
 
   return (
     <AppShell
       header={
-        <div className={zmeurelTheme.theme}>
-          <div className="flex min-h-[52px] w-full items-center justify-between gap-3 px-1">
-            <div className="min-w-0 flex-1">
-              <h1 className="text-lg leading-tight text-[var(--brand-dark)] [font-weight:750]">
-                Livrări de azi
-              </h1>
-              <div className="mt-1 flex flex-wrap items-center gap-2">
-                <p className="text-sm text-[var(--text-secondary)]">{headerSubtitle}</p>
-                <span className="inline-flex items-center rounded-full border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-2 py-0.5 text-xs font-bold text-[var(--status-success-text)]">
-                  ✅ Livrate {livrateCount}
-                </span>
-              </div>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-11 w-11 shrink-0"
-              aria-label="Reîncarcă livrările"
-              disabled={isFetchingAny}
-              onClick={() => {
-                refreshAll()
-                void ordersQuery.refetch()
-              }}
-            >
-              <RefreshCw className={isFetchingAny ? 'animate-spin' : ''} />
-            </Button>
-          </div>
-        </div>
+        <PageHeader
+          title={arranging ? 'Aranjează traseul' : 'Livrări'}
+          subtitle={todayIso ? capitalizeRo(longDayRo(todayIso)) : undefined}
+          contentVariant="workspace"
+        />
       }
     >
-      <div className={`${zmeurelTheme.theme} mx-auto flex w-full max-w-3xl flex-col gap-5 pb-8`}>
-        {ordersQuery.isLoading ? (
-          <EntityListSkeleton count={3} />
-        ) : null}
+      <div className="mx-auto w-full max-w-xl space-y-4 pt-3">{body}</div>
 
-        {ordersQuery.isError ? (
-          <ErrorState
-            title="Eroare la încărcare"
-            message={
-              (ordersQuery.error as Error)?.message ?? 'Nu am putut încărca livrările.'
-            }
-            onRetry={() => void ordersQuery.refetch()}
-          />
-        ) : null}
-
-        {scheduledToday.length > 0 ? (
-          <section className="overflow-hidden rounded-[20px] bg-[var(--brand-coral-soft)] text-[var(--brand-coral-deep)] shadow-[var(--shadow-soft)]">
-            <button
-              type="button"
-              className="flex min-h-14 w-full items-center justify-between gap-3 px-4 py-3 text-left"
-              aria-expanded={scheduledTodayExpanded}
-              onClick={() => setScheduledTodayExpanded((current) => !current)}
-            >
-              <span className="text-sm font-bold leading-relaxed">
-                📋 {scheduledToday.length}{' '}
-                {scheduledToday.length === 1 ? 'comandă programată' : 'comenzi programate'} pentru
-                azi — {scheduledToday.length === 1 ? 'nu este' : 'nu sunt'} încă în livrare
-              </span>
-              <span className="shrink-0 text-xs font-bold">
-                {scheduledTodayExpanded ? 'Ascunde ↑' : 'Vezi comenzile →'}
-              </span>
-            </button>
-
-            {scheduledTodayExpanded ? (
-              <div className="space-y-2 border-t border-[var(--brand-coral-border)] px-3 py-3">
-                {scheduledToday.map((order) => (
-                  <article
-                    key={order.id}
-                    className="rounded-xl bg-[var(--surface-card)] px-3 py-3 text-[var(--text-primary)]"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-bold">{order.customerName}</p>
-                        <p className="mt-1 line-clamp-2 text-xs text-[var(--text-secondary)]">
-                          {order.addressShort || 'Adresă necompletată'}
-                        </p>
-                      </div>
-                      <span className="shrink-0 text-sm font-bold text-[var(--brand-coral)]">
-                        {formatLei(order.totalLei)} lei
-                      </span>
-                    </div>
-                    <p className="mt-2 text-xs text-[var(--text-secondary)]">
-                      {order.productsLabel}
-                    </p>
-                  </article>
-                ))}
-              </div>
-            ) : null}
-          </section>
-        ) : null}
-
-        {!ordersQuery.isLoading &&
-        !ordersQuery.isError &&
-        deliveryItems.length > 0 ? (
-          <section className="space-y-3">
-            <header className="border-b border-[var(--divider)] pb-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[15px] text-[var(--text-primary)] [font-weight:750]">
-                    🚚 De livrat
-                  </p>
-                  <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                    {deliveryItems.length}{' '}
-                    {deliveryItems.length === 1 ? 'comandă' : 'comenzi'} · {formatLei(totalLei)} lei
-                  </p>
-                </div>
-                {isReorderMode ? (
-                  <Button
-                    type="button"
-                    className="min-h-11 rounded-xl bg-[var(--agri-primary)] px-4 text-white"
-                    onClick={() => setIsReorderMode(false)}
-                  >
-                    <Check />
-                    Gata
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="min-h-11 rounded-xl px-4"
-                    onClick={() => setIsReorderMode(true)}
-                  >
-                    <GripVertical className="h-4 w-4" />
-                    Reordonează
-                  </Button>
-                )}
-              </div>
-            </header>
-
-            {isReorderMode ? (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                measuring={measuring}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                onDragCancel={() => setActiveDragId(null)}
-              >
-                <SortableContext
-                  items={orderedOrders.map((o) => o.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <div className="space-y-2">
-                    {orderedOrders.map((order, index) => (
-                      <SortableDeliveryCard key={order.id} id={order.id}>
-                        {(dragHandleProps) => (
-                          <UnifiedOrderCard
-                            item={order}
-                            reorderPosition={index + 1}
-                            dragHandleProps={dragHandleProps}
-                            onB2bStatusChange={handleManualStatusChange}
-                            onB2bDeliveryDateChange={() => undefined}
-                            onCallStatusChange={() => undefined}
-                            onEdit={() => undefined}
-                          />
-                        )}
-                      </SortableDeliveryCard>
-                    ))}
-                  </div>
-                </SortableContext>
-                <DragOverlay>
-                  {activeDragId
-                    ? (() => {
-                        const activeOrder = orderedOrders.find((o) => o.id === activeDragId)
-                        if (!activeOrder) return null
-                        return (
-                          <div className="rounded-[22px] shadow-2xl">
-                            <UnifiedOrderCard
-                              item={activeOrder}
-                              reorderPosition={orderedOrders.findIndex((order) => order.id === activeDragId) + 1}
-                              onB2bStatusChange={() => undefined}
-                              onB2bDeliveryDateChange={() => undefined}
-                              onCallStatusChange={() => undefined}
-                              onEdit={() => undefined}
-                            />
-                          </div>
-                        )
-                      })()
-                    : null}
-                </DragOverlay>
-              </DndContext>
-            ) : (
-              <div className="space-y-2.5">
-                {orderedOrders.map((order) => (
-                  <UnifiedOrderCard
-                    key={`${order.source}-${order.id}`}
-                    item={order}
-                    disabled={
-                      deliverPartialManualMutation.isPending ||
-                      updateManualOrderMutation.isPending
-                    }
-                    onB2bStatusChange={handleManualStatusChange}
-                    onB2bResendToOrders={handleResendToOrders}
-                    onB2bDeliverAndClone={handleDeliverAndClone}
-                    onB2bDeliveryDateChange={(id, data_livrare) => {
-                      const isFutureDeliveryDate = Boolean(
-                        data_livrare && data_livrare > todayBucharestDate(),
-                      )
-                      return updateManualOrderMutation.mutateAsync({
-                        id,
-                        payload: isFutureDeliveryDate
-                          ? { data_livrare, status: 'programata' }
-                          : { data_livrare },
-                      }).then(() => undefined)
-                    }}
-                    onCallStatusChange={(id, last_call_status) => {
-                      updateManualOrderMutation.mutate({ id, payload: { last_call_status } })
-                    }}
-                    onEdit={() => {
-                      if (order.b2bComanda) {
-                        setEditTarget(order.b2bComanda)
-                      }
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
-        ) : null}
-
-        {!ordersQuery.isLoading &&
-        !ordersQuery.isError &&
-        deliveryItems.length === 0 &&
-        deliveredInSession.length === 0 ? (
-          <div className="flex flex-col items-center rounded-[22px] bg-[var(--surface-card)] px-6 py-12 text-center shadow-[var(--shadow-soft)]">
-            <span
-              className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--surface-card-muted)] text-3xl"
-              aria-hidden
-            >
-              🚚
-            </span>
-            <p className="text-base text-[var(--text-primary)] [font-weight:700]">
-              Nicio livrare activă acum.
-            </p>
-            <p className="mt-2 max-w-sm text-sm leading-relaxed text-[var(--text-secondary)]">
-              Comenzile apar aici când le marchezi „În livrare” din modulul Comenzi.
-            </p>
-          </div>
-        ) : null}
-
-        {deliveredInSession.length > 0 ? (
-          <DeliveredSection orders={deliveredInSession} />
-        ) : null}
-      </div>
-
-      <DeliveryConfirmationDialog
-        key={deliverTarget ? `${deliverTarget.source}-${deliverTarget.id}` : 'closed'}
-        order={deliverTarget}
-        pending={deliverPartialManualMutation.isPending}
-        pendingPartial={deliverPartialManualMutation.isPending}
-        onOpenChange={(open) => {
-          if (!open && !deliverPartialManualMutation.isPending) {
-            setDeliverTarget(null)
-          }
-        }}
-        onConfirm={(statusPlata) => {
-          if (deliverTarget?.b2bComanda) {
-            const kg = getDeliverableKg(deliverTarget)
-            if (kg > 0) {
-              handleConfirmPartial(kg, statusPlata)
-            } else {
-              toast.error('Comanda nu are cantitate configurată. Editează comanda înainte de livrare.')
-            }
-          }
-        }}
-        onConfirmPartial={handleConfirmPartial}
-      />
-
-      {editTarget && editUnified ? (
-        <EditOrderSheet
-          key={`edit-${editTarget.id}`}
-          open
-          order={editUnified}
-          clienti={clientiQuery.data ?? []}
-          onOpenChange={(open) => !open && setEditTarget(null)}
-          onSaved={() => {
-            setEditTarget(null)
-            void queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
-          }}
+      {todayIso ? (
+        <StopSheet
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+          stop={sheetStop}
+          entry={sheet?.entry ?? 'meniu'}
+          todayIso={todayIso}
+          canWrite={canWrite}
+          hasLocatie={features.clientiLocatie}
+          hasPlataPartiala={features.vanzariPlataPartiala}
+          navApp={navApp}
+          noAnswerTime={sheetStop ? noAnswerTimes[sheetStop.comanda.id] ?? null : null}
+          onCall={handleCall}
+          onNoAnswer={handleNoAnswer}
+          onMoveToEnd={handleMoveToEnd}
         />
       ) : null}
+
+      <BottomSheet open={menuOpen} onOpenChange={setMenuOpen} title="Setările traseului">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <p className={cn('px-1 font-bold text-fg', kitText.secondary)}>„Navighează” la o oprire deschide</p>
+            <Segments<NavApp>
+              aria-label="Aplicația de navigare pentru o singură oprire"
+              value={navApp}
+              onValueChange={chooseNavApp}
+              options={[
+                { value: 'google', label: 'Google Maps' },
+                { value: 'waze', label: 'Waze' },
+              ]}
+            />
+            <p className={cn('px-1 text-fg-muted', kitText.helper)}>
+              „Pornește în Maps” (mai multe opriri) merge doar cu Google Maps.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="neutral"
+            size="touch"
+            className="w-full"
+            loading={isFetching}
+            onClick={() => {
+              void refetch()
+              void queryClient.invalidateQueries({ queryKey: queryKeys.clienti })
+            }}
+          >
+            <RefreshCw aria-hidden />
+            Reîncarcă livrările
+          </Button>
+          <Link href="/comenzi" className={cn(buttonVariants({ variant: 'neutral', size: 'touch' }), 'w-full')}>
+            Deschide Comenzi
+          </Link>
+        </div>
+      </BottomSheet>
     </AppShell>
   )
 }
 
-function SortableDeliveryCard({
-  id,
-  children,
-}: {
-  id: string
-  // Render prop: primește doar props-urile de tras (attributes+listeners) ca să le poată atașa
-  // exclusiv pe mânerul de drag, nu pe tot rândul — altfel lista nu mai poate fi scrollată cu
-  // degetul (touch-action: none pe tot cardul) când sunt mai multe comenzi decât încap pe ecran.
-  children: (dragHandleProps: ButtonHTMLAttributes<HTMLButtonElement>) => React.ReactNode
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id,
-  })
-
+function StopNumber({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={isDragging ? 'opacity-0' : ''}
+    <span
+      className={cn(
+        'flex size-11 shrink-0 items-center justify-center rounded-full bg-surface-muted font-extrabold text-fg',
+        kitText.base,
+      )}
+      aria-hidden
     >
-      {children({ ...attributes, ...listeners } as ButtonHTMLAttributes<HTMLButtonElement>)}
-    </div>
+      {children}
+    </span>
   )
 }
 
-function DeliveryConfirmationDialog({
-  order,
-  pending,
-  pendingPartial,
-  onConfirm,
-  onConfirmPartial,
-  onOpenChange,
-}: {
-  order: DeliveryTarget | null
-  pending: boolean
-  pendingPartial: boolean
-  onConfirm: (statusPlata: ComandaPaymentStatus) => void
-  onConfirmPartial: (kgLivrat: number, statusPlata: ComandaPaymentStatus) => void
-  onOpenChange: (open: boolean) => void
-}) {
-  const [partialMode, setPartialMode] = useState(false)
-  const [partialKg, setPartialKg] = useState('')
-  const [statusPlata, setStatusPlata] = useState<ComandaPaymentStatus>('platit')
-
+function NotInDeliveryNotice({ count }: { count: number }) {
   return (
-    <AlertDialog open={order !== null} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <AlertDialogHeader>
-          <AlertDialogTitle>Marchezi comanda ca livrată?</AlertDialogTitle>
-          <AlertDialogDescription asChild>
-            <div className="space-y-3">
-              <div className="rounded-2xl bg-[var(--brand-green-soft)] p-4">
-                <p className="text-sm text-[var(--text-secondary)]">Sumă de încasat</p>
-                <p className="mt-1 text-2xl tabular-nums text-[var(--agri-primary)] [font-weight:750]">
-                  {order ? `${formatLei(order.total_lei)} lei` : '—'}
-                </p>
-                <p className="mt-2 text-sm text-[var(--text-secondary)]">
-                  Cantitate livrată: {order ? `${order.cantitate_kg} kg` : '—'}
-                </p>
-              </div>
-              <PaymentStatusToggle
-                value={statusPlata}
-                onChange={setStatusPlata}
-                disabled={pending || pendingPartial}
-              />
-              <p>
-                Confirmarea creează venitul în Vânzări și scade din stoc greutatea produselor
-                livrate. Dacă stocul este insuficient, comanda rămâne nelivrată.
-              </p>
-            </div>
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={pending}>Anulează</AlertDialogCancel>
-          <AlertDialogAction
-            className="min-h-12 bg-[var(--agri-primary)] text-white"
-            disabled={pending}
-            onClick={(event) => {
-              event.preventDefault()
-              onConfirm(statusPlata)
-            }}
-          >
-            {pending ? 'Se salvează...' : 'Da, marchează livrat'}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-        {order?.cantitate_kg != null ? (
-          !partialMode ? (
-            <div className="px-4 pb-4 text-center">
-              <button
-                type="button"
-                className="text-xs text-[var(--text-secondary)] underline underline-offset-2"
-                onClick={() => {
-                  setPartialMode(true)
-                  setPartialKg(String(order.cantitate_kg ?? ''))
-                }}
-              >
-                Livrat parțial →
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3 border-t border-[var(--divider)] px-4 pb-4 pt-3">
-              <p className="text-sm text-[var(--text-secondary)]">
-                Câți kg ai livrat din {order.cantitate_kg} kg?
-              </p>
-              <input
-                type="number"
-                min={0.1}
-                max={order.cantitate_kg}
-                step={0.1}
-                value={partialKg}
-                onChange={(event) => setPartialKg(event.target.value)}
-                className="w-full rounded-xl border border-[var(--divider)] bg-[var(--surface-input)] px-3 py-2 text-base tabular-nums"
-                autoFocus
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-11 rounded-xl"
-                  onClick={() => setPartialMode(false)}
-                >
-                  Înapoi
-                </Button>
-                <Button
-                  type="button"
-                  className="min-h-11 rounded-xl bg-[var(--agri-primary)] text-white"
-                  disabled={
-                    !partialKg ||
-                    Number(partialKg) <= 0 ||
-                    Number(partialKg) > order.cantitate_kg ||
-                    pendingPartial
-                  }
-                  onClick={() => onConfirmPartial(Number(partialKg), statusPlata)}
-                >
-                  {pendingPartial ? 'Se salvează...' : 'Confirmă parțial'}
-                </Button>
-              </div>
-            </div>
-          )
-        ) : null}
-      </AlertDialogContent>
-    </AlertDialog>
+    <Notice
+      tone="info"
+      title={`${count} ${count === 1 ? 'comandă de azi nu e' : 'comenzi de azi nu sunt'} încă în livrare`}
+      action={
+        // Text scurt: un buton mai lat decât cardul ar împinge toată pagina în afara ecranului.
+        <Link href="/comenzi" className={buttonVariants({ variant: 'neutral', size: 'touch' })}>
+          Deschide Comenzi
+        </Link>
+      }
+    >
+      Le pui în livrare din Comenzi, cu „Pune în livrare azi”.
+    </Notice>
   )
 }
-function DeliveredSection({ orders }: { orders: DeliveryTarget[] }) {
-  const total = orders.reduce((sum, order) => sum + order.total_lei, 0)
 
+function PageSkeleton() {
   return (
-    <section className="space-y-2.5 border-t border-[var(--divider)] pt-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-[var(--text-secondary)] [font-weight:700]">
-          Livrate ({orders.length})
-        </p>
-        <p className="text-sm tabular-nums text-[var(--text-secondary)]">
-          {formatLei(total)} lei
-        </p>
-      </div>
+    <div className="space-y-4" aria-busy="true" aria-label="Se încarcă livrările">
+      <div className="h-36 animate-pulse rounded-card bg-surface-muted" />
+      <div className="h-72 animate-pulse rounded-card bg-surface-muted" />
       <div className="space-y-2">
-        {orders.map((order) => (
-          <article
-            key={order.id}
-            className="flex items-center gap-3 rounded-2xl bg-[var(--surface-card-muted)] px-4 py-3 opacity-60"
-          >
-            <Check className="h-5 w-5 shrink-0 text-[var(--status-success-text)]" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm text-[var(--text-primary)] line-through [font-weight:650]">
-                {order.customer_name}
-              </p>
-              <p className="mt-0.5 truncate text-xs text-[var(--text-secondary)] line-through">
-                {order.delivery_address?.trim() || 'Adresă necompletată'}
-              </p>
-            </div>
-            <span className="shrink-0 text-sm tabular-nums text-[var(--text-secondary)] line-through">
-              {formatLei(order.total_lei)} lei
-            </span>
-          </article>
-        ))}
+        <div className="h-[68px] animate-pulse rounded-box bg-surface-muted" />
+        <div className="h-[68px] animate-pulse rounded-box bg-surface-muted" />
       </div>
-    </section>
+    </div>
   )
 }
