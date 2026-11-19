@@ -11,6 +11,7 @@ import {
   lastUsedParcelaId,
   recoltariOfDay,
   savedDiffersFromAttempt,
+  shortDayLabel,
   splitWorkerName,
   summarizeRecoltariDay,
   type RecoltareAttempt,
@@ -185,6 +186,14 @@ describe('recoltări — afișare', () => {
     expect(formatKgValue(27.3)).toBe('27,3')
     expect(formatKg(12)).toBe('12 kg')
     expect(formatKg(0)).toBe('0 kg')
+  })
+
+  it('numește ziua de azi și pe cea de ieri, inclusiv peste trecerea de lună', () => {
+    expect(shortDayLabel('2026-11-19', '2026-11-19')).toMatch(/^Azi, 19 nov/)
+    expect(shortDayLabel('2026-11-18', '2026-11-19')).toMatch(/^Ieri, 18 nov/)
+    expect(shortDayLabel('2026-11-17', '2026-11-19')).toMatch(/^17 nov/)
+    expect(shortDayLabel('2026-10-31', '2026-11-01')).toMatch(/^Ieri, 31 oct/)
+    expect(shortDayLabel('nu-e-data', '2026-11-19')).toBe('nu-e-data')
   })
 
   it('scrie banii cu două zecimale', () => {
