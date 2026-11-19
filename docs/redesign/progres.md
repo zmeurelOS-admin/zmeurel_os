@@ -307,6 +307,8 @@ Neatinse: `ui/input.tsx`, `ui/sheet.tsx`, `ui/dialog.tsx`, `globals.css`, `theme
 - **Expirările din testele `integrations/google`** la rularea întregii suite pe această mașină.
 - **Service worker-ul PWA servește pagini HTML vechi din cache după deploy** (văzut pe preview la `/admin/kit`). De investigat strategia de cache pentru navigări.
 - **Recoltări, pasul 2, cu două butoane jos pe un ecran de 800 px:** de rezolvat în promptul Recoltări (ex. un singur buton principal în footer).
+- **Totalurile pe sezon / parcelă de mutat în Rapoarte.** Pastilele „Sezon pe parcelă” (kg și % calitatea 1 de la 1 martie) au ieșit din Recoltări odată cu refacerea paginii (prompt 05); informația nu se mai vede nicăieri în modul.
+- **Testele e2e de recoltare caută selectori vechi:** `e2e/stocuri.spec.ts`, `smoke.spec.ts`, `idempotency.spec.ts`, `offline.spec.ts` (`#cantitate_kg`, `#recoltare_kg_cal1`, „Adauga recoltare”, „Recoltare adaugata”). Erau depășite și înainte de prompt 05; de rescris pe formularul pe pași.
 
 ## De verificat pe telefon (preview, `/admin/kit`)
 
