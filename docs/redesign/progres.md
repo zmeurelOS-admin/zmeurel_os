@@ -1,6 +1,6 @@
 # Redesign UI — progres
 
-Ultima actualizare: 19 noiembrie 2026, după kitul de componente (prompt 04).
+Ultima actualizare: 19 noiembrie 2026, după Recoltări pe kit (prompt 05).
 
 | Fază | Stare |
 |---|---|
@@ -10,7 +10,7 @@ Ultima actualizare: 19 noiembrie 2026, după kitul de componente (prompt 04).
 | 1a — Fundația: modul noapte, straturi, tokeni | **gata** pe branch `redesign/fundatie` (nemergeuit): `docs/redesign/tokens.md` |
 | 1b — Componentele kitului + `/admin/kit` | **gata** pe branch `redesign/kit` (nemergeuit): `src/components/kit/`, `/admin/kit`, regulile din `CLAUDE.md` |
 | 2 — Mockupuri pe module | neîncepută |
-| 3 — Implementare modul cu modul | neîncepută |
+| 3 — Implementare modul cu modul | **Recoltări (pilot): gata** pe branch `redesign/recoltari` (nemergeuit); urmează Comenzi + Livrări |
 
 ## Ce s-a făcut în Faza 0
 
@@ -300,13 +300,13 @@ Neatinse: `ui/input.tsx`, `ui/sheet.tsx`, `ui/dialog.tsx`, `globals.css`, `theme
 - **„Vizibilitate ridicată” pe setul canonic.** Suprascrie doar numele `--agri-*`; cere modificări în `theme.css` / `globals.css`, deci a rămas în afara promptului 04. Până atunci, în acest mod kitul are țintele mărite (52 / 60), dar culorile obișnuite.
 - **Contrastul `--fg-subtle` noaptea** (#6c737d pe #12161d, sub 4,5:1). Cere modificare în `theme.css`. Kitul îl folosește doar pe placeholder.
 - **Segmente cu 4 opțiuni la 390 px:** o etichetă de peste 8–9 litere se taie. În Comenzi, „Programate” are nevoie de o formă scurtă.
-- **Ferestre suprapuse** (o foaie deschisă peste un formular pe pași): fiecare pune propriul marcaj în istoric. Neverificat cu „înapoi” pe Android; de verificat la primul modul care are nevoie.
+- **Ferestre suprapuse** (o foaie deschisă peste un formular pe pași): fiecare pune propriul marcaj în istoric. Verificat în cod la promptul 05: la „înapoi” se închid amândouă (fiecare `Dialog` ascultă singur `popstate`). Până la o corectură în `ui/dialog.tsx`, nu se deschide nimic peste un `StepForm`.
 - **`ui/sheet.tsx` folosit direct** în module nerefăcute rămâne fără ascunderea butonului plutitor și fără „înapoi”. Se rezolvă pe rând, la refacerea fiecărui modul, prin `BottomSheet`.
 - **Material săditor** nu e migrat pe kit (la cerere). Foaia lui locală cu `createPortal` rămâne.
 - **Mărimea implicită a butonului** (`ui/button.tsx`, 40 px) e neschimbată; se schimbă la final, cum cere auditul.
 - **Expirările din testele `integrations/google`** la rularea întregii suite pe această mașină.
 - **Service worker-ul PWA servește pagini HTML vechi din cache după deploy** (văzut pe preview la `/admin/kit`). De investigat strategia de cache pentru navigări.
-- **Recoltări, pasul 2, cu două butoane jos pe un ecran de 800 px:** de rezolvat în promptul Recoltări (ex. un singur buton principal în footer).
+- **Recoltări, pasul 2, cu două butoane jos pe un ecran de 800 px:** rezolvat în promptul 05 (un singur „Salvează”; „Următorul culegător” / „Gata” pe ecranul de reușită).
 - **Totalurile pe sezon / parcelă de mutat în Rapoarte.** Pastilele „Sezon pe parcelă” (kg și % calitatea 1 de la 1 martie) au ieșit din Recoltări odată cu refacerea paginii (prompt 05); informația nu se mai vede nicăieri în modul.
 - **Testele e2e de recoltare caută selectori vechi:** `e2e/stocuri.spec.ts`, `smoke.spec.ts`, `idempotency.spec.ts`, `offline.spec.ts` (`#cantitate_kg`, `#recoltare_kg_cal1`, „Adauga recoltare”, „Recoltare adaugata”). Erau depășite și înainte de prompt 05; de rescris pe formularul pe pași.
 
@@ -329,3 +329,87 @@ Din „Mai mult” → Admin → „Kit de componente”. Comutatorul „Tema ap
 | 11 | Același formular, pe Android | „Înapoi” al telefonului închide formularul. |
 | 12 | Toate de mai sus, cu tema aplicației pe „Noapte” | Textul se citește, câmpul activ are contur vizibil, tastele se disting de fundal. |
 | 13 | Cu un cititor de ecran (TalkBack / VoiceOver), la câmpul de kg | Se aude „Calitatea 1, necompletat, activ”; după fiecare tastă se aude valoarea nouă. |
+
+---
+
+# Recoltări pe kit — modul pilot (prompt 05, 19.11.2026)
+
+Branch `redesign/recoltari` (din `main`). Nemergeuit în `main`, fără PR. Primul modul refăcut pe kit; modelul pentru Comenzi și Livrări.
+
+## Ce s-a făcut
+
+**Etapa A — pagina și adăugarea**
+
+- Pagina arată o singură zi: card cu totalul (`StatHero`), lista celor notați, grupată pe culegător (`ListRow`), butonul mare „Adaugă kg” (56 px), fix deasupra barei de jos. Butonul ține locul FAB-ului: pagina nu mai apelează `registerAddAction`, deci FAB-ul și butonul din antetul desktop dispar singure, fără modificări în `AddActionContext`.
+- Tema coral a ieșit din modul (`zmeurel-orders.module.css` rămâne pentru Comenzi și Livrări).
+- Adăugarea, pe pași (`StepForm`): plăci cu insigna „✓ azi N kg” și „Culegător nou” → kilograme tastate (`KgField` + `NumericKeypad` în `dock`, câmp gol la pornire), data și parcela ca pastile, calitatea 2 la cerere, plata recalculată pe loc, notă. Salvare directă din pasul 2; ecranul de reușită oferă „Următorul culegător” (cheie nouă, ziua și parcela rămân) sau „Gata”.
+- Idempotență: `createRecoltare` trimite cheia formularului prin `create_recoltare_idempotent` (migrarea `20261119120000`, aplicată în producție de Andrei). O cerere repetată întoarce recoltarea deja creată. Revenire la funcția veche la PGRST202; 23505 = reușită, cu recitirea rândului după cheie.
+- Legătura cu chatul AI prin URL e păstrată: parametrii se citesc o dată și se șterg înainte de deschiderea formularului; kilogramele venite din chat apar cu pastila „Din chat — verifică”.
+
+**Etapa B — restul**
+
+- Atingerea unui rând deschide foaia culegătorului (`BottomSheet`) cu cântăririle zilei: oră, parcelă și cultură, calitate, plată și tarif, notă; „Editează” și „Șterge” pe fiecare.
+- Editarea e același formular (`mode: 'edit'`), deschis pe kilograme, cu valorile salvate afișate; se pot schimba și culegătorul, data, parcela și nota.
+- Ștergerea: confirmarea e în aceeași foaie (cu avertismentul de stoc și blocajul „deja vândut”), apoi anulare 5 secunde din notificare. Logica veche, mutată în `useRecoltareDeleteWithUndo`.
+- Zile anterioare: pastila cu data, deasupra totalului → `CalendarSheet` (până azi) → aceeași pagină pentru ziua aleasă, cu „Înapoi la azi”. „Adaugă kg” pornește cu data acelei zile.
+- Curățenie: șterse `AddRecoltareDialog`, `EditRecoltareDialog`, `ViewRecoltareDialog`, `RecoltareFormSummary`, `lib/recoltari/list-view` (+ testul) și `buildRecoltareDeleteLabel`. `check:kit` acoperă `src/app/(dashboard)/recoltari` și `src/components/recoltari`.
+
+**Corecturi după verificarea Etapei A**
+
+- Avertismentul de tratament activ e un buton ⚠ pe rândul pastilelor, cu detaliul la atingere. La 390×800, „Calitatea 2” și „Notă” se văd fără derulare și cu avertismentul prezent (măsurat: 351 / 351 px).
+- Închiderea cu ceva nesalvat (X, Esc, „înapoi” pe Android) cere confirmare: „Renunți la 2 kg pentru Elena Rusu?” — Continuă / Renunță. Fără kilograme tastate se închide direct.
+
+## Adăugiri în kit
+
+- `useKeypadFields.setValue` + `keypadValueFrom`: o valoare care există deja (editare, cantitate dictată) intră în câmp prin aceleași limite ca tastele.
+- `StepForm.closeGuard`: orice încercare de închidere trece prin gardă. La un „înapoi” oprit, `StepForm` pune la loc intrarea din istoric și ascultă el următorul „înapoi”. `ui/dialog.tsx` e neatins.
+- Amândouă au teste și exemplu pe `/admin/kit`.
+
+## Decizii (Andrei)
+
+- Căutarea, filtrele avansate, perioada și „Sezon pe parcelă” au ieșit din Recoltări.
+- Salvare directă din pasul 2, fără pas de verificare; fără salvare cu 0 kg.
+- Alegerile din formular (dată, parcelă, cultură, notă, culegător nou) se deschid în pas, nu într-o foaie peste formular.
+- Migrarea de idempotență e un înveliș peste `create_recoltare_with_stock` (`security invoker`), nu o copie a corpului.
+- Fără `updateRecoltare` automat când serverul întoarce alte valori decât cele din formular: ecranul de reușită arată ce s-a salvat și un avertisment.
+
+## De știut pentru Comenzi și Livrări
+
+- **Două ferestre suprapuse se închid amândouă la „înapoi” pe Android** (fiecare `Dialog` își ascultă singur `popstate`). Regula folosită aici: nimic nu se deschide peste un `StepForm`; o foaie se închide înainte să se deschidă formularul.
+- **Inițializarea unui formular la o cheie nouă trebuie să fie idempotentă.** Cheia se generează la randare, iar blocul de reset poate rula de două ori pentru aceeași deschidere; nu „consuma” nimic în el.
+- **`onOpenChange` către `StepForm` / `BottomSheet`** trebuie să fie referință stabilă. `StepForm` o stabilizează singur acum; `BottomSheet` nu.
+- **Butonul fix de jos** lasă loc în stânga pentru bula „beta” (40 px, aceeași bandă). Cardul beta deschis (primele 5 sesiuni ale unui utilizator nou) tot îl acoperă până e închis.
+- **Erorile de salvare** se arată sus în pas: sub câmpuri ajung sub marginea ecranului la 390×800.
+
+## Verificare
+
+- `typecheck`, `check:kit` (42 de fișiere), `build`: trec. `lint`: aceleași 2 erori vechi, în fișiere neatinse (cea din `RecoltariPageClient.tsx` a dispărut odată cu rescrierea).
+- Teste: kitul și `lib/recoltari` (141), `recoltari-aggregate-by-culegator`, `ai-handoff-ui-contract`. `test:critical:unit`: doar cele două expirări cunoscute din `integrations/google`.
+- Local (Chromium), într-un cont demo creat prin `/start`, exclusiv prin interfață: salvare, a doua cântărire, culegător nou, dublu-tap (o singură recoltare), cerere repetată cu aceeași cheie (o singură recoltare), editare, ștergere dusă la capăt, ștergere anulată, o zi anterioară, confirmarea la închidere (X și `history.back()`).
+- Măsurat, Etapa A: 390×800 (noapte) și 412×915 (zi) — ținte de cel puțin 48 px, tastatura și „Salvează” vizibile fără derulare; desktop 1280 px — tastatura fizică scrie în câmp. Etapa B și corecturile: 390×800, ziua (foaia culegătorului și pasul 2 cu avertisment: ținte de cel puțin 48 px, fără derulare).
+- **Neverificat local:** Etapa B pe „Noapte”, la 412×915 și pe desktop.
+- **Neverificat pe telefon:** Etapa B și cele două corecturi. „Înapoi” pe Android a fost simulat cu `history.back()` în browserul de desktop.
+
+## Rămase
+
+- Totalurile pe sezon / parcelă de mutat în Rapoarte.
+- Testele e2e de recoltare caută selectori vechi.
+- Ramurile PGRST202 și 23505 din `createRecoltare` nu sunt exercitate de niciun test.
+- Bula și cardul „beta” peste butonul fix de jos: de hotărât pentru toate modulele cu buton fix (ex. cardul urcă deasupra butonului).
+- În lista de alegere a parcelei, parcelele aflate în perioada de pauză nu sunt marcate; avertismentul apare doar după alegere.
+
+## De verificat pe telefon (preview, `/recoltari`, cont demo pentru salvări)
+
+| # | Unde | Ce verificați |
+|---|---|---|
+| 1 | Pasul 2, pe o parcelă cu tratament activ | Apare butonul ⚠ lângă parcelă; „Calitatea 2” și „Notă” se văd fără derulare. Atingerea lui ⚠ arată produsul și data de la care e permisă recoltarea. |
+| 2 | Pasul 2, cu kilograme tastate → X | Apare „Renunți la N kg pentru …?”. „Continuă” vă întoarce cu kilogramele neschimbate; „Renunță” închide. |
+| 3 | La fel, pe Android, cu butonul „înapoi” | Aceeași confirmare; formularul nu se închide și nu părăsiți pagina. Al doilea „înapoi” arată tot confirmarea. |
+| 4 | Fără kilograme tastate → X sau „înapoi” | Se închide direct. |
+| 5 | Atingeți un culegător din listă | Se deschide foaia cu cântăririle lui: oră, parcelă, calitate, plată, notă. |
+| 6 | „Editează” | Formularul se deschide pe kilograme, cu valorile salvate. Schimbați cantitatea → „Salvează modificările” → „Modificat”; lista și totalul se schimbă. |
+| 7 | „Șterge” → „Șterge cântărirea” | Rândul dispare, apare notificarea cu „Anulează”. Apăsat în 5 secunde, rândul revine. Lăsat să treacă, rămâne șters. |
+| 8 | Pastila cu data → „Ieri” sau altă zi | Pagina arată ziua aleasă; „Înapoi la azi” revine. „Adaugă kg” de acolo pornește cu data acelei zile. |
+| 9 | Foaia și formularul de editare, pe Android | „Înapoi” închide foaia, respectiv formularul (cu confirmare dacă ați schimbat ceva). |
+| 10 | Toate de mai sus, pe „Noapte” | Textul se citește; butonul ⚠ și butonul roșu de ștergere se disting. |
+| 11 | `/admin/kit` → Formular pe pași → fereastra reală | Cu kilograme tastate, X cere confirmare. |

@@ -148,10 +148,15 @@ Baza modulelor refăcute (Recoltări, apoi Comenzi + Livrări). Totul se import�
 - După salvare: `form.markSuccess()`; la eroare: `form.markFailed()`. Cu `mode: 'edit'` sau `analytics: false` nu se trimite niciun eveniment.
 - Tastatura din aplicație se pune în `dock` (zona fixă a carcasei), ca să rămână întreagă pe ecran. Câmpul de kg (`KgField`) pornește gol, fără valoare propusă.
 - Un calendar într-un pas se pune cu `CalendarPanel`, în pagină; `CalendarSheet` e pentru paginile obișnuite.
+- Nimic nu se deschide peste un `StepForm` (nici `BottomSheet`, nici alt dialog): două ferestre suprapuse se închid amândouă la „înapoi” pe Android. Alegerile dintr-un pas (dată, listă, notă) țin locul conținutului pasului și se închid cu `onBack`; o foaie se închide înainte să se deschidă formularul.
+- Închiderea cu ceva nesalvat: `closeGuard` pe `StepForm` (X, Esc, „înapoi”). Întoarce `true` și modulul arată confirmarea în pas; închiderea hotărâtă de modul se face cu `onOpenChange(false)`.
+- O valoare care există deja (editare, cantitate dictată) intră în `KgField` cu `fields.setValue`, nu ca propunere.
+- Resetul câmpurilor la o cheie nouă (`form.clientSyncId`) poate rula de două ori pentru aceeași deschidere: trebuie să dea același rezultat de fiecare dată.
+- Model de urmat: Recoltări (`src/app/(dashboard)/recoltari/`, `src/components/recoltari/`).
 
 **Verificare automată**
 
-`npm run check:kit` (`scripts/check-kit-rules.mjs`) pică la orice abatere de la regulile de mai sus în folderele din `KIT_RULE_DIRS` (`scripts/kit-rules.mjs`): acum `src/components/kit` și `src/app/(dashboard)/admin/kit`. Folderul fiecărui modul refăcut se adaugă pe listă când începe refacerea lui. Testele kitului sunt în `src/components/kit/__tests__/` și rulează cu `npm run test:critical:unit`.
+`npm run check:kit` (`scripts/check-kit-rules.mjs`) pică la orice abatere de la regulile de mai sus în folderele din `KIT_RULE_DIRS` (`scripts/kit-rules.mjs`): acum `src/components/kit`, `src/app/(dashboard)/admin/kit`, `src/app/(dashboard)/recoltari` și `src/components/recoltari`. Folderul fiecărui modul refăcut se adaugă pe listă când începe refacerea lui. Testele kitului sunt în `src/components/kit/__tests__/` și rulează cu `npm run test:critical:unit`.
 
 ## AI Chat Widget
 
