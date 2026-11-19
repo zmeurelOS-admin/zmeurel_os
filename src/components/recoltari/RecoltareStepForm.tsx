@@ -85,6 +85,11 @@ export interface RecoltareStepFormProps {
   /** Se aplică o singură dată, la deschidere; „Următorul culegător” nu o reia. */
   prefill?: RecoltareAiPrefill | null
   /**
+   * Culegătorul ales dinainte (din fișa lui, `/recoltari?culegator=<id>`): formularul pornește direct pe kilograme.
+   * „Următorul culegător” revine la alegerea culegătorului.
+   */
+  initialCulegatorId?: string | null
+  /**
    * Recoltarea editată. Cu ea, formularul pornește pe kilograme, cu valorile salvate afișate.
    * Pagina o păstrează până la următoarea deschidere, ca să nu sară conținutul cât se animă închiderea.
    */
@@ -183,6 +188,7 @@ export function RecoltareStepForm({
   todayIso,
   defaultDate,
   prefill = null,
+  initialCulegatorId = null,
   editing = null,
 }: RecoltareStepFormProps) {
   const queryClient = useQueryClient()
@@ -193,7 +199,7 @@ export function RecoltareStepForm({
     steps: addingWorker ? STEPS_WITH_NEW_WORKER : STEPS,
     open,
     mode,
-    initialStep: editing ? 'kg' : undefined,
+    initialStep: editing || initialCulegatorId ? 'kg' : undefined,
     analytics: { moduleName: 'recoltari' },
   })
   const fields = useKeypadFields({ fields: KG_FIELDS })
@@ -268,6 +274,8 @@ export function RecoltareStepForm({
 
       setDraft({
         ...EMPTY_DRAFT,
+        // Culegătorul venit din fișa lui se aplică doar primei cântăriri, nu și la „Următorul culegător”.
+        culegatorId: carry ? null : initialCulegatorId,
         // „Următorul culegător”: ziua și parcela rămân cele de la cântărirea dinainte.
         date: carry ? carry.date : prefillDate,
         parcelaId: carry ? carry.parcelaId : null,
@@ -460,6 +468,8 @@ export function RecoltareStepForm({
   const nextWorker = () => {
     setCarry({ date: draft.date, parcelaId })
     form.restart()
+    // Cu un culegător ales dinainte formularul repornește pe kilograme: îl ducem la alegerea culegătorului.
+    if (initialCulegatorId) form.goTo('culegator')
   }
 
   const pressKey = (key: KeypadKey) => {

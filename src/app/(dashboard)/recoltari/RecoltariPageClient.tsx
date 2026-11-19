@@ -110,6 +110,7 @@ export function RecoltariPageClient() {
 
   const [formOpen, setFormOpen] = useState(false)
   const [aiPrefill, setAiPrefill] = useState<RecoltareAiPrefill | null>(null)
+  const [initialCulegatorId, setInitialCulegatorId] = useState<string | null>(null)
   // Rămâne setată până la următoarea deschidere, ca formularul să nu-și schimbe conținutul cât se închide.
   const [editing, setEditing] = useState<Recoltare | null>(null)
   const [openWorkerKey, setOpenWorkerKey] = useState<string | null>(null)
@@ -119,20 +120,29 @@ export function RecoltariPageClient() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const queryString = searchParams.toString()
-  const formRequestedInUrl = searchParams.get('add') === '1' || hasAiOpenForm(searchParams)
+  // `?culegator=<id>` vine din fișa culegătorului („Adaugă kg azi”): formularul pornește direct pe kilograme.
+  const culegatorFromUrl = hasAiOpenForm(searchParams) ? '' : (searchParams.get('culegator') ?? '').trim()
+  const formRequestedInUrl = searchParams.get('add') === '1' || hasAiOpenForm(searchParams) || culegatorFromUrl !== ''
 
   // Parametrii se citesc o singură dată și se șterg înainte ca formularul să se deschidă. Altfel fereastra
   // și-ar pune intrarea în istoric peste o adresă cu `openForm=1`, iar un „înapoi” ulterior ar redeschide-o.
   const [seenQuery, setSeenQuery] = useState<string | null>(null)
-  const [pendingFromUrl, setPendingFromUrl] = useState<{ prefill: RecoltareAiPrefill | null } | null>(null)
+  const [pendingFromUrl, setPendingFromUrl] = useState<{
+    prefill: RecoltareAiPrefill | null
+    culegatorId: string | null
+  } | null>(null)
   if (seenQuery !== queryString) {
     setSeenQuery(queryString)
     if (formRequestedInUrl) {
-      setPendingFromUrl({ prefill: hasAiOpenForm(searchParams) ? parseAiRecoltarePrefill(searchParams) : null })
+      setPendingFromUrl({
+        prefill: hasAiOpenForm(searchParams) ? parseAiRecoltarePrefill(searchParams) : null,
+        culegatorId: culegatorFromUrl || null,
+      })
     } else if (pendingFromUrl) {
       setPendingFromUrl(null)
       if (canWriteRecoltari) {
         setAiPrefill(pendingFromUrl.prefill)
+        setInitialCulegatorId(pendingFromUrl.culegatorId)
         setEditing(null)
         setFormOpen(true)
       }
@@ -151,6 +161,7 @@ export function RecoltariPageClient() {
 
   const openForm = useCallback(() => {
     setAiPrefill(null)
+    setInitialCulegatorId(null)
     setEditing(null)
     setFormOpen(true)
   }, [])
@@ -159,6 +170,7 @@ export function RecoltariPageClient() {
     // Foaia se închide înainte să se deschidă formularul: două ferestre suprapuse s-ar închide amândouă la „înapoi”.
     setOpenWorkerKey(null)
     setAiPrefill(null)
+    setInitialCulegatorId(null)
     setEditing(recoltare)
     setFormOpen(true)
   }, [])
@@ -385,6 +397,7 @@ export function RecoltariPageClient() {
             todayIso={todayIso}
             defaultDate={day}
             prefill={aiPrefill}
+            initialCulegatorId={initialCulegatorId}
             editing={editing}
           />
         </>

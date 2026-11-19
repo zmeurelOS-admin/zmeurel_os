@@ -115,22 +115,17 @@ export async function updateCulegator(
 ): Promise<Culegator> {
   const supabase = getSupabase()
 
+  // Doar câmpurile primite ajung în `update`. Înainte, un câmp netrimis era scris ca `null`:
+  // „Marchează inactiv” sau un formular fără data angajării ar fi șters telefonul, tipul, nota și data.
+  const emptyToNull = (value: string | null | undefined) => (value && value !== '' ? value : null)
   const payload = {
-    ...input,
-    data_angajare:
-      input.data_angajare && input.data_angajare !== ''
-        ? input.data_angajare
-        : null,
-    telefon:
-      input.telefon && input.telefon !== '' ? input.telefon : null,
-    tip_angajare:
-      input.tip_angajare && input.tip_angajare !== ''
-        ? input.tip_angajare
-        : null,
-    observatii:
-      input.observatii && input.observatii !== ''
-        ? input.observatii
-        : null,
+    ...(input.nume_prenume !== undefined ? { nume_prenume: input.nume_prenume } : {}),
+    ...(input.tarif_lei_kg !== undefined ? { tarif_lei_kg: input.tarif_lei_kg } : {}),
+    ...(input.status_activ !== undefined ? { status_activ: input.status_activ } : {}),
+    ...(input.data_angajare !== undefined ? { data_angajare: emptyToNull(input.data_angajare) } : {}),
+    ...(input.telefon !== undefined ? { telefon: emptyToNull(input.telefon) } : {}),
+    ...(input.tip_angajare !== undefined ? { tip_angajare: emptyToNull(input.tip_angajare) } : {}),
+    ...(input.observatii !== undefined ? { observatii: emptyToNull(input.observatii) } : {}),
     updated_at: new Date().toISOString(),
   }
 
