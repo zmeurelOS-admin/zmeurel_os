@@ -42,3 +42,41 @@ export {
   type ActionCardProps,
   type ActionCardSecondaryAction,
 } from './ActionCard'
+
+// Compuse (Etapa B)
+export { BottomSheet, type BottomSheetProps } from './BottomSheet'
+export {
+  StepForm,
+  StepFormFrame,
+  StepFormTitle,
+  useStepForm,
+  type StepFormApi,
+  type StepFormFooter,
+  type StepFormFooterAction,
+  type StepFormFrameProps,
+  type StepFormProps,
+  type UseStepFormOptions,
+} from './StepForm'
+export { CalendarPanel, CalendarSheet, type CalendarPanelProps, type CalendarSheetProps } from './CalendarSheet'
+export { NumberStepper, type NumberStepperProps } from './NumberStepper'
+export { NumericKeypad, type NumericKeypadProps } from './NumericKeypad'
+export { KgField, kgFieldLabel, useKeypadFields, type KgFieldProps, type UseKeypadFieldsOptions } from './KgField'
+export { SummaryList, SummaryRow, type SummaryRowProps } from './SummaryRow'
+export { SuccessScreen, type SuccessScreenAction, type SuccessScreenProps } from './SuccessScreen'
+
+// Logică fără React, refolosibilă în module
+export {
+  applyKeypadKey,
+  parseKeypadValue,
+  type KeypadKey,
+  type KeypadOptions,
+} from './lib/keypad'
+export { formatDecimal, parseDecimal, roundTo, stepValue } from './lib/number'
+export {
+  addDaysIso,
+  defaultDateShortcuts,
+  isIsoOutOfRange,
+  longDayRo,
+  todayIso,
+  type DateShortcut,
+} from './lib/date'
