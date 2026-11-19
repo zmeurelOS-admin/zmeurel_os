@@ -6,7 +6,12 @@ import { fileURLToPath } from 'node:url'
  * Regulile kitului de componente (docs/redesign/tokens.md, CLAUDE.md).
  * Folderele modulelor refăcute se adaugă pe listă pe rând.
  */
-export const KIT_RULE_DIRS = ['src/components/kit', 'src/app/(dashboard)/admin/kit']
+export const KIT_RULE_DIRS = [
+  'src/components/kit',
+  'src/app/(dashboard)/admin/kit',
+  // Recoltări (modul pilot). `src/components/recoltari` intră după ștergerea dialogurilor vechi (Etapa B).
+  'src/app/(dashboard)/recoltari',
+]
 
 const TEXT_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.css'])
 const EXCLUDED_PATH_PATTERNS = [/\/__tests__\//, /\.test\.[cm]?[jt]sx?$/]
