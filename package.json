@@ -12,6 +12,7 @@
     "seed:prod-test-account": "node scripts/seed-production-test-account.mjs",
     "check:sensitive-hardcoding": "node scripts/check-sensitive-hardcoding.mjs",
     "check:server-supabase-boundaries": "node scripts/check-server-supabase-boundaries.mjs",
+    "check:kit": "node scripts/check-kit-rules.mjs",
     "test:ai-chat": "playwright test --config=playwright.ai-chat.config.ts",
     "test:ai-chat:integration": "playwright test --config=playwright.ai-chat.integration.config.ts",
     "check:ai-chat": "npm run lint:ai-chat && npm run typecheck && npm run test:ai-chat",

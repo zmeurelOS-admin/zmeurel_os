@@ -33,6 +33,7 @@ export default defineConfig(({ mode }) => {
         'src/app/api/integrations/google/__tests__/*.test.ts',
         'src/components/cheltuieli/__tests__/*.test.tsx',
         'src/components/investitii/__tests__/*.test.tsx',
+        'src/components/kit/__tests__/*.test.{ts,tsx}',
         'src/lib/auth/__tests__/*.test.ts',
         'src/lib/vanzari-butasi/__tests__/*.test.ts',
         'src/lib/integrations/__tests__/*.test.ts',
