@@ -9,8 +9,9 @@ import { fileURLToPath } from 'node:url'
 export const KIT_RULE_DIRS = [
   'src/components/kit',
   'src/app/(dashboard)/admin/kit',
-  // Recoltări (modul pilot). `src/components/recoltari` intră după ștergerea dialogurilor vechi (Etapa B).
+  // Recoltări (modul pilot)
   'src/app/(dashboard)/recoltari',
+  'src/components/recoltari',
 ]
 
 const TEXT_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.css'])

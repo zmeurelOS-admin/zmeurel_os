@@ -33,24 +33,6 @@ export function buildParcelaDeleteLabel(parcela: {
   return joinParts([name || 'Teren', crop], ' - ')
 }
 
-export function buildRecoltareDeleteLabel(recoltare: {
-  data?: MaybeString
-  kg_cal1?: MaybeNumber
-  kg_cal2?: MaybeNumber
-} | null | undefined, parcelaName?: MaybeString): string {
-  if (!recoltare) return 'Recoltare selectata'
-
-  const kgCal1 = Number(recoltare.kg_cal1 ?? 0)
-  const kgCal2 = Number(recoltare.kg_cal2 ?? 0)
-  const totalKg = kgCal1 + kgCal2
-
-  return joinParts([
-    formatDateRo(recoltare.data),
-    Number.isFinite(totalKg) ? `${totalKg.toFixed(2)} kg` : '',
-    parcelaName || '',
-  ])
-}
-
 export function buildActivitateDeleteLabel(activitate: {
   data_aplicare?: MaybeString
   tip_activitate?: MaybeString
