@@ -12,6 +12,21 @@ export const KIT_RULE_DIRS = [
   // Recoltări (modul pilot)
   'src/app/(dashboard)/recoltari',
   'src/components/recoltari',
+  // Comenzi
+  'src/app/(dashboard)/comenzi',
+  'src/components/comenzi',
+  'src/lib/comenzi',
+]
+
+/**
+ * Fișiere vechi dintr-un folder deja verificat, folosite încă de un modul nerefăcut.
+ * Se scot de aici (și se șterg) când modulul respectiv e refăcut.
+ */
+export const KIT_RULE_PENDING_FILES = [
+  // Folosite de Livrări până la refacerea ei (modulul 2).
+  'src/components/comenzi/UnifiedOrderCard.tsx',
+  'src/components/comenzi/EditOrderSheet.tsx',
+  'src/components/comenzi/PaymentStatusToggle.tsx',
 ]
 
 const TEXT_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.css'])
@@ -157,8 +172,11 @@ export async function runKitRules({ rootDir, dirs = KIT_RULE_DIRS } = {}) {
   const scannedFiles = []
   const findings = []
 
+  const pending = new Set(KIT_RULE_PENDING_FILES)
+
   for (const dir of dirs) {
     for (const filePath of await listFiles(root, dir)) {
+      if (pending.has(filePath)) continue
       const content = await fs.readFile(path.join(root, filePath), 'utf8')
       scannedFiles.push(filePath)
       findings.push(...scanKitFileContent({ filePath, content }))

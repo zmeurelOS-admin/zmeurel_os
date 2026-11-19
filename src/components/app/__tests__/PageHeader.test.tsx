@@ -73,7 +73,7 @@ describe('PageHeader quick nav', () => {
   })
 
   it('marchează activă ruta curentă și sub-rutele ei', () => {
-    pathnameState.value = '/comenzi/campanie'
+    pathnameState.value = '/comenzi/arhiva'
 
     render(<PageHeader title="Comenzi" subtitle="Test" />)
 
