@@ -11,7 +11,7 @@ Lanț de branch-uri; fiecare pornește din vârful celui dinainte, deci merge-ur
 |---|---|---|---|---|
 | 1 | Comenzi (+ migrarea comună, + prețul standard) | `redesign/comenzi` | vezi `git log -1 origin/redesign/comenzi` | **gata, împins** |
 | 2 | Livrări | `redesign/livrari` | vezi `git log -1 origin/redesign/livrari` | **gata, împins** |
-| 3 | Acasă (telefon) | `redesign/acasa` | — | neînceput |
+| 3 | Acasă (telefon) | `redesign/acasa` | vezi `git log -1 origin/redesign/acasa` | **gata, împins** |
 | 4 | Clienți + Culegători + Setări | `redesign/clienti-culegatori` | — | neînceput |
 | 5 | Cheltuieli + Investiții + Vânzări | `redesign/cheltuieli-vanzari` | — | neînceput |
 
@@ -248,3 +248,61 @@ Preview: `https://zmeurel-git-redesign-livrari-zmeurelos-admins-projects.vercel.
 | 12 | **După migrare:** „Da, livrat” la un client fără locație | Comutatorul „Salvează locația de aici” e pornit și arată precizia. După salvare, „Navighează” devine activ. |
 | 13 | **După migrare:** livrare la peste 150 m de locația salvată | „Livrezi aici și de acum?” → „Da, actualizează” / „Nu, doar de data asta”. |
 | 14 | **După migrare și cheie:** „Aranjează traseul” → „Optimizează traseul” | Opririle se așază pe drum, pornind de unde sunteți; cele fără locație rămân la final. |
+
+## 5. Modulul 3 — Acasă (`redesign/acasa`)
+
+### Ce e gata
+
+- **Pe telefon (sub 768 px)**, Acasă e nouă, pe kit. **Pe desktop, grila editabilă e neschimbată**: în `dashboard/page.tsx` s-a înlocuit doar blocul de telefon.
+- **Antet:** „Acasă” și data (din CSS, corect de la prima randare), pastila perioadei („Sezon · zmeură” / „Extrasezon · butași și lucrări”), vremea pe scurt în dreapta: temperatura și o singură notă (ploaie sau vânt în sezon; îngheț sau brumă în extrasezon).
+- **Sezon:** „De livrat azi” (kg, comenzi, câte prioritare) lângă „În stoc, calitatea 1”; banda „Lipsesc X kg — notează recoltarea sau mută comenzi” când stocul nu acoperă ce nu e încă în livrare; „De făcut azi”: ⚠ „Nu recolta: parcelă” (pauză după tratament, cu zilele rămase), livrări în drum, comenzi de pus în livrare, recoltarea de azi (nenotată / notată, cu kg), tratamente de făcut (cu fereastra meteo de stropit); jos „Sezonul <an>, până azi”: recoltat și încasat.
+- **Extrasezon:** „Butași de livrat săpt. asta” (buc, comenzi, prima dată) lângă „Rest de încasat” (lei, vânzări); banda „De pregătit” pe soiuri; avertizarea de îngheț; „De făcut”: comenzi de butași de pregătit, încasări restante, comenzi de fructe încă deschise, lucrări planificate (din Activități, cu dată în viitor), tratamente; jos „Sezonul <an> încheiat” și „Detalii în Rapoarte”.
+- **Fiecare rând și fiecare card duce în modulul lui.**
+- **Perioada:** sezonul începe la prima recoltare din an; extrasezonul doar după „Da, începem”. Cardul „Începem extrasezonul?” apare din 25 octombrie; „Mai am de cules” îl amână 7 zile („Bine. Te întreb din nou pe …”).
+- **Scoase de pe telefon:** scurtăturile „Intră direct în fluxuri”, recomandările generice, „Recente”, instantaneul comercial, „pulsul fermei”, cardul financiar. „Adaugă widget” era deja doar pe desktop. Componentele lor rămân: le folosește desktopul.
+
+### Ce am ales singur
+
+1. **„Rest de încasat” vine din Vânzări** (fructe), aceeași socoteală ca „Neîncasat” din Vânzări și Clienți (`src/lib/vanzari/incasari.ts`). Avansurile de la butași nu intră aici.
+2. **Nu există stoc de butași în baza de date.** Banda arată ce e **de pregătit pe soiuri** (din comenzile de butași deschise), nu stocul rămas.
+3. **„Săptămâna asta” ține până duminică** și cuprinde și comenzile de butași rămase din urmă (data trecută, nelivrate).
+4. **Lipsa de stoc se judecă pe comenzile care nu sunt încă în livrare**: cele din livrare au deja kilogramele puse deoparte.
+5. **Tratamentele „de făcut”** sunt parcelele pe care motorul existent al dashboardului le marchează „în curând” sau „întârziat”. Nu am scris alt calcul.
+6. **„Sezonul, pe scurt”** numără de la 1 ianuarie: recoltat (toate calitățile) și încasat din fructe, pe data încasării.
+7. **Vântul** se semnalează de la 6 m/s (~22 km/h); **bruma** de la minima de 3° pentru mâine, **înghețul** de la 0°.
+8. **Onboardingul** („Bun venit”) și starea de încărcare au rămas cele ale paginii.
+
+### De știut: o eroare veche, găsită în trecere
+
+Pagina veche Vânzări socotește **„neplatit” ca încasat**: verifică dacă statusul *conține* „platit”. O livrare cu „Nu a plătit” apare acolo, azi, ca încasată. Socoteala nouă potrivește statusul exact. **Pe acest branch pagina Vânzări e încă cea veche**; se repară la modulul 5. Acasă folosește deja socoteala corectă.
+
+### Ce așteaptă migrarea
+
+- **Cardul „Începem extrasezonul?”**, amânarea și forțarea perioadei din Setări.
+- Până atunci: **Sezon dacă există o recoltare în anul curent și e înainte de 1 noiembrie, altfel Extrasezon**, fără întrebare. Azi (19 noiembrie) Acasă arată Extrasezon.
+
+### Ce n-am terminat și de ce
+
+- **Vederea de sezon nu a putut fi văzută în browser:** fără migrare, după 1 noiembrie perioada e mereu extrasezon. E acoperită de teste (`lib/__tests__/acasa.test.ts`, 17 teste, din care 8 pentru perioadă).
+- **Cardul de întrebare** și cele două răspunsuri: doar în teste (logica) și în cod (scrierea); cer migrarea.
+- Pagina încarcă în continuare toate datele dashboardului și pe telefon (inclusiv cele folosite doar de desktop). Nu am separat încărcările, ca să nu ating desktopul.
+
+### Verificare
+
+- `typecheck`, `check:kit` (69 de fișiere), `build`: trec. `lint`: aceleași 2 erori vechi. `test:critical:unit`: 366 din 368 (aceleași două expirări Google).
+- Local, cont demo, 390×844, ziua: extrasezon cu date reale (rest de încasat 456 lei dintr-o vânzare, 6 comenzi de fructe deschise, două lucrări planificate, sezonul pe scurt). Nimic nu iese din cadru; toate țintele din pagină au cel puțin 48 px.
+- **Neverificat local:** noaptea, vederea de sezon, desktopul (nu a fost atins, dar nici deschis după schimbare).
+
+### De verificat pe telefon — Acasă
+
+Preview: `https://zmeurel-git-redesign-acasa-zmeurelos-admins-projects.vercel.app/dashboard`.
+
+| # | Unde | Ce verificați |
+|---|---|---|
+| 1 | Acasă pe telefon, zi și noapte | Antetul spune „Acasă”; pastila „Extrasezon · butași și lucrări”; vremea în dreapta. |
+| 2 | Cardurile de sus | „Butași de livrat săpt. asta” duce în Material săditor; „Rest de încasat” duce în Vânzări. Cifrele sunt cele pe care le știți. |
+| 3 | „De făcut” | Fiecare rând duce în modulul lui. Lucrările planificate sunt cele din Activități cu dată în viitor. |
+| 4 | Desktop, `/dashboard` | Arată exact ca înainte: salutul, grila, „Editează”. |
+| 5 | Fereastră între 768 și 1023 px | Grila de desktop, cu salutul în antet. |
+| 6 | **După migrare:** Setări › Ce arată Acasă → „Sezon” | Acasă arată „De livrat azi”, stocul și „De făcut azi”. |
+| 7 | **După migrare:** perioada „Automat”, după 25 octombrie, cu recoltări în an | Apare „Începem extrasezonul?”. „Mai am de cules” îl ascunde 7 zile; „Da, începem” trece pe extrasezon. |
