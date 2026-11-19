@@ -1,3 +1,4 @@
+import { loadSchemaFeaturesSafe } from "@/lib/schema-features"
 import { getSupabase } from "@/lib/supabase/client"
 import { generateBusinessId } from "@/lib/supabase/business-ids"
 import { getTenantId } from "@/lib/tenant/get-tenant"
@@ -21,6 +22,14 @@ export interface Client {
   google_resource_name?: string | null
   google_etag?: string | null
   data_origin?: string | null
+  /**
+   * Locul de livrare salvat la o livrare. Lipsesc cât coloanele nu există în baza de date
+   * (migrarea `20261120090000_redesign_noapte.sql`; vezi `lib/schema-features`).
+   */
+  latitudine?: number | null
+  longitudine?: number | null
+  locatie_salvata_la?: string | null
+  locatie_precizie_m?: number | null
 }
 
 type ClientRowLike = Omit<Client, 'tip'> & {
@@ -85,18 +94,59 @@ function triggerGoogleContactPush(client: Pick<Client, 'id' | 'tenant_id'>): voi
     })
 }
 
+const CLIENT_SELECT =
+  "id,id_client,nume_client,telefon,email,adresa,pret_negociat_lei_kg,observatii,created_at,updated_at,tenant_id,tip,google_resource_name,google_etag,data_origin"
+const CLIENT_LOCATION_SELECT = "latitudine,longitudine,locatie_salvata_la,locatie_precizie_m"
+
 export async function getClienți(): Promise<Client[]> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
 
+  // Coloanele de locație se cer doar dacă există: altfel PostgREST respinge tot `select`-ul.
+  const { clientiLocatie } = await loadSchemaFeaturesSafe()
+  const columns = clientiLocatie ? `${CLIENT_SELECT},${CLIENT_LOCATION_SELECT}` : CLIENT_SELECT
+
   const { data, error } = await supabase
     .from("clienti")
-    .select("id,id_client,nume_client,telefon,email,adresa,pret_negociat_lei_kg,observatii,created_at,updated_at,tenant_id,tip,google_resource_name,google_etag,data_origin")
+    .select(columns)
     .eq("tenant_id", tenantId)
     .order("nume_client", { ascending: true })
 
   if (error) throw error
-  return (data ?? []).map((row) => mapClientRow(row as ClientRowLike))
+  return ((data ?? []) as unknown as ClientRowLike[]).map((row) => mapClientRow(row))
+}
+
+export interface ClientLocationInput {
+  latitudine: number
+  longitudine: number
+  /** Precizia GPS, în metri. */
+  precizieM: number
+}
+
+/**
+ * Salvează locul de livrare al unui client. Doar la cererea fermierului (comutatorul de la „Da, livrat”
+ * sau răspunsul „Da, actualizează”): locația nu se schimbă niciodată singură.
+ * Refuză cât coloanele nu există în baza de date.
+ */
+export async function saveClientLocation(clientId: string, input: ClientLocationInput): Promise<void> {
+  const { clientiLocatie } = await loadSchemaFeaturesSafe()
+  if (!clientiLocatie) {
+    throw new Error('Locațiile se activează după actualizarea bazei de date.')
+  }
+  const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
+  const { error } = await supabase
+    .from("clienti")
+    .update({
+      latitudine: input.latitudine,
+      longitudine: input.longitudine,
+      locatie_precizie_m: Math.round(input.precizieM * 10) / 10,
+      locatie_salvata_la: new Date().toISOString(),
+    })
+    .eq("id", clientId)
+    .eq("tenant_id", tenantId)
+
+  if (error) throw error
 }
 
 function normalizeClientName(value: string): string {

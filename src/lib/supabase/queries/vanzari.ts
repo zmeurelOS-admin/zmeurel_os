@@ -7,6 +7,7 @@
 // paralel cu disponibilul derivat. Pagina Vânzări rămâne registru read-only, cu excepția
 // statusului de plată (update financiar direct, fără efect pe stoc).
 import { getSupabase } from '../client'
+import { loadSchemaFeaturesSafe } from '@/lib/schema-features'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 
 export interface Vanzare {
@@ -91,6 +92,34 @@ export async function getVanzari(): Promise<Vanzare[]> {
   }
 
   return (data ?? []) as unknown as Vanzare[]
+}
+
+/**
+ * Notează cât a dat clientul dintr-o vânzare încă Neîncasată („A dat 50 lei · rest 70 lei”).
+ * Vânzarea rămâne Neîncasată: venitul se trece o singură dată, cu toată suma, la `data_incasare`.
+ * Refuză cât coloanele nu există în baza de date (migrarea `20261120090000_redesign_noapte.sql`).
+ */
+export async function setVanzarePlataPartiala(id: string, sumaLei: number, dataIso: string): Promise<void> {
+  const { vanzariPlataPartiala } = await loadSchemaFeaturesSafe()
+  if (!vanzariPlataPartiala) {
+    throw new Error('Plata parțială se activează după actualizarea bazei de date.')
+  }
+  const suma = Math.round((Number(sumaLei) || 0) * 100) / 100
+  if (!(suma > 0)) throw new Error('Suma primită trebuie să fie mai mare decât 0.')
+
+  const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
+  const { error } = await supabase
+    .from('vanzari')
+    .update({
+      suma_incasata_partial_lei: suma,
+      data_incasare_partiala: dataIso,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .eq('tenant_id', tenantId)
+
+  if (error) throw toReadableError(error, 'Nu am putut nota suma primită.')
 }
 
 /**

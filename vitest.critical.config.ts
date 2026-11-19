@@ -37,6 +37,8 @@ export default defineConfig(({ mode }) => {
         'src/app/(dashboard)/comenzi/__tests__/*.test.tsx',
         'src/lib/__tests__/*.test.ts',
         'src/lib/comenzi/__tests__/*.test.ts',
+        'src/lib/livrari/__tests__/*.test.ts',
+        'src/app/api/livrari/__tests__/*.test.ts',
         'src/lib/auth/__tests__/*.test.ts',
         'src/lib/vanzari-butasi/__tests__/*.test.ts',
         'src/lib/integrations/__tests__/*.test.ts',
