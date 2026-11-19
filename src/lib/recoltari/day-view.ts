@@ -129,13 +129,16 @@ function shiftIsoDay(iso: string, days: number): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
-/** Ziua, pe scurt, pentru pastila de dată: „Azi, 19 nov.”, „Ieri, 18 nov.”, „17 nov.”. */
-export function shortDayLabel(iso: string, todayIso: string): string {
+/**
+ * Ziua, pe scurt, pentru pastila de dată: „Azi, 19 nov.”, „Ieri, 18 nov.”, „17 nov.”.
+ * Cu `compact` (pastilă îngustă): „Azi”, „Ieri”, „17 nov.”.
+ */
+export function shortDayLabel(iso: string, todayIso: string, compact = false): string {
   const [year, month, day] = iso.split('-').map(Number)
   if (!year || !month || !day) return iso
   const short = new Date(year, month - 1, day, 12).toLocaleDateString('ro-RO', { day: 'numeric', month: 'short' })
-  if (iso === todayIso) return `Azi, ${short}`
-  if (iso === shiftIsoDay(todayIso, -1)) return `Ieri, ${short}`
+  if (iso === todayIso) return compact ? 'Azi' : `Azi, ${short}`
+  if (iso === shiftIsoDay(todayIso, -1)) return compact ? 'Ieri' : `Ieri, ${short}`
   return short
 }
 

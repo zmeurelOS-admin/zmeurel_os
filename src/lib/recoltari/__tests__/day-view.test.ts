@@ -154,6 +154,12 @@ describe('recoltări — afișare', () => {
     expect(shortDayLabel('nu-e-data', '2026-11-19')).toBe('nu-e-data')
   })
 
+  it('pe pastila îngustă, azi și ieri apar fără dată', () => {
+    expect(shortDayLabel('2026-11-19', '2026-11-19', true)).toBe('Azi')
+    expect(shortDayLabel('2026-11-18', '2026-11-19', true)).toBe('Ieri')
+    expect(shortDayLabel('2026-11-17', '2026-11-19', true)).toMatch(/^17 nov/)
+  })
+
   it('scrie banii cu două zecimale', () => {
     expect(formatLei(68.375)).toBe('68,38 lei')
     expect(formatLei(50)).toBe('50,00 lei')

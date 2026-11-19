@@ -1,13 +1,13 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { CalendarDays, MapPin, NotebookPen, Plus, Sprout } from 'lucide-react'
+import { CalendarDays, MapPin, NotebookPen, Plus, Sprout, TriangleAlert } from 'lucide-react'
 
 import { Button, KgField, Notice, StatusPill, StepFormTitle, kitText } from '@/components/kit'
 import { formatLei, formatTarif } from '@/lib/recoltari/day-view'
 import { cn } from '@/lib/utils'
 
-export type RecoltareKgChoiceKey = 'data' | 'parcela' | 'cultura' | 'nota'
+export type RecoltareKgChoiceKey = 'data' | 'parcela' | 'cultura' | 'nota' | 'tratament'
 
 export interface RecoltareKgStepProps {
   workerName: string
@@ -32,8 +32,8 @@ export interface RecoltareKgStepProps {
   tarifLeiKg: number | null
   paymentLei: number | null
   note: string
-  /** Parcela are un tratament în perioada de pauză. Avertizează, nu blochează. */
-  pauseWarning: { produs: string | null; permisDeLa: string } | null
+  /** Parcela are un tratament în perioada de pauză: apare butonul ⚠ lângă parcelă, cu detaliul la atingere. */
+  hasPauseWarning: boolean
   saveError: string | null
 }
 
@@ -55,7 +55,7 @@ export function RecoltareKgStep({
   tarifLeiKg,
   paymentLei,
   note,
-  pauseWarning,
+  hasPauseWarning,
   saveError,
 }: RecoltareKgStepProps) {
   const hasNote = note.trim() !== ''
@@ -81,7 +81,9 @@ export function RecoltareKgStep({
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-2">
+      {/* Avertismentul de tratament stă pe rândul pastilelor, ca buton: la 390×800 un rând în plus
+          ar împinge „Calitatea 2” și „Notă” sub marginea ecranului. */}
+      <div className={cn('grid gap-2', hasPauseWarning ? 'grid-cols-[1fr_1fr_auto]' : 'grid-cols-2')}>
         <Pastila icon={<CalendarDays aria-hidden />} label="Data" value={dateLabel} onClick={() => onOpenChoice('data')} />
         <Pastila
           icon={<MapPin aria-hidden />}
@@ -90,6 +92,18 @@ export function RecoltareKgStep({
           placeholder="Alege parcela"
           onClick={() => onOpenChoice('parcela')}
         />
+        {hasPauseWarning ? (
+          <Button
+            type="button"
+            variant="neutral"
+            size="icon-touch"
+            aria-label="Tratament activ pe parcelă. Vezi detalii"
+            onClick={() => onOpenChoice('tratament')}
+            className="border-warning-border bg-warning-bg text-warning-text"
+          >
+            <TriangleAlert aria-hidden />
+          </Button>
+        ) : null}
       </div>
       {showCrop ? (
         <Pastila
@@ -99,13 +113,6 @@ export function RecoltareKgStep({
           placeholder="Alege cultura"
           onClick={() => onOpenChoice('cultura')}
         />
-      ) : null}
-
-      {pauseWarning ? (
-        // Două rânduri, ca să rămână câmpul de kg și plata pe ecran la 390×800.
-        <Notice tone="warning" title={pauseWarning.produs ? `Tratament activ: ${pauseWarning.produs}` : 'Tratament activ pe parcelă'}>
-          Recoltare permisă de la {pauseWarning.permisDeLa}.
-        </Notice>
       ) : null}
 
       <KgField label="Calitatea 1" value={cal1} active={active === 'cal1'} onActivate={() => onActivate('cal1')} />

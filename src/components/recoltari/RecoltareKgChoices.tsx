@@ -15,10 +15,17 @@ export const RECOLTARE_CHOICE_LABEL: Record<RecoltareKgChoiceKey, string> = {
   parcela: 'Parcela',
   cultura: 'Cultura',
   nota: 'Notă',
+  tratament: 'Tratament',
 }
 
 export interface RecoltareKgChoiceProps {
   choice: RecoltareKgChoiceKey
+  /** Trece la altă alegere (ex. din avertisment la parcelă) sau, cu `null`, înapoi la kilograme. */
+  onChoice: (choice: RecoltareKgChoiceKey | null) => void
+  /** Numele parcelei alese, pentru textul avertismentului. */
+  parcelaLabel: string | null
+  /** Tratamentul aflat în perioada de pauză pe parcela aleasă. */
+  pauseWarning: { produs: string | null; permisDeLa: string } | null
   todayIso: string
   date: string
   onDate: (iso: string) => void
@@ -100,6 +107,32 @@ export function RecoltareKgChoice(props: RecoltareKgChoiceProps) {
 
     case 'nota':
       return <NotaChoice note={props.note} onNote={props.onNote} />
+
+    case 'tratament':
+      return (
+        <div className="space-y-4">
+          <StepFormTitle>Tratament activ pe parcelă</StepFormTitle>
+          {props.pauseWarning ? (
+            <Notice
+              tone="warning"
+              title={props.pauseWarning.produs ? `Produs: ${props.pauseWarning.produs}` : 'Tratament în perioada de pauză'}
+            >
+              {props.parcelaLabel ? `Pe ${props.parcelaLabel}, recoltarea` : 'Recoltarea'} e permisă de la{' '}
+              {props.pauseWarning.permisDeLa}. Poți salva și acum; avertismentul nu blochează.
+            </Notice>
+          ) : (
+            <Notice tone="success" title="Niciun tratament activ pe parcela aleasă" />
+          )}
+          <div className="flex flex-col gap-2.5">
+            <Button type="button" variant="primary" size="touch-lg" className="w-full" onClick={() => props.onChoice(null)}>
+              Am înțeles
+            </Button>
+            <Button type="button" variant="neutral" size="touch-lg" className="w-full" onClick={() => props.onChoice('parcela')}>
+              Schimbă parcela
+            </Button>
+          </div>
+        </div>
+      )
   }
 }
 

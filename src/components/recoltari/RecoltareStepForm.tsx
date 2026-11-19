@@ -4,11 +4,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 import {
+  Button,
   Notice,
   NumericKeypad,
   StepForm,
+  StepFormTitle,
   SuccessScreen,
   keypadValueFrom,
+  kitText,
   parseKeypadValue,
   useKeypadFields,
   useStepForm,
@@ -16,7 +19,12 @@ import {
 } from '@/components/kit'
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
-import { buildHarvestObservatii, getParcelaCropRows } from '@/lib/parcele/crop-config'
+import {
+  buildHarvestObservatii,
+  getHarvestCropSelection,
+  getParcelaCropRows,
+  stripHiddenAgricultureMetadata,
+} from '@/lib/parcele/crop-config'
 import { queryKeys } from '@/lib/query-keys'
 import {
   estimatePaymentLei,
@@ -42,8 +50,14 @@ import {
 } from '@/lib/supabase/queries/activitati-agricole'
 import type { Culegator } from '@/lib/supabase/queries/culegatori'
 import type { Parcela } from '@/lib/supabase/queries/parcele'
-import { createRecoltare, getRecoltareTotalKg, type Recoltare } from '@/lib/supabase/queries/recoltari'
+import {
+  createRecoltare,
+  getRecoltareTotalKg,
+  updateRecoltare,
+  type Recoltare,
+} from '@/lib/supabase/queries/recoltari'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
+import { cn } from '@/lib/utils'
 
 import { RecoltareCulegatorNou, RecoltareCulegatorStep } from './RecoltareCulegatorStep'
 import { RECOLTARE_CHOICE_LABEL, RecoltareKgChoice, cropText } from './RecoltareKgChoices'
@@ -60,7 +74,7 @@ export interface RecoltareAiPrefill {
 
 export interface RecoltareStepFormProps {
   open: boolean
-  /** Referință stabilă (setter sau `useCallback`): altfel se pierde ascultătorul de „înapoi” pe Android. */
+  /** Referință stabilă (setter sau `useCallback`). */
   onOpenChange: (open: boolean) => void
   recoltari: readonly Recoltare[]
   parcele: readonly Parcela[]
@@ -70,6 +84,11 @@ export interface RecoltareStepFormProps {
   defaultDate: string
   /** Se aplică o singură dată, la deschidere; „Următorul culegător” nu o reia. */
   prefill?: RecoltareAiPrefill | null
+  /**
+   * Recoltarea editată. Cu ea, formularul pornește pe kilograme, cu valorile salvate afișate.
+   * Pagina o păstrează până la următoarea deschidere, ca să nu sară conținutul cât se animă închiderea.
+   */
+  editing?: Recoltare | null
 }
 
 const STEPS = ['culegator', 'kg'] as const
@@ -113,12 +132,21 @@ const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
 
 const NETWORK_ERROR = /failed to fetch|networkerror|network request failed|load failed|fetch failed/i
 
-/** Erorile de rețea vin ca text tehnic („TypeError: Failed to fetch”); restul mesajelor rămân cum le dă serverul. */
-function readableSaveError(message: string): string {
+const SERVER_MESSAGES: Record<string, string> = {
+  insufficient_stock_after_edit:
+    'Nu poți micșora cantitatea: o parte din aceste kilograme e deja vândută sau promisă în comenzi.',
+  forbidden_read_only: 'Nu ai drept de scriere pe recoltări.',
+}
+
+/** Erorile de rețea și codurile serverului vin ca text tehnic; restul mesajelor rămân cum le dă serverul. */
+function readableSaveError(message: string, mode: 'create' | 'edit'): string {
   if (NETWORK_ERROR.test(message)) {
-    return 'Nu există conexiune la internet. Când revine, apasă din nou „Salvează”: recoltarea nu se dublează.'
+    return mode === 'create'
+      ? 'Nu există conexiune la internet. Când revine, apasă din nou „Salvează”: recoltarea nu se dublează.'
+      : 'Nu există conexiune la internet. Când revine, apasă din nou „Salvează modificările”.'
   }
-  return message
+  const known = Object.keys(SERVER_MESSAGES).find((code) => message.includes(code))
+  return known ? SERVER_MESSAGES[known] : message
 }
 
 /** Primul tratament aflat încă în perioada de pauză pe parcela aleasă. Avertizează, nu blochează (ca până acum). */
@@ -139,9 +167,12 @@ function findPauseWarning(
   return null
 }
 
+const dayOnly = (value: string | null | undefined) => String(value ?? '').slice(0, 10)
+
 /**
- * Adăugarea unei recoltări, pe pași: culegătorul, apoi kilogramele. Salvează direct din pasul 2;
- * ecranul de reușită oferă „Următorul culegător” (formular nou, cheie nouă) sau „Gata”.
+ * Adăugarea sau editarea unei recoltări, pe pași: culegătorul, apoi kilogramele. Salvează direct din pasul 2.
+ * La adăugare, ecranul de reușită oferă „Următorul culegător” (formular nou, cheie nouă) sau „Gata”.
+ * Închiderea cu ceva nesalvat cere confirmare.
  */
 export function RecoltareStepForm({
   open,
@@ -152,19 +183,24 @@ export function RecoltareStepForm({
   todayIso,
   defaultDate,
   prefill = null,
+  editing = null,
 }: RecoltareStepFormProps) {
   const queryClient = useQueryClient()
+  const mode = editing ? 'edit' : 'create'
 
   const [addingWorker, setAddingWorker] = useState(false)
   const form = useStepForm({
     steps: addingWorker ? STEPS_WITH_NEW_WORKER : STEPS,
     open,
+    mode,
+    initialStep: editing ? 'kg' : undefined,
     analytics: { moduleName: 'recoltari' },
   })
   const fields = useKeypadFields({ fields: KG_FIELDS })
 
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
   const [choice, setChoice] = useState<RecoltareKgChoiceKey | null>(null)
+  const [confirmingClose, setConfirmingClose] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saved, setSaved] = useState<RecoltareSaved | null>(null)
@@ -206,51 +242,75 @@ export function RecoltareStepForm({
   }
   if (open && sessionKey !== form.clientSyncId) {
     // Blocul poate rula de două ori pentru aceeași deschidere (cheia se generează la randare, iar React
-    // poate arunca o randare). De aceea nu „consumă” nimic: același `carry` / `prefill` dă același rezultat.
-    const applied = carry ? null : prefill
-    const prefillDate = applied && ISO_DAY.test(applied.data) && applied.data <= todayIso ? applied.data : null
-    // Kilogramele dictate în chat intră în câmp doar dacă sunt un număr pozitiv care încape în el.
-    const prefillKg = applied ? keypadValueFrom(applied.cantitate_kg) : ''
-    const hasPrefillKg = (parseKeypadValue(prefillKg) ?? 0) > 0
-
+    // poate arunca o randare). De aceea nu „consumă” nimic: aceleași intrări dau același rezultat.
     setSessionKey(form.clientSyncId)
-    setDraft({
-      ...EMPTY_DRAFT,
-      // „Următorul culegător”: ziua și parcela rămân cele de la cântărirea dinainte.
-      date: carry ? carry.date : prefillDate,
-      parcelaId: carry ? carry.parcelaId : null,
-      note: applied?.observatii ?? '',
-      kgFromChat: hasPrefillKg,
-      prefill: applied,
-    })
     fields.reset()
-    if (hasPrefillKg) fields.setValue('cal1', prefillKg)
+
+    if (editing) {
+      // Editare: valorile salvate, afișate. Aici nu e propunere, e ce există deja.
+      setDraft({
+        ...EMPTY_DRAFT,
+        culegatorId: editing.culegator_id,
+        date: dayOnly(editing.data) || null,
+        parcelaId: editing.parcela_id,
+        cropId: getHarvestCropSelection(editing.observatii)?.cropId ?? null,
+        note: stripHiddenAgricultureMetadata(editing.observatii),
+        withCal2: editing.kg_cal2 > 0,
+      })
+      fields.setValue('cal1', editing.kg_cal1 > 0 ? editing.kg_cal1 : null)
+      fields.setValue('cal2', editing.kg_cal2 > 0 ? editing.kg_cal2 : null)
+    } else {
+      const applied = carry ? null : prefill
+      const prefillDate = applied && ISO_DAY.test(applied.data) && applied.data <= todayIso ? applied.data : null
+      // Kilogramele dictate în chat intră în câmp doar dacă sunt un număr pozitiv care încape în el.
+      const prefillKg = applied ? keypadValueFrom(applied.cantitate_kg) : ''
+      const hasPrefillKg = (parseKeypadValue(prefillKg) ?? 0) > 0
+
+      setDraft({
+        ...EMPTY_DRAFT,
+        // „Următorul culegător”: ziua și parcela rămân cele de la cântărirea dinainte.
+        date: carry ? carry.date : prefillDate,
+        parcelaId: carry ? carry.parcelaId : null,
+        note: applied?.observatii ?? '',
+        kgFromChat: hasPrefillKg,
+        prefill: applied,
+      })
+      if (hasPrefillKg) fields.setValue('cal1', prefillKg)
+    }
+
     setAddingWorker(false)
     setChoice(null)
+    setConfirmingClose(false)
     setSaving(false)
     setSaveError(null)
     setSaved(null)
   }
 
   // ─── Date pentru pași ───
-  const activeCulegatori = useMemo(
+  const workerChoices = useMemo(
     () =>
       culegatori
-        .filter((item) => item.status_activ)
+        // La editare, culegătorul recoltării rămâne în listă chiar dacă între timp a fost dezactivat.
+        .filter((item) => item.status_activ || item.id === editing?.culegator_id)
         .sort((left, right) => (left.nume_prenume || '').localeCompare(right.nume_prenume || '', 'ro')),
-    [culegatori],
+    [culegatori, editing?.culegator_id],
   )
   const kgByWorker = useMemo(() => kgByCulegator(recoltariOfDay(recoltari, date)), [recoltari, date])
 
   const crops = useMemo(() => getParcelaCropRows(parcela), [parcela])
   const crop = crops.find((item) => item.id === draft.cropId) ?? (crops.length === 1 ? crops[0] : null)
   const needsCrop = crops.length > 1
+  // La editare, pe aceeași parcelă: dacă alegerea salvată nu mai e printre culturile parcelei, se păstrează.
+  const savedCrop =
+    editing && parcelaId === editing.parcela_id ? getHarvestCropSelection(editing.observatii) : null
+  const cropForSave = crop ? { cropId: crop.id, culture: crop.culture, variety: crop.variety } : savedCrop
 
   const kgCal1 = fields.numbers.cal1 ?? 0
   const kgCal2 = draft.withCal2 ? (fields.numbers.cal2 ?? 0) : 0
   const totalKg = kgCal1 + kgCal2
   const tarifLeiKg = culegator && Number.isFinite(Number(culegator.tarif_lei_kg ?? NaN)) ? Number(culegator.tarif_lei_kg) : null
   const paymentLei = estimatePaymentLei(totalKg, tarifLeiKg)
+  const workerName = culegator?.nume_prenume?.trim() || 'Culegător'
 
   const { data: activitati = [] } = useQuery({
     queryKey: queryKeys.activitati,
@@ -261,27 +321,48 @@ export function RecoltareStepForm({
   })
   const pauseWarning = findPauseWarning(activitati, parcelaId)
 
+  // ─── Ce s-ar pierde la închidere ───
+  const dirty = editing
+    ? kgCal1 !== editing.kg_cal1 ||
+      kgCal2 !== editing.kg_cal2 ||
+      draft.culegatorId !== editing.culegator_id ||
+      parcelaId !== editing.parcela_id ||
+      date !== dayOnly(editing.data) ||
+      draft.note.trim() !== stripHiddenAgricultureMetadata(editing.observatii)
+    : totalKg > 0
+
   // ─── Salvarea ───
   const guardRef = useRef<RecoltareSaveGuard | null>(null)
+  const editInFlight = useRef(false)
   const liveKeyRef = useRef<string | null>(null)
   useEffect(() => {
     liveKeyRef.current = open ? form.clientSyncId : null
   }, [open, form.clientSyncId])
 
   const canSave =
-    Boolean(culegator) && Boolean(parcela) && totalKg > 0 && tarifLeiKg !== null && (!needsCrop || Boolean(crop)) && !saving
+    Boolean(culegator) &&
+    Boolean(parcela) &&
+    totalKg > 0 &&
+    tarifLeiKg !== null &&
+    (!needsCrop || Boolean(cropForSave)) &&
+    !saving
+
+  const applySaved = (row: Recoltare) => {
+    queryClient.setQueryData<Recoltare[]>(queryKeys.recoltari, (previous) => {
+      if (!previous) return previous
+      return previous.some((item) => item.id === row.id)
+        ? previous.map((item) => (item.id === row.id ? row : item))
+        : [row, ...previous]
+    })
+    for (const queryKey of INVALIDATED_AFTER_SAVE) {
+      void queryClient.invalidateQueries({ queryKey })
+    }
+  }
 
   const save = async () => {
     if (!canSave || !culegator || !parcela) return
 
     const key = form.clientSyncId
-    let guard = guardRef.current
-    if (!guard || guard.key !== key) {
-      guard = createRecoltareSaveGuard(key)
-      guardRef.current = guard
-    }
-    if (guard.inFlight) return
-
     const attempt: RecoltareAttempt = {
       culegator_id: culegator.id,
       parcela_id: parcela.id,
@@ -289,11 +370,45 @@ export function RecoltareStepForm({
       kg_cal1: kgCal1,
       kg_cal2: kgCal2,
     }
-    const observatii =
-      buildHarvestObservatii(
-        draft.note.trim() || undefined,
-        crop ? { cropId: crop.id, culture: crop.culture, variety: crop.variety } : null,
-      ) || undefined
+    const observatii = buildHarvestObservatii(draft.note.trim() || undefined, cropForSave) || undefined
+
+    if (editing) {
+      if (editInFlight.current) return
+      editInFlight.current = true
+      setSaving(true)
+      setSaveError(null)
+
+      // Text gol, nu `undefined`: așa se poate și șterge o notă existentă.
+      const result = await updateRecoltare(editing.id, { ...attempt, observatii: observatii ?? '' })
+      editInFlight.current = false
+      const stillCurrent = liveKeyRef.current === key
+
+      if (!result.success) {
+        if (stillCurrent) {
+          setSaving(false)
+          setSaveError(readableSaveError(result.error, 'edit'))
+        }
+        hapticError()
+        return
+      }
+
+      applySaved(result.data)
+      track('recoltare_edit', { id: editing.id })
+      hapticSuccess()
+      if (stillCurrent) {
+        setSaving(false)
+        setSaved({ status: 'saved', recoltare: result.data, warning: result.warning, differs: false })
+        form.markSuccess()
+      }
+      return
+    }
+
+    let guard = guardRef.current
+    if (!guard || guard.key !== key) {
+      guard = createRecoltareSaveGuard(key)
+      guardRef.current = guard
+    }
+    if (guard.inFlight) return
 
     setSaving(true)
     setSaveError(null)
@@ -308,22 +423,19 @@ export function RecoltareStepForm({
     if (outcome.status === 'failed') {
       if (stillCurrent) {
         setSaving(false)
-        setSaveError(readableSaveError(outcome.error))
+        setSaveError(readableSaveError(outcome.error, 'create'))
         form.markFailed()
       }
       hapticError()
       return
     }
 
-    const row = outcome.recoltare
-    queryClient.setQueryData<Recoltare[]>(queryKeys.recoltari, (previous) =>
-      previous && !previous.some((item) => item.id === row.id) ? [row, ...previous] : previous,
-    )
-    for (const queryKey of INVALIDATED_AFTER_SAVE) {
-      void queryClient.invalidateQueries({ queryKey })
-    }
+    applySaved(outcome.recoltare)
     trackEvent('create_recoltare', 'recoltari', { source: 'AddRecoltareDialog' })
-    track('recoltare_add', { kg: getRecoltareTotalKg(row), parcela_id: row.parcela_id ?? null })
+    track('recoltare_add', {
+      kg: getRecoltareTotalKg(outcome.recoltare),
+      parcela_id: outcome.recoltare.parcela_id ?? null,
+    })
     hapticSuccess()
 
     if (stillCurrent) {
@@ -333,8 +445,17 @@ export function RecoltareStepForm({
     }
   }
 
-  // ─── Navigare ───
+  // ─── Navigare și închidere ───
   const close = () => onOpenChange(false)
+
+  /** X, Esc, „înapoi”: cu ceva nesalvat, întâi întrebăm. Cât se salvează, nu se închide. */
+  const closeGuard = () => {
+    if (form.done) return false
+    if (saving) return true
+    if (!dirty) return false
+    setConfirmingClose(true)
+    return true
+  }
 
   const nextWorker = () => {
     setCarry({ date: draft.date, parcelaId })
@@ -347,6 +468,10 @@ export function RecoltareStepForm({
   }
 
   const handleBack = () => {
+    if (confirmingClose) {
+      setConfirmingClose(false)
+      return true
+    }
     if (choice) {
       setChoice(null)
       return true
@@ -356,13 +481,39 @@ export function RecoltareStepForm({
   }
 
   const onKgStep = form.stepKey === 'kg'
-  const showChoice = onKgStep && choice !== null
+  const showChoice = onKgStep && choice !== null && !confirmingClose
+  const showKeypad = onKgStep && !showChoice && !confirmingClose
 
   let content: React.ReactNode = null
-  if (form.stepKey === 'culegator') {
+  if (confirmingClose) {
+    content = (
+      <div className="flex min-h-full flex-col justify-center gap-3 py-6 text-center">
+        <StepFormTitle>
+          {editing ? 'Renunți la modificări?' : `Renunți la ${formatKg(totalKg)} pentru ${workerName}?`}
+        </StepFormTitle>
+        <p className={cn('text-fg-muted', kitText.base)}>
+          {editing ? 'Recoltarea rămâne cum era salvată.' : 'Kilogramele tastate nu au fost salvate.'}
+        </p>
+        <div className="mt-3 flex flex-col gap-2.5">
+          <Button
+            type="button"
+            variant="primary"
+            size="touch-lg"
+            className="w-full"
+            onClick={() => setConfirmingClose(false)}
+          >
+            Continuă
+          </Button>
+          <Button type="button" variant="neutral" size="touch-lg" className="w-full" onClick={close}>
+            Renunță
+          </Button>
+        </div>
+      </div>
+    )
+  } else if (form.stepKey === 'culegator') {
     content = (
       <RecoltareCulegatorStep
-        culegatori={activeCulegatori}
+        culegatori={workerChoices}
         selectedId={draft.culegatorId}
         kgByWorker={kgByWorker}
         isToday={date === todayIso}
@@ -390,6 +541,7 @@ export function RecoltareStepForm({
     content = (
       <RecoltareKgChoice
         choice={choice}
+        onChoice={setChoice}
         todayIso={todayIso}
         date={date}
         onDate={(iso) => {
@@ -398,6 +550,7 @@ export function RecoltareStepForm({
         }}
         parcele={sortedParcele}
         parcelaId={parcelaId}
+        parcelaLabel={parcela?.nume_parcela?.trim() || null}
         onParcela={(nextParcelaId) => {
           setDraft((previous) => ({
             ...previous,
@@ -417,13 +570,15 @@ export function RecoltareStepForm({
           setDraft((previous) => ({ ...previous, note }))
           setChoice(null)
         }}
+        pauseWarning={pauseWarning}
       />
     )
   } else if (onKgStep) {
     content = (
       <RecoltareKgStep
-        workerName={culegator?.nume_prenume?.trim() || 'Culegător'}
-        dateLabel={shortDayLabel(date, todayIso)}
+        workerName={workerName}
+        // Cu butonul de avertisment pe același rând, pastila de dată e mai îngustă.
+        dateLabel={shortDayLabel(date, todayIso, pauseWarning !== null)}
         parcelaLabel={parcela ? parcela.nume_parcela?.trim() || 'Parcelă fără nume' : null}
         showCrop={needsCrop}
         cropLabel={crop ? cropText(crop) || 'Cultură' : null}
@@ -441,7 +596,7 @@ export function RecoltareStepForm({
         tarifLeiKg={tarifLeiKg}
         paymentLei={paymentLei}
         note={draft.note}
-        pauseWarning={pauseWarning}
+        hasPauseWarning={pauseWarning !== null}
         saveError={saveError}
       />
     )
@@ -455,22 +610,25 @@ export function RecoltareStepForm({
       form={form}
       open={open}
       onOpenChange={onOpenChange}
-      title="Adaugă kilograme"
-      description="Alegi culegătorul, apoi scrii kilogramele."
+      closeGuard={closeGuard}
+      title={editing ? 'Editează recoltarea' : 'Adaugă kilograme'}
+      description={editing ? 'Schimbi kilogramele, data, parcela sau culegătorul.' : 'Alegi culegătorul, apoi scrii kilogramele.'}
       stepLabel={
-        showChoice && choice
-          ? RECOLTARE_CHOICE_LABEL[choice]
-          : form.stepKey === 'culegator-nou'
-            ? 'Culegător nou'
-            : undefined
+        confirmingClose
+          ? 'Nesalvat'
+          : showChoice && choice
+            ? RECOLTARE_CHOICE_LABEL[choice]
+            : form.stepKey === 'culegator-nou'
+              ? 'Culegător nou'
+              : undefined
       }
       onBack={handleBack}
-      dock={onKgStep && !showChoice ? <NumericKeypad onKey={pressKey} disabled={saving} /> : undefined}
+      dock={showKeypad ? <NumericKeypad onKey={pressKey} disabled={saving} /> : undefined}
       footer={
-        onKgStep && !showChoice
+        showKeypad
           ? {
               primary: {
-                label: saving ? 'Se salvează…' : 'Salvează',
+                label: saving ? 'Se salvează…' : editing ? 'Salvează modificările' : 'Salvează',
                 onClick: () => void save(),
                 loading: saving,
                 disabled: !canSave,
@@ -494,10 +652,12 @@ export function RecoltareStepForm({
             ) : null}
             <SuccessScreen
               className="min-h-0 flex-1"
-              title="Salvat"
+              title={editing ? 'Modificat' : 'Salvat'}
               description={`${savedWorkerName} · ${formatKg(getRecoltareTotalKg(saved.recoltare))} · ${formatLei(saved.recoltare.valoare_munca_lei)}`}
-              primaryAction={{ label: 'Următorul culegător', onClick: nextWorker }}
-              secondaryAction={{ label: 'Gata', onClick: close }}
+              primaryAction={
+                editing ? { label: 'Gata', onClick: close } : { label: 'Următorul culegător', onClick: nextWorker }
+              }
+              secondaryAction={editing ? undefined : { label: 'Gata', onClick: close }}
             />
           </div>
         ) : undefined
