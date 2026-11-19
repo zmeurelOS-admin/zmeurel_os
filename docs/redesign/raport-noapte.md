@@ -12,7 +12,7 @@ Lanț de branch-uri; fiecare pornește din vârful celui dinainte, deci merge-ur
 | 1 | Comenzi (+ migrarea comună, + prețul standard) | `redesign/comenzi` | vezi `git log -1 origin/redesign/comenzi` | **gata, împins** |
 | 2 | Livrări | `redesign/livrari` | vezi `git log -1 origin/redesign/livrari` | **gata, împins** |
 | 3 | Acasă (telefon) | `redesign/acasa` | vezi `git log -1 origin/redesign/acasa` | **gata, împins** |
-| 4 | Clienți + Culegători + Setări | `redesign/clienti-culegatori` | — | neînceput |
+| 4 | Clienți + Culegători + Setări | `redesign/clienti-culegatori` | vezi `git log -1 origin/redesign/clienti-culegatori` | **gata, împins** |
 | 5 | Cheltuieli + Investiții + Vânzări | `redesign/cheltuieli-vanzari` | — | neînceput |
 
 Preview: `https://zmeurel-git-redesign-<x>-zmeurelos-admins-projects.vercel.app` (`<x>` = numele de după `redesign/`).
@@ -306,3 +306,104 @@ Preview: `https://zmeurel-git-redesign-acasa-zmeurelos-admins-projects.vercel.ap
 | 5 | Fereastră între 768 și 1023 px | Grila de desktop, cu salutul în antet. |
 | 6 | **După migrare:** Setări › Ce arată Acasă → „Sezon” | Acasă arată „De livrat azi”, stocul și „De făcut azi”. |
 | 7 | **După migrare:** perioada „Automat”, după 25 octombrie, cu recoltări în an | Apare „Începem extrasezonul?”. „Mai am de cules” îl ascunde 7 zile; „Da, începem” trece pe extrasezon. |
+
+## 6. Modulul 4 — Clienți + Culegători + Setări (`redesign/clienti-culegatori`)
+
+### Ce e gata
+
+**Clienți**
+
+- **Lista:** antet „Clienți” cu numărul; căutare după nume sau telefon și buton ⋯; pastile Toți / Persoane / Patiserii / Magazine / Neîncasat, cu numere; pe rând: inițiale, nume, „Patiserie · 25 lei/kg”, localitatea, ultima comandă, „X lei neîncasat”. Butonul mare „Client nou”.
+- **Fișa clientului** (atingerea unui rând): înapoi, nume, creion; pastila tipului și a prețului, „Neîncasat X lei”; **Sună și WhatsApp pentru toți clienții**, fără text; telefon, adresă, email; cifrele anului (comenzi, kg, încasat); ultimele comenzi cu status; observații. Butonul mare **„Comandă nouă”** deschide `/comenzi?client=<id>&nou=1`, direct la pasul 2.
+- **Formularul**, același pentru nou și editare: nume, telefon, tip pe plăci, preț negociat doar la Patiserie și Magazin; la Persoană, textul cu prețul standard de acum; adresă; „Notă” și „Email” la cerere; „Salvează clientul”.
+- **Meniul ⋯:** „Importă din fișier”, „Sincronizează cu Google Contacts” (cu ultima sincronizare; apare doar la ferma care are integrarea) și „Mesajul WhatsApp implicit”.
+- **Neîncasatul** vine din vânzări, cu aceeași socoteală ca în Acasă (și cu plata parțială, după migrare).
+
+**Culegători**
+
+- **Lista:** „Azi” (kg, câți au cules) și „Sezon” (kg, plătit); segmente Activi · N / Inactivi · N; pe rând: inițiale, nume, tip · tarif, kg azi (sau „—”), kg sezon. Butonul mare „Culegător nou”.
+- **Fișa:** înapoi, nume, creion; Activ / Inactiv și tipul; „Sună” cu numărul; Tarif, Sezon (kg), Plătit (lei); ultimele zile (dată, parcelă, kg); „Marchează inactiv(ă)”. Butonul mare **„Adaugă kg azi”** deschide `/recoltari?culegator=<id>`, direct pe kilograme.
+- **Formularul:** nume și prenume, telefon (opțional), tarif, tip pe plăci (Sezonier / Permanent / Zilier / Colaborator), notă. **Fără data angajării.**
+- **Recoltări** (modificare mică): `?culegator=<id>` pornește formularul la pasul 2. „Următorul culegător” revine la alegerea culegătorului.
+
+**Setări** (trei secțiuni noi, pe kit; restul paginii e cel de dinainte)
+
+- **Preț standard:** „Comenzile noi primesc acum X lei/kg”, perioada activă pe plăci, cele trei prețuri. Fără migrare: doar citire, cu 35 / 25 / 30 și „Se activează după actualizarea bazei de date”.
+- **Ce arată Acasă:** Automat / Sezon / Extrasezon, ziua și luna întrebării, cele patru comutatoare pentru extrasezon. Fără migrare: inactivă, cu explicația.
+- **Date: șterge toți clienții:** mutată aici din Clienți. Butonul se aprinde doar după ce scrieți „ȘTERGE” (merge și fără diacritice).
+- Un operator nu vede aceste secțiuni.
+
+### Ce am ales singur
+
+1. **Fișa e o vedere a paginii, nu o foaie**: se întoarce cu „Clienți” / „Culegători”. Așa formularul de editare nu se deschide peste altă fereastră.
+2. **Emailul** a rămas în formularul clientului (exista și îl trimite și chatul AI), dar ascuns sub un buton „Email”.
+3. **Un client de tip „Persoană” care are deja preț negociat și-l păstrează** la editare (formularul nu îl atinge) și apare în fișă ca „Preț negociat · X lei/kg”.
+4. **Același telefon la doi clienți:** formularul spune la cine e numărul și nu lasă salvarea (baza de date o respinge oricum).
+5. **„Trimite anunțul pe WhatsApp”** (cu mesajul implicit) apare în fișa patiseriilor și a magazinelor. WhatsApp-ul simplu, fără text, e pentru toți.
+6. **Ștergerea unui client** e în fișă, cu confirmare. Nu mai are „Undo” de 5 secunde.
+7. **„Marchează inactiv(ă)”** e acțiunea de zi cu zi; **„Șterge culegătorul”** a rămas dedesubt (baza de date o refuză dacă are recoltări).
+8. **Sezonul culegătorilor = anul calendaristic.** „Plătit” e suma valorilor din recoltări (kg × tariful de la acea recoltare).
+9. **Cifrele anului la client:** comenzile fără cele anulate; kilogramele din vânzări (deci livrate); încasat pe data încasării.
+10. **Data întrebării pentru extrasezon** se scrie ca zi și lună, în două câmpuri.
+
+### O reparație făcută în trecere
+
+`updateCulegator` scria `null` în orice câmp netrimis. „Marchează inactiv(ă)” ar fi șters telefonul, tipul și nota, iar formularul fără data angajării ar fi șters data. Acum scrie doar câmpurile primite. Pagina veche trimitea mereu toate câmpurile, deci problema nu se vedea.
+
+### Ce am mutat și ce am scos
+
+| Înainte | Acum |
+|---|---|
+| „Importă”, „Sincronizează”, „Mesaj WA implicit” în antet și în pagină | Meniul ⋯ din Clienți. |
+| „Șterge toți clienții” în Clienți | Setări › Date, cu confirmare scrisă. |
+| Filtrul „doar neîncasați” | Pastila „Neîncasat”. |
+| Fereastra „Adaugă client” / „Editează client” | Formularul comun, pe tot ecranul. |
+| Cardul culegătorului cu detalii desfăcute | Fișa culegătorului. |
+| Data angajării în formularul culegătorului | Scoasă din formular; coloana rămâne. |
+| „Parcelele” culegătorului (deduse din recoltări) | „Ultimele zile”, cu parcela pe fiecare rând. |
+
+**Scoase:** tabelul de desktop al clienților și al culegătorilor (acum aceeași listă, pe coloană centrată), indicatorii de sus din Culegători (înlocuiți de „Azi” și „Sezon”), fereastra cu explicația formatului de import (a rămas textul scurt și „Descarcă un fișier model”).
+
+**Fișiere șterse:** `AddClientDialog`, `EditClientDialog`, `ClientForm`, `ClientFormSummary`, `AddCulegatorDialog`, `EditCulegatorDialog`, `CulegatorForm`, `CulegatorFormSummary`. Schema clientului s-a mutat în `src/lib/clienti/schema.ts`, iar importul în `src/lib/clienti/import.ts`.
+
+### Ce așteaptă migrarea
+
+- Prețul standard pe perioade și setările pentru Acasă (secțiunile se văd, dar nu se pot schimba).
+- „A dat X lei” în neîncasatul clientului.
+
+### Ce n-am terminat și de ce
+
+- **Salvările din acest modul nu au fost făcute în browser** (client nou, editare, culegător nou, inactiv, import, ștergerea tuturor clienților). Paginile au fost deschise cu datele demo; logica e acoperită de teste (`lib/__tests__/clienti-culegatori.test.ts`, 10 teste).
+- **Google Contacts** și **mesajul WhatsApp implicit**: doar mutate; neîncercate (cer integrarea, respectiv coloana `whatsapp_b2b_message`, care poate lipsi din baza de date — atunci rămâne mesajul de bază, ca până acum).
+- **`/recoltari?culegator=<id>`** nu a fost deschis în browser.
+- Pagina Setări încarcă lista de clienți doar ca să-i numere, la „Date”.
+
+### Verificare
+
+- `typecheck`, `check:kit` (83 de fișiere), `build`: trec. `lint`: aceleași 2 erori vechi. `test:critical:unit`: 376 din 378 (aceleași două expirări Google); testele Recoltărilor și ale kitului trec.
+- Local, cont demo, 390×844, ziua:
+  - Clienți: lista (6 clienți) și fișa lui „Vecinu' Ion” („Neîncasat 456 lei”, 2 comenzi, 24 kg livrate, ultimele comenzi). Nimic nu iese din cadru; țintele paginii au cel puțin 48 px.
+  - Culegători: lista cu 8 activi, „Sezon · plătit 1.350 lei”, kg în sezon pe rând.
+  - Setări: cele trei secțiuni apar; Preț standard e doar pentru citire (35 / 25 / 30).
+- **Neverificat local:** noaptea, desktopul, formularele și foile acestui modul.
+
+### De verificat pe telefon — Clienți, Culegători, Setări
+
+Preview: `https://zmeurel-git-redesign-clienti-culegatori-zmeurelos-admins-projects.vercel.app`. **Salvările doar în cont demo.**
+
+| # | Unde | Ce verificați |
+|---|---|---|
+| 1 | `/clienti`, zi și noapte | Căutarea, pastilele cu numere, eticheta „Patiserie · X lei/kg”, „X lei neîncasat”. |
+| 2 | Un client → fișa | Sună și WhatsApp merg; cifrele anului sunt cele știute; „Comandă nouă” deschide Comenzi direct la cantitate. |
+| 3 | Creionul din fișă | Formularul cu valorile salvate. La Patiserie apare „Preț negociat”; la Persoană, textul cu prețul standard. |
+| 4 | „Client nou” cu numărul unui client existent | „Numărul e deja la …”, iar „Salvează” e inactiv. |
+| 5 | ⋯ → „Importă din fișier” | Alegeți un fișier; apar coloanele recunoscute și primele rânduri; după import, raportul. |
+| 6 | ⋯ → „Sincronizează cu Google Contacts” (contul real) | Merge ca înainte și arată ultima sincronizare. |
+| 7 | ⋯ → „Mesajul WhatsApp implicit” | Se salvează; „Trimite anunțul pe WhatsApp” din fișa unei patiserii îl folosește. |
+| 8 | `/culegatori` | „Azi” și „Sezon”; Activi / Inactivi; kg azi și kg sezon pe rând. |
+| 9 | Un culegător → „Adaugă kg azi” | Recoltări se deschide direct pe kilograme, cu numele lui sus. |
+| 10 | Fișa → „Marchează inactiv(ă)” | Trece la „Inactivi”; telefonul, tipul și nota lui rămân. |
+| 11 | Creionul din fișa culegătorului | Formularul fără data angajării. După salvare, data angajării veche e încă în baza de date. |
+| 12 | Setări → „Date: șterge toți clienții” (**doar în cont demo**) | Butonul e inactiv până scrieți ȘTERGE. Clienții cu comenzi rămân. |
+| 13 | **După migrare:** Setări → Preț standard | Schimbați perioada activă; o comandă nouă pentru o persoană primește prețul ei. |
+| 14 | Android, formularul deschis → „înapoi” | Cu ceva scris, întreabă „Renunți…?”. |
