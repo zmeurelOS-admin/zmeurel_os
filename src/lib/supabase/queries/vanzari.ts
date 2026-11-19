@@ -30,6 +30,12 @@ export interface Vanzare {
   created_at: string
   updated_at: string
   tenant_id: string | null
+  /**
+   * Cât a dat clientul dintr-o vânzare încă neîncasată și când. Lipsesc cât coloanele nu există
+   * în baza de date (migrarea `20261120090000_redesign_noapte.sql`; vezi `lib/schema-features`).
+   */
+  suma_incasata_partial_lei?: number | null
+  data_incasare_partiala?: string | null
 }
 
 export type VanzareStatusPlataUpdate = 'platit' | 'restanta'
@@ -60,16 +66,19 @@ const toReadableError = (error: unknown, fallbackMessage: string) => {
 
 const selectWithComanda =
   'id,id_vanzare,data,data_incasare,client_id,comanda_id,cantitate_kg,pret_lei_kg,status_plata,observatii_ladite,created_at,updated_at,tenant_id'
+const selectPlataPartiala = 'suma_incasata_partial_lei,data_incasare_partiala'
 const selectLegacy =
   'id,id_vanzare,data,data_incasare,client_id,cantitate_kg,pret_lei_kg,status_plata,observatii_ladite,created_at,updated_at,tenant_id'
 
 export async function getVanzari(): Promise<Vanzare[]> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
+  // Coloanele de plată parțială se cer doar dacă există: altfel PostgREST respinge tot `select`-ul.
+  const { vanzariPlataPartiala } = await loadSchemaFeaturesSafe()
 
   const { data, error } = await supabase
     .from('vanzari')
-    .select(selectWithComanda)
+    .select(vanzariPlataPartiala ? `${selectWithComanda},${selectPlataPartiala}` : selectWithComanda)
     .eq('tenant_id', tenantId)
     .order('data', { ascending: false })
 
