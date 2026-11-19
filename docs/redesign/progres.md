@@ -305,6 +305,8 @@ Neatinse: `ui/input.tsx`, `ui/sheet.tsx`, `ui/dialog.tsx`, `globals.css`, `theme
 - **Material săditor** nu e migrat pe kit (la cerere). Foaia lui locală cu `createPortal` rămâne.
 - **Mărimea implicită a butonului** (`ui/button.tsx`, 40 px) e neschimbată; se schimbă la final, cum cere auditul.
 - **Expirările din testele `integrations/google`** la rularea întregii suite pe această mașină.
+- **Service worker-ul PWA servește pagini HTML vechi din cache după deploy** (văzut pe preview la `/admin/kit`). De investigat strategia de cache pentru navigări.
+- **Recoltări, pasul 2, cu două butoane jos pe un ecran de 800 px:** de rezolvat în promptul Recoltări (ex. un singur buton principal în footer).
 
 ## De verificat pe telefon (preview, `/admin/kit`)
 
