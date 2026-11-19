@@ -383,6 +383,7 @@ function Formular({ onSave }: { onSave: (clientSyncId: string) => void }) {
         onOpenChange={setOpen}
         title="Adaugă kilograme"
         success={<p>Salvat</p>}
+        dock={form.stepKey === 'kg' ? <p>Tastatura</p> : null}
         footer={
           form.stepKey === 'kg'
             ? {
@@ -433,6 +434,7 @@ describe('StepForm — carcasa', () => {
 
     expect(screen.getByRole('dialog')).toHaveTextContent('Pasul 2 din 2')
     expect(screen.getByText('Câte kilograme?')).toBeInTheDocument()
+    expect(screen.getByText('Tastatura')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Salvează' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Salvează + următorul' })).toBeInTheDocument()
 
@@ -451,6 +453,7 @@ describe('StepForm — carcasa', () => {
 
     expect(screen.getByText('Salvat')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Salvează' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Tastatura')).not.toBeInTheDocument()
     expect(onSave).toHaveBeenCalledWith(expect.stringMatching(/^cheie-\d+$/))
 
     await user.click(screen.getByRole('button', { name: 'Închide' }))

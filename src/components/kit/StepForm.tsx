@@ -179,6 +179,11 @@ export interface StepFormFrameProps {
   stepLabel?: string
   /** Butoanele de jos pentru pasul curent. Fără `footer`, zona de jos dispare (pași care merg mai departe la alegere). */
   footer?: StepFormFooter | null
+  /**
+   * Zonă fixă între conținut și butoane, mereu vizibilă (ex. `NumericKeypad`).
+   * Conținutul de deasupra se derulează; tastatura nu iese din ecran pe telefoanele scunde.
+   */
+  dock?: ReactNode
   /** Ce apare după `form.markSuccess()` (de obicei `SuccessScreen`). */
   success?: ReactNode
   /**
@@ -192,13 +197,14 @@ export interface StepFormFrameProps {
 
 /**
  * Carcasa formularului pe pași, fără fereastră: antet (înapoi, eticheta pasului, închide, bară de progres),
- * zonă cu scroll, zonă de jos cu unul sau două butoane.
+ * zonă cu scroll, zonă fixă opțională (tastatura), zonă de jos cu unul sau două butoane.
  */
 export function StepFormFrame({
   form,
   onClose,
   stepLabel,
   footer,
+  dock,
   success,
   onBack,
   children,
@@ -259,9 +265,14 @@ export function StepFormFrame({
         </div>
       </div>
 
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-2">
+      <div
+        ref={scrollRef}
+        className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-2', dock && !showSuccess ? 'pb-3' : 'pb-6')}
+      >
         {showSuccess ? success : children}
       </div>
+
+      {dock && !showSuccess ? <div className="shrink-0 px-4 pb-3">{dock}</div> : null}
 
       {footer && !showSuccess ? (
         <div className="flex shrink-0 flex-col gap-2.5 border-t border-border-subtle bg-surface px-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] pt-3">

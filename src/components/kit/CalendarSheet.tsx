@@ -108,14 +108,15 @@ export function CalendarPanel({ value, onChange, min, max, shortcuts, className 
       </div>
 
       <div>
-        <div className="grid grid-cols-7 gap-1 text-center" aria-hidden>
+        <div className="grid grid-cols-7 gap-0.5 text-center" aria-hidden>
           {WEEKDAYS.map((day) => (
             <span key={day} className={cn('py-1 font-semibold text-fg-muted', kitText.helper)}>
               {day}
             </span>
           ))}
         </div>
-        <div className="grid grid-cols-7 gap-1">
+        {/* Spațiu de 2 px: la 390 px lățime, fiecare zi rămâne de cel puțin 48 px. */}
+        <div className="grid grid-cols-7 gap-0.5">
           {Array.from({ length: grid.leadingBlanks }, (_, index) => (
             <span key={`gol-${index}`} />
           ))}
