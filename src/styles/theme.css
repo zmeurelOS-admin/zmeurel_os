@@ -385,3 +385,16 @@
   --ai-sheet-accent-text: #86efac;
   --ai-sheet-subtle-text: #94a3b8;
 }
+
+/*
+ * Antetul paginii (`CompactPageHeader`, clasa `agri-hero`): noaptea, de la
+ * `md` în sus, textul de pe antet e alb. `--text-on-accent` e închis noaptea
+ * (#08140e, pentru butoanele pline), iar pe fundalul `--agri-hero-bg`
+ * (#0d2318) dădea 1,14:1. Alb pe #0d2318: 16,5:1. Între 768 și 1023 px
+ * repară și butoanele dashboard-ului / meniul de profil de pe fundalul paginii.
+ */
+@media (min-width: 768px) {
+  .dark .agri-hero {
+    --text-on-accent: #ffffff;
+  }
+}

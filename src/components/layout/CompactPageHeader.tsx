@@ -91,7 +91,7 @@ export function CompactPageHeader({
   return (
     <header
       className={cn(
-        'sticky top-0 z-bar overflow-hidden border-b border-[var(--divider)] px-[var(--shell-content-px)] pb-1.5 pt-[calc(var(--safe-t)+7px)] shadow-[var(--shadow-soft)] backdrop-blur-sm sm:px-5 md:px-6 lg:static lg:overflow-visible lg:border-b-0 lg:px-8 lg:pb-5 lg:pt-4 lg:shadow-none lg:backdrop-blur-none xl:px-10',
+        'agri-hero sticky top-0 z-bar overflow-hidden border-b border-[var(--divider)] px-[var(--shell-content-px)] pb-1.5 pt-[calc(var(--safe-t)+7px)] shadow-[var(--shadow-soft)] backdrop-blur-sm sm:px-5 md:px-6 lg:static lg:overflow-visible lg:border-b-0 lg:px-8 lg:pb-5 lg:pt-4 lg:shadow-none lg:backdrop-blur-none xl:px-10',
         className
       )}
     >
