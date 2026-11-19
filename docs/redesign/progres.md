@@ -1,6 +1,6 @@
 # Redesign UI — progres
 
-Ultima actualizare: 18 noiembrie 2026, după Faza 1a (fundația).
+Ultima actualizare: 19 noiembrie 2026, după corecturile fundației (prompt 03b).
 
 | Fază | Stare |
 |---|---|
@@ -190,3 +190,47 @@ Noaptea erau două palete amestecate (neutru-cărbune din `theme.css` și slate-
 | 15 | `/analytics-magazin` | Pastila activă „7 / 30 / 90 zile" are fundal verde deschis. |
 | 16 | Setări → „vizibilitate ridicată" și densitate compactă | Se comportă ca înainte. |
 | 17 | Desktop, orice pagină cu antet (ex. `/parcele`) | Meniul de profil și clopoțelul se deschid peste conținut; tabelele cu antet lipicios nu trec peste antet. |
+
+---
+
+# Corecturi fundație (prompt 03b, 19.11.2026)
+
+Branch `redesign/fundatie`. Nimic în baza de date. Nemergeuit în `main`.
+
+## 1. Antetul desktop noaptea (text închis pe verde închis)
+
+- **Cauza din prompt nu se confirmă.** Pe `main`, `globals.css` nu definea `--agri-hero-bg`; singura valoare de noapte era `#0d2318` din `theme.css`. Valorile efective pe `main` (CSS compilat, `.dark` pe `<html>`) și pe producție (`www.zmeurel.ro`) sunt `--agri-hero-bg` #0d2318 și `--text-on-accent` #08140e, aceleași ca pe branch. Componentele antetului nu s-au schimbat decât la z-index. **Bug existent și pe `main`, nu regresie.**
+- **Fix (varianta B):** clasa `agri-hero` pe `CompactPageHeader`; noaptea, de la 768 px, `--text-on-accent` alb pe antet (16,5:1). Fundalul rămâne #0d2318. Detalii și contrast în `tokens.md`.
+- Între 768 și 1023 px, noaptea, același mecanism repară butoanele dashboard-ului („Editează”, „Widget”, „Anulează”) și meniul de profil.
+- Comparația tuturor tokenilor pe CSS-ul compilat (`main` ↔ branch, zi / noapte, 1280 / 375): niciun token de componentă nu diferă în afara listei aprobate. Tabelul e în `tokens.md`.
+
+## 2. Paginile de autentificare noaptea
+
+- **Cauza:** `/reset-password`, `/reset-password-request`, `/update-password` au culori de zi scrise direct, dar `Label` / `Input` luau tokenii de noapte; `/login` avea cardul `bg-white dark:bg-slate-800`.
+- **Fix:** `src/app/(auth)/layout.tsx` învelește paginile în `.theme-light` (tema de zi pe subarbore; mecanismul e în `tokens.md`). `/start` neatins, la cerere.
+
+## Fișiere atinse
+
+`src/styles/theme.css`, `src/app/globals.css`, `src/components/layout/CompactPageHeader.tsx`, `src/app/(auth)/layout.tsx` (nou), `docs/redesign/tokens.md`, acest fișier.
+
+## Verificare
+
+- `lint`: aceleași 3 erori și 14 avertismente vechi, după fiecare commit. `typecheck`: trece după fiecare commit. `build`: trece.
+- Local (Chromium), `/login`, `/reset-password`, `/reset-password-request`, `/update-password` la 375 și 1280 px: pe toate elementele paginii, culorile, fundalurile, contururile și umbrele calculate noaptea sunt identice cu cele de zi. Diferă doar două elemente din afara învelișului (containerul exterior și zona de notificări). Capturi: `/reset-password` și `/login` cu telefonul pe întunecat și tema „Sistem”.
+- **Neverificat local:** antetul pe dashboard (cere cont). Rămâne de văzut pe preview.
+
+## Rămase (în afara corecturii, notate)
+
+- **Dashboard, 768–1023 px, ziua:** butoanele „Editează” / „Widget” / „Anulează” au text alb (`--text-on-accent`) pe fundalul alb al paginii. Dedus din cod, existent și pe `main`; cere altă abordare (alt token pentru zona fără verde), nu `agri-hero`.
+- **Asociație → Livrări, pe telefon, noaptea:** pastila „N comenzi” din antet are text #08140e pe fundal închis (sub 768 px regula `agri-hero` nu se aplică). Existent și pe `main`; Asociația e în afara revamp-ului.
+- **Pagini de autentificare noaptea:** notificările (toast) rămân închise la culoare, iar la tragerea peste marginea paginii pe iPhone se vede fundalul închis al `body`.
+
+## De verificat pe preview
+
+| # | Unde | Ce verificați |
+|---|---|---|
+| 1 | Desktop, aplicația pe „Întunecat” → `/dashboard`, `/parcele` | Titlul, data, numele, pastilele (Comenzi, Livrări, Recoltări, Clienți), clopoțelul și meniul de profil: text alb pe verde închis. |
+| 2 | Același antet, ziua | Arată ca înainte. |
+| 3 | Fereastră de 768–1023 px, noaptea → `/dashboard` | „Editează” și meniul de profil se citesc. |
+| 4 | `/comenzi`, `/livrari`, `/recoltari`, desktop, noaptea | Antetul arată ca înainte (tema coral). |
+| 5 | Telefon pe întunecat, tema „Sistem” → `/login`, `/reset-password`, `/update-password` | Pagini luminoase, etichete și câmpuri lizibile. Ziua arată ca înainte. |

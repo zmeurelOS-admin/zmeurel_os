@@ -186,6 +186,52 @@ Fără efect vizibil (0 utilizări): `--bg-secondary` #f7f8fa → #ededeb, `--ag
 
 De știut: `--fg-subtle` noaptea (#6c737d pe #12161d) are contrast sub 4,5:1. Valoarea e cea de dinainte; se reglează în kit.
 
+## Antetul paginii noaptea (`agri-hero`, prompt 03b)
+
+`CompactPageHeader` (deci orice `PageHeader`) are clasa `agri-hero`. Pe desktop, fundalul antetului e `--agri-hero-bg` și textul `--text-on-accent`. Noaptea, `--text-on-accent` e închis (#08140e, gândit pentru butoanele pline), iar pe #0d2318 dădea 1,14:1. Bug-ul exista și pe `main`. Nu e o regresie.
+
+Regula din `theme.css`: `@media (min-width: 768px) { .dark .agri-hero { --text-on-accent: #ffffff } }`. Alb pe #0d2318: 16,5:1; subtitlul (84 %): 11,0:1; pastilele: 7,5–9,2:1. Între 768 și 1023 px repară și butoanele dashboard-ului și meniul de profil, care stau pe fundalul paginii. `--primary-foreground` / `--primary-contrast` rămân neatinse (butoanele pline). În Comenzi / Livrări / Recoltări tema coral avea deja `#fff`.
+
+## Subarbore pe tema de zi (`.theme-light`, prompt 03b)
+
+Pentru paginile care trebuie să rămână luminoase indiferent de temă (acum: tot ce e în `src/app/(auth)`, prin `(auth)/layout.tsx`).
+
+- Blocurile de zi din cele trei secțiuni ale `theme.css` sunt declarate `:root, .theme-light`. Aliasurile trebuie redeclarate și ele: o variabilă cu `var()` se calculează pe elementul unde e declarată, deci altfel ar rămâne valoarea de noapte de pe `<html>`.
+- `.theme-light` primește și `color-scheme: light` și `color: var(--agri-text)` (textul moștenit din `body` era cel de noapte).
+- Varianta `dark:` (`globals.css`) exclude subarborele: `&:where(.dark, .dark *):not(:where(.theme-light, .theme-light *))`.
+- „Vizibilitate ridicată” se aplică și înăuntru (`html.high-visibility-mode .theme-light`).
+- Ce rămâne în afara învelișului: notificările (toast) și fundalul `body` (vizibil doar la tragerea peste marginea paginii pe iPhone).
+- Un token nou de zi se adaugă în blocul `:root, .theme-light` corespunzător; nu e nevoie de altă modificare.
+
+## Comparație `main` ↔ `redesign/fundatie` pe CSS-ul compilat (prompt 03b)
+
+Metodă: `globals.css` + `theme.css` de pe fiecare ref, compilate cu `@tailwindcss/postcss` (cu optimizarea lightningcss, ca la build); valorile calculate de Chromium pe `<html>`, cu clasa `light` și cu `.dark`, la 1280 și 375 px. 277 de nume, 102 diferă. La 375 px diferențele sunt identice cu cele de la 1280.
+
+### Tokeni de componentă păstrați (secțiunea 3)
+
+| Grup | Zi | Noapte | Stare |
+|---|---|---|---|
+| `--agri-hero-bg`, `--agri-hero-shadow`, `--text-on-accent` (pe `<html>`) | = | = | identic (`--text-on-accent` se schimbă doar în antet, vezi mai sus) |
+| `--brand-*` (11), `--indicator-*` (5), `--cta-*` (8), `--badge-tip-*`, `--status-purple-*`, `--whatsapp-green` | = | = | identic |
+| `--ai-sheet-*`, `--card-border-default`, `--surface-elevated-hover`, `--agri-border-w`, `--agri-button-hover-shadow`, `--agri-field-h`, `--agri-field-idle-shadow` | = | = | identic |
+| `--skeleton-base` | = | #243449 → #1d232c | aprobat (secțiunea 3, nota de noapte) |
+| `--button-muted-border` | = | #475569 → #2d343e | aprobat (idem) |
+| `--button-muted-hover-bg` | = | #475569 → #242b35 | aprobat (idem) |
+| `--pill-inactive-hover-bg` | = | #2b3a54 → #242b35 | aprobat (idem) |
+| `--fab-border` | = | #475569 → #2d343e | aprobat (idem) |
+| `--agri-focus-ring` | = | verde #4ade80 35 % → #5ca882 32 % | aprobat (idem) |
+| `--agri-border-card` | = | urmează `--agri-border` (#20262f → #2d343e) | aprobat (tabelul „Noapte”) |
+| `--agri-field-focus-ring`, `--agri-field-error-ring` | = | urmează `--agri-primary` / `--destructive` | aprobat (tabelul „Noapte”) |
+| `--agri-elevated-shadow-hover` | 0 2px 4px / 0 12px 32px → valoarea `--elevation-overlay` | idem | aprobat, 0 utilizări |
+
+Niciun token de componentă nu diferă în afara listei aprobate; nimic de readus la valoarea de pe `main`.
+
+### Restul diferențelor
+
+- **Ziua:** exact cele 13 din tabelul „Zi” de mai sus (`--text-secondary`/`--muted-foreground`, `--danger-text`, `--info-text`, `--value-positive`, `--muted`, `--secondary`, `--accent-foreground`, `--agri-shadow`, cele 5 „era nedefinit”) și cele 4 fără efect.
+- **Noaptea:** aliasurile trecute pe paleta neutră (tabelul „Noapte”). Pe lângă cele numite acolo: `--fab-text` (#e2e8f0 → #5ca882), `--fab-surface`, `--input-bg`, `--input-border` — 0 utilizări, nu se văd; `--button-muted-text`, `--foreground`, `--card-foreground`, `--popover-foreground`, `--secondary-foreground`, `--pill-inactive-text` (#e2e8f0 / #f1f5f9 / #f8fafc → #f5f6f7) — diferență abia vizibilă.
+- **Nume noi** (lipsă pe `main`): setul canonic, `--radius-control/box/card/sheet`, `--z-index-*`.
+
 ## Verificare: tokeni folosiți fără definiție
 
 ```bash
