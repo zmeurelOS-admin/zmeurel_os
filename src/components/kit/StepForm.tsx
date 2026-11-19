@@ -334,36 +334,47 @@ function useGuardedOpenChange(open: boolean, onOpenChange: (open: boolean) => vo
     latest.current = { onOpenChange, closeGuard }
   })
 
-  const inPopState = useRef(false)
+  // „Înapoi” și închiderea oprită se întâmplă în aceeași tură de evenimente, dar ordinea ascultătorilor
+  // (al nostru și al lui `ui/dialog`) nu e garantată. Le notăm pe amândouă și hotărâm după ce s-a terminat tura.
+  const sawPopState = useRef(false)
+  const blockedClose = useRef(false)
   const ownsHistoryEntry = useRef(false)
 
-  const requestOpenChange = useCallback((next: boolean) => {
-    const current = latest.current
-    if (next || !current.closeGuard?.()) {
-      current.onOpenChange(next)
-      return
-    }
-    if (inPopState.current && !ownsHistoryEntry.current) {
+  const settle = useCallback(() => {
+    if (sawPopState.current && blockedClose.current && !ownsHistoryEntry.current) {
       window.history.pushState({ ...(window.history.state ?? {}), [DIALOG_HISTORY_MARKER]: true }, '')
       ownsHistoryEntry.current = true
     }
+    sawPopState.current = false
+    blockedClose.current = false
   }, [])
+
+  const requestOpenChange = useCallback(
+    (next: boolean) => {
+      const current = latest.current
+      if (next || !current.closeGuard?.()) {
+        current.onOpenChange(next)
+        return
+      }
+      blockedClose.current = true
+      window.setTimeout(settle, 0)
+    },
+    [settle],
+  )
 
   useEffect(() => {
     if (!open) return
-    // În faza de captură: rulează înaintea ascultătorului din `ui/dialog`, care cere închiderea.
     const handlePopState = () => {
-      inPopState.current = true
-      window.setTimeout(() => {
-        inPopState.current = false
-      }, 0)
+      sawPopState.current = true
+      window.setTimeout(settle, 0)
+      // Intrarea pusă de noi a fost consumată: `ui/dialog` nu mai ascultă, deci cerem noi închiderea.
       if (!ownsHistoryEntry.current) return
       ownsHistoryEntry.current = false
       requestOpenChange(false)
     }
-    window.addEventListener('popstate', handlePopState, true)
-    return () => window.removeEventListener('popstate', handlePopState, true)
-  }, [open, requestOpenChange])
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [open, requestOpenChange, settle])
 
   useEffect(() => {
     if (open || !ownsHistoryEntry.current) return

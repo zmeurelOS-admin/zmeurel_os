@@ -483,7 +483,7 @@ function useFormularDemo(form: StepFormApi, onClose: () => void) {
     />
   )
 
-  return { content, footer, dock, success }
+  return { content, footer, dock, success, total }
 }
 
 function FormularInCadru() {
@@ -519,6 +519,19 @@ function FormularInFereastra() {
   const form = useStepForm({ steps: FORM_STEPS, summaryKey: 'verificare', open, analytics: false })
   const demo = useFormularDemo(form, () => setOpen(false))
 
+  // Garda de închidere: cu kilograme tastate și nesalvate, X / Esc / „înapoi” cer întâi confirmare.
+  const [confirmingClose, setConfirmingClose] = useState(false)
+  const [confirmFor, setConfirmFor] = useState(form.clientSyncId)
+  if (confirmFor !== form.clientSyncId) {
+    setConfirmFor(form.clientSyncId)
+    setConfirmingClose(false)
+  }
+  const closeGuard = () => {
+    if (form.done || demo.total <= 0) return false
+    setConfirmingClose(true)
+    return true
+  }
+
   return (
     <>
       <Button variant="primary" size="touch-lg" className="w-full" onClick={() => setOpen(true)}>
@@ -529,12 +542,34 @@ function FormularInFereastra() {
         form={form}
         open={open}
         onOpenChange={setOpen}
+        closeGuard={closeGuard}
         title="Adaugă kilograme"
-        footer={demo.footer}
-        dock={demo.dock}
+        stepLabel={confirmingClose ? 'Nesalvat' : undefined}
+        onBack={() => {
+          if (!confirmingClose) return false
+          setConfirmingClose(false)
+          return true
+        }}
+        footer={confirmingClose ? null : demo.footer}
+        dock={confirmingClose ? undefined : demo.dock}
         success={demo.success}
       >
-        {demo.content}
+        {confirmingClose ? (
+          <div className="flex min-h-full flex-col justify-center gap-3 py-6 text-center">
+            <StepFormTitle>Renunți la {formatKg(demo.total)}?</StepFormTitle>
+            <p className={cn('text-fg-muted', kitText.base)}>Kilogramele tastate nu au fost salvate.</p>
+            <div className="mt-3 flex flex-col gap-2.5">
+              <Button variant="primary" size="touch-lg" className="w-full" onClick={() => setConfirmingClose(false)}>
+                Continuă
+              </Button>
+              <Button variant="neutral" size="touch-lg" className="w-full" onClick={() => setOpen(false)}>
+                Renunță
+              </Button>
+            </div>
+          </div>
+        ) : (
+          demo.content
+        )}
       </StepForm>
     </>
   )
@@ -587,7 +622,7 @@ export function CompuseSections() {
       <KitSection
         id="formular"
         title="Formular pe pași"
-        description="Exemplu: culegător → kilograme → verificare. Nu trimite analytics și nu salvează nimic."
+        description="Exemplu: culegător → kilograme → verificare. Nu trimite analytics și nu salvează nimic. În fereastră, închiderea cu kilograme tastate cere confirmare (closeGuard)."
       >
         <FormularDemo />
       </KitSection>

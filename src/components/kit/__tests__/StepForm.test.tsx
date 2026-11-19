@@ -512,6 +512,20 @@ describe('StepForm — garda de închidere', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
+  it('X oprit de gardă nu atinge istoricul (intrarea lui ui/dialog e încă acolo)', async () => {
+    const user = userEvent.setup()
+    render(<FormularCuGarda guard={() => true} />)
+
+    await user.click(screen.getByRole('button', { name: 'Adaugă kg' }))
+    await screen.findByRole('dialog')
+    const lengthWhileOpen = window.history.length
+
+    await user.click(screen.getByRole('button', { name: 'Închide' }))
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    expect(window.history.length).toBe(lengthWhileOpen)
+  })
+
   it('fără nimic nesalvat, X închide direct', async () => {
     const user = userEvent.setup()
     const guard = vi.fn(() => false)
@@ -537,7 +551,8 @@ describe('StepForm — garda de închidere', () => {
 
     expect(guard).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('dialog')).toBeInTheDocument()
-    expect(window.history.length).toBe(lengthWhileOpen + 1)
+    // Intrarea se pune la loc după ce s-a terminat tura de evenimente a lui „înapoi”.
+    await waitFor(() => expect(window.history.length).toBe(lengthWhileOpen + 1))
     expect(window.history.state?.__zmeurelDialog).toBe(true)
   })
 
@@ -549,10 +564,13 @@ describe('StepForm — garda de închidere', () => {
     await user.click(screen.getByRole('button', { name: 'Adaugă kg' }))
     await screen.findByRole('dialog')
 
+    const lengthWhileOpen = window.history.length
     pressBack()
+    await waitFor(() => expect(window.history.length).toBe(lengthWhileOpen + 1))
     pressBack()
     expect(guard).toHaveBeenCalledTimes(2)
     expect(screen.getByRole('dialog')).toBeInTheDocument()
+    await waitFor(() => expect(window.history.length).toBe(lengthWhileOpen + 2))
 
     // Când nu mai e nimic nesalvat, „înapoi” închide.
     guard.mockReturnValue(false)
@@ -566,7 +584,9 @@ describe('StepForm — garda de închidere', () => {
 
     await user.click(screen.getByRole('button', { name: 'Adaugă kg' }))
     await screen.findByRole('dialog')
+    const lengthWhileOpen = window.history.length
     pressBack()
+    await waitFor(() => expect(window.history.length).toBe(lengthWhileOpen + 1))
     expect(window.history.state?.__zmeurelDialog).toBe(true)
 
     await user.click(screen.getByRole('button', { name: 'Renunță' }))
