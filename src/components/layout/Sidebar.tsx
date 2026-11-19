@@ -94,6 +94,7 @@ const ADMIN_DESKTOP_NAV: NavItem[] = [
   { href: "/admin", label: "Panou admin", emoji: "🛡️", exact: true },
   { href: "/admin/analytics", label: "Analytics", emoji: "📈" },
   { href: "/admin/audit", label: "Audit", emoji: "📜" },
+  { href: "/admin/kit", label: "Kit de componente", emoji: "🧩" },
 ]
 
 function stripHashAndSearch(href: string) {

@@ -10,6 +10,7 @@ import {
   ExternalLink,
   FileSearch,
   LayoutDashboard,
+  LayoutGrid,
   Leaf,
   LogOut,
   MapPin,
@@ -90,6 +91,7 @@ const adminGroup: MenuGroup = {
     { href: '/admin', label: 'Panou admin', icon: ShieldCheck },
     { href: '/admin/analytics', label: 'Analytics global', icon: BarChart3 },
     { href: '/admin/audit', label: 'Audit', icon: FileSearch },
+    { href: '/admin/kit', label: 'Kit de componente', icon: LayoutGrid },
   ],
 }
 
