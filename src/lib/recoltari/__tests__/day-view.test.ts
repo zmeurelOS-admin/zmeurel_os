@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import {
   estimatePaymentLei,
-  findNewMatchingRecoltare,
   formatKg,
   formatKgValue,
   formatLei,
@@ -121,7 +120,7 @@ describe('recoltări — valori implicite', () => {
   })
 })
 
-describe('recoltări — protecția la dublare', () => {
+describe('recoltări — ce a salvat serverul', () => {
   const attempt: RecoltareAttempt = {
     culegator_id: 'worker-1',
     parcela_id: 'parcela-1',
@@ -129,47 +128,6 @@ describe('recoltări — protecția la dublare', () => {
     kg_cal1: 27.35,
     kg_cal2: 0,
   }
-
-  it('găsește recoltarea apărută după trimitere, cu aceleași date', () => {
-    const found = findNewMatchingRecoltare({
-      recoltari: [makeRecoltare({ id: 'nou', kg_cal1: 27.35 })],
-      knownIds: new Set(['vechi']),
-      attempt,
-    })
-    expect(found?.id).toBe('nou')
-  })
-
-  it('nu ia drept dublură o cântărire identică, salvată înainte de trimitere', () => {
-    const found = findNewMatchingRecoltare({
-      recoltari: [makeRecoltare({ id: 'vechi', kg_cal1: 27.35 })],
-      knownIds: new Set(['vechi']),
-      attempt,
-    })
-    expect(found).toBeNull()
-  })
-
-  it('nu potrivește altă cantitate, alt culegător, altă parcelă sau altă zi', () => {
-    const others = [
-      makeRecoltare({ id: 'kg', kg_cal1: 27.3 }),
-      makeRecoltare({ id: 'cal2', kg_cal1: 27.35, kg_cal2: 1 }),
-      makeRecoltare({ id: 'culegator', kg_cal1: 27.35, culegator_id: 'worker-2' }),
-      makeRecoltare({ id: 'parcela', kg_cal1: 27.35, parcela_id: 'parcela-2' }),
-      makeRecoltare({ id: 'zi', kg_cal1: 27.35, data: '2026-11-18' }),
-    ]
-    expect(findNewMatchingRecoltare({ recoltari: others, knownIds: new Set(), attempt })).toBeNull()
-  })
-
-  it('dintre mai multe potriviri o întoarce pe cea mai nouă', () => {
-    const found = findNewMatchingRecoltare({
-      recoltari: [
-        makeRecoltare({ id: 'prima', kg_cal1: 27.35, created_at: '2026-11-19T16:00:00Z' }),
-        makeRecoltare({ id: 'a-doua', kg_cal1: 27.35, created_at: '2026-11-19T16:00:05Z' }),
-      ],
-      knownIds: new Set(),
-      attempt,
-    })
-    expect(found?.id).toBe('a-doua')
-  })
 
   it('spune când serverul a salvat altceva decât s-a trimis', () => {
     expect(savedDiffersFromAttempt(makeRecoltare({ kg_cal1: 27.35 }), attempt)).toBe(false)

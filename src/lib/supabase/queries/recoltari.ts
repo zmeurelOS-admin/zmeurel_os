@@ -28,6 +28,11 @@ export interface CreateRecoltareInput {
   kg_cal1: number
   kg_cal2: number
   observatii?: string
+  /**
+   * Cheia de idempotență a formularului (`form.clientSyncId`, un UUID). Cu ea, o cerere repetată
+   * întoarce recoltarea deja creată în loc să creeze încă una. Fără ea, se folosește drumul vechi.
+   */
+  client_sync_id?: string
 }
 
 export interface UpdateRecoltareInput {
@@ -51,10 +56,32 @@ type RecoltareRow = Parameters<typeof mapRecoltare>[0]
 
 type RecoltareRpcError = {
   message?: string
+  code?: string
 }
+
+/** PostgREST: funcția nu există (migrarea `create_recoltare_idempotent` lipsește sau a fost anulată). */
+const RPC_FUNCTION_NOT_FOUND = 'PGRST202'
+/** Postgres: cheia unică există deja (două cereri simultane cu aceeași cheie). */
+const UNIQUE_VIOLATION = '23505'
 
 type RecoltareRpcClient = ReturnType<typeof getSupabase> & {
   rpc: {
+    (
+      fn: 'create_recoltare_idempotent',
+      args: {
+        p_client_sync_id: string
+        p_data: string
+        p_parcela_id: string
+        p_culegator_id: string
+        p_kg_cal1: number
+        p_kg_cal2: number
+        p_observatii?: string | null
+        p_tenant_id?: string | null
+      }
+    ): Promise<{
+      data: RecoltareRow | null
+      error: RecoltareRpcError | null
+    }>
     (
       fn: 'create_recoltare_with_stock',
       args: {
@@ -208,7 +235,7 @@ export async function createRecoltare(input: CreateRecoltareInput): Promise<Reco
     const tenantId = await getTenantId(supabase)
     const kg = computeKg(input)
     const rpcClient = supabase as RecoltareRpcClient
-    const { data, error } = await rpcClient.rpc('create_recoltare_with_stock', {
+    const args = {
       p_data: input.data,
       p_parcela_id: input.parcela_id,
       p_culegator_id: input.culegator_id,
@@ -216,7 +243,42 @@ export async function createRecoltare(input: CreateRecoltareInput): Promise<Reco
       p_kg_cal2: kg.kgCal2,
       p_observatii: input.observatii ?? null,
       p_tenant_id: tenantId,
-    })
+    }
+
+    let data: RecoltareRow | null = null
+    let error: RecoltareRpcError | null = null
+
+    if (input.client_sync_id) {
+      const idempotent = await rpcClient.rpc('create_recoltare_idempotent', {
+        p_client_sync_id: input.client_sync_id,
+        ...args,
+      })
+      data = idempotent.data
+      error = idempotent.error
+
+      if (error?.code === UNIQUE_VIOLATION) {
+        // Altă cerere cu aceeași cheie a creat recoltarea între timp: o citim și o tratăm ca reușită.
+        const existing = await supabase
+          .from('recoltari')
+          .select(RECOLTARI_SELECT)
+          .eq('client_sync_id', input.client_sync_id)
+          .eq('tenant_id', tenantId)
+          .maybeSingle()
+        if (existing.data) {
+          data = existing.data as RecoltareRow
+          error = null
+        }
+      } else if (error?.code === RPC_FUNCTION_NOT_FOUND) {
+        // Funcția cu cheie lipsește din bază: drumul vechi, fără protecție la cereri repetate.
+        const legacy = await rpcClient.rpc('create_recoltare_with_stock', args)
+        data = legacy.data
+        error = legacy.error
+      }
+    } else {
+      const legacy = await rpcClient.rpc('create_recoltare_with_stock', args)
+      data = legacy.data
+      error = legacy.error
+    }
 
     if (error) {
       return { success: false, error: toSchemaAwareError(error).message }

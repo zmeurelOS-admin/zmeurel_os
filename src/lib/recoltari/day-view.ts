@@ -1,6 +1,6 @@
 /**
- * Recoltări, pagina unei zile: totaluri, insignele culegătorilor, valori implicite și
- * protecția la dublare. Funcții pure, fără React și fără acces la bază.
+ * Recoltări, pagina unei zile: totaluri, insignele culegătorilor și valori implicite.
+ * Funcții pure, fără React și fără acces la bază.
  */
 import { getRecoltareTotalKg, type Recoltare } from '@/lib/supabase/queries/recoltari'
 
@@ -107,33 +107,6 @@ export interface RecoltareAttempt {
   data: string
   kg_cal1: number
   kg_cal2: number
-}
-
-/**
- * Protecția la dublare, fără cheie pe server: după o trimitere rămasă fără răspuns, caută o recoltare
- * apărută între timp (id necunoscut înainte de prima trimitere) care are exact datele trimise.
- * Dacă există, trimiterea a ajuns de fapt la server și nu se mai repetă.
- * Compară id-uri, nu ore: ceasul telefonului poate fi decalat față de al serverului.
- */
-export function findNewMatchingRecoltare(params: {
-  recoltari: readonly Recoltare[]
-  knownIds: ReadonlySet<string>
-  attempt: RecoltareAttempt
-}): Recoltare | null {
-  const { recoltari, knownIds, attempt } = params
-  const candidates = recoltari.filter(
-    (recoltare) =>
-      !knownIds.has(recoltare.id) &&
-      recoltare.culegator_id === attempt.culegator_id &&
-      recoltare.parcela_id === attempt.parcela_id &&
-      dayOf(recoltare) === attempt.data &&
-      round2(recoltare.kg_cal1) === round2(attempt.kg_cal1) &&
-      round2(recoltare.kg_cal2) === round2(attempt.kg_cal2),
-  )
-  if (candidates.length === 0) return null
-  return candidates.reduce((latest, current) =>
-    String(current.created_at ?? '') > String(latest.created_at ?? '') ? current : latest,
-  )
 }
 
 /** Ce a salvat serverul diferă de ce s-a trimis (ex. aceeași cheie, kilograme schimbate între încercări). */

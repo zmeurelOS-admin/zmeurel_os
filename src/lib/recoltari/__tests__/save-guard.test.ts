@@ -1,12 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import type { RecoltareAttempt } from '@/lib/recoltari/day-view'
-import {
-  UNVERIFIED_SAVE_MESSAGE,
-  createRecoltareSaveGuard,
-  saveRecoltareGuarded,
-} from '@/lib/recoltari/save-guard'
+import { createRecoltareSaveGuard, saveRecoltareGuarded } from '@/lib/recoltari/save-guard'
 import type { CreateRecoltareInput, Recoltare, RecoltareMutationResult } from '@/lib/supabase/queries/recoltari'
+
+const KEY = '0b9c1d2e-3f40-4a5b-8c6d-7e8f90a1b2c3'
 
 const attempt: RecoltareAttempt = {
   culegator_id: 'worker-1',
@@ -39,22 +37,20 @@ const ok = (input: CreateRecoltareInput, id = 'nou'): RecoltareMutationResult =>
   data: rowFrom(input, id),
 })
 
-describe('salvarea recoltării fără dubluri', () => {
-  it('prima trimitere reușită nu recitește nimic', async () => {
-    const guard = createRecoltareSaveGuard('cheie-1', [])
-    const refetch = vi.fn()
+describe('salvarea recoltării, o singură dată per cheie', () => {
+  it('trimite cheia formularului ca client_sync_id', async () => {
+    const guard = createRecoltareSaveGuard(KEY)
     const create = vi.fn(async (input: CreateRecoltareInput) => ok(input))
 
-    const outcome = await saveRecoltareGuarded({ guard, attempt, observatii: 'notă', refetch, create })
+    const outcome = await saveRecoltareGuarded({ guard, attempt, observatii: 'notă', create })
 
-    expect(outcome).toMatchObject({ status: 'saved', recovered: false, differs: false })
+    expect(outcome).toMatchObject({ status: 'saved', differs: false })
     expect(create).toHaveBeenCalledTimes(1)
-    expect(create).toHaveBeenCalledWith({ ...attempt, observatii: 'notă' })
-    expect(refetch).not.toHaveBeenCalled()
+    expect(create).toHaveBeenCalledWith({ ...attempt, observatii: 'notă', client_sync_id: KEY })
   })
 
   it('dublu-tap: a doua apăsare, cât prima e în curs, nu trimite nimic', async () => {
-    const guard = createRecoltareSaveGuard('cheie-1', [])
+    const guard = createRecoltareSaveGuard(KEY)
     let release: (value: RecoltareMutationResult) => void = () => {}
     const create = vi.fn(
       () =>
@@ -62,10 +58,9 @@ describe('salvarea recoltării fără dubluri', () => {
           release = resolve
         }),
     )
-    const refetch = vi.fn()
 
-    const first = saveRecoltareGuarded({ guard, attempt, refetch, create })
-    const second = await saveRecoltareGuarded({ guard, attempt, refetch, create })
+    const first = saveRecoltareGuarded({ guard, attempt, create })
+    const second = await saveRecoltareGuarded({ guard, attempt, create })
 
     expect(second).toEqual({ status: 'busy' })
     release(ok(attempt))
@@ -74,102 +69,75 @@ describe('salvarea recoltării fără dubluri', () => {
   })
 
   it('după o salvare reușită, aceeași cheie nu mai trimite', async () => {
-    const guard = createRecoltareSaveGuard('cheie-1', [])
+    const guard = createRecoltareSaveGuard(KEY)
     const create = vi.fn(async (input: CreateRecoltareInput) => ok(input))
-    const refetch = vi.fn()
 
-    const first = await saveRecoltareGuarded({ guard, attempt, refetch, create })
-    const again = await saveRecoltareGuarded({ guard, attempt, refetch, create })
+    const first = await saveRecoltareGuarded({ guard, attempt, create })
+    const again = await saveRecoltareGuarded({ guard, attempt, create })
 
     expect(again).toBe(first)
     expect(create).toHaveBeenCalledTimes(1)
   })
 
-  it('reîncercare după o trimitere fără răspuns care ajunsese la server: nu retrimite', async () => {
-    const guard = createRecoltareSaveGuard('cheie-1', [{ id: 'vechi' }])
-    const create = vi.fn(async (): Promise<RecoltareMutationResult> => ({ success: false, error: 'Failed to fetch' }))
-    const refetch = vi.fn(async () => [rowFrom(attempt, 'vechi'), rowFrom(attempt, 'ajuns')])
-
-    const first = await saveRecoltareGuarded({ guard, attempt, refetch, create })
-    expect(first).toEqual({ status: 'failed', error: 'Failed to fetch', unverified: false })
-
-    const second = await saveRecoltareGuarded({ guard, attempt, refetch, create })
-
-    expect(second).toMatchObject({ status: 'saved', recovered: true, differs: false })
-    if (second.status === 'saved') expect(second.recoltare.id).toBe('ajuns')
-    expect(create).toHaveBeenCalledTimes(1)
-    expect(refetch).toHaveBeenCalledTimes(1)
-  })
-
-  it('reîncercare după o eroare reală: nimic nou pe server, deci retrimite', async () => {
-    const guard = createRecoltareSaveGuard('cheie-1', [{ id: 'vechi' }])
+  it('reîncercarea după un eșec retrimite cu ACEEAȘI cheie (serverul hotărăște dacă există deja)', async () => {
+    const guard = createRecoltareSaveGuard(KEY)
     const create = vi
       .fn<(input: CreateRecoltareInput) => Promise<RecoltareMutationResult>>()
-      .mockResolvedValueOnce({ success: false, error: 'Parcela invalida pentru tenantul curent.' })
-      .mockImplementationOnce(async (input) => ok(input))
-    // O cântărire identică, dar salvată înainte de prima trimitere, nu e dublură.
-    const refetch = vi.fn(async () => [rowFrom(attempt, 'vechi')])
+      .mockResolvedValueOnce({ success: false, error: 'Failed to fetch' })
+      .mockImplementationOnce(async (input) => ok(input, 'creat-la-prima-incercare'))
 
-    await saveRecoltareGuarded({ guard, attempt, refetch, create })
-    const second = await saveRecoltareGuarded({ guard, attempt, refetch, create })
+    const first = await saveRecoltareGuarded({ guard, attempt, create })
+    expect(first).toEqual({ status: 'failed', error: 'Failed to fetch' })
 
-    expect(second).toMatchObject({ status: 'saved', recovered: false })
+    const second = await saveRecoltareGuarded({ guard, attempt, create })
+
+    expect(second).toMatchObject({ status: 'saved', differs: false })
     expect(create).toHaveBeenCalledTimes(2)
+    expect(create.mock.calls[0][0].client_sync_id).toBe(KEY)
+    expect(create.mock.calls[1][0].client_sync_id).toBe(KEY)
   })
 
-  it('dacă nu se poate verifica (fără internet), nu retrimite', async () => {
-    const guard = createRecoltareSaveGuard('cheie-1', [])
-    const create = vi.fn(async (): Promise<RecoltareMutationResult> => ({ success: false, error: 'Failed to fetch' }))
-    const refetch = vi.fn(async (): Promise<Recoltare[]> => {
-      throw new Error('offline')
-    })
+  it('kilograme schimbate între încercări: serverul întoarce prima recoltare, iar garda spune că diferă', async () => {
+    const guard = createRecoltareSaveGuard(KEY)
+    const create = vi
+      .fn<(input: CreateRecoltareInput) => Promise<RecoltareMutationResult>>()
+      .mockResolvedValueOnce({ success: false, error: 'Failed to fetch' })
+      // A doua cerere, cu aceeași cheie: serverul întoarce rândul creat de prima (27,35), nu 27,5.
+      .mockResolvedValueOnce({ success: true, data: rowFrom(attempt, 'creat-la-prima-incercare') })
 
-    await saveRecoltareGuarded({ guard, attempt, refetch, create })
-    const second = await saveRecoltareGuarded({ guard, attempt, refetch, create })
+    await saveRecoltareGuarded({ guard, attempt, create })
+    const second = await saveRecoltareGuarded({ guard, attempt: { ...attempt, kg_cal1: 27.5 }, create })
 
-    expect(second).toEqual({ status: 'failed', error: UNVERIFIED_SAVE_MESSAGE, unverified: true })
-    expect(create).toHaveBeenCalledTimes(1)
-
-    // După ce revine internetul, verificarea trece și trimiterea se reia.
-    refetch.mockImplementationOnce(async () => [])
-    create.mockImplementationOnce(async () => ok(attempt))
-    const third = await saveRecoltareGuarded({ guard, attempt, refetch, create })
-    expect(third).toMatchObject({ status: 'saved', recovered: false })
-    expect(create).toHaveBeenCalledTimes(2)
-  })
-
-  it('kilograme schimbate între încercări, prima ajunsă la server: nu creează a doua și spune că diferă', async () => {
-    const guard = createRecoltareSaveGuard('cheie-1', [])
-    const create = vi.fn(async (): Promise<RecoltareMutationResult> => ({ success: false, error: 'Failed to fetch' }))
-    const refetch = vi.fn(async () => [rowFrom(attempt, 'ajuns')])
-
-    await saveRecoltareGuarded({ guard, attempt, refetch, create })
-    const corrected = { ...attempt, kg_cal1: 27.5 }
-    const second = await saveRecoltareGuarded({ guard, attempt: corrected, refetch, create })
-
-    expect(second).toMatchObject({ status: 'saved', recovered: true, differs: true })
+    expect(second).toMatchObject({ status: 'saved', differs: true })
     if (second.status === 'saved') expect(second.recoltare.kg_cal1).toBe(27.35)
-    expect(create).toHaveBeenCalledTimes(1)
+  })
+
+  it('o gardă nouă (alt formular) are altă cheie', async () => {
+    const create = vi.fn(async (input: CreateRecoltareInput) => ok(input))
+
+    await saveRecoltareGuarded({ guard: createRecoltareSaveGuard(KEY), attempt, create })
+    await saveRecoltareGuarded({ guard: createRecoltareSaveGuard('alta-cheie'), attempt, create })
+
+    expect(create.mock.calls.map(([input]) => input.client_sync_id)).toEqual([KEY, 'alta-cheie'])
   })
 
   it('o excepție la trimitere e eșec, iar garda rămâne folosibilă', async () => {
-    const guard = createRecoltareSaveGuard('cheie-1', [])
+    const guard = createRecoltareSaveGuard(KEY)
     const create = vi
       .fn<(input: CreateRecoltareInput) => Promise<RecoltareMutationResult>>()
       .mockRejectedValueOnce(new Error('boom'))
       .mockImplementationOnce(async (input) => ok(input))
-    const refetch = vi.fn(async () => [])
 
-    const first = await saveRecoltareGuarded({ guard, attempt, refetch, create })
-    expect(first).toEqual({ status: 'failed', error: 'boom', unverified: false })
+    const first = await saveRecoltareGuarded({ guard, attempt, create })
+    expect(first).toEqual({ status: 'failed', error: 'boom' })
     expect(guard.inFlight).toBe(false)
 
-    const second = await saveRecoltareGuarded({ guard, attempt, refetch, create })
+    const second = await saveRecoltareGuarded({ guard, attempt, create })
     expect(second).toMatchObject({ status: 'saved' })
   })
 
   it('păstrează avertismentul de la sincronizarea manoperei', async () => {
-    const guard = createRecoltareSaveGuard('cheie-1', [])
+    const guard = createRecoltareSaveGuard(KEY)
     const create = vi.fn(
       async (input: CreateRecoltareInput): Promise<RecoltareMutationResult> => ({
         success: true,
@@ -178,7 +146,7 @@ describe('salvarea recoltării fără dubluri', () => {
       }),
     )
 
-    const outcome = await saveRecoltareGuarded({ guard, attempt, refetch: vi.fn(), create })
+    const outcome = await saveRecoltareGuarded({ guard, attempt, create })
     expect(outcome).toMatchObject({ status: 'saved', warning: 'Manopera nu s-a sincronizat.' })
   })
 })

@@ -42,7 +42,7 @@ import {
 } from '@/lib/supabase/queries/activitati-agricole'
 import type { Culegator } from '@/lib/supabase/queries/culegatori'
 import type { Parcela } from '@/lib/supabase/queries/parcele'
-import { createRecoltare, getRecoltari, getRecoltareTotalKg, type Recoltare } from '@/lib/supabase/queries/recoltari'
+import { createRecoltare, getRecoltareTotalKg, type Recoltare } from '@/lib/supabase/queries/recoltari'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
 
 import { RecoltareCulegatorNou, RecoltareCulegatorStep } from './RecoltareCulegatorStep'
@@ -110,6 +110,16 @@ const EMPTY_DRAFT: Draft = {
 }
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
+
+const NETWORK_ERROR = /failed to fetch|networkerror|network request failed|load failed|fetch failed/i
+
+/** Erorile de rețea vin ca text tehnic („TypeError: Failed to fetch”); restul mesajelor rămân cum le dă serverul. */
+function readableSaveError(message: string): string {
+  if (NETWORK_ERROR.test(message)) {
+    return 'Nu există conexiune la internet. Când revine, apasă din nou „Salvează”: recoltarea nu se dublează.'
+  }
+  return message
+}
 
 /** Primul tratament aflat încă în perioada de pauză pe parcela aleasă. Avertizează, nu blochează (ca până acum). */
 function findPauseWarning(
@@ -267,7 +277,7 @@ export function RecoltareStepForm({
     const key = form.clientSyncId
     let guard = guardRef.current
     if (!guard || guard.key !== key) {
-      guard = createRecoltareSaveGuard(key, queryClient.getQueryData<Recoltare[]>(queryKeys.recoltari) ?? recoltari)
+      guard = createRecoltareSaveGuard(key)
       guardRef.current = guard
     }
     if (guard.inFlight) return
@@ -288,13 +298,8 @@ export function RecoltareStepForm({
     setSaving(true)
     setSaveError(null)
 
-    const outcome = await saveRecoltareGuarded({
-      guard,
-      attempt,
-      observatii,
-      refetch: () => queryClient.fetchQuery({ queryKey: queryKeys.recoltari, queryFn: getRecoltari, staleTime: 0 }),
-      create: createRecoltare,
-    })
+    // Cheia formularului pleacă spre server ca `client_sync_id`: o reîncercare întoarce recoltarea deja creată.
+    const outcome = await saveRecoltareGuarded({ guard, attempt, observatii, create: createRecoltare })
     if (outcome.status === 'busy') return
 
     // Formularul a fost închis sau repornit între timp: rezultatul nu mai aparține ecranului curent.
@@ -303,7 +308,7 @@ export function RecoltareStepForm({
     if (outcome.status === 'failed') {
       if (stillCurrent) {
         setSaving(false)
-        setSaveError(outcome.error)
+        setSaveError(readableSaveError(outcome.error))
         form.markFailed()
       }
       hapticError()
@@ -478,7 +483,8 @@ export function RecoltareStepForm({
           <div className="flex min-h-full flex-col gap-3">
             {saved.differs ? (
               <Notice tone="warning" title="S-au salvat valorile de la prima încercare">
-                Modificarea făcută după aceea nu a ajuns la server. Corectează cântărirea din lista zilei.
+                Prima trimitere ajunsese deja la server, iar modificarea făcută după aceea nu s-a aplicat. Corectează
+                cântărirea din lista zilei.
               </Notice>
             ) : null}
             {saved.warning ? (

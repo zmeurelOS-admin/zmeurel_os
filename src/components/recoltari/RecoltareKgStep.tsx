@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { CalendarDays, MapPin, NotebookPen, Plus, Sprout } from 'lucide-react'
 
 import { Button, KgField, Notice, StatusPill, StepFormTitle, kitText } from '@/components/kit'
@@ -59,11 +60,26 @@ export function RecoltareKgStep({
 }: RecoltareKgStepProps) {
   const hasNote = note.trim() !== ''
 
+  // Eroarea trebuie văzută și când conținutul pasului e derulat în jos.
+  const errorRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (saveError) errorRef.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [saveError])
+
   return (
     <div className="space-y-2">
       <StepFormTitle>
         <span className="block truncate">{workerName}</span>
       </StepFormTitle>
+
+      {/* Sus, nu sub câmpuri: la 390×800 zona de sub plată e sub marginea ecranului. */}
+      {saveError ? (
+        <div ref={errorRef}>
+          <Notice tone="danger" title="Nu s-a salvat">
+            {saveError}
+          </Notice>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-2">
         <Pastila icon={<CalendarDays aria-hidden />} label="Data" value={dateLabel} onClick={() => onOpenChoice('data')} />
@@ -118,12 +134,6 @@ export function RecoltareKgStep({
           <span className={cn('font-extrabold text-fg', kitText.card)}>{formatLei(paymentLei ?? 0)}</span>
         </p>
       )}
-
-      {saveError ? (
-        <Notice tone="danger" title="Nu s-a salvat">
-          {saveError}
-        </Notice>
-      ) : null}
 
       <div className={cn('grid gap-2', withCal2 ? 'grid-cols-1' : 'grid-cols-2')}>
         {withCal2 ? null : (

@@ -5118,6 +5118,48 @@ export type Database = {
         }
         Returns: string
       }
+      create_recoltare_idempotent: {
+        Args: {
+          p_client_sync_id: string
+          p_culegator_id: string
+          p_data: string
+          p_kg_cal1?: number
+          p_kg_cal2?: number
+          p_observatii?: string
+          p_parcela_id: string
+          p_tenant_id?: string
+        }
+        Returns: {
+          cantitate_kg: number
+          client_sync_id: string
+          conflict_flag: boolean | null
+          created_at: string
+          created_by: string | null
+          culegator_id: string | null
+          cultura_id: string | null
+          data: string
+          data_origin: string | null
+          demo_seed_id: string | null
+          id: string
+          id_recoltare: string
+          kg_cal1: number
+          kg_cal2: number
+          observatii: string | null
+          parcela_id: string | null
+          pret_lei_pe_kg_snapshot: number
+          sync_status: string | null
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+          valoare_munca_lei: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "recoltari"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       create_recoltare_with_stock:
         | {
             Args: {
