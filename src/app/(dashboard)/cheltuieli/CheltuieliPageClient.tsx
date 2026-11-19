@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { ChevronLeft, ChevronRight, FileText, Pencil, Plus, Trash2, Wallet } from 'lucide-react'
+import { ChevronLeft, ChevronRight, FileText, Pencil, Plus, Search, Trash2, Wallet } from 'lucide-react'
 
 import { AppShell } from '@/components/app/AppShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
@@ -15,6 +15,7 @@ import {
   type FinancialPrefill,
 } from '@/components/cheltuieli/CheltuialaStepForm'
 import {
+  BigInput,
   BottomSheet,
   Button,
   EmptyState,
@@ -42,7 +43,7 @@ import {
   sumLei,
   type MonthRef,
 } from '@/lib/financial/view'
-import { capitalizeRo, formatLei, monthYearRo, shortDateRo, weekdayDateRo } from '@/lib/format-ro'
+import { capitalizeRo, formatLei, monthYearRo, searchKey, shortDateRo, weekdayDateRo } from '@/lib/format-ro'
 import { queryKeys } from '@/lib/query-keys'
 import { deleteCheltuiala, getCheltuieli, type Cheltuiala } from '@/lib/supabase/queries/cheltuieli'
 import { deleteInvestitie, getInvestitii, type Investitie } from '@/lib/supabase/queries/investitii'
@@ -96,6 +97,7 @@ export function CheltuieliPageClient({ initialCheltuieli, initialInvestitii, par
   const queryString = searchParams.toString()
 
   const [tab, setTab] = useState<Tab>(initialTab)
+  const [query, setQuery] = useState('')
   const [monthOffset, setMonthOffset] = useState(0)
   const [yearOffset, setYearOffset] = useState(0)
 
@@ -236,6 +238,16 @@ export function CheltuieliPageClient({ initialCheltuieli, initialInvestitii, par
   const rows: Row[] = isCheltuieli
     ? monthRows.map((row) => ({ kind: 'cheltuiala' as const, row }))
     : yearRows.map((row) => ({ kind: 'investitie' as const, row }))
+  // Căutarea privește doar lista; cardurile de sus rămân totalurile perioadei.
+  const searchText = searchKey(query)
+  const visibleRows = searchText
+    ? rows.filter((item) => {
+        const categorie =
+          item.kind === 'cheltuiala' ? resolveCheltuialaCategorie(item.row.categorie) : resolveInvestitieCategorie(item.row.categorie)
+        const parcela = item.kind === 'investitie' && item.row.parcela_id ? parcelaNames.get(item.row.parcela_id) : null
+        return [categorie, item.row.descriere, item.row.furnizor, parcela].some((value) => searchKey(value).includes(searchText))
+      })
+    : rows
   const periodLabel = isCheltuieli
     ? month
       ? capitalizeRo(monthYearRo(month.year, month.month))
@@ -273,7 +285,10 @@ export function CheltuieliPageClient({ initialCheltuieli, initialInvestitii, par
           aria-label="Ce arăt"
           panelId="cheltuieli-lista"
           value={tab}
-          onValueChange={setTab}
+          onValueChange={(next) => {
+            setTab(next)
+            setQuery('')
+          }}
           options={[
             { value: 'cheltuieli', label: 'Cheltuieli' },
             { value: 'investitii', label: 'Investiții' },
@@ -335,12 +350,27 @@ export function CheltuieliPageClient({ initialCheltuieli, initialInvestitii, par
 
         {canWrite ? <div className="hidden md:block">{addButton}</div> : null}
 
+        {rows.length > 5 ? (
+          <BigInput
+            aria-label="Caută după categorie, furnizor sau descriere"
+            placeholder="Caută: categorie, furnizor…"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            leading={<Search aria-hidden />}
+            autoComplete="off"
+            autoCorrect="off"
+            enterKeyHint="search"
+          />
+        ) : null}
+
         <section id="cheltuieli-lista" role="tabpanel" aria-label={isCheltuieli ? 'Cheltuieli' : 'Investiții'}>
           {loading ? (
             <div className="space-y-2" aria-busy="true" aria-label="Se încarcă">
               <div className="h-[68px] animate-pulse rounded-box bg-surface-muted" />
               <div className="h-[68px] animate-pulse rounded-box bg-surface-muted" />
             </div>
+          ) : visibleRows.length === 0 && rows.length > 0 ? (
+            <EmptyState icon={<Search />} title="Nimic găsit" description="Caută după categorie, furnizor sau ce ai cumpărat." />
           ) : rows.length === 0 ? (
             <EmptyState
               icon={<Wallet />}
@@ -355,7 +385,7 @@ export function CheltuieliPageClient({ initialCheltuieli, initialInvestitii, par
             />
           ) : (
             <ul className="space-y-2">
-              {rows.map((item) => {
+              {visibleRows.map((item) => {
                 const categorie =
                   item.kind === 'cheltuiala' ? resolveCheltuialaCategorie(item.row.categorie) : resolveInvestitieCategorie(item.row.categorie)
                 const auto = item.kind === 'cheltuiala' && isAutoManoperaCheltuiala(item.row)
