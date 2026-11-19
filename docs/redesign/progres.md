@@ -1,6 +1,6 @@
 # Redesign UI — progres
 
-Ultima actualizare: 19 noiembrie 2026, după Recoltări pe kit (prompt 05).
+Ultima actualizare: noaptea de 19 → 20 noiembrie 2026 (prompt 08). Starea la zi a nopții: `docs/redesign/raport-noapte.md`.
 
 | Fază | Stare |
 |---|---|
@@ -10,7 +10,7 @@ Ultima actualizare: 19 noiembrie 2026, după Recoltări pe kit (prompt 05).
 | 1a — Fundația: modul noapte, straturi, tokeni | **gata** pe branch `redesign/fundatie` (nemergeuit): `docs/redesign/tokens.md` |
 | 1b — Componentele kitului + `/admin/kit` | **gata** pe branch `redesign/kit` (nemergeuit): `src/components/kit/`, `/admin/kit`, regulile din `CLAUDE.md` |
 | 2 — Mockupuri pe module | neîncepută |
-| 3 — Implementare modul cu modul | **Recoltări (pilot): gata** pe branch `redesign/recoltari` (nemergeuit); urmează Comenzi + Livrări |
+| 3 — Implementare modul cu modul | **Recoltări (pilot): gata** pe branch `redesign/recoltari`. **Comenzi: gata** pe `redesign/comenzi` (nemergeuit), cu migrarea comună scrisă și neaplicată. Urmează, în lanț: Livrări, Acasă, Clienți + Culegători + Setări, Cheltuieli + Investiții + Vânzări. Detalii: `raport-noapte.md` |
 
 ## Ce s-a făcut în Faza 0
 
