@@ -27,7 +27,7 @@ import {
   sezonPeScurt,
 } from '@/lib/dashboard/acasa'
 import type { ParcelDashboardState } from '@/lib/dashboard/engine'
-import { farmSettingsQueryKey, saveFarmSettings, useFarmSettings } from '@/lib/farm-settings'
+import { farmSettingsQueryKey, SAVE_ERROR_MESSAGE, saveFarmSettings, useFarmSettings } from '@/lib/farm-settings'
 import { formatKg, formatLei, formatNumber, shortDateRo, weekdayDateRo } from '@/lib/format-ro'
 import type { ActivitateAgricola } from '@/lib/supabase/queries/activitati-agricole'
 import type { Comanda } from '@/lib/supabase/queries/comenzi'
@@ -105,7 +105,7 @@ export function AcasaMobile({
       }
       await queryClient.invalidateQueries({ queryKey: farmSettingsQueryKey })
     } catch (cause) {
-      toast.error(cause instanceof Error && cause.message ? cause.message : 'Nu s-a salvat. Încearcă din nou.')
+      toast.error(cause instanceof Error && cause.message ? cause.message : SAVE_ERROR_MESSAGE)
     } finally {
       setAnswering(null)
     }

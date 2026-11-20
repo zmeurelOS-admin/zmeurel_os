@@ -36,6 +36,7 @@ import {
   enableFarmSetupMode,
   markDemoSeedAttempted,
 } from '@/lib/demo/onboarding-storage'
+import { SAVE_ERROR_MESSAGE, saveTenantSettingsRow } from '@/lib/farm-settings'
 import { getSupabase } from '@/lib/supabase/client'
 import { getTenantByIdOrNull, getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
 import type { Database } from '@/types/supabase'
@@ -428,7 +429,6 @@ export default function SettingsPage() {
     if (!tenantId) return
     setIsSavingLocation(true)
     try {
-      const supabase = getSupabase()
       const lat = latitudineDefaultDraft.trim() ? parseFloat(latitudineDefaultDraft.trim()) : null
       const lng = longitudineDefaultDraft.trim() ? parseFloat(longitudineDefaultDraft.trim()) : null
 
@@ -439,18 +439,11 @@ export default function SettingsPage() {
         return
       }
 
-      // Upsert tenant settings
-      const { error } = await supabase
-        .from('tenant_settings')
-        .upsert({
-          tenant_id: tenantId,
-          latitudine_default: lat,
-          longitudine_default: lng,
-        }, {
-          onConflict: 'tenant_id'
-        })
-
-      if (error) throw error
+      // Scrierea e confirmată (rândul trebuie să vină înapoi); orice eșec aruncă SAVE_ERROR_MESSAGE.
+      await saveTenantSettingsRow({
+        latitudine_default: lat,
+        longitudine_default: lng,
+      })
 
       setLatitudineDefault(String(lat ?? ''))
       setLatitudineDefaultDraft(String(lat ?? ''))
@@ -458,8 +451,8 @@ export default function SettingsPage() {
       setLongitudineDefaultDraft(String(lng ?? ''))
       toast.success('Locația fermei a fost actualizată.')
     } catch (err: unknown) {
-      const msg = (err as { message?: string })?.message ?? 'Nu am putut salva locația.'
-      toast.error(msg)
+      console.error('[settings] locația fermei nu s-a salvat', err)
+      toast.error(SAVE_ERROR_MESSAGE)
     } finally {
       setIsSavingLocation(false)
     }

@@ -19,6 +19,7 @@ import {
 import { deleteAllClients, type DeleteAllClientsResult } from '@/lib/clienti/import'
 import {
   farmSettingsQueryKey,
+  SAVE_ERROR_MESSAGE,
   saveFarmSettings,
   useFarmSettings,
   type AcasaExtrasezonAfiseaza,
@@ -113,7 +114,7 @@ function PretStandardSection() {
       setPerioada(null)
       toast.success('Prețul standard a fost salvat.')
     } catch (cause) {
-      setError(cause instanceof Error && cause.message ? cause.message : 'Prețul nu s-a salvat.')
+      setError(cause instanceof Error && cause.message ? cause.message : SAVE_ERROR_MESSAGE)
     } finally {
       setSaving(false)
     }
@@ -251,7 +252,7 @@ function AcasaSection() {
       setAfiseaza(null)
       toast.success('Setările pentru Acasă au fost salvate.')
     } catch (cause) {
-      setError(cause instanceof Error && cause.message ? cause.message : 'Setările nu s-au salvat.')
+      setError(cause instanceof Error && cause.message ? cause.message : SAVE_ERROR_MESSAGE)
     } finally {
       setSaving(false)
     }

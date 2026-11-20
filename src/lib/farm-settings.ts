@@ -139,14 +139,61 @@ type LooseTable = {
       maybeSingle: () => PromiseLike<{ data: SettingsRow | null; error: { message?: string } | null }>
     }
   }
-  upsert: (
-    values: Record<string, unknown>,
-    options: { onConflict: string },
-  ) => PromiseLike<{ error: { message?: string } | null }>
+  upsert: (values: Record<string, unknown>, options: { onConflict: string }) => SettingsUpsertBuilder
+}
+
+export interface SettingsUpsertBuilder {
+  select: (columns: string) => PromiseLike<{ data: unknown[] | null; error: { message?: string; code?: string } | null }>
+}
+
+export interface SettingsWriteTable {
+  upsert: (values: Record<string, unknown>, options: { onConflict: string }) => SettingsUpsertBuilder
 }
 
 function settingsTable(): LooseTable {
   return (getSupabase() as unknown as { from: (table: string) => LooseTable }).from('tenant_settings')
+}
+
+/** Mesajul pe care îl vede utilizatorul când scrierea în `tenant_settings` pică (RLS, rețea, rând nescris). */
+export const SAVE_ERROR_MESSAGE = 'Nu s-a putut salva. Încearcă din nou.'
+
+/**
+ * Scrie un rând în `tenant_settings` și confirmă că s-a scris: cere rândul înapoi (`select`), ca o scriere
+ * refuzată tăcut (0 rânduri) să nu treacă drept salvare. Orice eșec (eroare, excepție de rețea, 0 rânduri)
+ * aruncă `SAVE_ERROR_MESSAGE`; cauza rămâne în `cause` și în consolă.
+ */
+export async function writeTenantSettings(
+  table: SettingsWriteTable,
+  tenantId: string,
+  values: Record<string, unknown>,
+): Promise<void> {
+  let result: Awaited<ReturnType<SettingsUpsertBuilder['select']>>
+  try {
+    result = await table.upsert({ tenant_id: tenantId, ...values }, { onConflict: 'tenant_id' }).select('tenant_id')
+  } catch (cause) {
+    console.error('[tenant_settings] scrierea a eșuat', cause)
+    throw new Error(SAVE_ERROR_MESSAGE, { cause })
+  }
+  if (result.error) {
+    console.error('[tenant_settings] scrierea a fost refuzată', result.error)
+    throw new Error(SAVE_ERROR_MESSAGE, { cause: result.error })
+  }
+  if (!Array.isArray(result.data) || result.data.length === 0) {
+    console.error('[tenant_settings] scrierea nu a întors niciun rând')
+    throw new Error(SAVE_ERROR_MESSAGE)
+  }
+}
+
+/** `tenant_settings` pentru fermă curentă, cu confirmarea scrierii (vezi `writeTenantSettings`). */
+export async function saveTenantSettingsRow(values: Record<string, unknown>): Promise<void> {
+  let tenantId: string
+  try {
+    tenantId = await getTenantId(getSupabase())
+  } catch (cause) {
+    console.error('[tenant_settings] ferma nu s-a putut afla', cause)
+    throw new Error(SAVE_ERROR_MESSAGE, { cause })
+  }
+  await writeTenantSettings(settingsTable(), tenantId, values)
 }
 
 export async function getFarmSettings(): Promise<FarmSettings> {
@@ -202,9 +249,7 @@ export async function saveFarmSettings(patch: FarmSettingsPatch): Promise<void> 
   }
   if (Object.keys(values).length === 0) return
 
-  const tenantId = await getTenantId(getSupabase())
-  const { error } = await settingsTable().upsert({ tenant_id: tenantId, ...values }, { onConflict: 'tenant_id' })
-  if (error) throw new Error(error.message || 'Setările nu s-au salvat.')
+  await saveTenantSettingsRow(values)
 }
 
 export const farmSettingsQueryKey = ['farm-settings'] as const

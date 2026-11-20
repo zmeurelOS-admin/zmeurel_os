@@ -530,3 +530,29 @@ Preview: `https://zmeurel-git-redesign-cheltuieli-vanzari-zmeurelos-admins-proje
 | 14 | „Vânzare rapidă” cu mai mult decât stocul | „Ai doar X kg în stoc cal. 1”, butonul inactiv. |
 | 15 | **După migrare:** o vânzare neîncasată → „A dat doar o parte…” | Rândul arată „A dat X · rest Y”; „Neîncasat” scade cu X; venitul lunii nu se schimbă până la „Marchează încasat azi”. |
 | 16 | Android, formularul deschis → „înapoi” | Cu ceva scris, întreabă „Renunți…?”. |
+
+## 8. Corectura de dimineață — RLS pe `tenant_settings` (prompt 09)
+
+**Ce s-a găsit (citire în producție, 20.11.2026).** Politicile RLS de pe `tenant_settings` (din `2026033004_create_tenant_settings.sql`) cer `tenant_id = current_setting('app.current_tenant_id', true)::uuid`. Aplicația nu setează niciodată `app.current_tenant_id`, deci citirea întoarce mereu 0 rânduri (tabelul e gol în producție; nici `latitudine_default` nu s-a salvat vreodată), iar `insert` / `upsert` pică pe RLS. Bănuiala din secțiunea 2 („probabil merge”) era greșită.
+
+**Migrarea nouă:** `supabase/migrations/20261120100000_tenant_settings_rls.sql`. **Neaplicată.**
+
+- Șterge (`drop policy if exists`) cele trei politici vechi și pune modelul celorlalte tabele:
+  - `tenant_settings_select`: `tenant_id = current_tenant_id()` — proprietarul și operatorii citesc;
+  - `tenant_settings_insert` / `tenant_settings_update`: `(tenant_id = current_tenant_id()) and is_tenant_owner(tenant_id)` — doar proprietarul scrie (la UPDATE și în `with check`);
+  - fără politică de DELETE.
+- Semnăturile verificate în migrări: `public.current_tenant_id()` (ultima definiție în `20260621102224_…`) și `public.is_tenant_owner(p_tenant uuid)` (`20260619064820_…`).
+- Fără `update` / `delete` pe date, fără alte tabele. Se poate rula de două ori.
+
+**De ce se rulează ÎMPREUNĂ cu `20261120090000_redesign_noapte.sql`.** Prima adaugă coloanele (preț standard, perioada Acasă); fără a doua, coloanele există, dar nimic nu se poate scrie sau citi în ele: prețul standard rămâne 35 lei/kg, „Ce arată Acasă” rămâne pe automat, iar cardul „Începem extrasezonul?” revine după fiecare răspuns. Ordinea: întâi `20261120090000`, apoi `20261120100000` (a doua merge și singură, dar abia împreună se aprind setările).
+
+**Ce s-a schimbat în cod**
+
+- `src/lib/farm-settings.ts`: scrierea în `tenant_settings` trece printr-un singur loc, `writeTenantSettings` / `saveTenantSettingsRow`. Face `upsert` pe `tenant_id` **și cere rândul înapoi** (`.select('tenant_id')`): o eroare (RLS, rețea) sau 0 rânduri întoarse aruncă `„Nu s-a putut salva. Încearcă din nou.”` (`SAVE_ERROR_MESSAGE`); cauza rămâne în consolă.
+- Setări › Preț standard și Setări › Ce arată Acasă: mesajul apare în `Notice` roșu, iar valorile rămân ca ciornă (nesalvate), nu ca salvate.
+- Acasă › „Începem extrasezonul?”: la eroare apare mesajul (toast), iar cardul rămâne pe ecran.
+- Setări › Locația fermei (`latitudine_default` / `longitudine_default`): folosește `saveTenantSettingsRow`; la eroare, același mesaj, iar valoarea salvată nu se schimbă.
+- Test nou: `src/lib/__tests__/tenant-settings-write.test.ts` (refuz RLS, 0 rânduri, eroare de rețea, forma cererii).
+- De știut: mesajul WhatsApp implicit din Clienți (`saveWhatsappMessage`, `src/lib/clienti/import.ts`) scrie tot în `tenant_settings` și pica la fel; se repară prin aceeași migrare (afișa deja eroarea).
+
+**De verificat după rularea ambelor migrări (cont demo):** Setări › Preț standard → Salvează → reîncărcați pagina, valorile rămân; Acasă (în extrasezon) → „Începem extrasezonul?” → „Da” → cardul nu mai revine; un operator vede setările, dar salvarea îi arată „Nu s-a putut salva. Încearcă din nou.”.
