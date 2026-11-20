@@ -27,8 +27,39 @@ export const TENANT_SCOPED_DELETE_ORDER = [
 ] as const
 
 export type TenantScopedDeleteTable = (typeof TENANT_SCOPED_DELETE_ORDER)[number]
+
+/**
+ * Lanțul de tratamente și capcane, copil → părinte. Are chei `ON DELETE RESTRICT` spre `parcele`,
+ * `produse_fitosanitare` și `planuri_tratament`: lista comună șterge `parcele` explicit, așa că aceste rânduri
+ * trebuie să plece înainte. (Toate au și `tenant_id ... ON DELETE CASCADE`, dar RESTRICT se verifică imediat.)
+ * Inventar refăcut din `pg_constraint` pe 21.11.2026.
+ */
+export const TREATMENT_CHAIN_DELETE_ORDER = [
+  'aplicari_tratament_produse',
+  'capcane_verificari',
+  'capcane_montate',
+  'aplicari_tratament',
+  'parcele_planuri',
+  'planuri_tratament_linie_produse',
+  'planuri_tratament_linii',
+  'planuri_tratament',
+  'produse_fitosanitare',
+] as const
+export type TreatmentChainDeleteTable = (typeof TREATMENT_CHAIN_DELETE_ORDER)[number]
+
+/** `shop_order_erp_links.comanda_id` → `comenzi` e `NO ACTION`: legătura pleacă înainte de `comenzi`. */
+export const DELETE_TARGET_SHOP_ORDER_LINKS = 'shop_order_erp_links' as const
+/** Doar la ștergerea GDPR: comenzile din magazin ale fermei și ofertele ei către asociație. */
+export const GDPR_ONLY_DELETE_ORDER = ['shop_orders', 'association_product_offers'] as const
+export type GdprOnlyDeleteTable = (typeof GDPR_ONLY_DELETE_ORDER)[number]
+
 export const DELETE_TARGET_ANALYTICS = 'analytics_events' as const
-export type TenantCleanupDeleteTarget = TenantScopedDeleteTable | typeof DELETE_TARGET_ANALYTICS
+export type TenantCleanupDeleteTarget =
+  | TenantScopedDeleteTable
+  | TreatmentChainDeleteTable
+  | typeof DELETE_TARGET_SHOP_ORDER_LINKS
+  | GdprOnlyDeleteTable
+  | typeof DELETE_TARGET_ANALYTICS
 
 export const TENANT_DESTRUCTIVE_CLEANUP_SCOPES = {
   farmReset: 'farm_reset',
@@ -38,7 +69,7 @@ export const TENANT_DESTRUCTIVE_CLEANUP_SCOPES = {
 export type TenantDestructiveCleanupScope =
   (typeof TENANT_DESTRUCTIVE_CLEANUP_SCOPES)[keyof typeof TENANT_DESTRUCTIVE_CLEANUP_SCOPES]
 
-type CleanupStepDefinition = {
+export type CleanupStepDefinition = {
   target: TenantCleanupDeleteTarget
   critical: boolean
   allowMissingTable?: boolean
@@ -111,9 +142,41 @@ function isMissingTableError(error: unknown): boolean {
   return message.includes('does not exist') || message.includes('relation') || message.includes('could not find')
 }
 
-function getScopeSteps(_scope: TenantDestructiveCleanupScope): CleanupStepDefinition[] {
-  // Intenționat același profil operațional acum; păstrăm scope-uri separate pentru evoluții viitoare fără copy-paste.
-  return CANONICAL_OPERATIONAL_STEPS
+function criticalStep(target: TenantCleanupDeleteTarget): CleanupStepDefinition {
+  return { target, critical: true }
+}
+
+/**
+ * Resetarea fermei și ștergerea GDPR sunt cerute explicit de om și trebuie să șteargă toate datele fermei:
+ * întâi lanțul de tratamente (RESTRICT spre `parcele`) și legăturile magazin → comandă (NO ACTION spre
+ * `comenzi`), apoi lista comună.
+ *
+ * - `farm_reset`: comenzile din magazin (`shop_orders`) rămân; pleacă doar legătura lor cu `comenzi`.
+ * - `gdpr_farm_delete`: pleacă și `shop_orders` (după legături) și `association_product_offers`.
+ * - `demo_tenant_cleanup`: neschimbat. Lanțul de tratamente îl șterge `demo-cleanup-server.ts` înainte.
+ */
+const FARM_RESET_STEPS: CleanupStepDefinition[] = [
+  ...TREATMENT_CHAIN_DELETE_ORDER.map(criticalStep),
+  criticalStep(DELETE_TARGET_SHOP_ORDER_LINKS),
+  ...CANONICAL_OPERATIONAL_STEPS,
+]
+
+const GDPR_FARM_DELETE_STEPS: CleanupStepDefinition[] = [
+  ...TREATMENT_CHAIN_DELETE_ORDER.map(criticalStep),
+  criticalStep(DELETE_TARGET_SHOP_ORDER_LINKS),
+  ...GDPR_ONLY_DELETE_ORDER.map(criticalStep),
+  ...CANONICAL_OPERATIONAL_STEPS,
+]
+
+export function getScopeSteps(scope: TenantDestructiveCleanupScope): CleanupStepDefinition[] {
+  switch (scope) {
+    case TENANT_DESTRUCTIVE_CLEANUP_SCOPES.farmReset:
+      return FARM_RESET_STEPS
+    case TENANT_DESTRUCTIVE_CLEANUP_SCOPES.gdprFarmDelete:
+      return GDPR_FARM_DELETE_STEPS
+    default:
+      return CANONICAL_OPERATIONAL_STEPS
+  }
 }
 
 async function deleteTargetRows(admin: AdminClient, target: TenantCleanupDeleteTarget, tenantId: string) {

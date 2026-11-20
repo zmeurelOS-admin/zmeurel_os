@@ -16,10 +16,9 @@ vi.mock('@/lib/supabase/admin', () => ({
   createServiceRoleClient: () => mocks.createServiceRoleClient(),
 }))
 
-vi.mock('@/lib/tenant/destructive-cleanup', () => ({
-  TENANT_DESTRUCTIVE_CLEANUP_SCOPES: {
-    demoTenantCleanup: 'demo_tenant_cleanup',
-  },
+vi.mock('@/lib/tenant/destructive-cleanup', async (importOriginal) => ({
+  // Listele (ex. lanțul de tratamente) rămân cele reale; doar ștergerea comună e simulată.
+  ...(await importOriginal<typeof import('@/lib/tenant/destructive-cleanup')>()),
   deleteTenantScopedData: (...args: unknown[]) => mocks.deleteTenantScopedData(...args),
 }))
 

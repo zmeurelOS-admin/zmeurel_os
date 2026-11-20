@@ -10,6 +10,7 @@ import { BONURI_BUCKET } from '@/lib/bonuri'
 import {
   deleteTenantScopedData,
   TENANT_DESTRUCTIVE_CLEANUP_SCOPES,
+  TREATMENT_CHAIN_DELETE_ORDER,
 } from '@/lib/tenant/destructive-cleanup'
 import type { Database } from '@/types/supabase'
 
@@ -24,26 +25,14 @@ import {
 type Admin = SupabaseClient<Database>
 
 /**
- * Tabele care se șterg DOAR pentru un demo, înaintea listei comune `TENANT_SCOPED_DELETE_ORDER`
- * (folosită și de resetarea fermei și de ștergerea GDPR, unde nu le schimbăm comportamentul).
+ * Tabele care se șterg pentru un demo, înaintea listei comune `TENANT_SCOPED_DELETE_ORDER` (scopul
+ * `demo_tenant_cleanup` nu le are în planul lui).
  *
- * - Lanțul de tratamente și capcane are chei `ON DELETE RESTRICT` spre `parcele`, `produse_fitosanitare` și
- *   `planuri_tratament`. Lista comună șterge `parcele` explicit, așa că rândurile copil trebuie să plece înainte,
- *   copil → părinte. (Toate au și `tenant_id ... ON DELETE CASCADE`, dar RESTRICT se verifică imediat.)
+ * - Lanțul de tratamente și capcane (`TREATMENT_CHAIN_DELETE_ORDER`, în `destructive-cleanup.ts`, comun cu
+ *   resetarea fermei și ștergerea GDPR): chei `ON DELETE RESTRICT` spre `parcele`, copil → părinte.
  * - `ai_usage_log.tenant_id` (și `user_id`) n-are cascadă: ar bloca ștergerea fermei și a utilizatorului.
  */
-export const DEMO_ONLY_DELETE_ORDER = [
-  'aplicari_tratament_produse',
-  'capcane_verificari',
-  'capcane_montate',
-  'aplicari_tratament',
-  'parcele_planuri',
-  'planuri_tratament_linie_produse',
-  'planuri_tratament_linii',
-  'planuri_tratament',
-  'produse_fitosanitare',
-  'ai_usage_log',
-] as const
+export const DEMO_ONLY_DELETE_ORDER = [...TREATMENT_CHAIN_DELETE_ORDER, 'ai_usage_log'] as const
 
 const PAGINA_UTILIZATORI = 1000
 const PAGINA_RANDURI = 1000
