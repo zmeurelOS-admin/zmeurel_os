@@ -103,7 +103,7 @@ function buildBaseSecurityHeaders(options = {}) {
     },
     {
       key: 'Permissions-Policy',
-      value: 'camera=(), microphone=(self), geolocation=()',
+      value: 'camera=(), microphone=(self), geolocation=(self)',
     },
     {
       key: 'X-DNS-Prefetch-Control',

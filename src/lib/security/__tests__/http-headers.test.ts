@@ -50,7 +50,7 @@ describe('security headers config', () => {
     )
     expect(findHeader(prodHeaders, 'X-Content-Type-Options')?.value).toBe('nosniff')
     expect(findHeader(prodHeaders, 'Permissions-Policy')?.value).toBe(
-      'camera=(), microphone=(self), geolocation=()',
+      'camera=(), microphone=(self), geolocation=(self)',
     )
     expect(findHeader(prodHeaders, 'Strict-Transport-Security')?.value).toBe(
       'max-age=63072000; includeSubDomains; preload',

@@ -556,3 +556,19 @@ Preview: `https://zmeurel-git-redesign-cheltuieli-vanzari-zmeurelos-admins-proje
 - De știut: mesajul WhatsApp implicit din Clienți (`saveWhatsappMessage`, `src/lib/clienti/import.ts`) scrie tot în `tenant_settings` și pica la fel; se repară prin aceeași migrare (afișa deja eroarea).
 
 **De verificat după rularea ambelor migrări (cont demo):** Setări › Preț standard → Salvează → reîncărcați pagina, valorile rămân; Acasă (în extrasezon) → „Începem extrasezonul?” → „Da” → cardul nu mai revine; un operator vede setările, dar salvarea îi arată „Nu s-a putut salva. Încearcă din nou.”.
+
+## 9. După merge (20.11)
+
+Branch `redesign/corecturi-1`, pornit din `main` `ac3d3bd`. Ambele migrări (`20261120090000_redesign_noapte`, `20261120100000_tenant_settings_rls`) sunt aplicate în producție; prețul standard se salvează (verificat în cont demo).
+
+**Tipurile regenerate din producție.** `src/types/supabase.ts` a fost regenerat prin Supabase MCP (commit `5d2ce28`), în locul variantei scrise de mână. Diferențe: `comenzi.prioritara` e `boolean` (nu mai e nullable), `tenant_settings.acasa_perioada_mod` și `extrasezon_intrebare_din` sunt `string` (nu mai sunt nullable), apare RPC-ul `deliver_and_clone_comanda`. `npm run typecheck` trece fără nicio modificare în cod: tipurile mai stricte nu au rupt nimic (codul trata deja `null` cu valori de rezervă, care acum sunt doar redundante). Fișierul de tipuri nu a fost atins de mână.
+
+**Localizarea era blocată în tot site-ul.** `src/lib/security/http-headers.js` trimitea `Permissions-Policy: …, geolocation=()`, care interzice `navigator.geolocation` pe orice pagină: în Livrări nu se puteau salva locațiile clienților și traseul optimizat nu putea porni de la poziția curentă (browserul răspundea direct cu „permisiune refuzată”).
+
+- Acum: `camera=(), microphone=(self), geolocation=(self)` — doar originea proprie, fără iframe-uri străine. Testul din `src/lib/security/__tests__/http-headers.test.ts` e actualizat.
+- Alte locuri care setează `Permissions-Policy`: niciunul. `next.config.js` folosește `buildBaseSecurityHeaders` din același fișier; `vercel.json` și `src/proxy.ts` nu setează headerul. (Copii vechi în `.codex-tmp/` și `zmeurel-audit-stage-*/` nu fac parte din build.)
+- `src/lib/livrari/device.ts` arăta deja mesaje pe înțeles: fără suport („Telefonul nu dă locația.”), timeout, indisponibil. Mesajul de refuz spune acum „Permite-o din setările browserului sau ale telefonului.” (refuzul poate veni și din browser, nu doar din telefon). Livrări (traseu) și foaia unei opriri afișează mesajul, nu eroarea tehnică.
+
+**`src/lib/schema-features.ts` rămâne cum e.** Cu migrările aplicate, toate cele 5 verificări de coloane găsesc coloanele, deci toate funcțiile sunt aprinse. Mecanismul rămâne: tenanții noi și demo-urile trec prin aceeași cale. **De făcut mai târziu**, după ce rămânem stabili câteva zile: cele 5 cereri `select('<coloană>').limit(1)` pe sesiune pot fi scoase, împreună cu ramurile de rezervă din module (coloanele devin obligatorii).
+
+**Verificări:** `npm run lint` — doar cele 2 erori vechi (`react-hooks/set-state-in-effect`) și 11 avertismente; `npm run typecheck` — curat; `npm run check:kit` — OK, 104 fișiere; `npm run test:critical:unit` — 399/401 în rularea completă: cele 2 picate sunt timeout-uri de 5 s la primul test din `integrations/google/__tests__/callback.route.test.ts` și `connect.route.test.ts` (încărcarea modulului sub sarcină paralelă), fără legătură cu schimbarea; rulate separat trec 19/19; `npm run build` — trece.

@@ -24,7 +24,7 @@ export function getDevicePosition(timeoutMs = 10_000): Promise<DevicePosition> {
         }),
       (error) => {
         if (error.code === error.PERMISSION_DENIED) {
-          reject(new Error('Locația e oprită pentru aplicație. Pornește-o din setările telefonului.'))
+          reject(new Error('Locația e oprită pentru aplicație. Permite-o din setările browserului sau ale telefonului.'))
         } else if (error.code === error.TIMEOUT) {
           reject(new Error('Locația nu a venit la timp. Încearcă din nou, sub cer liber.'))
         } else {
