@@ -130,6 +130,11 @@ export type RaspunsFetchMeteo = {
     tempMin?: number | null
     icon?: string | null
     pop?: number | null
+    /**
+     * Toate intervalele de 3 ore de mâine cu furtună (cod 2xx). Lipsește la răspunsurile vechi ale funcției
+     * (înainte de deploy sau dintr-un rând de cache vechi).
+     */
+    furtuni?: ReadonlyArray<{ pop?: number | null } | null> | null
   } | null
 }
 
@@ -139,8 +144,9 @@ export type RaspunsFetchMeteo = {
  * - „Mâine” e ziua de după cea în care s-a luat prognoza (`fetchedAt`), ca în Edge Function.
  * - Minima e cea mai mică temperatură din intervalele de 3 ore ale zilei de mâine (00:00–24:00),
  *   deci include dimineața de după noaptea care vine.
- * - Pe ore, `fetch-meteo` păstrează doar intervalul cu cea mai mare probabilitate de ploaie: iconița lui
- *   („11” = furtună, codurile 2xx) și probabilitatea. Pe acela îl verificăm.
+ * - Pe ore: intervalul cu cea mai mare probabilitate de ploaie (iconița lui, „11” = furtună) și, separat,
+ *   toate intervalele cu furtună (`furtuni`, codurile 2xx). Un răspuns vechi, fără `furtuni`, are doar
+ *   intervalul cu ploaia maximă: pe acela îl verificăm.
  */
 export function prognozaDinFetchMeteo(tenantId: string, raspuns: RaspunsFetchMeteo | null | undefined): PrognozaFerma {
   const gol: PrognozaFerma = { tenantId, pentruZiua: null, minimaC: null, perioade: null }
@@ -157,6 +163,22 @@ export function prognozaDinFetchMeteo(tenantId: string, raspuns: RaspunsFetchMet
     tenantId,
     pentruZiua: adaugaZile(ziuaInBucuresti(luata), 1),
     minimaC: minima,
-    perioade: icon && pop !== null ? [{ furtuna: icon.startsWith('11'), probabilitate: pop }] : null,
+    perioade: perioadeDinMaine(icon, pop, maine?.furtuni),
   }
+}
+
+function perioadeDinMaine(
+  icon: string | null,
+  pop: number | null,
+  furtuni: ReadonlyArray<{ pop?: number | null } | null> | null | undefined,
+): PerioadaPrognoza[] | null {
+  const perioade: PerioadaPrognoza[] = []
+  if (icon && pop !== null) perioade.push({ furtuna: icon.startsWith('11'), probabilitate: pop })
+  if (Array.isArray(furtuni)) {
+    for (const furtuna of furtuni) {
+      const p = typeof furtuna?.pop === 'number' && Number.isFinite(furtuna.pop) ? furtuna.pop : null
+      perioade.push({ furtuna: true, probabilitate: p })
+    }
+  }
+  return perioade.length > 0 ? perioade : null
 }

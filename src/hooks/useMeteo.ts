@@ -30,6 +30,8 @@ type MeteoResponse = {
     tempMax: number | null
     icon: string | null
     pop: number | null
+    /** Intervalele de 3 ore de mâine cu furtună (cod 2xx); lipsește la răspunsurile vechi. */
+    furtuni?: Array<{ ora: string; pop: number | null; cod: number | null; icon: string | null }> | null
   }
   spray?: {
     canSpray: boolean

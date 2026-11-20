@@ -1,5 +1,14 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
+import {
+  EMPTY_TOMORROW,
+  aggregateTomorrowFromForecast5,
+  readFurtuniFromRawJson,
+  type IntervalFurtuna,
+  type OpenWeatherForecast5Response,
+  type TomorrowAgg,
+} from './meteo-forecast.ts'
+
 /** Ultim resort (Suceava) — aliniat la seed demo, dacă tenantul nu are încă GPS în parcele/setări */
 const DEFAULT_METEO_LAT = 47.6514
 const DEFAULT_METEO_LON = 26.2553
@@ -41,92 +50,6 @@ type OpenWeather25Response = {
   name?: string
 }
 
-/** 5 Day / 3 Hour — gratuit, pentru min/max și probabilitate ploaie „mâine” (agregat pe intervale). */
-type OpenWeatherForecast5Response = {
-  list?: Array<{
-    dt?: number
-    main?: {
-      temp?: number
-      temp_min?: number
-      temp_max?: number
-    }
-    weather?: Array<{ icon?: string }>
-    pop?: number
-  }>
-}
-
-const BUCHAREST_TZ = 'Europe/Bucharest'
-
-type TomorrowAgg = {
-  tempMin: number | null
-  tempMax: number | null
-  icon: string | null
-  pop: number | null
-}
-
-function ymdInBucharest(ms: number): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: BUCHAREST_TZ,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(ms))
-}
-
-/** Prima zi calendaristică după „azi” în București (pentru prognoza „mâine”). */
-function nextCalendarYmdBucharestAfterToday(): string {
-  const today = ymdInBucharest(Date.now())
-  let t = Date.now() + 12 * 3600000
-  for (let i = 0; i < 96; i++) {
-    const y = ymdInBucharest(t)
-    if (y !== today) return y
-    t += 3600000
-  }
-  return today
-}
-
-function aggregateTomorrowFromForecast5(forecast: OpenWeatherForecast5Response): TomorrowAgg | null {
-  const targetYmd = nextCalendarYmdBucharestAfterToday()
-  const items = forecast.list ?? []
-  const slots = items.filter((it) => {
-    const sec = asFiniteNumber(it.dt)
-    if (sec === null) return false
-    return ymdInBucharest(sec * 1000) === targetYmd
-  })
-  if (slots.length === 0) return null
-
-  let tMin = Infinity
-  let tMax = -Infinity
-  let maxPop = 0
-  let iconForMaxPop: string | null = slots[0]?.weather?.[0]?.icon ?? null
-
-  for (const s of slots) {
-    const mn = asFiniteNumber(s.main?.temp_min)
-    const mx = asFiniteNumber(s.main?.temp_max)
-    const tmid = asFiniteNumber(s.main?.temp)
-    const pop = asFiniteNumber(s.pop) ?? 0
-    if (mn !== null) tMin = Math.min(tMin, mn)
-    if (mx !== null) tMax = Math.max(tMax, mx)
-    if ((mn === null || mx === null) && tmid !== null) {
-      tMin = Math.min(tMin, tmid)
-      tMax = Math.max(tMax, tmid)
-    }
-    if (pop > maxPop) {
-      maxPop = pop
-      iconForMaxPop = s.weather?.[0]?.icon ?? iconForMaxPop
-    }
-  }
-
-  if (!Number.isFinite(tMin) || !Number.isFinite(tMax)) return null
-
-  return {
-    tempMin: asRoundedNumber(tMin, 1),
-    tempMax: asRoundedNumber(tMax, 1),
-    icon: iconForMaxPop,
-    pop: asRoundedNumber(maxPop, 2),
-  }
-}
-
 async function fetchOpenWeatherCurrentAndForecast(
   lat: number,
   lon: number,
@@ -158,14 +81,7 @@ async function fetchOpenWeatherCurrentAndForecast(
 
   const current = await currentRes.json() as OpenWeather25Response
 
-  const emptyTomorrow: TomorrowAgg = {
-    tempMin: null,
-    tempMax: null,
-    icon: null,
-    pop: null,
-  }
-
-  let tomorrow = emptyTomorrow
+  let tomorrow: TomorrowAgg = EMPTY_TOMORROW
   if (forecastRes.ok) {
     try {
       const forecastJson = await forecastRes.json() as OpenWeatherForecast5Response
@@ -207,6 +123,11 @@ type MeteoPayload = {
     tempMax: number | null
     icon: string | null
     pop: number | null
+    /**
+     * Toate intervalele de 3 ore de mâine cu furtună (cod 2xx). `null` = rând de cache scris de o
+     * versiune veche, fără detaliul pe ore.
+     */
+    furtuni: IntervalFurtuna[] | null
   }
   spray?: SprayAdvice
 }
@@ -306,6 +227,7 @@ function formatCacheRow(row: MeteoCacheRow, source: 'cache' | 'fresh'): MeteoPay
       tempMax: row.forecast_tomorrow_temp_max,
       icon: row.forecast_tomorrow_icon,
       pop: row.forecast_tomorrow_pop,
+      furtuni: readFurtuniFromRawJson(row.raw_json),
     },
     spray,
   }
@@ -368,6 +290,7 @@ function buildEphemeralMeteoPayload(
       tempMax: tomorrow.tempMax,
       icon: tomorrow.icon,
       pop: tomorrow.pop,
+      furtuni: tomorrow.furtuni,
     },
     spray,
   }
