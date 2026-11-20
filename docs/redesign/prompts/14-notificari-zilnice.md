@@ -44,7 +44,7 @@ Model: Opus 5.5 · Effort: high · Mod: normal (fără plan) · Sesiune: NOUĂ �
    - **`/api/cron/notificari-dimineata`**, la `0 5 * * *` UTC (7:00 iarna, 8:00 vara, ora României): meteo + bani de încasat.
    - **`/api/cron/notificari-seara`**, la `0 17 * * *` UTC (19:00 / 20:00): comenzi de mâine.
    - Pentru amândouă:
-     - **Fermele luate în calcul:** doar fermele reale, sărind demo-urile (cum le recunoaște `demo-tenant-cleanup`; refolosești aceeași regulă).
+     - **Fermele luate în calcul:** doar fermele reale. **Atenție:** `demo-tenant-cleanup` NU e o regulă bună: toate cele 110 demo-uri din producție au `is_demo = false` și `expires_at` gol. Semnul sigur e emailul proprietarului: sari peste fermele al căror proprietar are email `@demo.zmeurel.local` (demo) sau `@example.test` (conturi de test automate). Regula stă într-o funcție mică (`esteFermaReala`), cu test.
      - **Destinatarul:** proprietarul fermei, prin `createNotificationForTenantOwner`, ca push-ul să treacă prin preferințe și liniștea de noapte.
      - **Deduplicare** prin `data.reminder_key`:
        - `maine:<tenant>:<data>`;
