@@ -19,7 +19,7 @@ import { resolveExistingClientByPhone } from '@/lib/comenzi/ai-order-client'
 import { CANTITATI_KG, parseStocInsuficient } from '@/lib/comenzi/day-view'
 import { comandaClientName } from '@/lib/comenzi/display'
 import { formatKg, formatLei, relativeDayRo, round2 } from '@/lib/format-ro'
-import { pretPentruClient, usePretStandard } from '@/lib/pret-standard'
+import { pretPentruClient, usePretStandardStare } from '@/lib/pret-standard'
 import { queryKeys } from '@/lib/query-keys'
 import type { Client } from '@/lib/supabase/queries/clienti'
 import {
@@ -153,7 +153,7 @@ export function ComandaStepForm({
   editing = null,
 }: ComandaStepFormProps) {
   const queryClient = useQueryClient()
-  const standard = usePretStandard()
+  const { standard, seIncarca: pretSeIncarca } = usePretStandardStare()
   const mode = editing ? 'edit' : 'create'
 
   const prefillClientId = editing ? null : resolvePrefillClientId(prefill, clienti)
@@ -266,7 +266,10 @@ export function ComandaStepForm({
     liveKeyRef.current = open ? form.clientSyncId : null
   }, [open, form.clientSyncId])
 
+  // Cât setările nu au venit, prețul standard e cel de rezervă: nu se salvează cu el.
+  const pretInAsteptare = pretSeIncarca && draft.pret === null && pretImplicit.sursa === 'standard' && !zeroPrice
   const canSave =
+    !pretInAsteptare &&
     Boolean(clientName) &&
     draft.cantitateKg !== null &&
     draft.cantitateKg > 0 &&
@@ -509,6 +512,7 @@ export function ComandaStepForm({
         }
         adresa={adresa}
         pretLeiKg={pret}
+        pretSeIncarca={pretInAsteptare}
         pretSursa={pretSursa}
         orderKind={draft.orderKind}
         nota={draft.nota}

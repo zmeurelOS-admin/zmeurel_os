@@ -35,6 +35,7 @@ export default defineConfig(({ mode }) => {
         'src/components/investitii/__tests__/*.test.tsx',
         'src/components/kit/__tests__/*.test.{ts,tsx}',
         'src/app/(dashboard)/comenzi/__tests__/*.test.tsx',
+        'src/components/comenzi/__tests__/*.test.tsx',
         'src/lib/__tests__/*.test.ts',
         'src/lib/comenzi/__tests__/*.test.ts',
         'src/lib/livrari/__tests__/*.test.ts',

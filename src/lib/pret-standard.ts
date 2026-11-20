@@ -80,3 +80,15 @@ export function usePretStandard(): PretStandard {
   const { settings } = useFarmSettings()
   return resolvePretStandard(settings)
 }
+
+/**
+ * Prețul standard plus starea încărcării. Cât `seIncarca` e `true`, prețul e cel de rezervă (35 lei/kg),
+ * nu cel din Setări: ecranele arată un schelet în loc de preț și nu salvează cu el.
+ */
+export function usePretStandardStare(): { standard: PretStandard; seIncarca: boolean } {
+  const { settings, isLoading } = useFarmSettings()
+  return { standard: resolvePretStandard(settings), seIncarca: isLoading }
+}
+
+/** Ce se afișează în locul unui preț încă neîncărcat. */
+export const PRET_SE_INCARCA = '…'

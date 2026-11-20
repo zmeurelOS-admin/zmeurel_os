@@ -26,7 +26,7 @@ import {
   type PerioadaPret,
 } from '@/lib/farm-settings'
 import { formatLeiKg, formatNumber } from '@/lib/format-ro'
-import { PERIOADA_PRET_LABEL, PERIOADE_PRET, resolvePretStandard } from '@/lib/pret-standard'
+import { PERIOADA_PRET_LABEL, PERIOADE_PRET, PRET_SE_INCARCA, resolvePretStandard } from '@/lib/pret-standard'
 import { queryKeys } from '@/lib/query-keys'
 import { getClienți } from '@/lib/supabase/queries/clienti'
 import { toast } from '@/lib/ui/toast'
@@ -104,12 +104,12 @@ export function PretStandardSection() {
 
       <div className="rounded-box bg-primary-soft p-4">
         <p className={cn('font-medium text-fg-muted', kitText.secondary)}>Comenzile noi primesc acum</p>
-        <p className={cn('font-extrabold text-fg', kitText.screen)}>{formatLeiKg(activeNow)}</p>
+        <p className={cn('font-extrabold text-fg', kitText.screen)}>{isLoading ? PRET_SE_INCARCA : formatLeiKg(activeNow)}</p>
       </div>
 
-      {!standard.configurabil ? (
+      {isLoading ? null : !standard.configurabil ? (
         <>
-          {isLoading ? null : <Notice tone="info" title={WAITING_FOR_DB}>Până atunci, prețul standard e cel de până acum: {formatLeiKg(standard.activ)}.</Notice>}
+          {<Notice tone="info" title={WAITING_FOR_DB}>Până atunci, prețul standard e cel de până acum: {formatLeiKg(standard.activ)}.</Notice>}
           <ul className="space-y-2">
             {PERIOADE_PRET.map((key) => (
               <li key={key} className="flex min-h-touch items-center justify-between gap-3 rounded-box border border-border px-4 py-2">

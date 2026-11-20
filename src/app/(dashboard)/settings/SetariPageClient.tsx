@@ -18,7 +18,7 @@ import type { LegalDocsStatus } from '@/lib/legal-docs/shared'
 import { cateSuntPornite, NOTIFICARI_CHEI, NOTIFICARI_PREFERINTE_IMPLICITE } from '@/lib/notifications/preferinte'
 import { usePreferinteNotificari } from '@/lib/notifications/preferinte-client'
 import { useFarmSettings, type PerioadaPret } from '@/lib/farm-settings'
-import { resolvePretStandard } from '@/lib/pret-standard'
+import { PRET_SE_INCARCA, resolvePretStandard } from '@/lib/pret-standard'
 import type { FarmProfile } from '@/lib/setari/farm-profile-server'
 import { settingsRouteForLegacyHash } from '@/lib/setari/legacy-links'
 
@@ -68,7 +68,7 @@ function teamSub(members: FarmMemberSummary[] | undefined): string {
 export function SetariPageClient({ farm, legal }: { farm: FarmProfile | null; legal: LegalDocsSummary | null }) {
   const router = useRouter()
   const { email, isSuperAdmin, farmName } = useDashboardAuth()
-  const { settings } = useFarmSettings()
+  const { settings, isLoading: settingsLoading } = useFarmSettings()
   const { theme } = useTheme()
   const { density } = useDensity()
   const [highContrast] = useHighContrast()
@@ -93,9 +93,15 @@ export function SetariPageClient({ farm, legal }: { farm: FarmProfile | null; le
   }, [router])
 
   const pret = resolvePretStandard(settings)
-  const pretSub = pret.configurabil ? `Acum: ${PERIOADA_SCURT[pret.perioada]}, ${formatLeiKg(pret.activ)}` : `Acum: ${formatLeiKg(pret.activ)}`
-  const acasaSub =
-    settings.acasaPerioadaMod === 'sezon'
+  // Până vin setările nu se arată valoarea de rezervă (35 lei/kg, „Automat”), ci un schelet.
+  const pretSub = settingsLoading
+    ? PRET_SE_INCARCA
+    : pret.configurabil
+      ? `Acum: ${PERIOADA_SCURT[pret.perioada]}, ${formatLeiKg(pret.activ)}`
+      : `Acum: ${formatLeiKg(pret.activ)}`
+  const acasaSub = settingsLoading
+    ? PRET_SE_INCARCA
+    : settings.acasaPerioadaMod === 'sezon'
       ? 'Mereu sezon'
       : settings.acasaPerioadaMod === 'extrasezon'
         ? 'Mereu extrasezon'

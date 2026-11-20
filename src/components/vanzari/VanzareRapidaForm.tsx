@@ -21,7 +21,7 @@ import {
 import { track } from '@/lib/analytics/track'
 import { parseStocInsuficient } from '@/lib/comenzi/day-view'
 import { formatKg, formatLei, formatLeiKg, formatNumber, round2 } from '@/lib/format-ro'
-import { PERIOADA_PRET_LABEL, pretPentruClient, usePretStandard } from '@/lib/pret-standard'
+import { PERIOADA_PRET_LABEL, PRET_SE_INCARCA, pretPentruClient, usePretStandardStare } from '@/lib/pret-standard'
 import { queryKeys } from '@/lib/query-keys'
 import type { Client } from '@/lib/supabase/queries/clienti'
 import { getComenziStockSummaryAzi, type Comanda } from '@/lib/supabase/queries/comenzi'
@@ -57,7 +57,7 @@ interface Saved {
  */
 export function VanzareRapidaForm({ open, onOpenChange, todayIso, clienti, comenzi }: VanzareRapidaFormProps) {
   const queryClient = useQueryClient()
-  const standard = usePretStandard()
+  const { standard, seIncarca: pretSeIncarca } = usePretStandardStare()
 
   const form = useStepForm({ steps: STEPS, open, analytics: { moduleName: 'vanzari' } })
   const fields = useKeypadFields({ fields: FIELDS, maxIntegerDigits: 4 })
@@ -99,7 +99,9 @@ export function VanzareRapidaForm({ open, onOpenChange, todayIso, clienti, comen
   const pretImplicit = pretPentruClient(client, standard)
   const kg = fields.numbers.kg ?? 0
   const pret = pretTouched ? (fields.numbers.pret ?? 0) : pretImplicit.pret
-  const pretText = pretTouched ? fields.values.pret : formatNumber(pretImplicit.pret)
+  // Cât setările nu au venit, prețul standard e cel de rezervă: schelet în loc de preț și fără salvare.
+  const pretInAsteptare = !pretTouched && pretSeIncarca && pretImplicit.sursa === 'standard'
+  const pretText = pretTouched ? fields.values.pret : pretInAsteptare ? PRET_SE_INCARCA : formatNumber(pretImplicit.pret)
   const total = round2(kg * pret)
   const ramasKg = stocRamasDupa(disponibilKg, kg)
   const overStock = disponibilKg !== null && kg > 0 && kg > disponibilKg
@@ -113,7 +115,7 @@ export function VanzareRapidaForm({ open, onOpenChange, todayIso, clienti, comen
     liveKeyRef.current = open ? form.clientSyncId : null
   }, [open, form.clientSyncId])
 
-  const canSave = kg > 0 && pret > 0 && !overStock && !saving
+  const canSave = kg > 0 && pret > 0 && !pretInAsteptare && !overStock && !saving
 
   const save = async () => {
     if (!canSave || inFlight.current) return

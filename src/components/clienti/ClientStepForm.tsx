@@ -23,7 +23,7 @@ import { clientSchema } from '@/lib/clienti/schema'
 import { CLIENT_TIP_LABEL } from '@/lib/clienti/view'
 import { resolveExistingClientByPhone } from '@/lib/comenzi/ai-order-client'
 import { formatLeiKg, formatNumber } from '@/lib/format-ro'
-import { usePretStandard } from '@/lib/pret-standard'
+import { PRET_SE_INCARCA, usePretStandardStare } from '@/lib/pret-standard'
 import { queryKeys } from '@/lib/query-keys'
 import { createClienți, updateClienți, type Client, type ClientTip } from '@/lib/supabase/queries/clienti'
 import { downloadVCard } from '@/lib/utils/downloadVCard'
@@ -98,7 +98,7 @@ function draftFrom(editing: Client | null, prefill: ClientPrefill | null): Draft
 export function ClientStepForm({ open, onOpenChange, clienti, editing = null, prefill = null }: ClientStepFormProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const standard = usePretStandard()
+  const { standard, seIncarca: pretSeIncarca } = usePretStandardStare()
   const mode = editing ? 'edit' : 'create'
   const form = useStepForm({ steps: STEPS, open, mode, analytics: { moduleName: 'clienti' } })
 
@@ -290,7 +290,7 @@ export function ClientStepForm({ open, onOpenChange, clienti, editing = null, pr
         />
       ) : (
         <p className={cn('rounded-box bg-surface-muted px-4 py-3 text-fg-muted', kitText.secondary)}>
-          Plătește prețul standard: acum {formatLeiKg(standard.activ)}, din Setări › Preț standard. Îl poți schimba la
+          Plătește prețul standard: acum {pretSeIncarca ? PRET_SE_INCARCA : formatLeiKg(standard.activ)}, din Setări › Preț standard. Îl poți schimba la
           fiecare comandă.
         </p>
       )}

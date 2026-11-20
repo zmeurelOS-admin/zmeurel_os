@@ -24,6 +24,7 @@ import { CANTITATI_KG } from '@/lib/comenzi/day-view'
 import { formatKg, formatLei, formatLeiKg, formatNumber, weekdayDateRo } from '@/lib/format-ro'
 import type { ComandaOrderKind } from '@/lib/supabase/queries/comenzi'
 import { cn } from '@/lib/utils'
+import { PRET_SE_INCARCA } from '@/lib/pret-standard'
 
 export type ComandaChoiceKey = 'cantitate' | 'data' | 'adresa' | 'pret' | 'nota'
 
@@ -62,6 +63,8 @@ export interface ComandaDetaliiStepProps {
   onDate: (date: string | null) => void
   adresa: string
   pretLeiKg: number
+  /** Prețul standard încă nu a venit din Setări: se arată un schelet, nu prețul de rezervă. */
+  pretSeIncarca?: boolean
   /** De unde vine prețul afișat. */
   pretSursa: 'negociat' | 'standard' | 'manual'
   orderKind: ComandaOrderKind
@@ -83,6 +86,7 @@ export function ComandaDetaliiStep({
   onDate,
   adresa,
   pretLeiKg,
+  pretSeIncarca = false,
   pretSursa,
   orderKind,
   nota,
@@ -106,8 +110,10 @@ export function ComandaDetaliiStep({
   const dateValue = date === undefined ? null : date === null ? DATE_NONE : presetDate ? date : DATE_OTHER
 
   const zeroPrice = orderKind !== 'manual'
-  const total = cantitateKg !== null && !zeroPrice ? cantitateKg * pretLeiKg : null
-  const pretText = zeroPrice
+  const total = cantitateKg !== null && !zeroPrice && !pretSeIncarca ? cantitateKg * pretLeiKg : null
+  const pretText = pretSeIncarca
+    ? PRET_SE_INCARCA
+    : zeroPrice
     ? orderKind === 'cadou'
       ? 'Cadou · 0 lei'
       : 'Consum propriu · 0 lei'
