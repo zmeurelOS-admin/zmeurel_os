@@ -27,6 +27,7 @@ import { createClienți, type ClientTip } from '@/lib/supabase/queries/clienti'
 import { createComanda } from '@/lib/supabase/queries/comenzi'
 import { toast } from '@/lib/ui/toast'
 import { cn } from '@/lib/utils'
+import { COMENZI_INVALIDATED } from '@/components/comenzi/useComandaActions'
 
 export type ParsedOrder = {
   nume_client: string | null
@@ -415,9 +416,8 @@ export function ComenziDinMesajSheet({
       return createdComanda
     },
     onSuccess: (createdComanda) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.comenziManualInLivrare })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      // O comandă nouă rezervă stoc: aceleași chei ca orice altă comandă, plus clienții (poate fi unul nou).
+      for (const queryKey of COMENZI_INVALIDATED) void queryClient.invalidateQueries({ queryKey })
       void queryClient.invalidateQueries({ queryKey: queryKeys.clienti })
       toast.success('Comanda a fost salvată.')
       resetSheetState()
