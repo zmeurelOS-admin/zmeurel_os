@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { captureApiError } from '@/lib/monitoring/report-error'
 import { NOTIFICATION_TYPES } from '@/lib/notifications/create'
 import { getNotificationHref } from '@/lib/notifications/navigation'
+import { utilizatorulPermitePush } from '@/lib/notifications/preferinte-server'
 import { sendPushToUser } from '@/lib/notifications/send-push'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import {
@@ -136,6 +137,9 @@ export async function GET(request: Request) {
         .single()
       if (insertError) throw insertError
       created += 1
+
+      // „Ce primești” › Comenzi de mâine oprit (sau liniște noaptea): notificarea rămâne în listă, fără push.
+      if (!(await utilizatorulPermitePush(userId, type))) continue
 
       // Așteptăm push-ul aici (în cron funcția se poate opri înainte ca un push „fire-and-forget” să plece).
       const push = await sendPushToUser(userId, reminder.title, reminder.body, {

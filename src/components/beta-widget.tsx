@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react'
 import { MessageCircle, X } from 'lucide-react'
 
+import { SUPPORT_WHATSAPP_URL } from '@/lib/support'
+
 const SESSION_KEY = 'zmeurel_beta_sessions'
 const LAST_SESSION_KEY = 'zmeurel_beta_last_session'
 const DISMISSED_KEY = 'zmeurel_beta_dismissed'
 const SESSION_GAP_MS = 30 * 60 * 1000
-const WHATSAPP_URL =
-  'https://wa.me/40752953048?text=Salut%20Andrei%2C%20am%20o%20sugestie%20pentru%20Zmeurel%20OS'
+const WHATSAPP_URL = SUPPORT_WHATSAPP_URL
 
 function readNumber(value: string | null) {
   const parsed = Number.parseInt(value ?? '', 10)

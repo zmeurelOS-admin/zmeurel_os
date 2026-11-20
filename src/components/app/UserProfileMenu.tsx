@@ -93,7 +93,7 @@ export function UserProfileMenu() {
             <Settings className="h-4 w-4" />
             Setări
           </Link>
-          <Link href="/settings#gdpr" onClick={() => setOpen(false)} className={itemClassName}>
+          <Link href="/settings/cont" onClick={() => setOpen(false)} className={itemClassName}>
             <Download className="h-4 w-4" />
             Export date
           </Link>

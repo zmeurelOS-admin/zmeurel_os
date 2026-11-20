@@ -13,6 +13,8 @@ function isFabSuppressedPath(pathname: string): boolean {
   if (pathname.startsWith('/rapoarte')) return true
   if (pathname.startsWith('/admin')) return true
   if (pathname.startsWith('/settings')) return true
+  if (pathname.startsWith('/mai-mult')) return true
+  if (pathname.startsWith('/notificari')) return true
   return false
 }
 

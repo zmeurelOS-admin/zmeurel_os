@@ -94,11 +94,11 @@ Clasele vechi `rounded-sm` (12), `rounded-md` (14), `rounded-lg` (16), `rounded-
 | `h-touch`, `min-h-touch`, `size-touch`, `w-touch` | 48px | `--touch-control-h` |
 | `h-touch-lg`, `min-h-touch-lg`, `size-touch-lg` | 56px | `--touch-control-h-lg` |
 
-Minim 48 pentru orice e apăsabil, 56 pentru acțiunea principală. Valorile urmează setările utilizatorului: „vizibilitate ridicată" le urcă la 52 / 60, densitatea compactă le coboară la 44 / 50 (`globals.css`, `html.high-visibility-mode` și `html[data-density='compact']`). De aceea kitul folosește clasele, nu pixeli ficși.
+Minim 48 pentru orice e apăsabil, 56 pentru acțiunea principală. Valorile urmează Setări › Aspect › „Mărimea: Mare”, care le urcă la 56 / 64 (`globals.css`, `html[data-density='large']`). De aceea kitul folosește clasele, nu pixeli ficși. (Din prompt 13: densitatea compactă a fost scoasă, iar „Contrast ridicat” — `html.high-visibility-mode` — nu mai schimbă mărimile, doar culorile și bordurile.)
 
 ## Scara de text
 
-Fixată de kit (prompt 04) ca șiruri de clase în `src/components/kit/text.ts`, nu ca tokeni în `@theme`. Se folosește `kitText.<treaptă>`, cu greutatea și culoarea adăugate la locul folosirii: `cn(kitText.card, 'font-extrabold text-fg')`. Într-un `cn(...)`, `kitText.*` se pune înaintea unei clase `leading-*` proprii (mărimea de font o șterge pe cea de dinainte).
+Fixată de kit (prompt 04) ca șiruri de clase în `src/components/kit/text.ts`, nu ca tokeni în `@theme`. Mărimile vin din variabilele `--kit-fs-*` (`globals.css`), ca „Mărimea: Mare” să le urce pe toate cu un pas (64→72, 26→28, 22→24, 19→21, 17→19, 15→17, 13→15). Tabelul de mai jos e mărimea normală. Se folosește `kitText.<treaptă>`, cu greutatea și culoarea adăugate la locul folosirii: `cn(kitText.card, 'font-extrabold text-fg')`. Într-un `cn(...)`, `kitText.*` se pune înaintea unei clase `leading-*` proprii (mărimea de font o șterge pe cea de dinainte).
 
 | Treaptă | Mărime | `kitText` | Pentru |
 |---|---|---|---|
@@ -201,7 +201,7 @@ Pentru paginile care trebuie să rămână luminoase indiferent de temă (acum: 
 - Blocurile de zi din cele trei secțiuni ale `theme.css` sunt declarate `:root, .theme-light`. Aliasurile trebuie redeclarate și ele: o variabilă cu `var()` se calculează pe elementul unde e declarată, deci altfel ar rămâne valoarea de noapte de pe `<html>`.
 - `.theme-light` primește și `color-scheme: light` și `color: var(--agri-text)` (textul moștenit din `body` era cel de noapte).
 - Varianta `dark:` (`globals.css`) exclude subarborele: `&:where(.dark, .dark *):not(:where(.theme-light, .theme-light *))`.
-- „Vizibilitate ridicată” se aplică și înăuntru (`html.high-visibility-mode .theme-light`).
+- „Contrast ridicat” (`html.high-visibility-mode`) se aplică și înăuntru (`html.high-visibility-mode .theme-light`); noaptea are blocul lui (`html.high-visibility-mode.dark`). Schimbă doar tokenii canonici de text, contur și principal.
 - Ce rămâne în afara învelișului: notificările (toast) și fundalul `body` (vizibil doar la tragerea peste marginea paginii pe iPhone).
 - Un token nou de zi se adaugă în blocul `:root, .theme-light` corespunzător; nu e nevoie de altă modificare.
 

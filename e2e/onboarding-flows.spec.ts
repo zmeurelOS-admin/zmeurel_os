@@ -187,7 +187,8 @@ test.describe('Onboarding, demo și guards', () => {
 
     await expect(page.getByTestId('demo-banner-create-farm')).toBeVisible({ timeout: 30000 })
 
-    await page.goto('/settings', { waitUntil: 'domcontentloaded', timeout: 60000 })
+    // CTA-ul demo stă acum în Setări › Mod demo.
+    await page.goto('/settings/demo', { waitUntil: 'domcontentloaded', timeout: 60000 })
     const createFarmCta = page.getByTestId('settings-create-farm-cta')
     await expect(createFarmCta).toBeVisible({ timeout: 30000 })
     await expect(createFarmCta).toHaveCount(1)
@@ -242,11 +243,11 @@ test.describe('Onboarding, demo și guards', () => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/dashboard', { waitUntil: 'load', timeout: 60000 })
     await expect(page.getByRole('navigation', { name: 'Navigare principală' })).toBeVisible({ timeout: 30000 })
-    const moreBtn = page.locator('nav[aria-label="Navigare principală"] button[aria-label="Mai mult"]')
+    const moreBtn = page.locator('nav[aria-label="Navigare principală"] a[aria-label="Mai mult"]')
     await expect(moreBtn).toBeVisible({ timeout: 15000 })
     await moreBtn.click()
     await expect(page.locator('form[action$="/api/auth/sign-out"]')).toBeVisible({ timeout: 25000 })
-    const signOutBtn = page.locator('form[action$="/api/auth/sign-out"]').getByRole('button', { name: 'Deconectare' })
+    const signOutBtn = page.locator('form[action$="/api/auth/sign-out"]').getByRole('button', { name: 'Ieși din cont' })
     await signOutBtn.scrollIntoViewIfNeeded()
     await expect(signOutBtn).toBeVisible({ timeout: 10000 })
     await Promise.all([page.waitForURL((u) => u.pathname === '/', { timeout: 30_000 }), signOutBtn.click()])

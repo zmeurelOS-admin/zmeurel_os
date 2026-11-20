@@ -28,6 +28,15 @@
   --touch-control-h: 48px;
   --touch-control-h-lg: 56px;
   --space-v: 16px;
+
+  /* Scara de text a kitului (kitText din src/components/kit/text.ts). „Mărimea: Mare” o urcă (mai jos). */
+  --kit-fs-figure: 64px;
+  --kit-fs-screen: 26px;
+  --kit-fs-section: 22px;
+  --kit-fs-card: 19px;
+  --kit-fs-base: 17px;
+  --kit-fs-secondary: 15px;
+  --kit-fs-helper: 13px;
 }
 
 @theme inline {
@@ -302,69 +311,57 @@ html[data-modal-open='true'] [data-mobile-fab='true'] {
   color: var(--agri-text-muted);
 }
 
+/*
+ * Setări › Aspect. Două alegeri separate, ambele ținute pe dispozitiv:
+ *
+ * „Contrast ridicat” (`html.high-visibility-mode`, HighVisibilityInit): doar culori și borduri mai tari,
+ * pe tokenii canonici (aliasurile vechi `--agri-*` îi urmează singure). Zi și noapte.
+ * Înainte, aceeași clasă mărea și țintele (52/60) și textul; mărimea e acum doar la „Mare”.
+ */
 html.high-visibility-mode,
 html.high-visibility-mode .theme-light {
-  --agri-bg: #eef3ee;
-  --agri-surface: #ffffff;
-  --agri-surface-muted: #d7e3d9;
-  --agri-text: #0a1a10;
-  --agri-text-muted: #1f3226;
-  --agri-border: #5d7364;
-  --agri-border-card: var(--agri-border);
+  --fg: #000000;
+  --fg-muted: #1f2a22;
+  --fg-subtle: #3d4a41;
+  --border: #5b6b60;
+  --border-strong: #46564b;
+  --border-subtle: rgba(16, 32, 21, 0.28);
+  --primary: #22593f;
+  --primary-soft: #d5ebdd;
   --agri-border-w: 2px;
-  --agri-radius-lg: 20px;
   --agri-focus-ring: 0 0 0 4px rgba(255, 193, 7, 0.6);
-  --touch-control-h: 52px;
-  --touch-control-h-lg: 60px;
 }
 
-html.high-visibility-mode body {
+html.high-visibility-mode.dark {
+  --fg: #ffffff;
+  --fg-muted: #d5d9de;
+  --fg-subtle: #b3bac3;
+  --border: #5a6370;
+  --border-strong: #7a8491;
+  --border-subtle: rgba(213, 217, 222, 0.3);
+  --primary: #6fc097;
+  --primary-soft: #133024;
+}
+
+/*
+ * „Mărimea: Mare” (`html[data-density='large']`, DensityProvider): ținte de atingere și text mai mari.
+ * Kitul (kitText) citește `--kit-fs-*`; modulele nerefăcute primesc țintele (`agri-control`) și textul de bază.
+ * Valoarea veche `compact` nu mai există (se citește ca „Normală”).
+ */
+html[data-density='large'] {
+  --touch-control-h: 56px;
+  --touch-control-h-lg: 64px;
+  --kit-fs-figure: 72px;
+  --kit-fs-screen: 28px;
+  --kit-fs-section: 24px;
+  --kit-fs-card: 21px;
+  --kit-fs-base: 19px;
+  --kit-fs-secondary: 17px;
+  --kit-fs-helper: 15px;
+}
+
+html[data-density='large'] body {
   font-size: 17px;
-}
-
-html[data-density='compact'] {
-  --touch-control-h: 44px;
-  --touch-control-h-lg: 50px;
-  --agri-radius: 14px;
-  --agri-radius-lg: 18px;
-  --agri-field-h: 2.5rem;
-  --agri-shadow: 0 6px 16px rgba(16, 32, 21, 0.1);
-  --agri-elevated-shadow: 0 6px 16px rgba(16, 32, 21, 0.1);
-}
-
-html[data-density='compact'] .agri-card {
-  box-shadow: var(--agri-shadow);
-}
-
-html[data-density='compact'] [data-slot='card'] {
-  gap: 1rem;
-  border-radius: 1rem;
-  padding-top: 1rem;
-  padding-bottom: 1rem;
-}
-
-html[data-density='compact'] [data-slot='card-header'] {
-  gap: 0.375rem;
-  padding-left: 1rem;
-  padding-right: 1rem;
-}
-
-html[data-density='compact'] [data-slot='card-content'],
-html[data-density='compact'] [data-slot='card-footer'] {
-  padding-left: 1rem;
-  padding-right: 1rem;
-}
-
-html[data-density='compact'] [data-slot='table-head'] {
-  height: 2rem;
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
-  font-size: 0.75rem;
-}
-
-html[data-density='compact'] [data-slot='table-cell'] {
-  padding: 0.375rem 0.5rem;
-  font-size: 0.8125rem;
 }
 
 @media (max-width: 1023px) {

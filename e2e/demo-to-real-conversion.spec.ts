@@ -122,6 +122,7 @@ test.describe('Conversie demo → fermă reală', () => {
     })
 
     await test.step('Setări: email real vizibil, fără CTA demo', async () => {
+      // Emailul apare pe rândul „Contul tău” din lista Setări.
       await page.goto('/settings', { waitUntil: 'domcontentloaded', timeout: 60_000 })
       await expect(page.getByTestId('settings-create-farm-cta')).toHaveCount(0)
       await expect(page.getByText(conversionEmail!)).toBeVisible({ timeout: 15_000 })

@@ -39,13 +39,18 @@ export const KIT_RULE_DIRS = [
   'src/app/(dashboard)/vanzari',
   'src/components/vanzari',
   'src/lib/vanzari',
+  // Mai mult, Notificări, Setări (ecranele; `src/components/setari` e deja mai sus)
+  'src/app/(dashboard)/mai-mult',
+  'src/app/(dashboard)/notificari',
+  'src/app/(dashboard)/settings',
 ]
 
 /**
  * Fișiere vechi dintr-un folder deja verificat, folosite încă de un modul nerefăcut.
- * Se scot de aici (și se șterg) când modulul respectiv e refăcut. Acum: niciunul.
+ * Se scot de aici când modulul respectiv e refăcut.
+ * - Echipa rămâne pe ecranul ei de dinainte (prompt 13: Setări s-a refăcut, Echipa nu).
  */
-export const KIT_RULE_PENDING_FILES = []
+export const KIT_RULE_PENDING_FILES = ['src/app/(dashboard)/settings/echipa/EchipaClient.tsx']
 
 const TEXT_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.css'])
 const EXCLUDED_PATH_PATTERNS = [/\/__tests__\//, /\.test\.[cm]?[jt]sx?$/]

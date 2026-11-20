@@ -19,6 +19,11 @@ vi.mock('@/lib/notifications/navigation', () => ({
   getNotificationHref: navMocks.getNotificationHref,
 }))
 
+const utilizatorulPermitePush = vi.fn<(userId: string, type: string) => Promise<boolean>>(async () => true)
+vi.mock('@/lib/notifications/preferinte-server', () => ({
+  utilizatorulPermitePush: (userId: string, type: string) => utilizatorulPermitePush(userId, type),
+}))
+
 const fireWebPushForNotification = vi.fn()
 vi.mock('@/lib/notifications/send-push', () => ({
   fireWebPushForNotification: (payload: unknown) => fireWebPushForNotification(payload),
@@ -119,6 +124,20 @@ describe('createNotification', () => {
         notificationData: expect.objectContaining({ foo: 'bar', url: '/test-url' }),
       }),
     )
+  })
+
+  it('comutatorul oprit din „Ce primești”: rândul se creează, push-ul nu pleacă', async () => {
+    utilizatorulPermitePush.mockResolvedValueOnce(false)
+    const id = await createNotification('user-1', NOTIFICATION_TYPES.order_new, 'Comandă nouă', null, { channel: 'farm_shop' })
+    expect(id).toBe('notif-uuid-1')
+    expect(mocks.insertPayloads).toHaveLength(1)
+    expect(utilizatorulPermitePush).toHaveBeenCalledWith('user-1', NOTIFICATION_TYPES.order_new)
+    expect(fireWebPushForNotification).not.toHaveBeenCalled()
+  })
+
+  it('tip fără push (system): preferințele nici nu se citesc', async () => {
+    await createNotification('user-1', NOTIFICATION_TYPES.system, 'Info')
+    expect(utilizatorulPermitePush).not.toHaveBeenCalled()
   })
 })
 

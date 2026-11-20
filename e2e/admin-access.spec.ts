@@ -156,7 +156,8 @@ test.describe('Admin access', () => {
 
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/dashboard')
-    await page.getByRole('button', { name: 'Mai mult' }).click()
+    await page.getByRole('link', { name: 'Mai mult' }).click()
+    await expect(page).toHaveURL(/\/mai-mult/)
     await expect(page.getByText('Admin (Zmeurel)')).toHaveCount(0)
   })
 
@@ -206,10 +207,11 @@ test.describe('Admin access', () => {
 
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/dashboard')
-    await page.getByRole('button', { name: 'Mai mult' }).click()
+    await page.getByRole('link', { name: 'Mai mult' }).click()
+    await expect(page).toHaveURL(/\/mai-mult/)
     await expect(page.getByText('Admin (Zmeurel)')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Panou admin' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Analytics global' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Audit' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Panou admin' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Analytics global' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Audit' })).toBeVisible()
   })
 })

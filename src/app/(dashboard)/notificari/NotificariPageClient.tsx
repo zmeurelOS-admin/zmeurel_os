@@ -1,45 +1,147 @@
 'use client'
 
-import { ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import {
+  BarChart3,
+  Check,
+  ClipboardList,
+  FileText,
+  Info,
+  Mail,
+  RefreshCw,
+  SlidersHorizontal,
+  Snowflake,
+  Tag,
+  Timer,
+  Truck,
+  Users,
+} from 'lucide-react'
 
 import { AppShell } from '@/components/app/AppShell'
-import { PageHeader } from '@/components/app/PageHeader'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
-import { formatRelativeRo } from '@/lib/notifications/format'
+import { Button, Notice, Segments, kitFocus, kitText } from '@/components/kit'
+import { IconBadge, ScreenBody, ScreenHeader, type IconTone } from '@/components/setari/SetariUi'
 import { getNotificationHref } from '@/lib/notifications/navigation'
+import { unreadNotificationsQueryKey } from '@/lib/notifications/useUnreadCount'
 import { cn } from '@/lib/utils'
 import type { Database } from '@/types/supabase'
 
+import { groupNotificationsByDay, notificationTimeLabel } from './group'
+
 type Row = Database['public']['Tables']['notifications']['Row']
+type Filter = 'toate' | 'necitite'
 
 const PAGE = 50
 
+function iconForType(type: string): { icon: ReactNode; tone: IconTone } {
+  if (type.startsWith('meteo_')) return { icon: <Snowflake />, tone: 'warning' }
+  switch (type) {
+    case 'order_new':
+      return { icon: <ClipboardList />, tone: 'primary' }
+    case 'order_status_changed':
+      return { icon: <RefreshCw />, tone: 'primary' }
+    case 'butasi_delivery_reminder':
+      return { icon: <Truck />, tone: 'info' }
+    case 'weekly_sales_summary':
+      return { icon: <BarChart3 />, tone: 'neutral' }
+    case 'tratament_reminder':
+      return { icon: <Timer />, tone: 'warning' }
+    case 'legal_docs_expiring':
+    case 'legal_docs_expired':
+      return { icon: <FileText />, tone: 'warning' }
+    case 'product_listed':
+    case 'product_unlisted':
+      return { icon: <Tag />, tone: 'neutral' }
+    case 'producer_approved':
+    case 'producer_suspended':
+      return { icon: <Users />, tone: 'neutral' }
+    case 'offer_new':
+    case 'offer_approved':
+    case 'offer_rejected':
+      return { icon: <Mail />, tone: 'neutral' }
+    default:
+      return { icon: <Info />, tone: 'neutral' }
+  }
+}
+
+async function patchNotifications(body: { notificationId: string } | { markAll: true }) {
+  const response = await fetch('/api/notifications', {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', Origin: window.location.origin },
+    body: JSON.stringify(body),
+  })
+  return (await response.json().catch(() => ({}))) as { ok?: boolean; unreadCount?: number }
+}
+
+function NotificationRow({ notification, onOpen }: { notification: Row; onOpen: (row: Row) => void }) {
+  const unread = !notification.read
+  const { icon, tone } = iconForType(notification.type)
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(notification)}
+      className={cn(
+        'flex min-h-[72px] w-full items-start gap-3 rounded-box border px-3 py-2.5 text-left active:bg-surface-muted',
+        kitFocus,
+        unread ? 'border-border-strong bg-primary-soft/40' : 'border-border bg-surface',
+      )}
+    >
+      <IconBadge tone={tone} size="lg">
+        {icon}
+      </IconBadge>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="flex items-baseline gap-2">
+          <span className={cn('min-w-0 flex-1 text-fg', kitText.base, unread ? 'font-extrabold' : 'font-semibold')}>
+            {notification.title}
+          </span>
+          <span className={cn('shrink-0 text-fg-subtle', kitText.helper)}>{notificationTimeLabel(notification.created_at)}</span>
+        </span>
+        {notification.body ? (
+          <span className={cn('line-clamp-3 text-fg-muted', kitText.secondary)}>{notification.body}</span>
+        ) : null}
+      </span>
+      {unread ? (
+        <span className="mt-2 size-2.5 shrink-0 rounded-full bg-primary">
+          <span className="sr-only">Necitită</span>
+        </span>
+      ) : null}
+    </button>
+  )
+}
+
 export function NotificariPageClient() {
-  const [filter, setFilter] = useState<'all' | 'unread'>('all')
+  const router = useRouter()
+  const queryClient = useQueryClient()
+  const { associationRole } = useDashboardAuth()
+  const [filter, setFilter] = useState<Filter>('toate')
   const [items, setItems] = useState<Row[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
   const [nextOffset, setNextOffset] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [hasMore, setHasMore] = useState(true)
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  const { associationRole } = useDashboardAuth()
-  const router = useRouter()
+  const [error, setError] = useState<string | null>(null)
+  const [markingAll, setMarkingAll] = useState(false)
 
   const loadPage = useCallback(
     async (offset: number, append: boolean) => {
       const params = new URLSearchParams({
         limit: String(PAGE),
         offset: String(offset),
-        unread_only: filter === 'unread' ? 'true' : 'false',
+        unread_only: filter === 'necitite' ? 'true' : 'false',
       })
-      const r = await fetch(`/api/notifications?${params}`, { credentials: 'include' })
-      const j = (await r.json()) as { ok?: boolean; notifications?: Row[] }
-      if (!j.ok || !j.notifications) return
-      const batch = j.notifications
-      if (append) setItems((p) => [...p, ...batch])
-      else setItems(batch)
+      const response = await fetch(`/api/notifications?${params}`, { credentials: 'include' })
+      const json = (await response.json().catch(() => null)) as { ok?: boolean; notifications?: Row[]; unreadCount?: number } | null
+      if (!response.ok || !json?.ok || !json.notifications) {
+        throw new Error('Nu am putut încărca notificările. Verifică internetul și încearcă din nou.')
+      }
+      const batch = json.notifications
+      setItems((previous) => (append ? [...previous, ...batch] : batch))
+      if (typeof json.unreadCount === 'number') setUnreadCount(json.unreadCount)
       setHasMore(batch.length === PAGE)
       setNextOffset(offset + batch.length)
     },
@@ -48,193 +150,143 @@ export function NotificariPageClient() {
 
   useEffect(() => {
     let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      setNextOffset(0)
-      await loadPage(0, false)
-      if (!cancelled) setLoading(false)
-    })()
+    setLoading(true)
+    setError(null)
+    loadPage(0, false)
+      .catch((cause: unknown) => {
+        if (!cancelled) setError(cause instanceof Error ? cause.message : 'Nu am putut încărca notificările.')
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
     return () => {
       cancelled = true
     }
   }, [loadPage])
 
+  const syncUnread = (count: number | undefined) => {
+    if (typeof count === 'number') {
+      setUnreadCount(count)
+      queryClient.setQueryData(unreadNotificationsQueryKey, count)
+    } else {
+      void queryClient.invalidateQueries({ queryKey: unreadNotificationsQueryKey })
+    }
+  }
+
   const loadMore = async () => {
     if (!hasMore || loadingMore) return
     setLoadingMore(true)
-    await loadPage(nextOffset, true)
-    setLoadingMore(false)
+    try {
+      await loadPage(nextOffset, true)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Nu am putut încărca notificările.')
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  // Atingerea: marchează citit și duce unde ducea și înainte (aceeași destinație ca în clopoțel).
+  const openRow = (row: Row) => {
+    if (!row.read) {
+      setItems((previous) => previous.map((item) => (item.id === row.id ? { ...item, read: true } : item)))
+      setUnreadCount((count) => Math.max(0, count - 1))
+      void patchNotifications({ notificationId: row.id }).then((json) => syncUnread(json.unreadCount))
+    }
+    const href = getNotificationHref(row, associationRole ?? null)
+    if (href !== '/notificari') router.push(href)
   }
 
   const markAll = async () => {
-    await fetch('/api/notifications', {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json', Origin: window.location.origin },
-      body: JSON.stringify({ markAll: true }),
-    })
-    setItems((p) => p.map((x) => ({ ...x, read: true })))
+    setMarkingAll(true)
+    try {
+      const json = await patchNotifications({ markAll: true })
+      setItems((previous) =>
+        filter === 'necitite' ? [] : previous.map((item) => ({ ...item, read: true })),
+      )
+      setHasMore(false)
+      syncUnread(json.unreadCount ?? 0)
+    } finally {
+      setMarkingAll(false)
+    }
   }
 
-  const markRead = async (id: string) => {
-    await fetch('/api/notifications', {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json', Origin: window.location.origin },
-      body: JSON.stringify({ notificationId: id }),
-    })
-    setItems((p) => p.map((x) => (x.id === id ? { ...x, read: true } : x)))
-  }
+  const sections = useMemo(() => groupNotificationsByDay(items), [items])
+  const empty = !loading && !error && items.length === 0
 
-  const remove = async (id: string) => {
-    await fetch('/api/notifications', {
-      method: 'DELETE',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json', Origin: window.location.origin },
-      body: JSON.stringify({ notificationId: id }),
-    })
-    setItems((p) => p.filter((x) => x.id !== id))
-  }
-
-  const openRow = (n: Row) => {
-    void markRead(n.id)
-    router.push(getNotificationHref(n, associationRole ?? null))
-  }
+  const settingsButton = (
+    <Link
+      href="/notificari/setari"
+      aria-label="Ce notificări primești"
+      className={cn(
+        'flex size-touch items-center justify-center rounded-box border border-border-strong bg-surface text-fg active:bg-surface-muted',
+        kitFocus,
+      )}
+    >
+      <SlidersHorizontal className="size-[22px]" aria-hidden />
+    </Link>
+  )
 
   return (
-    <AppShell
-      header={
-        <PageHeader
-          title="Notificări"
-          subtitle="Toate mesajele importante pentru contul tău"
+    <AppShell header={<ScreenHeader title="Notificări" backHref="/mai-mult" right={settingsButton} />}>
+      <ScreenBody className="space-y-2">
+        <Segments<Filter>
+          aria-label="Ce notificări arăt"
+          value={filter}
+          onValueChange={setFilter}
+          panelId="lista-notificari"
+          options={[
+            { value: 'toate', label: 'Toate' },
+            { value: 'necitite', label: 'Necitite', count: unreadCount > 0 ? unreadCount : undefined },
+          ]}
         />
-      }
-    >
-      <div className="mx-auto max-w-3xl px-4 py-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex rounded-xl border border-[var(--border-default)] p-0.5">
-            <button
-              type="button"
-              onClick={() => setFilter('all')}
-              className={cn(
-                'rounded-lg px-3 py-1.5 text-sm font-semibold',
-                filter === 'all'
-                  ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
-                  : 'text-[var(--text-secondary)]',
-              )}
-            >
-              Toate
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilter('unread')}
-              className={cn(
-                'rounded-lg px-3 py-1.5 text-sm font-semibold',
-                filter === 'unread'
-                  ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
-                  : 'text-[var(--text-secondary)]',
-              )}
-            >
-              Necitite
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => void markAll()}
-            className="text-sm font-semibold text-[var(--primary)] hover:underline"
-          >
-            Marchează toate ca citite
-          </button>
+
+        <div id="lista-notificari" role="tabpanel" className="space-y-1.5 pt-1">
+          {error ? <Notice tone="danger" title={error} /> : null}
+
+          {loading ? (
+            <div className="space-y-1.5" aria-busy="true" aria-label="Se încarcă notificările">
+              {[0, 1, 2].map((index) => (
+                <div key={index} className="h-[72px] animate-pulse rounded-box bg-surface-muted" />
+              ))}
+            </div>
+          ) : null}
+
+          {empty ? (
+            <div className="flex flex-col items-center gap-2.5 px-6 pt-14 text-center">
+              <IconBadge tone="primary" className="size-16 rounded-card [&_svg]:size-8">
+                <Check strokeWidth={2.4} />
+              </IconBadge>
+              <p className={cn('font-bold text-fg', kitText.card)}>Le-ai citit pe toate</p>
+              <p className={cn('text-fg-muted', kitText.secondary)}>Când apare ceva nou, îl vezi aici și pe telefon.</p>
+            </div>
+          ) : null}
+
+          {!loading
+            ? sections.map((section) => (
+                <section key={section.title} className="space-y-1.5">
+                  <h2 className={cn('pb-0.5 pt-2 font-bold text-fg-muted', kitText.secondary)}>{section.title}</h2>
+                  {section.items.map((row) => (
+                    <NotificationRow key={row.id} notification={row} onOpen={openRow} />
+                  ))}
+                </section>
+              ))
+            : null}
+
+          {!loading && hasMore ? (
+            <Button type="button" variant="quiet" size="touch" className="w-full" loading={loadingMore} onClick={() => void loadMore()}>
+              Arată mai vechi
+            </Button>
+          ) : null}
         </div>
 
-        {loading ? (
-          <p className="text-sm text-[var(--text-secondary)]">Se încarcă…</p>
-        ) : (
-          <ul className="space-y-2">
-            {items.map((n) => {
-              const exp = expanded.has(n.id)
-              const longBody = Boolean(n.body && n.body.length > 120)
-              return (
-                <li
-                  key={n.id}
-                  className={cn(
-                    'rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-4 shadow-sm',
-                    !n.read && 'bg-[color:color-mix(in_srgb,var(--primary)_6%,transparent)]',
-                  )}
-                >
-                  <div className="flex gap-3">
-                    <div className="min-w-0 flex-1">
-                      <button type="button" onClick={() => openRow(n)} className="w-full text-left">
-                        <p className="font-bold text-[var(--text-primary)]">{n.title}</p>
-                        {n.body ? (
-                          <p
-                            className={cn(
-                              'mt-1 text-sm text-[var(--text-secondary)]',
-                              !exp && longBody && 'line-clamp-2',
-                            )}
-                          >
-                            {n.body}
-                          </p>
-                        ) : null}
-                        <p className="mt-1 text-xs text-[var(--text-tertiary)]">
-                          {formatRelativeRo(n.created_at)}
-                        </p>
-                      </button>
-                      {longBody ? (
-                        <button
-                          type="button"
-                          className="mt-1 flex items-center gap-1 text-xs font-semibold text-[var(--primary)]"
-                          onClick={() =>
-                            setExpanded((s) => {
-                              const next = new Set(s)
-                              if (next.has(n.id)) next.delete(n.id)
-                              else next.add(n.id)
-                              return next
-                            })
-                          }
-                        >
-                          {exp ? (
-                            <>
-                              <ChevronUp className="h-3 w-3" /> Mai puțin
-                            </>
-                          ) : (
-                            <>
-                              <ChevronDown className="h-3 w-3" /> Mai mult
-                            </>
-                          )}
-                        </button>
-                      ) : null}
-                    </div>
-                    <button
-                      type="button"
-                      aria-label="Șterge notificarea"
-                      onClick={() => void remove(n.id)}
-                      className="shrink-0 text-[var(--text-tertiary)] hover:text-[var(--danger-text)]"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-
-        {!loading && hasMore ? (
-          <button
-            type="button"
-            onClick={() => void loadMore()}
-            disabled={loadingMore}
-            className="mt-6 w-full rounded-xl border border-[var(--border-default)] py-2 text-sm font-semibold text-[var(--primary)]"
-          >
-            {loadingMore ? 'Se încarcă…' : 'Încarcă mai multe'}
-          </button>
+        {unreadCount > 0 && !loading ? (
+          <div className="sticky bottom-[calc(var(--app-nav-clearance)+12px)] bg-page pt-2 md:bottom-4">
+            <Button type="button" variant="neutral" size="touch" className="w-full" loading={markingAll} onClick={() => void markAll()}>
+              Marchează toate ca citite
+            </Button>
+          </div>
         ) : null}
-
-        {!loading && items.length === 0 ? (
-          <p className="py-10 text-center text-sm text-[var(--text-secondary)]">Nicio notificare.</p>
-        ) : null}
-      </div>
+      </ScreenBody>
     </AppShell>
   )
 }

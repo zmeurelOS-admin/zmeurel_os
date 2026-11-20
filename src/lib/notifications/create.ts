@@ -1,5 +1,7 @@
 import { getAssociationRoleForUserId } from '@/lib/association/resolve-association-role-server'
+import { shouldSendWebPushForType } from '@/lib/notifications/config'
 import { getNotificationHref } from '@/lib/notifications/navigation'
+import { utilizatorulPermitePush } from '@/lib/notifications/preferinte-server'
 import { fireWebPushForNotification } from '@/lib/notifications/send-push'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { Database, Json } from '@/types/supabase'
@@ -67,8 +69,15 @@ export async function createNotification(
     const { data: row, error } = await admin.from('notifications').insert(payload).select('id').single()
     if (error) throw error
     const id = (row as { id: string } | null)?.id ?? null
-    if (id) {
-      const notificationData = dataJson as Record<string, unknown>
+    const notificationData = dataJson as Record<string, unknown>
+    // Rândul de mai sus rămâne oricum în listă. Preferințele („Ce primești”) opresc doar push-ul;
+    // le citim doar când push-ul ar pleca, ca restul notificărilor să nu facă o cerere în plus.
+    // (Politica pe tip rămâne și în `send-push.ts`.)
+    const blockedByPreferences =
+      id !== null &&
+      shouldSendWebPushForType(type, notificationData) &&
+      !(await utilizatorulPermitePush(userId, type))
+    if (id && !blockedByPreferences) {
       fireWebPushForNotification({
         userId,
         notificationId: id,

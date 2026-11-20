@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import {
   BigInput,
   Button,
@@ -33,47 +32,24 @@ import { getClienți } from '@/lib/supabase/queries/clienti'
 import { toast } from '@/lib/ui/toast'
 import { cn } from '@/lib/utils'
 
-const SECTION_CLASS = 'scroll-mt-24 space-y-4 rounded-card border border-border bg-surface p-5 shadow-1 md:scroll-mt-28'
+const SECTION_CLASS = 'space-y-4'
 
-/** Id-urile secțiunilor, pentru meniul de pe desktop al paginii Setări. */
-export const SETARI_FERMA_NAV = [
-  { id: 'pret-standard', label: 'Preț standard' },
-  { id: 'acasa', label: 'Ce arată Acasă' },
-  { id: 'date-clienti', label: 'Date: clienți' },
-] as const
-
-function SectionTitle({ children, hint }: { children: React.ReactNode; hint?: React.ReactNode }) {
-  return (
-    <div className="space-y-1">
-      <h2 className={cn('font-extrabold text-fg', kitText.card)}>{children}</h2>
-      {hint ? <p className={cn('text-fg-muted', kitText.secondary)}>{hint}</p> : null}
-    </div>
-  )
+function SectionHint({ children }: { children: React.ReactNode }) {
+  return <p className={cn('text-fg-muted', kitText.secondary)}>{children}</p>
 }
 
 const WAITING_FOR_DB = 'Se activează după actualizarea bazei de date.'
 
 /**
- * Secțiunile noi din Setări, pe kit: Preț standard, Ce arată Acasă și Date (ștergerea tuturor clienților).
- * Restul paginii Setări e cel de dinainte.
+ * Setările fermei pe kit, câte una pe subpagină:
+ * Setări › Prețul standard (/settings/pret-standard), Setări › Ce arată Acasă (/settings/acasa)
+ * și ștergerea tuturor clienților (Setări › Contul tău › Ireversibil).
+ * Operatorii nu ajung aici: /settings e blocat pentru ei în proxy.
  */
-export function SetariFerma() {
-  const { memberRole } = useDashboardAuth()
-  // Sunt setări ale fermei: un operator nu le vede.
-  if (memberRole === 'operator') return null
-
-  return (
-    <>
-      <PretStandardSection />
-      <AcasaSection />
-      <DateClientiSection />
-    </>
-  )
-}
 
 // ─── Preț standard ─────────────────────────────────────────────────────────────
 
-function PretStandardSection() {
+export function PretStandardSection() {
   const queryClient = useQueryClient()
   const { settings, isLoading } = useFarmSettings()
   const standard = resolvePretStandard(settings)
@@ -122,9 +98,9 @@ function PretStandardSection() {
 
   return (
     <section id="pret-standard" className={SECTION_CLASS}>
-      <SectionTitle hint="Pentru persoane fizice. Patiseriile și magazinele au prețul negociat din fișa lor. Comenzile deja făcute își păstrează prețul.">
-        Preț standard
-      </SectionTitle>
+      <SectionHint>
+        Pentru persoane fizice. Patiseriile și magazinele au prețul negociat din fișa lor. Comenzile deja făcute își păstrează prețul.
+      </SectionHint>
 
       <div className="rounded-box bg-primary-soft p-4">
         <p className={cn('font-medium text-fg-muted', kitText.secondary)}>Comenzile noi primesc acum</p>
@@ -210,7 +186,7 @@ function daysInMonth(month: number): number {
   return new Date(2025, month, 0).getDate()
 }
 
-function AcasaSection() {
+export function AcasaSection() {
   const queryClient = useQueryClient()
   const { settings, isLoading } = useFarmSettings()
 
@@ -262,7 +238,7 @@ function AcasaSection() {
 
   return (
     <section id="acasa" className={SECTION_CLASS}>
-      <SectionTitle hint="Pe telefon, Acasă arată altceva în sezon decât în extrasezon.">Ce arată Acasă</SectionTitle>
+      <SectionHint>Pe telefon, Acasă arată altceva în sezon decât în extrasezon.</SectionHint>
 
       {disabled && !isLoading ? (
         <Notice tone="info" title={WAITING_FOR_DB}>
@@ -340,7 +316,7 @@ function AcasaSection() {
   )
 }
 
-// ─── Date › Șterge toți clienții ───────────────────────────────────────────────
+// ─── Contul tău › Ireversibil › Șterge toți clienții ───────────────────────────
 
 const CONFIRM_WORD = 'ȘTERGE'
 
@@ -352,7 +328,22 @@ function normalizeConfirm(value: string): string {
     .replace(/[̀-ͯ]/g, '')
 }
 
-function DateClientiSection() {
+/** Câți clienți are ferma (pentru textul rândului din „Ireversibil”). */
+export function useClientiCount(): { count: number; isLoading: boolean } {
+  const { data: clienti = [], isLoading } = useQuery({
+    queryKey: queryKeys.clienti,
+    queryFn: getClienți,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  })
+  return { count: clienti.length, isLoading }
+}
+
+/**
+ * Confirmarea pentru ștergerea tuturor clienților, în același ecran (mutată din pagina Clienți).
+ * Cere cuvântul ȘTERGE. Clienții cu comenzi sau vânzări rămân.
+ */
+export function StergeClientiPanel({ onCancel }: { onCancel: () => void }) {
   const queryClient = useQueryClient()
   const { data: clienti = [], isLoading } = useQuery({
     queryKey: queryKeys.clienti,
@@ -387,15 +378,16 @@ function DateClientiSection() {
   }
 
   return (
-    <section id="date-clienti" className={SECTION_CLASS}>
-      <SectionTitle hint="Mutată aici din pagina Clienți. Nu se poate anula.">Date: șterge toți clienții</SectionTitle>
-
-      <p className={cn('text-fg', kitText.base)}>
+    <div className="space-y-3 rounded-box border border-danger-border bg-danger-bg p-3.5" role="group" aria-labelledby="confirm-clienti-titlu">
+      <p id="confirm-clienti-titlu" className={cn('font-extrabold text-danger-text', kitText.base)}>
+        Ștergi toți clienții?
+      </p>
+      <p className={cn('text-fg-muted', kitText.secondary)}>
         {isLoading
           ? 'Număr clienții…'
           : clienti.length === 0
             ? 'Nu ai niciun client.'
-            : `Ai ${clienti.length} ${clienti.length === 1 ? 'client' : 'clienți'}. Cei cu comenzi sau vânzări nu se șterg: istoricul lor rămâne.`}
+            : `Ai ${clienti.length} ${clienti.length === 1 ? 'client' : 'clienți'}. Cei cu comenzi sau vânzări nu se șterg: istoricul lor rămâne. Nu se poate anula.`}
       </p>
 
       {error ? <Notice tone="danger" title={error} /> : null}
@@ -418,20 +410,31 @@ function DateClientiSection() {
       ) : null}
 
       {clienti.length > 0 ? (
-        <>
-          <BigInput
-            label={`Scrie ${CONFIRM_WORD} ca să confirmi`}
-            value={typed}
-            onChange={(event) => setTyped(event.target.value)}
-            autoComplete="off"
-            autoCapitalize="characters"
-            disabled={running}
-          />
-          <Button type="button" variant="danger" size="touch-lg" className="w-full" disabled={!confirmed} loading={running} onClick={() => void run()}>
-            {running ? 'Se șterg…' : 'Șterge toți clienții'}
-          </Button>
-        </>
+        <BigInput
+          label={`Scrie ${CONFIRM_WORD} ca să confirmi`}
+          value={typed}
+          onChange={(event) => setTyped(event.target.value)}
+          autoComplete="off"
+          autoCapitalize="characters"
+          disabled={running}
+        />
       ) : null}
-    </section>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Button type="button" variant="neutral" size="touch" onClick={onCancel} disabled={running}>
+          {result ? 'Închide' : 'Renunț'}
+        </Button>
+        <Button
+          type="button"
+          variant="danger"
+          size="touch"
+          disabled={!confirmed || clienti.length === 0}
+          loading={running}
+          onClick={() => void run()}
+        >
+          {running ? 'Se șterg…' : 'Șterge'}
+        </Button>
+      </div>
+    </div>
   )
 }

@@ -2,7 +2,12 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 
-type DensityMode = 'compact' | 'normal'
+/**
+ * Mărimea textului și a butoanelor (Setări › Aspect): `normal` sau `large`.
+ * Se ține pe dispozitiv (`localStorage`, cheia `ui_preferences`) și se pune pe <html> ca `data-density`.
+ * Valoarea veche `compact` (interfața compactă, scoasă pe 20.11) se citește ca `normal`.
+ */
+export type DensityMode = 'normal' | 'large'
 
 interface UiPreferences {
   density: DensityMode
@@ -18,16 +23,18 @@ const DEFAULT_PREFERENCES: UiPreferences = { density: 'normal' }
 
 const DensityContext = createContext<DensityContextValue | null>(null)
 
+export function parseDensity(value: unknown): DensityMode {
+  return value === 'large' ? 'large' : 'normal'
+}
+
 function readPreferences(): UiPreferences {
   if (typeof window === 'undefined') return DEFAULT_PREFERENCES
 
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) return DEFAULT_PREFERENCES
-    const parsed = JSON.parse(raw) as Partial<UiPreferences>
-    return {
-      density: parsed.density === 'normal' ? 'normal' : 'compact',
-    }
+    const parsed = JSON.parse(raw) as Partial<Record<keyof UiPreferences, unknown>>
+    return { density: parseDensity(parsed.density) }
   } catch {
     return DEFAULT_PREFERENCES
   }
@@ -35,7 +42,11 @@ function readPreferences(): UiPreferences {
 
 function writePreferences(preferences: UiPreferences) {
   if (typeof window === 'undefined') return
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences))
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences))
+  } catch {
+    // Mod privat / spațiu plin: alegerea rămâne doar pentru sesiunea de acum.
+  }
 }
 
 export function DensityProvider({ children }: { children: React.ReactNode }) {
@@ -46,14 +57,10 @@ export function DensityProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.dataset.density = density
   }, [density])
 
-  const setDensity = (nextDensity: DensityMode) => {
-    setDensityState(nextDensity)
-  }
-
   const value = useMemo<DensityContextValue>(
     () => ({
       density,
-      setDensity,
+      setDensity: (nextDensity: DensityMode) => setDensityState(nextDensity),
     }),
     [density]
   )
@@ -68,4 +75,3 @@ export function useDensity() {
   }
   return context
 }
-

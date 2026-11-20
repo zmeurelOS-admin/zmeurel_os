@@ -15,6 +15,7 @@ import { parseFarmMemberAccessHeader } from '@/lib/farm-members/access'
 import { getTenantLegalDocs } from '@/lib/legal-docs/server'
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
+import { Suspense } from 'react'
 
 import { Providers } from '../providers'
 
@@ -87,7 +88,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
             {children}
           </main>
           <DashboardShellFloatingOverlays />
-          <BottomTabBar />
+          <Suspense fallback={null}>
+            <BottomTabBar />
+          </Suspense>
           <UnifiedMobileFab />
         </div>
       </AiPanelProvider>
