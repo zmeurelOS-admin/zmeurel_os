@@ -1212,11 +1212,11 @@ export type Database = {
           note_interne: string | null
           numar_comanda_scurt: string | null
           observatii: string | null
-          ordine_livrare: number | null
           order_kind: string
+          ordine_livrare: number | null
           parent_comanda_id: string | null
           pret_per_kg: number
-          prioritara: boolean | null
+          prioritara: boolean
           produs_id: string | null
           status: string
           stock_deducted: boolean
@@ -1248,11 +1248,11 @@ export type Database = {
           note_interne?: string | null
           numar_comanda_scurt?: string | null
           observatii?: string | null
-          ordine_livrare?: number | null
           order_kind?: string
+          ordine_livrare?: number | null
           parent_comanda_id?: string | null
           pret_per_kg: number
-          prioritara?: boolean | null
+          prioritara?: boolean
           produs_id?: string | null
           status?: string
           stock_deducted?: boolean
@@ -1284,11 +1284,11 @@ export type Database = {
           note_interne?: string | null
           numar_comanda_scurt?: string | null
           observatii?: string | null
-          ordine_livrare?: number | null
           order_kind?: string
+          ordine_livrare?: number | null
           parent_comanda_id?: string | null
           pret_per_kg?: number
-          prioritara?: boolean | null
+          prioritara?: boolean
           produs_id?: string | null
           status?: string
           stock_deducted?: boolean
@@ -4157,12 +4157,12 @@ export type Database = {
       }
       tenant_settings: {
         Row: {
-          created_at: string | null
           acasa_extrasezon_afiseaza: Json | null
-          acasa_perioada_mod: string | null
+          acasa_perioada_mod: string
+          created_at: string | null
           extrasezon_amanat_pana: string | null
           extrasezon_inceput_la: string | null
-          extrasezon_intrebare_din: string | null
+          extrasezon_intrebare_din: string
           id: string
           latitudine_default: number | null
           longitudine_default: number | null
@@ -4174,12 +4174,12 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
-          created_at?: string | null
           acasa_extrasezon_afiseaza?: Json | null
-          acasa_perioada_mod?: string | null
+          acasa_perioada_mod?: string
+          created_at?: string | null
           extrasezon_amanat_pana?: string | null
           extrasezon_inceput_la?: string | null
-          extrasezon_intrebare_din?: string | null
+          extrasezon_intrebare_din?: string
           id?: string
           latitudine_default?: number | null
           longitudine_default?: number | null
@@ -4191,12 +4191,12 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
-          created_at?: string | null
           acasa_extrasezon_afiseaza?: Json | null
-          acasa_perioada_mod?: string | null
+          acasa_perioada_mod?: string
+          created_at?: string | null
           extrasezon_amanat_pana?: string | null
           extrasezon_inceput_la?: string | null
-          extrasezon_intrebare_din?: string | null
+          extrasezon_intrebare_din?: string
           id?: string
           latitudine_default?: number | null
           longitudine_default?: number | null
@@ -4311,12 +4311,11 @@ export type Database = {
           client_sync_id: string
           comanda_id: string | null
           conflict_flag: boolean | null
-          data_incasare_partiala: string | null
-          suma_incasata_partial_lei: number | null
           created_at: string
           created_by: string | null
           data: string
           data_incasare: string | null
+          data_incasare_partiala: string | null
           data_origin: string | null
           demo_seed_id: string | null
           id: string
@@ -4325,6 +4324,7 @@ export type Database = {
           pret_lei_kg: number
           produs_id: string | null
           status_plata: string | null
+          suma_incasata_partial_lei: number | null
           sync_status: string | null
           tenant_id: string
           updated_at: string
@@ -4336,12 +4336,11 @@ export type Database = {
           client_sync_id?: string
           comanda_id?: string | null
           conflict_flag?: boolean | null
-          data_incasare_partiala?: string | null
-          suma_incasata_partial_lei?: number | null
           created_at?: string
           created_by?: string | null
           data: string
           data_incasare?: string | null
+          data_incasare_partiala?: string | null
           data_origin?: string | null
           demo_seed_id?: string | null
           id?: string
@@ -4350,6 +4349,7 @@ export type Database = {
           pret_lei_kg: number
           produs_id?: string | null
           status_plata?: string | null
+          suma_incasata_partial_lei?: number | null
           sync_status?: string | null
           tenant_id?: string
           updated_at?: string
@@ -4361,12 +4361,11 @@ export type Database = {
           client_sync_id?: string
           comanda_id?: string | null
           conflict_flag?: boolean | null
-          data_incasare_partiala?: string | null
-          suma_incasata_partial_lei?: number | null
           created_at?: string
           created_by?: string | null
           data?: string
           data_incasare?: string | null
+          data_incasare_partiala?: string | null
           data_origin?: string | null
           demo_seed_id?: string | null
           id?: string
@@ -4375,6 +4374,7 @@ export type Database = {
           pret_lei_kg?: number
           produs_id?: string | null
           status_plata?: string | null
+          suma_incasata_partial_lei?: number | null
           sync_status?: string | null
           tenant_id?: string
           updated_at?: string
@@ -4431,8 +4431,8 @@ export type Database = {
           parcela_sursa_id: string | null
           pret_unitar_lei: number
           soi_butasi: string | null
-          sursa_comanda: string | null
           status: string
+          sursa_comanda: string | null
           tenant_id: string | null
           tip_fruct: string | null
           total_lei: number
@@ -4457,8 +4457,8 @@ export type Database = {
           parcela_sursa_id?: string | null
           pret_unitar_lei: number
           soi_butasi?: string | null
-          sursa_comanda?: string | null
           status?: string
+          sursa_comanda?: string | null
           tenant_id?: string | null
           tip_fruct?: string | null
           total_lei?: number
@@ -4483,8 +4483,8 @@ export type Database = {
           parcela_sursa_id?: string | null
           pret_unitar_lei?: number
           soi_butasi?: string | null
-          sursa_comanda?: string | null
           status?: string
+          sursa_comanda?: string | null
           tenant_id?: string | null
           tip_fruct?: string | null
           total_lei?: number
@@ -5314,6 +5314,7 @@ export type Database = {
           created_by: string | null
           data: string
           data_incasare: string | null
+          data_incasare_partiala: string | null
           data_origin: string | null
           demo_seed_id: string | null
           id: string
@@ -5322,6 +5323,7 @@ export type Database = {
           pret_lei_kg: number
           produs_id: string | null
           status_plata: string | null
+          suma_incasata_partial_lei: number | null
           sync_status: string | null
           tenant_id: string
           updated_at: string
@@ -5347,6 +5349,14 @@ export type Database = {
       delete_vanzare_with_stock: {
         Args: { p_vanzare_id: string }
         Returns: undefined
+      }
+      deliver_and_clone_comanda: {
+        Args: {
+          p_comanda_id: string
+          p_new_cantitate_kg: number
+          p_new_data_livrare: string
+        }
+        Returns: Json
       }
       deliver_order_atomic: {
         Args: {
@@ -5482,6 +5492,7 @@ export type Database = {
           created_by: string | null
           data: string
           data_incasare: string | null
+          data_incasare_partiala: string | null
           data_origin: string | null
           demo_seed_id: string | null
           id: string
@@ -5490,6 +5501,7 @@ export type Database = {
           pret_lei_kg: number
           produs_id: string | null
           status_plata: string | null
+          suma_incasata_partial_lei: number | null
           sync_status: string | null
           tenant_id: string
           updated_at: string
@@ -5515,6 +5527,10 @@ export type Database = {
           vanzari_butasi_migrated: number
           vanzari_migrated: number
         }[]
+      }
+      normalize_phone_number_for_match: {
+        Args: { p_value: string }
+        Returns: string
       }
       operator_can_write: { Args: { p_module: string }; Returns: boolean }
       operator_is_operator: { Args: never; Returns: boolean }
@@ -5551,15 +5567,19 @@ export type Database = {
           data_livrare: string
           data_origin: string | null
           demo_seed_id: string | null
+          dup_phone_warning: string | null
           id: string
+          last_call_status: string | null
           linked_vanzare_id: string | null
           locatie_livrare: string | null
           note_interne: string | null
           numar_comanda_scurt: string | null
           observatii: string | null
           order_kind: string
+          ordine_livrare: number | null
           parent_comanda_id: string | null
           pret_per_kg: number
+          prioritara: boolean
           produs_id: string | null
           status: string
           stock_deducted: boolean
@@ -5576,6 +5596,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      reconcile_unbridged_shop_orders: {
+        Args: { p_limit?: number; p_tenant_id?: string }
+        Returns: Json
       }
       refresh_tenant_metrics_daily: {
         Args: { p_date?: string }
@@ -5618,15 +5642,19 @@ export type Database = {
           data_livrare: string
           data_origin: string | null
           demo_seed_id: string | null
+          dup_phone_warning: string | null
           id: string
+          last_call_status: string | null
           linked_vanzare_id: string | null
           locatie_livrare: string | null
           note_interne: string | null
           numar_comanda_scurt: string | null
           observatii: string | null
           order_kind: string
+          ordine_livrare: number | null
           parent_comanda_id: string | null
           pret_per_kg: number
+          prioritara: boolean
           produs_id: string | null
           status: string
           stock_deducted: boolean
@@ -5692,15 +5720,19 @@ export type Database = {
           data_livrare: string
           data_origin: string | null
           demo_seed_id: string | null
+          dup_phone_warning: string | null
           id: string
+          last_call_status: string | null
           linked_vanzare_id: string | null
           locatie_livrare: string | null
           note_interne: string | null
           numar_comanda_scurt: string | null
           observatii: string | null
           order_kind: string
+          ordine_livrare: number | null
           parent_comanda_id: string | null
           pret_per_kg: number
+          prioritara: boolean
           produs_id: string | null
           status: string
           stock_deducted: boolean
@@ -5779,15 +5811,19 @@ export type Database = {
           data_livrare: string
           data_origin: string | null
           demo_seed_id: string | null
+          dup_phone_warning: string | null
           id: string
+          last_call_status: string | null
           linked_vanzare_id: string | null
           locatie_livrare: string | null
           note_interne: string | null
           numar_comanda_scurt: string | null
           observatii: string | null
           order_kind: string
+          ordine_livrare: number | null
           parent_comanda_id: string | null
           pret_per_kg: number
+          prioritara: boolean
           produs_id: string | null
           status: string
           stock_deducted: boolean
@@ -5820,15 +5856,19 @@ export type Database = {
           data_livrare: string
           data_origin: string | null
           demo_seed_id: string | null
+          dup_phone_warning: string | null
           id: string
+          last_call_status: string | null
           linked_vanzare_id: string | null
           locatie_livrare: string | null
           note_interne: string | null
           numar_comanda_scurt: string | null
           observatii: string | null
           order_kind: string
+          ordine_livrare: number | null
           parent_comanda_id: string | null
           pret_per_kg: number
+          prioritara: boolean
           produs_id: string | null
           status: string
           stock_deducted: boolean
@@ -5981,6 +6021,7 @@ export type Database = {
           created_by: string | null
           data: string
           data_incasare: string | null
+          data_incasare_partiala: string | null
           data_origin: string | null
           demo_seed_id: string | null
           id: string
@@ -5989,6 +6030,7 @@ export type Database = {
           pret_lei_kg: number
           produs_id: string | null
           status_plata: string | null
+          suma_incasata_partial_lei: number | null
           sync_status: string | null
           tenant_id: string
           updated_at: string
@@ -6066,12 +6108,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -6095,11 +6137,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -6120,11 +6162,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -6145,11 +6187,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -6162,11 +6204,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
