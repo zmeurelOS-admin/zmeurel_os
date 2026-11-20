@@ -108,7 +108,12 @@ Events are stored in `public.analytics_events`. Key columns: `event_name`, `modu
 
 - `18:00 UTC daily` — Google contacts sync
 - `03:00 UTC daily` — Tenant metrics aggregation (`refresh_tenant_metrics_daily` RPC)
-- `04:00 UTC daily` — Demo tenant cleanup (deletes guest tenants older than 24h)
+- `04:00 UTC daily` — Curățarea demo-urilor (`/api/cron/demo-tenant-cleanup`; regula în `src/lib/tenant/demo-cleanup.ts`, citirea și ștergerea în `demo-cleanup-server.ts`):
+  - o fermă e demo **doar** dacă emailul proprietarului din `auth.users` (fără majuscule și spații) se termină în `@demo.zmeurel.local` și `tenants.created_at` e mai vechi de 24 h. `is_demo` / `expires_at` nu decid nimic. `@example.test` nu se șterge de aici;
+  - nu intră niciodată: ferme fără proprietar sau cu proprietar fără email, superadmini, `DEMO_CLEANUP_PROTECTED_OWNER_USER_IDS`, ferme de asociație (`is_association_approved` sau proprietar în `association_members`), proprietari cu mai multe ferme;
+  - `DEMO_CLEANUP_MODE`: lipsă sau orice altă valoare decât `sterge` = **probă** (doar numără: JSON cu `mod: "proba"`, câte ferme, câte fișiere din `bonuri`, primele 20 de emailuri demo, semnele de fermă reală; se vede și în jurnalele Vercel, `[demo-tenant-cleanup] proba`). `sterge` = șterge efectiv. Se trece pe `sterge` doar după ce proba din jurnale a fost citită;
+  - în `sterge`: maximum 50 de ferme pe rulare (cele mai vechi), reverificare înainte de fiecare ștergere, oprire cu eroare pentru toată rularea la orice semn de fermă reală (`semneFermaReala`); o fermă care dă eroare la ștergere nu le oprește pe celelalte (raportată prin `captureApiError`);
+  - ordinea pentru o fermă: fișierele din `bonuri/{tenant_id}/` → tabelele doar-demo (`DEMO_ONLY_DELETE_ORDER`: lanțul de tratamente cu chei `RESTRICT`, `ai_usage_log`) → `deleteTenantScopedData` → rândul din `tenants` (restul pleacă în cascadă) → utilizatorul din `auth` (în cascadă: `profiles`, `notifications`, `push_subscriptions`, `notificari_preferinte`).
 
 ### Database Migrations
 

@@ -51,6 +51,7 @@ export default defineConfig(({ mode }) => {
         'src/lib/security/__tests__/*.test.ts',
         'src/lib/supabase/queries/__tests__/financial-saves.test.ts',
         'src/lib/tenant/__tests__/destructive-cleanup.test.ts',
+        'src/lib/tenant/__tests__/demo-cleanup.test.ts',
       ],
       exclude: ['node_modules', 'e2e', 'tests', '.next'],
     },

@@ -107,6 +107,14 @@ These routes can delete significant amounts of data and use privileged access. T
 - Residual risk: optional/newer tables are tolerated in schema-drift scenarios (missing table => skipped for optional targets), so operators should still monitor warning logs and keep migrations aligned across environments.
 - Any new tenant-scoped table must be added once in the canonical helper; this is now the single source of truth.
 
+### Curățarea demo-urilor (`/api/cron/demo-tenant-cleanup`)
+
+- E singurul loc care șterge ferme întregi automat, în producție. Demo = **doar** email de proprietar `…@demo.zmeurel.local` + fermă mai veche de 24 h (`src/lib/tenant/demo-cleanup.ts`). `tenants.is_demo` / `expires_at` nu mai decid nimic (în producție sunt `false` / gol la toate demo-urile, de aceea cronul vechi nu ștergea nimic).
+- Implicit rulează în **probă** (doar numără). Șterge doar cu `DEMO_CLEANUP_MODE=sterge`; până nu se citește proba din jurnalele Vercel, variabila nu se setează.
+- În `sterge`: cel mult 50 de ferme pe noapte, reverificare înainte de fiecare ștergere și oprire totală la orice semn de fermă reală (alt utilizator în `profiles` / `farm_members`, comenzi în magazin, oferte în asociație, email schimbat, superadmin, asociație, proprietar cu mai multe ferme).
+- Tabele șterse doar pentru demo, nu și la resetare / GDPR (`DEMO_ONLY_DELETE_ORDER` în `demo-cleanup-server.ts`): lanțul `aplicari_tratament*` / `capcane_*` / `planuri_tratament*` / `produse_fitosanitare` (chei `ON DELETE RESTRICT` spre `parcele`, care e șters explicit) și `ai_usage_log` (fără cascadă spre `tenants` și `auth.users`).
+- Risc rămas la resetare și GDPR: aceleași chei `RESTRICT` (`aplicari_tratament.parcela_id`, `capcane_montate.parcela_id` → `parcele`) fac ca `deleteTenantScopedData` să eșueze la `parcele` pentru o fermă care are tratamente aplicate sau capcane; la fel `shop_order_erp_links.comanda_id` (fără cascadă) → `comenzi`. Neschimbat aici, ca să nu lărgim ce șterge resetarea fără decizie.
+
 ### RPC Trust Boundary
 
 - Several critical writes depend on SQL/RPC validation rather than fully self-contained TypeScript safety.

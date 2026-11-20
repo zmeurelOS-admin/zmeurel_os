@@ -7,7 +7,7 @@ import { createNotificationForTenantOwner } from '@/lib/notifications/create'
 import type { getSupabaseAdmin } from '@/lib/supabase/admin'
 
 import type { NotificareZilnica } from './common'
-import { esteFermaDemo } from './ferme'
+import { esteFermaReala } from './ferme'
 
 type Admin = ReturnType<typeof getSupabaseAdmin>
 
@@ -39,7 +39,7 @@ async function emailuriUtilizatori(admin: Admin): Promise<Map<string, string>> {
   return emails
 }
 
-/** Fermele cu proprietar, fără demo-uri. Dacă nu putem deosebi demo-urile, aruncă (nu trimitem nimic). */
+/** Fermele cu proprietar, fără demo-uri și fără conturi de test. Dacă nu putem deosebi demo-urile, aruncă (nu trimitem nimic). */
 export async function citesteFermeleReale(admin: Admin): Promise<FermaReala[]> {
   const { data, error } = await admin.from('tenants').select('id, owner_user_id, is_demo')
   if (error) throw error
@@ -47,7 +47,7 @@ export async function citesteFermeleReale(admin: Admin): Promise<FermaReala[]> {
   const ferme: FermaReala[] = []
   for (const tenant of (data ?? []) as Array<{ id: string; owner_user_id: string | null; is_demo: boolean | null }>) {
     if (!tenant.owner_user_id) continue
-    if (esteFermaDemo(tenant, emails.get(tenant.owner_user_id) ?? null)) continue
+    if (!esteFermaReala(tenant, emails.get(tenant.owner_user_id) ?? null)) continue
     ferme.push({ id: tenant.id, ownerUserId: tenant.owner_user_id })
   }
   return ferme

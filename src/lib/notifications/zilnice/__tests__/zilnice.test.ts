@@ -7,6 +7,7 @@ import {
   alertaMeteo,
   baniDeIncasat,
   comenziMaine,
+  esteFermaReala,
   formatGrade,
   inPerioada,
   numarRo,
@@ -386,5 +387,27 @@ describe('tipurile zilnice în config', () => {
     expect(getNotificationUiConfig('incasari_restante')).toMatchObject({ ton: 'avertizare' })
     expect(getNotificationUiConfig('meteo_inghet')).toMatchObject({ ton: 'avertizare' })
     expect(getNotificationUiConfig('meteo_grindina')).toMatchObject({ ton: 'avertizare' })
+  })
+})
+
+describe('esteFermaReala — cine primește verificarea zilnică', () => {
+  it('o fermă cu proprietar cu email real intră', () => {
+    expect(esteFermaReala({ is_demo: false }, 'ion@gmail.com')).toBe(true)
+    expect(esteFermaReala({}, 'ion@gmail.com')).toBe(true)
+  })
+
+  it('demo-urile nu intră (după email sau după is_demo)', () => {
+    expect(esteFermaReala({ is_demo: false }, 'x1@demo.zmeurel.local')).toBe(false)
+    expect(esteFermaReala({ is_demo: false }, ' X1@Demo.Zmeurel.Local ')).toBe(false)
+    expect(esteFermaReala({ is_demo: true }, 'ion@gmail.com')).toBe(false)
+  })
+
+  it('conturile de test automate @example.test nu intră', () => {
+    expect(esteFermaReala({ is_demo: false }, 'e2e-1@example.test')).toBe(false)
+    expect(esteFermaReala({ is_demo: false }, ' E2E@Example.Test ')).toBe(false)
+  })
+
+  it('@example.com nu e tratat drept cont de test', () => {
+    expect(esteFermaReala({ is_demo: false }, 'cineva@example.com')).toBe(true)
   })
 })

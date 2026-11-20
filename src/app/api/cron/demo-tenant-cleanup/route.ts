@@ -4,12 +4,26 @@ import { captureApiError } from '@/lib/monitoring/report-error'
 import { isProtectedDemoCleanupOwnerUserId } from '@/lib/auth/protected-account'
 import { createServiceRoleClient } from '@/lib/supabase/admin'
 import {
-  deleteTenantScopedData,
-  TENANT_DESTRUCTIVE_CLEANUP_SCOPES,
-  type TenantCleanupError,
-} from '@/lib/tenant/destructive-cleanup'
+  DEMO_CLEANUP_MAX_PER_RUN,
+  DEMO_CLEANUP_SAMPLE_EMAILS,
+  demoCleanupMode,
+  numaraProtejate,
+  selecteazaDemoDeSters,
+  semneFermaReala,
+  type DemoDeSters,
+} from '@/lib/tenant/demo-cleanup'
+import {
+  citesteEmailuri,
+  citesteProtectii,
+  citesteStareaFermei,
+  citesteTenanti,
+  listeazaBonuri,
+  stergeFermaDemo,
+} from '@/lib/tenant/demo-cleanup-server'
 
 export const runtime = 'nodejs'
+
+const ROUTE = '/api/cron/demo-tenant-cleanup'
 
 function hasValidCronSecret(request: Request): boolean {
   const expected = process.env.CRON_SECRET
@@ -20,128 +34,150 @@ function hasValidCronSecret(request: Request): boolean {
   return headerSecret === expected || bearerSecret === expected
 }
 
+type SemnGasit = { tenantId: string; email: string; semne: string[] }
+
+class FermaRealaError extends Error {
+  constructor(readonly semn: SemnGasit) {
+    super(`Semn de fermă reală la ${semn.tenantId}: ${semn.semne.join('; ')}`)
+    this.name = 'FermaRealaError'
+  }
+}
+
+/** Reverifică o fermă; întoarce semnele de fermă reală (gol = se poate șterge) sau `null` dacă ferma nu mai există. */
+async function reverifica(
+  admin: ReturnType<typeof createServiceRoleClient>,
+  candidat: DemoDeSters,
+): Promise<string[] | null> {
+  const stare = await citesteStareaFermei(admin, candidat, isProtectedDemoCleanupOwnerUserId)
+  if (!stare.tenant) return null
+  return semneFermaReala(candidat, stare, new Date())
+}
+
+/**
+ * Curățarea nocturnă a demo-urilor (04:00 UTC).
+ * Implicit doar numără (`mod: "proba"`); șterge efectiv numai cu `DEMO_CLEANUP_MODE=sterge`.
+ */
 export async function GET(request: Request) {
   if (!hasValidCronSecret(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const mod = demoCleanupMode()
   const admin = createServiceRoleClient()
-  let deletedTenants = 0
-  let deletedUsers = 0
-  const errors: string[] = []
 
   try {
-    const { data: superadminProfiles, error: superadminFetchError } = await admin
-      .from('profiles')
-      .select('id')
-      .eq('is_superadmin', true)
-
-    if (superadminFetchError) {
-      throw new Error(`Fetch superadmins: ${superadminFetchError.message}`)
-    }
-
-    const protectedOwnerIds = new Set(
-      ((superadminProfiles ?? []) as Array<{ id: string | null }>)
-        .map((row) => row.id)
-        .filter((id): id is string => typeof id === 'string' && id.length > 0),
-    )
-
-    // Find expired demo tenants directly — no N+1 needed
-    type TenantRow = { id: string; owner_user_id: string | null }
-    const { data: expiredRaw, error: fetchError } = await admin
-      .from('tenants')
-      .select('id, owner_user_id' as 'id')
-      .eq('is_demo' as 'id', true as unknown as string)
-      .lt('expires_at' as 'id', new Date().toISOString())
-
-    if (fetchError) throw new Error(`Fetch demo tenants: ${fetchError.message}`)
-
-    const expired = (expiredRaw ?? []) as unknown as TenantRow[]
-
-    // Guard: never touch protected owners (superadmins + explicit env allowlist)
-    const safe = expired.filter((tenant) => {
-      if (!tenant.owner_user_id) return true
-      if (protectedOwnerIds.has(tenant.owner_user_id)) return false
-      if (isProtectedDemoCleanupOwnerUserId(tenant.owner_user_id)) return false
-      return true
+    const [tenanti, emailuri, protectii] = await Promise.all([
+      citesteTenanti(admin),
+      citesteEmailuri(admin),
+      citesteProtectii(admin),
+    ])
+    const selectie = selecteazaDemoDeSters(tenanti, emailuri, new Date(), {
+      ...protectii,
+      esteProprietarProtejat: isProtectedDemoCleanupOwnerUserId,
     })
-
-    if (safe.length === 0) {
-      return NextResponse.json({ ok: true, deletedTenants: 0, deletedUsers: 0, message: 'Nothing to clean up.' })
+    const lot = selectie.deSters.slice(0, DEMO_CLEANUP_MAX_PER_RUN)
+    const comun = {
+      fermeDeSters: selectie.deSters.length,
+      fermeInRulare: lot.length,
+      limitaPeRulare: DEMO_CLEANUP_MAX_PER_RUN,
+      protejate: numaraProtejate(selectie.protejate),
     }
 
-    const cleanedTenantIds: string[] = []
-    const ownerIdByTenantId = new Map(
-      safe
-        .map((tenant) => [tenant.id, tenant.owner_user_id] as const)
-        .filter(([, ownerUserId]) => Boolean(ownerUserId))
-    )
+    if (mod === 'proba') {
+      let fisiereBonuri = 0
+      for (const candidat of selectie.deSters) {
+        fisiereBonuri += (await listeazaBonuri(admin, candidat.tenantId)).length
+      }
+      const semneFermaRealaGasite: SemnGasit[] = []
+      for (const candidat of lot) {
+        const semne = await reverifica(admin, candidat)
+        if (semne && semne.length > 0) semneFermaRealaGasite.push({ tenantId: candidat.tenantId, email: candidat.email, semne })
+      }
+      const payload = {
+        ok: true,
+        mod: 'proba' as const,
+        ...comun,
+        fisiereBonuri,
+        emailuriExemplu: selectie.deSters.slice(0, DEMO_CLEANUP_SAMPLE_EMAILS).map((candidat) => candidat.email),
+        semneFermaReala: semneFermaRealaGasite,
+      }
+      console.info('[demo-tenant-cleanup] proba', JSON.stringify(payload))
+      return NextResponse.json(payload)
+    }
 
-    for (const tenant of safe) {
-      try {
-        const cleanupResult = await deleteTenantScopedData(admin, tenant.id, {
-          scope: TENANT_DESTRUCTIVE_CLEANUP_SCOPES.demoTenantCleanup,
-          verifyCriticalTables: true,
-        })
-        const nonCriticalFailures = cleanupResult.steps.filter(
-          (step) => step.status === 'failed' && !step.critical
+    // Mod `sterge`. Întâi reverificăm tot lotul: un singur semn de fermă reală oprește rularea înainte de orice ștergere.
+    for (const candidat of lot) {
+      const semne = await reverifica(admin, candidat)
+      if (semne && semne.length > 0) throw new FermaRealaError({ tenantId: candidat.tenantId, email: candidat.email, semne })
+    }
+
+    let fermeSterse = 0
+    let utilizatoriStersi = 0
+    let fisiereSterse = 0
+    const erori: string[] = []
+
+    for (const candidat of lot) {
+      // Reverificăm chiar înainte de ștergere (emailul proprietarului, membrii, magazinul…).
+      const semne = await reverifica(admin, candidat)
+      if (semne === null) continue
+      if (semne.length > 0) {
+        const error = new FermaRealaError({ tenantId: candidat.tenantId, email: candidat.email, semne })
+        captureApiError(error, { route: ROUTE, tenantId: candidat.tenantId, tags: { mod } })
+        return NextResponse.json(
+          {
+            ok: false,
+            mod,
+            oprit: true,
+            error: error.message,
+            fermeSterse,
+            utilizatoriStersi,
+            fisiereSterse,
+            ...(erori.length > 0 ? { erori } : {}),
+          },
+          { status: 500 },
         )
-        if (nonCriticalFailures.length > 0) {
-          errors.push(
-            `tenant ${tenant.id} non-critical cleanup warnings: ${nonCriticalFailures
-              .map((step) => step.target)
-              .join(', ')}`
-          )
-        }
-        cleanedTenantIds.push(tenant.id)
-      } catch (err) {
-        const cleanupError = err as TenantCleanupError | Error
-        const message = cleanupError instanceof Error ? cleanupError.message : 'unknown'
-        errors.push(`tenant ${tenant.id} cleanup failed: ${message}`)
       }
-    }
 
-    // Delete tenants
-    let tenantIdsWithDeletedTenantRow: string[] = []
-    if (cleanedTenantIds.length > 0) {
-      const { error: tenantErr } = await admin.from('tenants').delete().in('id', cleanedTenantIds)
-      if (tenantErr) {
-        errors.push(`tenants: ${tenantErr.message}`)
-      } else {
-        deletedTenants = cleanedTenantIds.length
-        tenantIdsWithDeletedTenantRow = cleanedTenantIds
-      }
-    }
-
-    // Delete auth users
-    const ownerIds = tenantIdsWithDeletedTenantRow
-      .map((tenantId) => ownerIdByTenantId.get(tenantId))
-      .filter(Boolean) as string[]
-
-    for (const userId of ownerIds) {
       try {
-        const { error: authErr } = await admin.auth.admin.deleteUser(userId)
-        if (!authErr) {
-          deletedUsers += 1
-        } else {
-          errors.push(`auth user ${userId}: ${authErr.message}`)
+        const rezultat = await stergeFermaDemo(admin, candidat)
+        fermeSterse += 1
+        fisiereSterse += rezultat.fisiere
+        if (rezultat.utilizatorSters) utilizatoriStersi += 1
+        if (rezultat.avertismente.length > 0) {
+          const message = `tenant ${candidat.tenantId}: ${rezultat.avertismente.join('; ')}`
+          erori.push(message)
+          captureApiError(new Error(message), { route: ROUTE, tenantId: candidat.tenantId, tags: { mod } })
         }
-      } catch (err) {
-        errors.push(`auth user ${userId}: ${err instanceof Error ? err.message : 'unknown'}`)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'unknown'
+        erori.push(`tenant ${candidat.tenantId}: ${message}`)
+        captureApiError(error, { route: ROUTE, tenantId: candidat.tenantId, tags: { mod } })
       }
     }
 
-    return NextResponse.json({
+    const payload = {
       ok: true,
-      deletedTenants,
-      deletedUsers,
-      ...(errors.length > 0 ? { errors } : {}),
-    })
+      mod: 'sterge' as const,
+      ...comun,
+      fermeSterse,
+      utilizatoriStersi,
+      fisiereSterse,
+      ramasePentruUrmatoareaRulare: Math.max(0, selectie.deSters.length - lot.length),
+      ...(erori.length > 0 ? { erori } : {}),
+    }
+    console.info('[demo-tenant-cleanup] sterge', JSON.stringify(payload))
+    return NextResponse.json(payload)
   } catch (error) {
-    captureApiError(error, { route: '/api/cron/demo-tenant-cleanup' })
+    captureApiError(error, { route: ROUTE, tags: { mod } })
+    if (error instanceof FermaRealaError) {
+      return NextResponse.json(
+        { ok: false, mod, oprit: true, error: error.message, fermeSterse: 0 },
+        { status: 500 },
+      )
+    }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Cleanup failed' },
-      { status: 500 }
+      { ok: false, mod, error: error instanceof Error ? error.message : 'Cleanup failed' },
+      { status: 500 },
     )
   }
 }
