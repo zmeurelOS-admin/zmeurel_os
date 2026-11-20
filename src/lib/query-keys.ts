@@ -8,6 +8,8 @@ export const queryKeys = {
   activitatiAgricole: ['activitati'] as const,
   cheltuieli: ['cheltuieli'] as const,
   cheltuieliFrequentSuppliers: ['cheltuieli', 'frequent-suppliers'] as const,
+  /** URL-ul semnat al unui bon (după valoarea din `document_url`). */
+  bonUrl: (documentUrl: string) => ['bon-url', documentUrl] as const,
   clienti: ['clienti'] as const,
   comenzi: ['comenzi'] as const,
   comenziStockSummaryAzi: ['comenzi', 'stock-summary-azi'] as const,

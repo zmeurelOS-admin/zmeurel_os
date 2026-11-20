@@ -42,7 +42,8 @@ export interface UpdateCheltuialaInput {
   descriere?: string;
   suma_lei?: number;
   furnizor?: string;
-  document_url?: string;
+  /** `null` scoate bonul. */
+  document_url?: string | null;
 }
 
 type SupabaseLikeError = {

@@ -25,6 +25,8 @@ export interface Investitie {
   categorie: string | null
   furnizor: string | null
   descriere: string | null
+  /** Calea bonului în bucketul `bonuri` (sau un URL vechi). */
+  document_url: string | null
   suma_lei: number
   created_at: string
   updated_at: string
@@ -37,6 +39,7 @@ export interface CreateInvestitieInput {
   furnizor?: string
   descriere?: string
   suma_lei: number
+  document_url?: string
 }
 
 export interface UpdateInvestitieInput {
@@ -47,6 +50,8 @@ export interface UpdateInvestitieInput {
   furnizor?: string
   descriere?: string
   suma_lei?: number
+  /** `null` scoate bonul. */
+  document_url?: string | null
 }
 
 function normalizeInvestitieRow(row: Record<string, unknown>): Investitie {
@@ -58,6 +63,7 @@ function normalizeInvestitieRow(row: Record<string, unknown>): Investitie {
     categorie: resolveInvestitieCategorie((row.categorie as string | null) ?? null),
     furnizor: (row.furnizor as string | null) ?? null,
     descriere: (row.descriere as string | null) ?? null,
+    document_url: (row.document_url as string | null) ?? null,
     suma_lei: Number(row.suma_lei ?? 0),
     created_at: String(row.created_at ?? ''),
     updated_at: String(row.updated_at ?? ''),
@@ -149,6 +155,7 @@ export async function createInvestitie(
       furnizor: input.furnizor ?? null,
       descriere: input.descriere ?? null,
       suma_lei: input.suma_lei,
+      document_url: input.document_url || null,
     })
     .select()
     .single()

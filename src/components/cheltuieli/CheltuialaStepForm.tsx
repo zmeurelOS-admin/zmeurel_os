@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, MapPin, NotebookPen, Tag } from 'lucide-react'
+import { CalendarDays, Camera, MapPin, NotebookPen, Tag } from 'lucide-react'
 
 import {
   BigInput,
@@ -22,6 +22,15 @@ import {
   useStepForm,
 } from '@/components/kit'
 import { track } from '@/lib/analytics/track'
+import {
+  BON_UNREADABLE_MESSAGE,
+  bonStoragePathOf,
+  prepareBonImage,
+  removeBon,
+  signedBonUrl,
+  uploadBon,
+  type BonTable,
+} from '@/lib/bonuri'
 import {
   CATEGORII_CHELTUIELI,
   CATEGORII_INVESTITII,
@@ -87,7 +96,42 @@ interface Draft {
 
 const EMPTY_DRAFT: Draft = { categorie: null, date: null, furnizor: '', descriere: '', parcelaId: null, sumaFromChat: false }
 
+/**
+ * Poza bonului din formular: niciuna, cea deja salvată pe rând (editare) sau una nouă, pregătită
+ * (JPEG micșorat) și încă neurcată.
+ */
+type BonDraft =
+  | { kind: 'none' }
+  | { kind: 'saved'; value: string }
+  | { kind: 'new'; blob: Blob; previewUrl: string }
+
+const NO_BON: BonDraft = { kind: 'none' }
+
 const dayOnly = (value: string | null | undefined) => String(value ?? '').slice(0, 10)
+
+/** Cheia rândului pentru calea bonului: `client_sync_id`, altfel `id` (investițiile nu au `client_sync_id`). */
+function rowBonKey(row: Cheltuiala | Investitie): string {
+  const clientSyncId = 'client_sync_id' in row ? String(row.client_sync_id ?? '').trim() : ''
+  return clientSyncId || row.id
+}
+
+function subscribeOnline(onChange: () => void) {
+  window.addEventListener('online', onChange)
+  window.addEventListener('offline', onChange)
+  return () => {
+    window.removeEventListener('online', onChange)
+    window.removeEventListener('offline', onChange)
+  }
+}
+
+/** `false` doar când browserul știe sigur că nu are rețea. */
+function useOnline(): boolean {
+  return useSyncExternalStore(
+    subscribeOnline,
+    () => navigator.onLine,
+    () => true,
+  )
+}
 
 function errorMessage(cause: unknown, mode: 'create' | 'edit'): string {
   const message = (cause as { userMessage?: string } | null)?.userMessage || (cause instanceof Error ? cause.message : '')
@@ -134,7 +178,15 @@ export function CheltuialaStepForm({
   const [confirmingClose, setConfirmingClose] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [saved, setSaved] = useState<{ suma: number; categorie: string } | null>(null)
+  const [saved, setSaved] = useState<{ suma: number; categorie: string; withoutBon: boolean } | null>(null)
+  const [bon, setBon] = useState<BonDraft>(NO_BON)
+  const [bonPreparing, setBonPreparing] = useState(false)
+  const [bonReadError, setBonReadError] = useState(false)
+  const [bonUploadFailed, setBonUploadFailed] = useState(false)
+  const online = useOnline()
+  const bonInputRef = useRef<HTMLInputElement>(null)
+  // Ultima poză urcată în această deschidere: o reîncercare după o eroare la rând nu o mai urcă o dată.
+  const uploadedBon = useRef<{ blob: Blob; path: string } | null>(null)
 
   // ─── O cheie de formular nouă înseamnă o înregistrare nouă ───
   const [sessionKey, setSessionKey] = useState<string | null>(null)
@@ -173,12 +225,36 @@ export function CheltuialaStepForm({
       setDraft(EMPTY_DRAFT)
     }
 
+    const savedBon = editing?.document_url?.trim() || null
+    setBon(savedBon ? { kind: 'saved', value: savedBon } : NO_BON)
+    setBonPreparing(false)
+    setBonReadError(false)
+    setBonUploadFailed(false)
+
     setChoice(null)
     setConfirmingClose(false)
     setSaving(false)
     setSaveError(null)
     setSaved(null)
   }
+
+  // Miniatura pozei noi trăiește cât e aleasă.
+  const newBonUrl = bon.kind === 'new' ? bon.previewUrl : null
+  useEffect(() => {
+    if (!newBonUrl) return
+    return () => URL.revokeObjectURL(newBonUrl)
+  }, [newBonUrl])
+
+  const savedBonValue = bon.kind === 'saved' ? bon.value : null
+  const { data: savedBonUrl = null } = useQuery({
+    queryKey: queryKeys.bonUrl(savedBonValue ?? ''),
+    queryFn: () => signedBonUrl(savedBonValue),
+    enabled: open && savedBonValue !== null,
+    // URL-ul semnat ține o oră.
+    staleTime: 45 * 60_000,
+    gcTime: 50 * 60_000,
+    refetchOnWindowFocus: false,
+  })
 
   const { data: frequentSuppliers = [] } = useQuery({
     queryKey: queryKeys.cheltuieliFrequentSuppliers,
@@ -192,6 +268,7 @@ export function CheltuialaStepForm({
   const suma = fields.numbers.suma ?? 0
   const parcela = parcele.find((item) => item.id === draft.parcelaId) ?? null
   const detailsText = [draft.furnizor.trim(), draft.descriere.trim()].filter(Boolean).join(' · ')
+  const bonChanged = bon.kind === 'new' || (bon.kind === 'none' && Boolean(editing?.document_url?.trim()))
 
   const dirty = editing
     ? round2(suma) !== round2(Number(editing.suma_lei)) ||
@@ -199,8 +276,9 @@ export function CheltuialaStepForm({
       date !== dayOnly(editing.data) ||
       draft.furnizor.trim() !== (editing.furnizor ?? '').trim() ||
       draft.descriere.trim() !== (editing.descriere ?? '').trim() ||
-      (isInvestitie && draft.parcelaId !== ('parcela_id' in editing ? editing.parcela_id : null))
-    : suma > 0 || draft.categorie !== null
+      (isInvestitie && draft.parcelaId !== ('parcela_id' in editing ? editing.parcela_id : null)) ||
+      bonChanged
+    : suma > 0 || draft.categorie !== null || bon.kind === 'new'
 
   // ─── Salvarea ───
   const inFlight = useRef(false)
@@ -210,26 +288,93 @@ export function CheltuialaStepForm({
     liveKeyRef.current = open ? form.clientSyncId : null
   }, [open, form.clientSyncId])
 
-  const canSave = draft.categorie !== null && suma > 0 && !saving
+  const canSave = draft.categorie !== null && suma > 0 && !saving && !bonPreparing
 
-  const save = async () => {
+  // ─── Poza bonului ───
+  const pickBon = () => {
+    if (saving || bonPreparing) return
+    bonInputRef.current?.click()
+  }
+
+  const onBonChosen = async (file: File | undefined) => {
+    if (!file) return
+    const key = form.clientSyncId
+    setBonPreparing(true)
+    setBonReadError(false)
+    setBonUploadFailed(false)
+    try {
+      const blob = await prepareBonImage(file)
+      if (liveKeyRef.current !== key) return
+      setBon({ kind: 'new', blob, previewUrl: URL.createObjectURL(blob) })
+    } catch {
+      if (liveKeyRef.current === key) setBonReadError(true)
+    } finally {
+      if (liveKeyRef.current === key) setBonPreparing(false)
+    }
+  }
+
+  const dropBon = () => {
+    setBon(NO_BON)
+    setBonReadError(false)
+    setBonUploadFailed(false)
+  }
+
+  const save = async ({ withoutBon = false }: { withoutBon?: boolean } = {}) => {
     if (!canSave || draft.categorie === null || inFlight.current) return
     const key = form.clientSyncId
     const categorie = draft.categorie
+    const table: BonTable = isInvestitie ? 'investitii' : 'cheltuieli'
 
     // Investițiile nu au cheie de idempotență în bază: o cheie de formular se trimite o singură dată.
     if (!editing && isInvestitie && sentKeys.current.has(key)) {
-      setSaved({ suma, categorie })
-      form.markSuccess()
+      setSaved({ suma, categorie, withoutBon: false })
+      form.markSuccess({ has_bon: uploadedBon.current !== null })
       return
     }
 
     inFlight.current = true
     setSaving(true)
     setSaveError(null)
+    setBonUploadFailed(false)
 
     const furnizor = draft.furnizor.trim()
     const descriere = draft.descriere.trim()
+
+    // ─── 1. Bonul, înaintea rândului ───
+    // `undefined` = `document_url` rămâne cum e; `null` = se scoate; text = calea din bucket.
+    let documentUrl: string | null | undefined
+    let removeAfterSave: string | null = null
+    // Fără internet poza nu pleacă și nu intră în coadă: se salvează fără bon.
+    const skippedOffline = bon.kind === 'new' && !withoutBon && typeof navigator !== 'undefined' && !navigator.onLine
+
+    if (bon.kind === 'new' && !withoutBon && !skippedOffline) {
+      try {
+        if (uploadedBon.current?.blob === bon.blob) {
+          documentUrl = uploadedBon.current.path
+        } else {
+          documentUrl = await uploadBon({
+            table,
+            key: editing ? rowBonKey(editing) : key,
+            blob: bon.blob,
+            // La editare se scrie peste fișierul existent al rândului.
+            path: editing ? bonStoragePathOf(editing.document_url) : null,
+          })
+          uploadedBon.current = { blob: bon.blob, path: documentUrl }
+        }
+      } catch {
+        hapticError()
+        inFlight.current = false
+        if (liveKeyRef.current === key) {
+          setBonUploadFailed(true)
+          setSaving(false)
+        }
+        return
+      }
+    } else if (editing && bon.kind === 'none' && editing.document_url?.trim()) {
+      documentUrl = null
+      removeAfterSave = editing.document_url
+    }
+    const bonPatch = documentUrl !== undefined ? { document_url: documentUrl } : {}
 
     try {
       if (isInvestitie) {
@@ -242,6 +387,7 @@ export function CheltuialaStepForm({
             parcela_id: draft.parcelaId,
             // Categoria se rescrie doar dacă a fost schimbată: un rând vechi își păstrează numele din bază.
             ...(categorie !== resolveInvestitieCategorie(editing.categorie) ? { categorie } : {}),
+            ...bonPatch,
           })
           track('investitie_edit', { id: editing.id })
         } else {
@@ -252,6 +398,7 @@ export function CheltuialaStepForm({
             furnizor: furnizor || undefined,
             descriere: descriere || undefined,
             parcela_id: draft.parcelaId ?? undefined,
+            document_url: documentUrl ?? undefined,
           })
           sentKeys.current.add(key)
           track('investitie_add', { suma, categorie })
@@ -265,6 +412,7 @@ export function CheltuialaStepForm({
             furnizor,
             descriere,
             ...(categorie !== resolveCheltuialaCategorie(editing.categorie) ? { categorie } : {}),
+            ...bonPatch,
           })
           track('cheltuiala_edit', { id: editing.id })
         } else {
@@ -276,16 +424,20 @@ export function CheltuialaStepForm({
             suma_lei: suma,
             furnizor: furnizor || undefined,
             descriere: descriere || undefined,
+            document_url: documentUrl ?? undefined,
           })
           track('cheltuiala_add', { suma, categorie })
         }
         void queryClient.invalidateQueries({ queryKey: queryKeys.cheltuieli })
       }
+      // Bonul scos: fișierul se șterge după ce rândul nu-l mai arată (best effort, fără să blocheze).
+      if (removeAfterSave) void removeBon(removeAfterSave)
+      if (documentUrl) void queryClient.invalidateQueries({ queryKey: queryKeys.bonUrl(documentUrl) })
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
       hapticSuccess()
       if (liveKeyRef.current === key) {
-        setSaved({ suma, categorie })
-        form.markSuccess()
+        setSaved({ suma, categorie, withoutBon: skippedOffline })
+        form.markSuccess({ has_bon: Boolean(documentUrl) })
       }
     } catch (cause) {
       hapticError()
@@ -300,11 +452,13 @@ export function CheltuialaStepForm({
   }
 
   const close = () => onOpenChange(false)
+  const showOfflineBon = bon.kind === 'new' && !online
 
   const closeGuard = () => {
     if (form.done) return false
     if (saving) return true
-    if (!dirty) return false
+    // O poză care încă se pregătește contează ca nesalvată.
+    if (!dirty && !bonPreparing) return false
     setConfirmingClose(true)
     return true
   }
@@ -433,6 +587,38 @@ export function CheltuialaStepForm({
             {saveError}
           </Notice>
         ) : null}
+        {bonUploadFailed ? (
+          <Notice
+            tone="danger"
+            title="Bonul nu s-a putut încărca."
+            action={
+              <div className="flex flex-col gap-2">
+                <Button type="button" variant="neutral" size="touch" className="w-full" disabled={!canSave} onClick={() => void save()}>
+                  Încearcă din nou
+                </Button>
+                <Button
+                  type="button"
+                  variant="neutral"
+                  size="touch"
+                  className="w-full"
+                  disabled={!canSave}
+                  onClick={() => void save({ withoutBon: true })}
+                >
+                  Salvează fără bon
+                </Button>
+              </div>
+            }
+          />
+        ) : showOfflineBon ? (
+          <Notice tone="warning" title="Poza bonului se poate adăuga doar cu internet.">
+            {editing
+              ? 'Modificările se salvează fără poza nouă.'
+              : isInvestitie
+                ? 'Investiția se salvează fără bon.'
+                : 'Cheltuiala se salvează fără bon.'}
+          </Notice>
+        ) : null}
+        {bonReadError ? <Notice tone="danger" title={BON_UNREADABLE_MESSAGE} /> : null}
 
         <div className="grid grid-cols-2 gap-2">
           <Pastila
@@ -476,6 +662,25 @@ export function CheltuialaStepForm({
             </Button>
           ) : null}
         </div>
+
+        <BonRow bon={bon} savedUrl={savedBonUrl} preparing={bonPreparing} disabled={saving} onPick={pickBon} onRemove={dropBon} />
+        {/* Selectorul nativ al telefonului (cameră sau galerie), nu o fereastră a noastră peste formular. */}
+        <input
+          ref={bonInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          hidden
+          tabIndex={-1}
+          aria-hidden
+          data-testid="bon-input"
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            // Aceeași poză aleasă din nou trebuie să declanșeze iar `change`.
+            event.target.value = ''
+            void onBonChosen(file)
+          }}
+        />
       </div>
     )
   }
@@ -524,7 +729,11 @@ export function CheltuialaStepForm({
         saved ? (
           <SuccessScreen
             title={editing ? 'Modificat' : 'Salvat'}
-            description={`${saved.categorie} · ${formatLei(saved.suma)}`}
+            description={
+              saved.withoutBon
+                ? `${saved.categorie} · ${formatLei(saved.suma)} · fără bon. Poza o adaugi din „Editează”, cu internet.`
+                : `${saved.categorie} · ${formatLei(saved.suma)}`
+            }
             primaryAction={{ label: 'Gata', onClick: close }}
             secondaryAction={
               editing
@@ -543,6 +752,78 @@ export function CheltuialaStepForm({
     >
       {content}
     </StepForm>
+  )
+}
+
+/** „+ Poză bon” sau miniatura bonului ales, cu „Schimbă” și „Scoate”. */
+function BonRow({
+  bon,
+  savedUrl,
+  preparing,
+  disabled,
+  onPick,
+  onRemove,
+}: {
+  bon: BonDraft
+  savedUrl: string | null
+  preparing: boolean
+  disabled: boolean
+  onPick: () => void
+  onRemove: () => void
+}) {
+  if (bon.kind === 'none') {
+    return (
+      <Button
+        type="button"
+        variant="quiet"
+        size="touch"
+        className="w-full"
+        loading={preparing}
+        disabled={disabled}
+        aria-label={preparing ? 'Se pregătește poza bonului' : 'Adaugă poza bonului (opțional)'}
+        onClick={onPick}
+      >
+        {preparing ? null : <Camera aria-hidden />}
+        {preparing ? 'Se pregătește poza…' : '+ Poză bon'}
+      </Button>
+    )
+  }
+
+  const thumbnail = bon.kind === 'new' ? bon.previewUrl : savedUrl
+  return (
+    <div className="flex items-center gap-2" role="group" aria-label="Poza bonului">
+      <span className="flex size-touch shrink-0 items-center justify-center overflow-hidden rounded-box border border-border bg-surface-muted text-fg-muted [&_svg]:size-5">
+        {thumbnail ? (
+          // eslint-disable-next-line @next/next/no-img-element -- miniatură din `blob:` sau URL semnat, nu trece prin optimizarea Next
+          <img src={thumbnail} alt="Poza bonului" className="size-full object-cover" />
+        ) : (
+          <Camera aria-hidden />
+        )}
+      </span>
+      <Button
+        type="button"
+        variant="neutral"
+        size="touch"
+        className="min-w-0 flex-1 px-3"
+        loading={preparing}
+        disabled={disabled}
+        aria-label="Schimbă poza bonului"
+        onClick={onPick}
+      >
+        Schimbă
+      </Button>
+      <Button
+        type="button"
+        variant="quiet"
+        size="touch"
+        className="min-w-0 flex-1 px-3"
+        disabled={disabled || preparing}
+        aria-label="Scoate poza bonului"
+        onClick={onRemove}
+      >
+        Scoate
+      </Button>
+    </div>
   )
 }
 

@@ -32,6 +32,7 @@ import {
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
+import { removeBon, resolveBonLink, signedBonUrl } from '@/lib/bonuri'
 import { resolveCheltuialaCategorie, resolveInvestitieCategorie } from '@/lib/financial/categories'
 import {
   isSameMonth,
@@ -206,6 +207,7 @@ export function CheltuieliPageClient({ initialCheltuieli, initialInvestitii, par
     if (!opened || deleting) return
     setDeleting(true)
     setDeleteError(null)
+    const bonDocument = opened.row.document_url
     try {
       if (opened.kind === 'cheltuiala') {
         await deleteCheltuiala(opened.row.id)
@@ -223,6 +225,8 @@ export function CheltuieliPageClient({ initialCheltuieli, initialInvestitii, par
         void queryClient.invalidateQueries({ queryKey: queryKeys.investitii })
         track('investitie_delete', { id: opened.row.id })
       }
+      // Doar fișierul din `bonuri` al acestui rând; best effort, fără să blocheze.
+      void removeBon(bonDocument)
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
       toast.success(opened.kind === 'cheltuiala' ? 'Cheltuială ștearsă' : 'Investiție ștearsă')
       setSheetOpen(false)
@@ -265,7 +269,19 @@ export function CheltuieliPageClient({ initialCheltuieli, initialInvestitii, par
   )
 
   const openedAuto = opened?.kind === 'cheltuiala' && isAutoManoperaCheltuiala(opened.row)
-  const openedDocument = opened ? ((opened.row as { document_url?: string | null }).document_url ?? null) : null
+  const openedBon = resolveBonLink(opened?.row.document_url)
+  // Un bon din bucket se deschide printr-un URL semnat (1 oră), cerut cât e foaia deschisă.
+  const openedBonPath = openedBon?.kind === 'storage' ? openedBon.path : null
+  const signedBonQuery = useQuery({
+    queryKey: queryKeys.bonUrl(openedBonPath ?? ''),
+    queryFn: () => signedBonUrl(openedBonPath),
+    enabled: sheetOpen && openedBonPath !== null,
+    staleTime: 45 * 60_000,
+    gcTime: 50 * 60_000,
+    refetchOnWindowFocus: false,
+  })
+  const openedBonUrl = openedBon ? (openedBon.kind === 'direct' ? openedBon.url : (signedBonQuery.data ?? null)) : null
+  const openedBonLoading = openedBonPath !== null && signedBonQuery.isPending
 
   return (
     <AppShell
@@ -504,16 +520,28 @@ export function CheltuieliPageClient({ initialCheltuieli, initialInvestitii, par
               ) : null}
 
               <div className="flex flex-col gap-2.5">
-                {openedDocument ? (
-                  <a
-                    href={openedDocument}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={cn(buttonVariants({ variant: 'neutral', size: 'touch' }), 'w-full')}
-                  >
-                    <FileText aria-hidden />
-                    Vezi bonul
-                  </a>
+                {openedBon ? (
+                  openedBonUrl ? (
+                    <a
+                      href={openedBonUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={cn(buttonVariants({ variant: 'neutral', size: 'touch' }), 'h-auto min-h-touch w-full py-2')}
+                    >
+                      {openedBon.kind === 'storage' ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- URL semnat din bucketul privat, nu trece prin optimizarea Next
+                        <img src={openedBonUrl} alt="" className="size-touch shrink-0 rounded-box border border-border object-cover" />
+                      ) : (
+                        <FileText aria-hidden />
+                      )}
+                      Vezi bonul
+                    </a>
+                  ) : (
+                    <Button type="button" variant="neutral" size="touch" className="w-full" loading={openedBonLoading} disabled>
+                      <FileText aria-hidden />
+                      {openedBonLoading ? 'Se deschide bonul…' : 'Bonul nu se poate deschide acum'}
+                    </Button>
+                  )
                 ) : null}
                 {canWrite && !openedAuto ? (
                   <Button type="button" variant="primary" size="touch-lg" className="w-full" onClick={() => openEdit(opened)}>

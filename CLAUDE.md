@@ -114,6 +114,8 @@ Events are stored in `public.analytics_events`. Key columns: `event_name`, `modu
 
 Migrations live in `supabase/migrations/` as `.sql` files. Run them manually in the Supabase dashboard SQL editor or via the Supabase CLI. The generated TypeScript types are in `src/types/supabase.ts`.
 
+Orice funcție nouă `SECURITY DEFINER` din `public` se încheie în aceeași migrare cu `revoke execute on function ... from public, anon;` și `grant execute on function ... to authenticated, service_role;` (sau doar `service_role`, dacă nu e RPC al aplicației). Funcțiile noi primesc implicit `EXECUTE` pentru `PUBLIC`.
+
 ### Key Conventions
 
 - All user-facing text is in Romanian

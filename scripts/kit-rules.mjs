@@ -35,6 +35,7 @@ export const KIT_RULE_DIRS = [
   'src/app/(dashboard)/investitii',
   'src/components/cheltuieli',
   'src/lib/financial',
+  'src/lib/bonuri',
   'src/app/(dashboard)/vanzari',
   'src/components/vanzari',
   'src/lib/vanzari',
