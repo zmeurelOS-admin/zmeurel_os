@@ -241,6 +241,7 @@ export async function sendPushToAssociationAdmins(
 
 /**
  * După crearea înregistrării `notifications` — best-effort, nu aruncă.
+ * Pornește trimiterea fără s-o aștepte; promisiunea întoarsă se poate aștepta (cronuri).
  */
 export function fireWebPushForNotification(input: {
   userId: string
@@ -252,16 +253,19 @@ export function fireWebPushForNotification(input: {
   urlPath?: string
   icon?: string
   notificationData?: Record<string, unknown> | null
-}): void {
+}): Promise<void> {
   const { userId, notificationId, type, title, body, urlPath, icon, notificationData } = input
-  if (!notificationId) return
-  if (!shouldSendWebPushForType(type, notificationData ?? null)) return
+  if (!notificationId) return Promise.resolve()
+  if (!shouldSendWebPushForType(type, notificationData ?? null)) return Promise.resolve()
 
-  void sendPushToUser(userId, title, body?.trim() || ' ', {
+  return sendPushToUser(userId, title, body?.trim() || ' ', {
     notificationId,
     type,
     urlPath,
     icon,
     notificationData,
-  })
+  }).then(
+    () => undefined,
+    () => undefined,
+  )
 }

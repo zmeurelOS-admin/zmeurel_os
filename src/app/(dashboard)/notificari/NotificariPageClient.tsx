@@ -5,9 +5,12 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
+  Banknote,
   BarChart3,
+  CalendarClock,
   Check,
   ClipboardList,
+  CloudLightning,
   FileText,
   Info,
   Mail,
@@ -37,8 +40,13 @@ type Filter = 'toate' | 'necitite'
 const PAGE = 50
 
 function iconForType(type: string): { icon: ReactNode; tone: IconTone } {
+  if (type === 'meteo_grindina') return { icon: <CloudLightning />, tone: 'warning' }
   if (type.startsWith('meteo_')) return { icon: <Snowflake />, tone: 'warning' }
   switch (type) {
+    case 'comenzi_maine':
+      return { icon: <CalendarClock />, tone: 'info' }
+    case 'incasari_restante':
+      return { icon: <Banknote />, tone: 'warning' }
     case 'order_new':
       return { icon: <ClipboardList />, tone: 'primary' }
     case 'order_status_changed':

@@ -89,6 +89,48 @@ export const NOTIFICATION_CONFIG = {
     /** Memento livrare material săditor — trebuie să ajungă pe telefon. */
     pushEnabled: true,
   },
+  // Verificarea zilnică (cronurile `notificari-seara` și `notificari-dimineata`). Push pornit pentru toate:
+  // comutatoarele din „Ce primești” (maine, rest, meteo) și liniștea de noapte decid mai departe.
+  comenzi_maine: {
+    icon: '🚚',
+    color: '#3D7A5F',
+    /** Informare: comenzile de mâine încă nepuse în livrare. */
+    ton: 'informare',
+    toastDuration: 6000,
+    showToast: true,
+    playSound: false,
+    pushEnabled: true,
+  },
+  incasari_restante: {
+    icon: '💰',
+    color: '#e6a817',
+    /** Avertizare: bani de încasat de 7, 14 sau 30 de zile. */
+    ton: 'avertizare',
+    toastDuration: 6000,
+    showToast: true,
+    playSound: false,
+    pushEnabled: true,
+  },
+  meteo_inghet: {
+    icon: '❄️',
+    color: '#e6a817',
+    /** Avertizare: îngheț sau ger la noapte. */
+    ton: 'avertizare',
+    toastDuration: 8000,
+    showToast: true,
+    playSound: true,
+    pushEnabled: true,
+  },
+  meteo_grindina: {
+    icon: '⛈️',
+    color: '#e6a817',
+    /** Avertizare: furtună cu grindină mâine. */
+    ton: 'avertizare',
+    toastDuration: 8000,
+    showToast: true,
+    playSound: true,
+    pushEnabled: true,
+  },
   system: {
     icon: 'ℹ️',
     color: '#3D4543',

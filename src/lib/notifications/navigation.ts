@@ -58,6 +58,16 @@ export function getNotificationHref(
       return '/notificari'
     case 'butasi_delivery_reminder':
       return '/vanzari-butasi'
+    case 'comenzi_maine':
+      return '/comenzi'
+    case 'incasari_restante': {
+      // Un client: fișa lui. Mai mulți (varianta grupată): lista de clienți.
+      const clientId = typeof d['client_id'] === 'string' && d['client_id'] ? d['client_id'] : null
+      return clientId ? `/clienti?client=${encodeURIComponent(clientId)}` : '/clienti'
+    }
+    case 'meteo_inghet':
+    case 'meteo_grindina':
+      return '/dashboard'
     case 'system':
     default:
       return '/dashboard'

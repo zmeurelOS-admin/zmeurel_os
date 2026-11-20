@@ -50,6 +50,22 @@ describe('cheiePentruTip (tip de notificare → comutator)', () => {
     expect(cheiePentruTip('meteo_inghet')).toBe('meteo')
   })
 
+  it('verificarea zilnică: comenzi de mâine, bani de încasat, îngheț și grindină', () => {
+    expect(cheiePentruTip('comenzi_maine')).toBe('maine')
+    expect(cheiePentruTip('incasari_restante')).toBe('rest')
+    expect(cheiePentruTip('meteo_inghet')).toBe('meteo')
+    expect(cheiePentruTip('meteo_grindina')).toBe('meteo')
+  })
+
+  it('comutatorul oprit oprește push-ul tipurilor zilnice; gerul trece și noaptea', () => {
+    expect(permitePush({ tipuri: { maine: false }, linisteNoaptea: false }, 'comenzi_maine', ziua)).toBe(false)
+    expect(permitePush({ tipuri: { rest: false }, linisteNoaptea: false }, 'incasari_restante', ziua)).toBe(false)
+    expect(permitePush({ tipuri: { meteo: false }, linisteNoaptea: false }, 'meteo_grindina', ziua)).toBe(false)
+    expect(permitePush(NOTIFICARI_PREFERINTE_IMPLICITE, 'comenzi_maine', ziua)).toBe(true)
+    expect(permitePush(NOTIFICARI_PREFERINTE_IMPLICITE, 'incasari_restante', noaptea)).toBe(false)
+    expect(permitePush(NOTIFICARI_PREFERINTE_IMPLICITE, 'meteo_inghet', noaptea)).toBe(true)
+  })
+
   it('tipurile fără comutator întorc null', () => {
     expect(cheiePentruTip('offer_new')).toBeNull()
     expect(cheiePentruTip('ceva_nou')).toBeNull()

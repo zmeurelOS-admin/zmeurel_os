@@ -45,6 +45,8 @@ export default defineConfig(({ mode }) => {
         'src/lib/logging/__tests__/*.test.ts',
         'src/lib/notifications/__tests__/preferinte.test.ts',
         'src/lib/notifications/__tests__/create.test.ts',
+        'src/lib/notifications/__tests__/navigation.test.ts',
+        'src/lib/notifications/zilnice/__tests__/*.test.ts',
         'src/lib/recoltari/__tests__/*.test.ts',
         'src/lib/security/__tests__/*.test.ts',
         'src/lib/supabase/queries/__tests__/financial-saves.test.ts',

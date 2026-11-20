@@ -23,6 +23,10 @@ export const NOTIFICATION_TYPES = {
   legal_docs_expired: 'legal_docs_expired',
   weekly_sales_summary: 'weekly_sales_summary',
   butasi_delivery_reminder: 'butasi_delivery_reminder',
+  comenzi_maine: 'comenzi_maine',
+  incasari_restante: 'incasari_restante',
+  meteo_inghet: 'meteo_inghet',
+  meteo_grindina: 'meteo_grindina',
   system: 'system',
 } as const
 
@@ -45,6 +49,14 @@ async function mergeDataWithNavigationUrl(
   return { data: { ...base, url } as Json, url }
 }
 
+export type CreateNotificationOptions = {
+  /**
+   * Așteaptă trimiterea push-ului înainte de a întoarce. Pentru cronuri: funcția se poate opri
+   * după răspuns, iar un push „fire-and-forget” s-ar pierde.
+   */
+  awaitPush?: boolean
+}
+
 export async function createNotification(
   userId: string,
   type: string,
@@ -53,6 +65,7 @@ export async function createNotification(
   data?: Record<string, unknown> | null,
   entityType?: string | null,
   entityId?: string | null,
+  options?: CreateNotificationOptions,
 ): Promise<string | null> {
   try {
     const admin = getSupabaseAdmin() as AnyAdmin
@@ -78,7 +91,7 @@ export async function createNotification(
       shouldSendWebPushForType(type, notificationData) &&
       !(await utilizatorulPermitePush(userId, type))
     if (id && !blockedByPreferences) {
-      fireWebPushForNotification({
+      const push = fireWebPushForNotification({
         userId,
         notificationId: id,
         type,
@@ -88,6 +101,7 @@ export async function createNotification(
         icon: typeof notificationData.icon === 'string' ? notificationData.icon : undefined,
         notificationData,
       })
+      if (options?.awaitPush) await push
     }
     return id
   } catch (e) {
@@ -130,6 +144,7 @@ export async function createNotificationForTenantOwner(
   data?: Record<string, unknown> | null,
   entityType?: string | null,
   entityId?: string | null,
+  options?: CreateNotificationOptions,
 ): Promise<string | null> {
   try {
     const admin = getSupabaseAdmin() as AnyAdmin
@@ -142,7 +157,7 @@ export async function createNotificationForTenantOwner(
     if (error) throw error
     const ownerId = (tenant as { owner_user_id: string | null } | null)?.owner_user_id
     if (!ownerId) return null
-    return createNotification(ownerId, type, title, body, data, entityType, entityId)
+    return createNotification(ownerId, type, title, body, data, entityType, entityId, options)
   } catch (e) {
     console.error('[notifications] createNotificationForTenantOwner', e)
     return null

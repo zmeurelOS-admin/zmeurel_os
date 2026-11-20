@@ -75,7 +75,7 @@ export function parseAiClientPrefill(searchParams: Pick<URLSearchParams, 'get'>)
   }
 }
 
-const FORM_QUERY_PARAMS = ['add', 'openForm', 'nume_client', 'telefon', 'email', 'adresa', 'observatii', 'google_contacts'] as const
+const FORM_QUERY_PARAMS = ['add', 'openForm', 'nume_client', 'telefon', 'email', 'adresa', 'observatii', 'google_contacts', 'client'] as const
 
 const GOOGLE_CONTACTS_STATUS_MESSAGES: Record<string, { type: 'success' | 'error'; text: string }> = {
   connected: { type: 'success', text: 'Google Contacts a fost conectat cu succes.' },
@@ -189,13 +189,16 @@ export function ClientPageClient({ initialClienți, googleSync }: ClientPageClie
   // Clientul deschis a dispărut (șters): revenim la listă.
   if (openClientId !== null && openClient === null) setOpenClientId(null)
 
-  // ─── Deschiderea din adresă (`?add=1`, `?openForm=1&…`) și mesajele Google ───
+  // ─── Deschiderea din adresă (`?add=1`, `?openForm=1&…`, `?client=<id>`) și mesajele Google ───
   const formRequestedInUrl = searchParams.get('add') === '1' || hasAiClientOpenForm(searchParams)
   const googleStatus = searchParams.get('google_contacts')
+  // `?client=<id>`: fișa clientului (din notificarea „Bani de încasat”).
+  const clientInUrl = searchParams.get('client')?.trim() || null
   const [seenQuery, setSeenQuery] = useState<string | null>(null)
   const [pendingFromUrl, setPendingFromUrl] = useState<{ prefill: ClientPrefill | null } | null>(null)
   if (seenQuery !== queryString) {
     setSeenQuery(queryString)
+    if (clientInUrl) setOpenClientId(clientInUrl)
     if (formRequestedInUrl) {
       setPendingFromUrl({ prefill: parseAiClientPrefill(searchParams) })
     } else if (pendingFromUrl) {
@@ -207,7 +210,7 @@ export function ClientPageClient({ initialClienți, googleSync }: ClientPageClie
   }
 
   useEffect(() => {
-    if (!formRequestedInUrl && !googleStatus) return
+    if (!formRequestedInUrl && !googleStatus && !clientInUrl) return
     if (googleStatus) {
       const status = GOOGLE_CONTACTS_STATUS_MESSAGES[googleStatus]
       if (status?.type === 'success') toast.success(status.text)
@@ -219,7 +222,7 @@ export function ClientPageClient({ initialClienți, googleSync }: ClientPageClie
     const nextUrl = query ? `${pathname}?${query}` : pathname
     window.history.replaceState(window.history.state, '', nextUrl)
     router.replace(nextUrl, { scroll: false })
-  }, [formRequestedInUrl, googleStatus, pathname, queryString, router])
+  }, [clientInUrl, formRequestedInUrl, googleStatus, pathname, queryString, router])
 
   // ─── Acțiuni ───
   const openCreate = useCallback(() => {

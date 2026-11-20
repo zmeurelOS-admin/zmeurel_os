@@ -29,13 +29,16 @@ export const NOTIFICARI_PREFERINTE_IMPLICITE: NotificariPreferinte = {
 /** Textele din ecran (mockup-ul aprobat pe 20.11). `{loc}` se înlocuiește cu localitatea fermei. */
 export const NOTIFICARI_TEXTE: Record<NotificareCheie, { titlu: string; detaliu: string }> = {
   noi: { titlu: 'Comenzi noi', detaliu: 'Când un client comandă din magazin' },
-  maine: { titlu: 'Comenzi de mâine', detaliu: 'Seara la 19:00, dacă nu sunt puse în livrare' },
-  rest: { titlu: 'Bani de încasat', detaliu: 'După 7 zile de la livrare' },
+  maine: { titlu: 'Comenzi de mâine', detaliu: 'Seara la 19:00 (vara la 20:00), dacă nu sunt puse în livrare' },
+  rest: { titlu: 'Bani de încasat', detaliu: 'La 7, 14 și 30 de zile de la livrare' },
   meteo: { titlu: 'Îngheț și grindină', detaliu: 'Dimineața, pentru {loc}' },
   pauza: { titlu: 'Pauza după tratament', detaliu: 'Când se poate culege din nou din parcelă' },
   sapt: { titlu: 'Săptămâna ta', detaliu: 'Duminică seara: încasat, livrat, cheltuit' },
   acte: { titlu: 'Echipa și documentele', detaliu: 'Cineva nou în echipă, un act care expiră' },
 }
+
+/** Detaliul comutatorului `meteo` când ferma n-are locul salvat: atunci cronul nu trimite nicio alertă. */
+export const NOTIFICARI_METEO_FARA_LOC = 'Dimineața, după ce salvezi locul fermei în Setări › Ferma'
 
 /**
  * Tipul din `notifications.type` → comutatorul care îl oprește.
@@ -43,10 +46,12 @@ export const NOTIFICARI_TEXTE: Record<NotificareCheie, { titlu: string; detaliu:
  * - `order_status_changed` → `noi`: e aceeași comandă din magazin, într-un pas următor
  *   (confirmată, livrată, anulată). Cine nu vrea să fie sunat pentru comenzile din magazin
  *   nu vrea nici pentru schimbările lor. (Azi push-ul pentru el e oprit oricum din `config.ts`.)
- * - `butasi_delivery_reminder` → `maine`: memento-ul din cron pentru livrările de material săditor.
+ * - `butasi_delivery_reminder` și `comenzi_maine` → `maine`: mementourile din cron pentru livrările de mâine
+ *   (material săditor, respectiv comenzile de fructe încă nepuse în livrare).
+ * - `incasari_restante` → `rest`: clienții cu bani de dat de 7, 14 sau 30 de zile.
  * - Perechile lui `product_listed` / `producer_approved` (`product_unlisted`, `producer_suspended`)
  *   și actele care expiră (`legal_docs_*`) intră tot la `acte`.
- * - Tipurile care încep cu `meteo_` (alertele de îngheț și grindină de mai târziu) → `meteo`.
+ * - Tipurile care încep cu `meteo_` (`meteo_inghet`, `meteo_grindina`) → `meteo`.
  * - Ce nu e aici (ex. ofertele din asociație) nu are comutator: sună ca până acum,
  *   dar respectă liniștea de noapte.
  */
@@ -54,6 +59,8 @@ const TIP_LA_CHEIE: Record<string, NotificareCheie> = {
   order_new: 'noi',
   order_status_changed: 'noi',
   butasi_delivery_reminder: 'maine',
+  comenzi_maine: 'maine',
+  incasari_restante: 'rest',
   tratament_reminder: 'pauza',
   weekly_sales_summary: 'sapt',
   system: 'acte',

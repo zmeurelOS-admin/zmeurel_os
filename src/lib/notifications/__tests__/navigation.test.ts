@@ -47,4 +47,12 @@ describe('getNotificationHref', () => {
       ).toBe(testCase.expected)
     }
   })
+
+  it('verificarea zilnică: comenzi, fișa clientului (sau lista), Acasă', () => {
+    expect(getNotificationHref({ type: 'comenzi_maine', data: {} }, null)).toBe('/comenzi')
+    expect(getNotificationHref({ type: 'incasari_restante', data: { client_id: 'cl-1' } }, null)).toBe('/clienti?client=cl-1')
+    expect(getNotificationHref({ type: 'incasari_restante', data: { grup: true, client_ids: ['a', 'b'] } }, null)).toBe('/clienti')
+    expect(getNotificationHref({ type: 'meteo_inghet', data: {} }, null)).toBe('/dashboard')
+    expect(getNotificationHref({ type: 'meteo_grindina', data: {} }, null)).toBe('/dashboard')
+  })
 })

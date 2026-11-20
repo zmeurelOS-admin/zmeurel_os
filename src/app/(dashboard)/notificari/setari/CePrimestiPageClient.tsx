@@ -9,6 +9,7 @@ import { PushToggle } from '@/components/setari/PushToggle'
 import { ScreenBody, ScreenHeader } from '@/components/setari/SetariUi'
 import {
   NOTIFICARI_CHEI,
+  NOTIFICARI_METEO_FARA_LOC,
   NOTIFICARI_PREFERINTE_IMPLICITE,
   NOTIFICARI_TEXTE,
   isCheiePornita,
@@ -25,7 +26,14 @@ import {
 import { toast } from '@/lib/ui/toast'
 import { cn } from '@/lib/utils'
 
-export function CePrimestiPageClient({ localitate }: { localitate: string | null }) {
+export function CePrimestiPageClient({
+  localitate,
+  locSalvat = false,
+}: {
+  localitate: string | null
+  /** Ferma are locul salvat (Setări › Ferma)? Fără el nu pleacă alertele meteo. */
+  locSalvat?: boolean
+}) {
   const queryClient = useQueryClient()
   const { data, isLoading, isError } = usePreferinteNotificari()
   const [error, setError] = useState<string | null>(null)
@@ -77,7 +85,11 @@ export function CePrimestiPageClient({ localitate }: { localitate: string | null
               <ToggleRow
                 key={cheie}
                 title={NOTIFICARI_TEXTE[cheie].titlu}
-                subtitle={NOTIFICARI_TEXTE[cheie].detaliu.replace('{loc}', loc)}
+                subtitle={
+                  cheie === 'meteo' && !locSalvat
+                    ? NOTIFICARI_METEO_FARA_LOC
+                    : NOTIFICARI_TEXTE[cheie].detaliu.replace('{loc}', loc)
+                }
                 checked={isCheiePornita(stare, cheie)}
                 onCheckedChange={toggleKey(cheie)}
                 disabled={isLoading}
