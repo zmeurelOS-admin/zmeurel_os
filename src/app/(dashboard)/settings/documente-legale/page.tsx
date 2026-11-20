@@ -4,6 +4,7 @@ import { LegalDocumentsPageClient } from '@/components/settings/LegalDocumentsPa
 import { createLegalDocSignedUrl, getTenantLegalDocs } from '@/lib/legal-docs/server'
 import { createClient } from '@/lib/supabase/server'
 import { getTenantByIdOrNull, getTenantIdOrNull } from '@/lib/tenant/get-tenant'
+import { farmDisplayName } from '@/lib/tenant/farm-display-name'
 
 export default async function LegalDocumentsPage() {
   const supabase = await createClient()
@@ -22,7 +23,7 @@ export default async function LegalDocumentsPage() {
 
   return (
     <LegalDocumentsPageClient
-      farmName={tenant?.nume_ferma ?? null}
+      farmName={farmDisplayName(tenant?.nume_ferma)}
       initialDocument={legalDocs.doc}
       initialSignedPhotoUrl={signedPhotoUrl}
       initialStatus={legalDocs.status}

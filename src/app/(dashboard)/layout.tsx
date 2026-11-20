@@ -18,6 +18,7 @@ import { headers } from 'next/headers'
 import { Suspense } from 'react'
 
 import { Providers } from '../providers'
+import { farmDisplayName } from '@/lib/tenant/farm-display-name'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -57,7 +58,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       getTenantLegalDocs(supabase, tenantIdForAuth),
     ])
     associationShopApproved = tenantRow?.is_association_approved === true
-    farmName = tenantRow?.nume_ferma ?? null
+    farmName = farmDisplayName(tenantRow?.nume_ferma)
     shouldShowLegalDocsBanner = !legalDocs.status.complete
   }
 

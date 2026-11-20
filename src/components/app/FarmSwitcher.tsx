@@ -5,6 +5,7 @@ import { ChevronDown, Tractor } from 'lucide-react'
 
 import { getSupabase } from '@/lib/supabase/client'
 import { getTenantByUserIdOrNull } from '@/lib/tenant/get-tenant'
+import { farmDisplayName } from '@/lib/tenant/farm-display-name'
 
 interface FarmSwitcherProps {
   variant?: 'chip' | 'panel'
@@ -28,7 +29,7 @@ function useCurrentFarmLabel() {
       const tenant = await getTenantByUserIdOrNull(supabase, session.user.id)
 
       if (tenant?.nume_ferma && mounted) {
-        setFarmName(tenant.nume_ferma)
+        setFarmName(farmDisplayName(tenant.nume_ferma) ?? tenant.nume_ferma)
       }
     }
 

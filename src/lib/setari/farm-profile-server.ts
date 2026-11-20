@@ -2,6 +2,7 @@ import 'server-only'
 
 import { createClient } from '@/lib/supabase/server'
 import { getTenantIdOrNull } from '@/lib/tenant/get-tenant'
+import { farmDisplayName } from '@/lib/tenant/farm-display-name'
 
 export type FarmProfile = {
   tenantId: string
@@ -28,7 +29,7 @@ export async function getFarmProfileOrNull(): Promise<FarmProfile | null> {
     if (error || !data) return null
     return {
       tenantId: data.id,
-      numeFerma: data.nume_ferma,
+      numeFerma: farmDisplayName(data.nume_ferma) ?? data.nume_ferma,
       localitate: data.localitate?.trim() || null,
       contactPhone: data.contact_phone?.trim() || null,
       plan: data.plan,
