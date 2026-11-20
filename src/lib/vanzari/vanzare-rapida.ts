@@ -6,7 +6,7 @@
  * scrie în registrul vechi `miscari_stoc`, paralel cu disponibilul derivat (vezi `queries/vanzari.ts`).
  */
 import { round2 } from '@/lib/format-ro'
-import { createComanda, deleteComanda, deliverComanda, updateComanda } from '@/lib/supabase/queries/comenzi'
+import { createComanda, deleteComanda, deliverComanda, getComandaStatus, updateComanda } from '@/lib/supabase/queries/comenzi'
 import type { Vanzare } from '@/lib/supabase/queries/vanzari'
 
 import { VANZARE_RAPIDA_FARA_CLIENT, VANZARE_RAPIDA_NOTA } from './view'
@@ -52,8 +52,19 @@ export async function saveVanzareRapida(input: VanzareRapidaInput): Promise<Vanz
   }
 
   let comandaId = input.pendingComandaId
+  // Reîncercare: livrarea de data trecută s-a putut face pe server deși răspunsul s-a pierdut. O comandă deja
+  // livrată nu se mai rescrie (cantitatea ei trebuie să rămână cea din vânzare): `set_comanda_delivered`
+  // întoarce vânzarea existentă.
+  const statusAnterior = comandaId ? await getComandaStatus(comandaId) : null
+  if (comandaId && statusAnterior === 'livrata') {
+    const result = await deliverComanda({ comandaId, cantitateLivrataKg: kg, statusPlata: 'platit' })
+    input.onPendingChange(null)
+    return { vanzare: result.vanzare, comandaId, deductedStockKg: result.deductedStockKg }
+  }
+  if (comandaId && statusAnterior === null) comandaId = null
+
   if (comandaId) {
-    // Reîncercare: comanda există deja; îi aducem la zi clientul, cantitatea și prețul.
+    // Reîncercare: comanda există deja, nelivrată; îi aducem la zi clientul, cantitatea și prețul.
     await updateComanda(comandaId, fields)
   } else {
     const comanda = await createComanda({

@@ -403,6 +403,23 @@ type ComenziQueryContextLike = {
   queryKey?: unknown
 }
 
+/**
+ * Starea unei comenzi (`null` dacă nu mai există). O folosește vânzarea rapidă la reîncercare, ca să nu
+ * rescrie o comandă deja livrată.
+ */
+export async function getComandaStatus(id: string): Promise<string | null> {
+  const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
+  const { data, error } = await supabase
+    .from('comenzi')
+    .select('status')
+    .eq('id', id)
+    .eq('tenant_id', tenantId)
+    .maybeSingle()
+  if (error) throw toReadableError(error, 'Nu am putut încărca comanda.')
+  return data?.status ?? null
+}
+
 export async function getComenzi(): Promise<Comanda[]>
 export async function getComenzi(includeAssociation: boolean): Promise<Comanda[]>
 export async function getComenzi(
