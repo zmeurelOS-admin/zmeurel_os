@@ -1,6 +1,6 @@
 # Prompt 12 — „+ Poză bon” la Cheltuieli și Investiții
 
-Model: Opus 5.5 · Effort: high · Mod: normal (fără plan) · Sesiune: NOUĂ · Branch: `redesign/poza-bon` (pornit din `redesign/securitate-1`) · Rezultat: migrare scrisă (NEAPLICATĂ), branch verde, cu push, fără merge
+Model: Opus 5.5 · Effort: high · Mod: normal (fără plan) · Sesiune: NOUĂ · Branch: `redesign/poza-bon` (pornit din `main` `b8d0f06`) · Rezultat: migrare scrisă (NEAPLICATĂ), branch verde, cu push, fără merge
 
 ## Context
 
@@ -45,6 +45,7 @@ Model: Opus 5.5 · Effort: high · Mod: normal (fără plan) · Sesiune: NOUĂ �
     - `npm run lint` (doar cele 2 erori vechi), `npm run typecheck`, `npm run check:kit`, `npm run test:critical:unit`, `npm run build`;
     - un test unitar pentru `prepareBonImage` (dimensiuni) și pentru alegerea între URL direct și cale.
     - **Nu poți testa urcarea până nu aplicăm migrarea.** Scrii în raport pașii de test în demo (390 px): adaugi o cheltuială cu bon, „Vezi bonul”, schimbi, scoți, ștergi rândul.
-12. Raportul: `docs/redesign/raport-poza-bon.md`. Apoi `git restore public/sw.js`, commit, `git push origin redesign/poza-bon`. **STOP. Fără merge.**
+12. **Regulă nouă în `CLAUDE.md`**, secțiunea „Database Migrations”, un rând: „Orice funcție nouă `SECURITY DEFINER` din `public` se încheie în aceeași migrare cu `revoke execute on function ... from public, anon;` și `grant execute on function ... to authenticated, service_role;` (sau doar `service_role`, dacă nu e RPC al aplicației). Funcțiile noi primesc implicit `EXECUTE` pentru `PUBLIC`.”
+13. Raportul: `docs/redesign/raport-poza-bon.md`. Apoi `git restore public/sw.js`, commit, `git push origin redesign/poza-bon`. **STOP. Fără merge.**
 
 NEVER delete, truncate, or modify any user data in the database. Do not run DELETE, UPDATE, or TRUNCATE on production data tables. Do not reset or seed over existing data.
