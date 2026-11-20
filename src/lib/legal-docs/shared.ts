@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import type { Database } from '@/types/supabase'
 import { normalizePhone } from '@/lib/utils/phone'
+import { ziuaInRomania, zileCalendaristiceIntre } from '@/lib/utils/bucharest-date'
 
 export type FarmerLegalType = Database['public']['Enums']['farmer_legal_type']
 export type FarmerLegalDocsRow = Database['public']['Tables']['farmer_legal_docs']['Row']
@@ -131,10 +132,8 @@ export function getCertificateExpiryInfo(
     }
   }
 
-  const today = new Date(now)
-  today.setHours(0, 0, 0, 0)
-  const expiry = new Date(`${certificateExpiry}T00:00:00`)
-  const diffDays = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  // Ziua de azi în România (pe server ora locală e UTC), comparată pe zile calendaristice.
+  const diffDays = zileCalendaristiceIntre(ziuaInRomania(now), certificateExpiry)
 
   return {
     expiryDate: certificateExpiry,

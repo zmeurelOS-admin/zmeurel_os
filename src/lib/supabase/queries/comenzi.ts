@@ -4,6 +4,7 @@ import { loadSchemaFeaturesSafe } from '@/lib/schema-features'
 import { getSellableCal1StockSummary } from './miscari-stoc'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/supabase'
 import { type Vanzare } from './vanzari'
+import { ziuaInRomania } from '@/lib/utils/bucharest-date'
 
 export const COMENZI_STATUSES = [
   'noua',
@@ -353,7 +354,7 @@ function mapComanda(row: ComandaQueryRow): Comanda {
 }
 
 function getDefaultActiveStatus(dataLivrare?: string | null): ComandaStatus {
-  const today = new Date().toISOString().split('T')[0]
+  const today = ziuaInRomania()
   return dataLivrare && dataLivrare > today ? 'programata' : 'confirmata'
 }
 
@@ -465,7 +466,7 @@ export async function createComanda(input: CreateComandaInput): Promise<Comanda>
     client_nume_manual: input.client_nume_manual?.trim() || null,
     telefon: input.telefon?.trim() || null,
     locatie_livrare: input.locatie_livrare?.trim() || null,
-    data_comanda: input.data_comanda ?? new Date().toISOString().split('T')[0],
+    data_comanda: input.data_comanda ?? ziuaInRomania(),
     data_livrare: input.data_livrare ?? null,
     cantitate_kg: round2(input.cantitate_kg),
     pret_per_kg: round2(input.pret_per_kg),

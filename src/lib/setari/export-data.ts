@@ -2,6 +2,7 @@
 
 import { track } from '@/lib/analytics/track'
 import { getSupabase } from '@/lib/supabase/client'
+import { ziuaInRomania } from '@/lib/utils/bucharest-date'
 
 /**
  * „Descarcă datele” (exportul GDPR), mutat neschimbat din vechea pagină Setări:
@@ -151,6 +152,6 @@ export async function exportModuleCsv(input: {
   const config = CSV_MODULES.find((item) => item.key === input.module)
   if (!config) return
   const rows = await fetchTenantRowsBatched(config.table, input.tenantId, input.onRows)
-  downloadFile(rowsToCsv(rows), `zmeurel-${input.module}-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv;charset=utf-8')
+  downloadFile(rowsToCsv(rows), `zmeurel-${input.module}-${ziuaInRomania()}.csv`, 'text/csv;charset=utf-8')
   track('export', { type: 'csv', module: input.module, rows: rows.length })
 }

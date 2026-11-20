@@ -9,6 +9,7 @@
 import { getSupabase } from '../client'
 import { loadSchemaFeaturesSafe } from '@/lib/schema-features'
 import { getTenantId } from '@/lib/tenant/get-tenant'
+import { ziuaInRomania } from '@/lib/utils/bucharest-date'
 
 export interface Vanzare {
   id: string
@@ -140,12 +141,12 @@ export async function setVanzarePlataPartiala(id: string, sumaLei: number, dataI
 export async function setVanzareStatusPlata(
   id: string,
   status: VanzareStatusPlataUpdate,
-  /** Ziua încasării, pe calendarul telefonului. Fără ea: ziua UTC (noaptea poate fi cea de ieri). */
+  /** Ziua încasării, pe calendarul telefonului. Fără ea: ziua de azi în România. */
   dataIncasareIso?: string,
 ): Promise<Vanzare> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
-  const today = dataIncasareIso || new Date().toISOString().split('T')[0]
+  const today = dataIncasareIso || ziuaInRomania()
 
   const { data, error } = await supabase
     .from('vanzari')

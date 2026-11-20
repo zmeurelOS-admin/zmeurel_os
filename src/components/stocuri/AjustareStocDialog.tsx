@@ -18,6 +18,7 @@ import {
   createAjustareStoc,
   type AjustareStocTip,
 } from '@/lib/supabase/queries/ajustari-stoc'
+import { ziuaInRomania } from '@/lib/utils/bucharest-date'
 
 interface AjustareStocDialogProps {
   open: boolean
@@ -26,7 +27,7 @@ interface AjustareStocDialogProps {
 }
 
 function todayIso(): string {
-  return new Date().toISOString().split('T')[0]
+  return ziuaInRomania()
 }
 
 export function AjustareStocDialog({ open, onOpenChange, disponibilKg }: AjustareStocDialogProps) {
