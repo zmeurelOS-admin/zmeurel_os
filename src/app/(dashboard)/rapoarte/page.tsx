@@ -4,39 +4,30 @@ import { RapoartePageClient } from './RapoartePageClient'
 export default async function RapoartePage() {
   const supabase = await createClient()
 
-  const [{ data: recoltari = [] }, { data: vanzari = [] }, { data: cheltuieli = [] }, { data: parcele = [] }, { data: culegatori = [] }, { data: clienti = [] }, { data: activitati = [] }, { data: butasiLivrate = [] }, { data: investitii = [] }] =
+  const [{ data: recoltari = [] }, { data: vanzari = [] }, { data: cheltuieli = [] }, { data: parcele = [] }, { data: culegatori = [] }, { data: clienti = [] }, { data: butasiLivrate = [] }, { data: investitii = [] }] =
     await Promise.all([
       supabase
         .from('recoltari')
-        .select('id,id_recoltare,data,parcela_id,culegator_id,kg_cal1,kg_cal2')
+        .select('id,data,parcela_id,culegator_id,kg_cal1,kg_cal2,valoare_munca_lei')
         .order('data', { ascending: false }),
       supabase
         .from('vanzari')
-        .select('id,id_vanzare,data,client_id,cantitate_kg,pret_lei_kg,status_plata,data_incasare')
+        .select('id,data,client_id,cantitate_kg,pret_lei_kg,status_plata,data_incasare')
         .order('data', { ascending: false }),
       supabase
         .from('cheltuieli_diverse')
-        .select('id,id_cheltuiala,data,categorie,suma_lei')
+        .select('id,data,categorie,suma_lei')
         .order('data', { ascending: false }),
-      supabase
-        .from('parcele')
-        .select('id,id_parcela,nume_parcela,soi_plantat'),
-      supabase
-        .from('culegatori')
-        .select('id,id_culegator,nume_prenume'),
-      supabase
-        .from('clienti')
-        .select('id,id_client,nume_client'),
-      supabase
-        .from('activitati_agricole')
-        .select('id,data_aplicare,parcela_id,tip_activitate,tip_deprecat,produs_utilizat,doza,timp_pauza_zile,observatii')
-        .order('data_aplicare', { ascending: false }),
+      // `rol`: parcelele personale nu intră la kg recoltate în plăci.
+      supabase.from('parcele').select('id,nume_parcela,nr_plante,rol'),
+      supabase.from('culegatori').select('id,nume_prenume'),
+      supabase.from('clienti').select('id,nume_client'),
       // Material săditor livrat = venit (la data livrării).
       supabase
         .from('vanzari_butasi')
         .select('id,status,total_lei,data_livrare_estimata,data_comanda')
         .eq('status', 'livrata'),
-      // Investițiile: secțiune proprie, nu intră la costuri și nu scad din profit.
+      // Investițiile: secțiune proprie, nu intră la cheltuieli și nu scad din profit.
       supabase
         .from('investitii')
         .select('id,data,categorie,suma_lei')
@@ -45,15 +36,16 @@ export default async function RapoartePage() {
 
   return (
     <RapoartePageClient
-      initialRecoltari={recoltari ?? []}
-      initialVanzari={vanzari ?? []}
-      initialCheltuieli={cheltuieli ?? []}
-      initialParcele={parcele ?? []}
-      initialCulegatori={culegatori ?? []}
-      initialClienți={clienti ?? []}
-      initialActivitati={activitati ?? []}
-      initialButasiLivrate={butasiLivrate ?? []}
-      initialInvestitii={investitii ?? []}
+      date={{
+        recoltari: recoltari ?? [],
+        vanzari: vanzari ?? [],
+        cheltuieli: cheltuieli ?? [],
+        parcele: parcele ?? [],
+        culegatori: culegatori ?? [],
+        clienti: clienti ?? [],
+        butasi: butasiLivrate ?? [],
+        investitii: investitii ?? [],
+      }}
     />
   )
 }

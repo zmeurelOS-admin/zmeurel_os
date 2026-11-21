@@ -60,6 +60,9 @@ export const KIT_RULE_DIRS = [
   'src/app/(dashboard)/produse',
   'src/components/produse',
   'src/lib/produse',
+  'src/app/(dashboard)/rapoarte',
+  'src/components/rapoarte',
+  'src/lib/rapoarte',
 ]
 
 /**
