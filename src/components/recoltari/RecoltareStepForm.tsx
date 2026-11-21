@@ -28,6 +28,7 @@ import {
 import { queryKeys } from '@/lib/query-keys'
 import {
   estimatePaymentLei,
+  tarifPentruPlata,
   formatKg,
   formatLei,
   kgByCulegator,
@@ -310,7 +311,9 @@ export function RecoltareStepForm({
   const kgCal1 = fields.numbers.cal1 ?? 0
   const kgCal2 = draft.withCal2 ? (fields.numbers.cal2 ?? 0) : 0
   const totalKg = kgCal1 + kgCal2
-  const tarifLeiKg = culegator && Number.isFinite(Number(culegator.tarif_lei_kg ?? NaN)) ? Number(culegator.tarif_lei_kg) : null
+  const tarifCurent = culegator && Number.isFinite(Number(culegator.tarif_lei_kg ?? NaN)) ? Number(culegator.tarif_lei_kg) : null
+  // La editare, cu același culegător, plata rămâne la tariful de atunci (ca pe server).
+  const tarifLeiKg = tarifPentruPlata({ culegatorId: draft.culegatorId, tarifCurent, editing })
   const paymentLei = estimatePaymentLei(totalKg, tarifLeiKg)
   const workerName = culegator?.nume_prenume?.trim() || 'Culegător'
 

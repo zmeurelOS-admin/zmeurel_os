@@ -101,6 +101,24 @@ export function estimatePaymentLei(totalKg: number, tarifLeiKg: number | null | 
   return round2(Math.max(0, totalKg) * tarif)
 }
 
+/**
+ * Tariful cu care se socotește plata. La editare, cât culegătorul rămâne același, se păstrează
+ * tariful salvat în rând (`pret_lei_pe_kg_snapshot`), ca în `update_recoltare_with_stock`.
+ * La creare, la schimbarea culegătorului sau la un rând vechi fără tarif salvat: tariful curent.
+ */
+export function tarifPentruPlata(input: {
+  culegatorId: string | null | undefined
+  tarifCurent: number | null
+  editing: Pick<Recoltare, 'culegator_id'> & { pret_lei_pe_kg_snapshot: number | null | undefined } | null | undefined
+}): number | null {
+  const { culegatorId, tarifCurent, editing } = input
+  if (editing && culegatorId && editing.culegator_id === culegatorId) {
+    const salvat = editing.pret_lei_pe_kg_snapshot
+    if (salvat !== null && salvat !== undefined && Number.isFinite(Number(salvat))) return Number(salvat)
+  }
+  return tarifCurent
+}
+
 export interface RecoltareAttempt {
   culegator_id: string
   parcela_id: string
