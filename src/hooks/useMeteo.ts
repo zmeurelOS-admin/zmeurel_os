@@ -50,17 +50,9 @@ async function fetchMeteo(tenantId: string | null, coords?: MeteoCoords): Promis
     data: { session },
   } = await supabase.auth.getSession()
 
-  let resolvedTenantId = tenantId
-  if (!resolvedTenantId && session?.user?.id) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('tenant_id')
-      .eq('id', session.user.id)
-      .maybeSingle()
-    if (profile && typeof profile.tenant_id === 'string' && profile.tenant_id) {
-      resolvedTenantId = profile.tenant_id
-    }
-  }
+  // Fără tenant din context nu-l mai căutăm aici în `profiles`: pentru un utilizator autentificat funcția
+  // (`meteo-handler.ts`) îl ia singură din profil, iar `tenant_id` din corp e doar comparat cu acela.
+  const resolvedTenantId = tenantId
 
   const headers: Record<string, string> = {}
   if (session?.access_token) {

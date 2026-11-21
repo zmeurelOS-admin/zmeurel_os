@@ -20,9 +20,11 @@ async function getAnalyticsContext(): Promise<AnalyticsContext | null> {
   contextPromise = (async () => {
     try {
       const supabase = createClient()
+      // Sesiunea locală, fără drum la server: evenimentul îl verifică oricum RLS (`user_id = auth.uid()`).
       const {
-        data: { user },
-      } = await supabase.auth.getUser()
+        data: { session },
+      } = await supabase.auth.getSession()
+      const user = session?.user
 
       if (!user) return null
 
