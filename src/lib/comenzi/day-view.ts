@@ -2,7 +2,7 @@
  * Comenzi, pagina pe zile: în ce zi cade o comandă, totalurile cardurilor de sus, ordinea în listă
  * și calculul pentru „Pune în livrare azi” (ce încape în stoc). Funcții pure.
  */
-import { daysBetween, round2 } from '@/lib/format-ro'
+import { daysBetween, formatKg, round2 } from '@/lib/format-ro'
 import type { Comanda } from '@/lib/supabase/queries/comenzi'
 
 export type ComenziBucket = 'azi' | 'maine' | 'tarziu' | 'fara-data'
@@ -199,6 +199,27 @@ export function parseStocInsuficient(error: unknown): { necesarKg: number; dispo
     necesarKg: round2(Number(necesar?.[1] ?? 0)),
     disponibilKg: round2(Number(disponibil?.[1] ?? 0)),
   }
+}
+
+/** Mesajul pentru o comandă livrată pe care cineva încearcă s-o modifice (garda din baza de date). */
+export const COMANDA_LIVRATA_MESAJ =
+  'Comanda e deja livrată: cantitatea, prețul, clientul și produsul nu se mai pot schimba. Dacă trebuie corectată, redeschide comanda întâi.'
+
+/**
+ * Erorile gărzii din baza de date (`guard_comenzi_livrata_si_stoc`), pe înțelesul fermierului:
+ * comanda livrată blocată (`detail = COMANDA_LIVRATA_BLOCATA`) și stocul care nu ajunge
+ * (`STOC_INSUFICIENT`). Orice altă eroare: `null`.
+ */
+export function mesajEroareComanda(error: unknown): string | null {
+  if (!error || typeof error !== 'object') return null
+  const raw = error as { message?: string; details?: string; hint?: string }
+  const text = `${raw.details ?? ''} ${raw.message ?? ''}`
+  if (text.includes('COMANDA_LIVRATA_BLOCATA')) return COMANDA_LIVRATA_MESAJ
+  const stock = parseStocInsuficient(error)
+  if (stock) {
+    return `Nu ajunge stocul: lipsesc ${formatKg(Math.max(0, round2(stock.necesarKg - stock.disponibilKg)))}.`
+  }
+  return null
 }
 
 // ─── Cantitatea din formular ───────────────────────────────────────────────────

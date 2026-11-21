@@ -16,7 +16,7 @@ import {
 } from '@/components/kit'
 import { track } from '@/lib/analytics/track'
 import { resolveExistingClientByPhone } from '@/lib/comenzi/ai-order-client'
-import { CANTITATI_KG, parseStocInsuficient } from '@/lib/comenzi/day-view'
+import { CANTITATI_KG, mesajEroareComanda } from '@/lib/comenzi/day-view'
 import { comandaClientName } from '@/lib/comenzi/display'
 import { formatKg, formatLei, relativeDayRo, round2 } from '@/lib/format-ro'
 import { pretPentruClient, usePretStandardStare } from '@/lib/pret-standard'
@@ -130,10 +130,9 @@ function readableSaveError(cause: unknown, mode: 'create' | 'edit'): string {
       ? 'Nu există conexiune la internet. Când revine, apasă din nou „Salvează comanda”: comanda nu se dublează.'
       : 'Nu există conexiune la internet. Când revine, apasă din nou „Salvează modificările”.'
   }
-  const stock = parseStocInsuficient(cause)
-  if (stock) {
-    return `Nu ajunge stocul: lipsesc ${formatKg(Math.max(0, round2(stock.necesarKg - stock.disponibilKg)))}.`
-  }
+  // Garda din baza de date: comanda livrată nu se mai modifică; în livrare, kg în plus cer stoc.
+  const garda = mesajEroareComanda(cause)
+  if (garda) return garda
   return message || 'Verifică internetul și încearcă din nou.'
 }
 
