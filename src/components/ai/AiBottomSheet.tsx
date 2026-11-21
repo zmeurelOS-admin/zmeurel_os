@@ -88,6 +88,9 @@ const SUGGESTIONS: Record<string, string[]> = {
   '/investitii': ['1200 lei butași zmeur', 'Pompă irigații 850 lei', 'Adaugă investiție'],
   '/recoltari': ['Recoltat 12kg azi', 'Total recoltat luna asta?', 'Adaugă recoltare'],
   '/activitati-agricole': ['Stropit cu Switch azi', 'Irigat parcela 1', 'Adaugă activitate'],
+  // „Activități agricole” s-a împărțit în Lucrări și Tratamente: aceleași exemple, pe paginile noi.
+  '/lucrari': ['Irigat parcela 1', 'Adaugă activitate'],
+  '/tratamente': ['Stropit cu Switch azi', 'Adaugă activitate'],
   '/clienti': ['Telefon client Ionescu', 'Câți clienți activi?'],
   '/culegatori': ['Câți culegători activi?', 'Total kg recoltat azi'],
   '/comenzi': ['Câte comenzi nelivrate?', 'Status comenzi'],
