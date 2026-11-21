@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { getSupabase } from '@/lib/supabase/client'
+import { isHiddenOperatorEmail } from '@/lib/farm-members/operator-link'
 
 function getRedirectBase() {
   if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL
@@ -25,6 +26,13 @@ export default function ResetPasswordRequestPage() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setLoading(true)
+
+    // Conturile ascunse ale operatorilor din link n-au parolă și nu primesc email: nu trimitem nimic.
+    if (isHiddenOperatorEmail(email)) {
+      setLoading(false)
+      setSent(true)
+      return
+    }
 
     const redirectBase = getRedirectBase()
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {

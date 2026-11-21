@@ -41,7 +41,7 @@ import { IconBadge, NavRow, RowGroup, ScreenBody, ScreenHeader, type IconTone } 
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { prepareClientBeforeServerSignOut } from '@/lib/auth/server-sign-out-form'
 import type { FarmMemberModuleAccess } from '@/lib/farm-members/access'
-import { mesajIesireOperatorLink } from '@/lib/farm-members/operator-link'
+import { isHiddenOperatorEmail, mesajIesireOperatorLink } from '@/lib/farm-members/operator-link'
 import { useUnreadNotificationsCount } from '@/lib/notifications/useUnreadCount'
 import { queryKeys } from '@/lib/query-keys'
 import { getParcele } from '@/lib/supabase/queries/parcele'
@@ -114,6 +114,8 @@ function initialsOf(name: string): string {
 function userNameOf(email: string | null): string {
   if (!email) return 'Tu'
   if (email.endsWith('@demo.zmeurel.local')) return 'Cont demo'
+  // Contul ascuns al operatorului din link: adresa internă nu spune nimic omului.
+  if (isHiddenOperatorEmail(email)) return 'Tu'
   const local = email.split('@')[0] ?? ''
   const name = local
     .split(/[._-]+/)

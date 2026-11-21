@@ -6,10 +6,12 @@ import { ChevronDown, CircleHelp, Download, Settings, ShieldCheck } from 'lucide
 
 import LogoutButton from '@/components/LogoutButton'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
+import { isHiddenOperatorEmail } from '@/lib/farm-members/operator-link'
 
 function formatUserName(email: string | null): string {
   if (!email) return 'Popa Andrei'
   if (email.endsWith('@demo.zmeurel.local')) return 'Demo'
+  if (isHiddenOperatorEmail(email)) return 'Operator'
   const local = email.split('@')[0] ?? ''
   if (!local) return 'Popa Andrei'
 

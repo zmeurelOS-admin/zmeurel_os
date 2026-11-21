@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
+import { withoutHiddenOperatorEmails } from '@/lib/farm-members/operator-link'
 import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
 import type { Database } from '@/types/supabase'
 
@@ -114,7 +115,8 @@ export async function notifyFarmerShopOrder(
     const association = payload.dataOrigin === 'magazin_asociatie'
     const adminEmails = association ? await resolveAssociationAdminEmails(admin) : []
 
-    const toList = [farmerTo, ...adminEmails].filter((e): e is string => Boolean(e && e.length > 0))
+    // Conturile ascunse ale operatorilor din link (`@operator.zmeurel.local`) nu primesc niciodată email.
+    const toList = withoutHiddenOperatorEmails([farmerTo, ...adminEmails]).filter((e): e is string => Boolean(e && e.length > 0))
     const uniqueTo = [...new Set(toList)]
 
     if (uniqueTo.length === 0) return

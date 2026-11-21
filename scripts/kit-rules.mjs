@@ -75,8 +75,9 @@ export const KIT_RULE_DIRS = [
   'src/lib/echipa',
   'src/components/acte',
   'src/lib/acte',
-  // Acceptarea invitației de operator
+  // Acceptarea invitației de operator și pagina operatorului din link dezactivat (prompt 23)
   'src/app/invite',
+  'src/app/acces-oprit',
 ]
 
 /**

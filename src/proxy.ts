@@ -11,6 +11,7 @@ import {
   normalizeFarmMemberAccess,
   resolveFarmMemberAccess,
 } from '@/lib/farm-members/access'
+import { isHiddenOperatorEmail } from '@/lib/farm-members/operator-link'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { getNonOperatorTenantIdOrNull, getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
 import type { Database } from '@/types/supabase'
@@ -159,6 +160,7 @@ export async function proxy(request: NextRequest) {
     pathname === '/' ||
     pathname === '/start' ||
     pathname === '/login' ||
+    pathname === '/acces-oprit' ||
     pathname === '/register' ||
     pathname === '/termeni' ||
     pathname === '/confidentialitate' ||
@@ -287,6 +289,12 @@ export async function proxy(request: NextRequest) {
       userId: user.id,
       message: error instanceof Error ? error.message : 'unknown',
     })
+  }
+
+  // Operatorul din link (cont ascuns) fără apartenență activă (dezactivat): nu are fermă proprie și nu-și poate face
+  // una; nu ajunge pe /start, ci pe pagina care îi spune să ceară un link nou.
+  if (!operatorMember && operatorLookupSucceeded && isHiddenOperatorEmail(user.email)) {
+    return redirectTo(request, '/acces-oprit', supabaseResponse)
   }
 
   if (operatorMember) {

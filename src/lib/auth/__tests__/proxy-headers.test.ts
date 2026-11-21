@@ -127,6 +127,31 @@ describe('proxy: antetele spre pagină', () => {
     expect(redirect.cookies.get('sb-test-auth-token')?.value).toBe('refreshed')
   })
 
+  it('operatorul din link dezactivat (fără apartenență, fără fermă): pagina de acces oprit, nu /start', async () => {
+    state.user = { id: 'op-1', email: 'op-abc@operator.zmeurel.local' }
+    state.member = null
+    state.ownTenantId = null
+    const { proxy } = await import('@/proxy')
+    for (const path of ['/comenzi', '/start', '/login']) {
+      const response = await proxy(cerere(path))
+      expect(response.headers.get('location')).toContain('/acces-oprit')
+    }
+    const page = await proxy(cerere('/acces-oprit'))
+    expect(page.status).toBe(200)
+  })
+
+  it('operatorul din link activ ajunge în ferma lui, nu pe /start', async () => {
+    state.user = { id: 'op-1', email: 'op-abc@operator.zmeurel.local' }
+    state.member = { tenant_id: 'tenant-ferma', role: 'operator', modules_access: [{ module: 'recoltari', level: 'write' }] }
+    state.ownTenantId = null
+    const { proxy } = await import('@/proxy')
+    const start = await proxy(cerere('/start'))
+    expect(start.headers.get('location')).toContain('/recoltari')
+    const page = await proxy(cerere('/recoltari'))
+    expect(page.status).toBe(200)
+    expect(forwarded(page, 'x-zmeurel-tenant-id')).toBe('tenant-ferma')
+  })
+
   it('fără sesiune, pe o rută protejată: login, fără antete de identitate', async () => {
     state.user = null
     const { proxy } = await import('@/proxy')
