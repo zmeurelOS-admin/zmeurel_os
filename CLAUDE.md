@@ -11,10 +11,11 @@ npm run typecheck    # tsc --noEmit
 npm run build        # next build --webpack (runs check-env.js first)
 npm run check        # lint + typecheck + build (full CI gate)
 npm run check:kit    # regulile kitului de componente (tokeni canonici, text ≥ 13 px, straturi)
+npm run test:critical:unit  # testele unitare (vitest, `vitest.critical.config.ts`; fișierele noi de test se adaugă în `include`)
 npm run test:e2e     # Playwright e2e tests (`e2e/admin-access.spec.ts`: acces admin; dacă DB-ul blochează `is_superadmin` via service role, setează E2E_SUPERADMIN_EMAIL/PASSWORD în `.env.local`)
 ```
 
-CI runs `lint` + `typecheck` on every PR. Always run both before committing. There are no unit tests — only Playwright e2e.
+CI runs `lint` + `typecheck` on every PR. Always run both before committing. Testele unitare sunt cu vitest (`npm run test:critical:unit`, lista de fișiere în `include` din `vitest.critical.config.ts`); e2e cu Playwright (`npm run test:e2e`).
 
 ## Architecture Overview
 
@@ -106,9 +107,16 @@ Events are stored in `public.analytics_events`. Key columns: `event_name`, `modu
 
 ### Cron Jobs (Vercel, `vercel.json`)
 
-- `18:00 UTC daily` — Google contacts sync
-- `03:00 UTC daily` — Tenant metrics aggregation (`refresh_tenant_metrics_daily` RPC)
-- `04:00 UTC daily` — Curățarea demo-urilor (`/api/cron/demo-tenant-cleanup`; regula în `src/lib/tenant/demo-cleanup.ts`, citirea și ștergerea în `demo-cleanup-server.ts`):
+Toate orele sunt UTC (România = UTC+2 iarna, UTC+3 vara):
+
+- `06:00 zilnic` — sincronizarea contactelor Google (`/api/cron/sync-google-contacts`)
+- `03:00 zilnic` — agregarea metricilor pe fermă (`/api/cron/admin-metrics-daily`, RPC `refresh_tenant_metrics_daily`)
+- `04:00 luni` — rezumatul săptămânal pentru fermieri (`/api/cron/farmer-weekly-summary`)
+- `04:30 luni` — verificarea documentelor legale (`/api/cron/farmer-legal-docs-check`)
+- `05:00 zilnic` — mementourile de livrare pentru butași (`/api/cron/butasi-delivery-reminders`)
+- `05:00 zilnic` — notificările de dimineață: ger, comenzi de mâine, bani de încasat (`/api/cron/notificari-dimineata`)
+- `17:00 zilnic` — notificările de seară (`/api/cron/notificari-seara`)
+- `04:00 zilnic` — Curățarea demo-urilor (`/api/cron/demo-tenant-cleanup`; regula în `src/lib/tenant/demo-cleanup.ts`, citirea și ștergerea în `demo-cleanup-server.ts`):
   - o fermă e demo **doar** dacă emailul proprietarului din `auth.users` (fără majuscule și spații) se termină în `@demo.zmeurel.local` și `tenants.created_at` e mai vechi de 24 h. `is_demo` / `expires_at` nu decid nimic. `@example.test` nu se șterge de aici;
   - nu intră niciodată: ferme fără proprietar sau cu proprietar fără email, superadmini, `DEMO_CLEANUP_PROTECTED_OWNER_USER_IDS`, ferme de asociație (`is_association_approved` sau proprietar în `association_members`), proprietari cu mai multe ferme;
   - `DEMO_CLEANUP_MODE`: lipsă sau orice altă valoare decât `sterge` = **probă** (doar numără: JSON cu `mod: "proba"`, câte ferme, câte fișiere din `bonuri`, primele 20 de emailuri demo, semnele de fermă reală; se vede și în jurnalele Vercel, `[demo-tenant-cleanup] proba`). `sterge` = șterge efectiv. Se trece pe `sterge` doar după ce proba din jurnale a fost citită;
