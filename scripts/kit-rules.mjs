@@ -70,15 +70,18 @@ export const KIT_RULE_DIRS = [
   'src/app/(dashboard)/lucrari',
   'src/components/lucrari',
   'src/lib/lucrari',
+  // Echipa și Actele fermei (prompt 21; ecranele stau în `src/app/(dashboard)/settings`, deja pe listă)
+  'src/components/echipa',
+  'src/lib/echipa',
+  'src/components/acte',
+  'src/lib/acte',
 ]
 
 /**
  * Fișiere vechi dintr-un folder deja verificat, folosite încă de un modul nerefăcut.
  * Se scot de aici când modulul respectiv e refăcut.
- * - Echipa rămâne pe ecranul ei de dinainte (prompt 13: Setări s-a refăcut, Echipa nu).
  */
 export const KIT_RULE_PENDING_FILES = [
-  'src/app/(dashboard)/settings/echipa/EchipaClient.tsx',
   // Produse: formularele vechi cu poze și blocul de asociație, nefolosite până la magazinul nou (prompt 19).
   'src/components/produse/AddProdusDialog.tsx',
   'src/components/produse/EditProdusDialog.tsx',
