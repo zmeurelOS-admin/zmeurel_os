@@ -58,7 +58,7 @@ async function loginViaUi(page: Page, email: string, password: string, baseUrl: 
   await page.fill('#login-email', email)
   await page.fill('#login-password', password)
   await page.locator('button[type="submit"]').click()
-  await page.waitForURL(/\/(dashboard|activitati-agricole)/, { timeout: 15000 })
+  await page.waitForURL(/\/(dashboard|lucrari|start)/, { timeout: 15000 })
 }
 
 test.describe('Activitati Solar Flow', () => {
@@ -141,29 +141,30 @@ test.describe('Activitati Solar Flow', () => {
     }
   })
 
-  test('add solar activity appears in activity list, parcel cards, and solar details', async ({ page }) => {
+  test('o lucrare nouă pe solar apare în Lucrări și în jurnalul fișei parcelei', async ({ page }) => {
     const c = getCtx()
     await loginViaUi(page, c.user.email, c.user.password, c.baseUrl)
 
-    await page.goto(`${c.baseUrl}/activitati-agricole`)
-    await page.getByRole('button', { name: /Adauga activitate/i }).click()
-    await page.waitForSelector('#act_parcela')
-    await page.selectOption('#act_parcela', c.parcelaId)
-    await page.selectOption('#act_tip', 'tratament')
-    await page.fill('#act_produs', 'Produs Test Solar')
-    await page.fill('#act_doza', '1 l')
-    await page.fill('#act_obs', 'Observatie test solar')
-    await page.getByRole('button', { name: /^Salvează$/i }).click()
+    // `/activitati-agricole` redirecționează la `/lucrari`, cu parametrii păstrați.
+    await page.goto(`${c.baseUrl}/activitati-agricole?fila=planificate`, { waitUntil: 'load' })
+    await expect(page).toHaveURL(/\/lucrari\?fila=planificate/)
 
-    await expect(page.getByText(/Activitate salvată/i)).toBeVisible({ timeout: 10000 })
-    await expect(page.getByText(/Produs Test Solar/i).first()).toBeVisible({ timeout: 10000 })
+    await page.goto(`${c.baseUrl}/lucrari`, { waitUntil: 'load' })
+    await page.getByRole('button', { name: /^Lucrare$/ }).first().click()
+    await page.getByRole('radio', { name: /Irigație/ }).click()
+    await page.getByRole('button', { name: /^Continuă$/ }).click()
+    await page.getByRole('checkbox', { name: /SOLAR_ACTIVITATE_E2E/ }).click()
+    await page.getByLabel('Notă (opțional)').fill('Observatie test solar')
+    await page.getByRole('button', { name: /Salvează lucrarea/ }).click()
+    await expect(page.getByText(/^Salvată$/)).toBeVisible({ timeout: 10000 })
+    await page.getByRole('button', { name: /^Gata$/ }).click()
+    await expect(page.getByText(/Observatie test solar/).first()).toBeVisible({ timeout: 10000 })
 
-    await page.goto(`${c.baseUrl}/parcele`)
+    await page.goto(`${c.baseUrl}/parcele`, { waitUntil: 'load' })
     await expect(page.getByText(/SOLAR_ACTIVITATE_E2E/i).first()).toBeVisible({ timeout: 10000 })
-    await expect(page.getByText(/tratament/i).first()).toBeVisible({ timeout: 10000 })
 
-    await page.goto(`${c.baseUrl}/parcele/${c.parcelaId}`)
-    await expect(page.getByRole('heading', { name: /Activități agricole/i })).toBeVisible({ timeout: 10000 })
-    await expect(page.getByText(/Produs Test Solar/i).first()).toBeVisible({ timeout: 10000 })
+    await page.goto(`${c.baseUrl}/parcele/${c.parcelaId}`, { waitUntil: 'load' })
+    await expect(page.getByRole('heading', { name: /SOLAR_ACTIVITATE_E2E/ })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText(/Lucrare: irigație/i).first()).toBeVisible({ timeout: 10000 })
   })
 })
