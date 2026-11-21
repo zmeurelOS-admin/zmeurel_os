@@ -57,7 +57,8 @@ import {
 import { queryKeys } from '@/lib/query-keys'
 import { saveClientLocation, type Client } from '@/lib/supabase/queries/clienti'
 import { deliverAndCloneComanda, type Comanda } from '@/lib/supabase/queries/comenzi'
-import { setVanzarePlataPartiala } from '@/lib/supabase/queries/vanzari'
+import { adaugaPlataVanzare } from '@/lib/supabase/queries/vanzari'
+import { generateClientId } from '@/lib/offline/generateClientId'
 import { toast } from '@/lib/ui/toast'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
 import { cn } from '@/lib/utils'
@@ -150,6 +151,8 @@ export function StopSheet({
   const [kgText, setKgText] = useState('')
   const [sumaText, setSumaText] = useState('')
   const [sumaEdited, setSumaEdited] = useState(false)
+  // Cheia plății primite la livrare: aceeași la reîncercare, alta la următoarea deschidere a foii.
+  const [plataId, setPlataId] = useState(() => generateClientId())
   const [saveLocation, setSaveLocation] = useState(false)
   const [geo, setGeo] = useState<GeoState>({ status: 'idle' })
   const [pendingLocation, setPendingLocation] = useState<DevicePosition | null>(null)
@@ -180,6 +183,7 @@ export function StopSheet({
       setKgText(formatNumber(comanda.cantitate_kg))
       setSumaText(formatNumber(leiDeIncasat(comanda)))
       setSumaEdited(false)
+      setPlataId(generateClientId())
       setSaveLocation(hasLocatie && Boolean(stop.client) && stop.location === null)
       setGeo({ status: 'idle' })
       setPendingLocation(null)
@@ -278,7 +282,7 @@ export function StopSheet({
       if (!paidInFull && receivedLei > 0) {
         if (hasPlataPartiala && result.vanzare?.id) {
           try {
-            await setVanzarePlataPartiala(result.vanzare.id, receivedLei, todayIso)
+            await adaugaPlataVanzare({ vanzareId: result.vanzare.id, sumaLei: receivedLei, dataIso: todayIso, plataId })
             partialNote = ` A dat ${formatLei(receivedLei)}, rest ${formatLei(round2(expectedLei - receivedLei))}.`
           } catch {
             partialNote = ' Suma primită nu s-a putut nota; vânzarea e trecută ca neîncasată.'

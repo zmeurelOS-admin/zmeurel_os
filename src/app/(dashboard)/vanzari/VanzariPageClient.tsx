@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight, MessageCircle, Phone, ReceiptText, Search, ShoppingBasket, Zap } from 'lucide-react'
@@ -35,10 +35,8 @@ import {
   formatKg,
   formatLei,
   formatLeiKg,
-  formatNumber,
   monthYearRo,
   relativeDayRo,
-  round2,
   shortDateRo,
   weekdayDateRo,
 } from '@/lib/format-ro'
@@ -46,8 +44,9 @@ import { queryKeys } from '@/lib/query-keys'
 import { useSchemaFeatures } from '@/lib/schema-features'
 import { getClienți } from '@/lib/supabase/queries/clienti'
 import { getComenzi } from '@/lib/supabase/queries/comenzi'
-import { getVanzari, setVanzarePlataPartiala, setVanzareStatusPlata } from '@/lib/supabase/queries/vanzari'
-import { restDeIncasat } from '@/lib/vanzari/incasari'
+import { generateClientId } from '@/lib/offline/generateClientId'
+import { adaugaPlataVanzare, getVanzari, setVanzareStatusPlata } from '@/lib/supabase/queries/vanzari'
+import { aplicaPlata, restDeIncasat } from '@/lib/vanzari/incasari'
 import {
   buildVanzareRows,
   incasatInLuna,
@@ -96,6 +95,8 @@ export function VanzariPageClient() {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [sheetView, setSheetView] = useState<SheetView>('detalii')
   const [parteText, setParteText] = useState('')
+  // Cheia plății: una pe deschiderea „Cât a dat acum”, păstrată la reîncercare (nu se adună de două ori).
+  const plataIdRef = useRef<string | null>(null)
   const [busy, setBusy] = useState<'incasat' | 'neincasat' | 'parte' | null>(null)
   const [sheetError, setSheetError] = useState<string | null>(null)
 
@@ -177,16 +178,24 @@ export function VanzariPageClient() {
   }
 
   const parteLei = parseDecimal(parteText)
-  const parteValid = opened !== null && parteLei !== null && parteLei > 0 && parteLei < opened.total
+  const plataNoua = opened && parteLei !== null && todayIso ? aplicaPlata(opened, parteLei, todayIso) : null
+  const parteValid = plataNoua !== null && plataNoua.ok
 
   const savePartial = async () => {
-    if (busy || !opened || !parteValid || parteLei === null || !todayIso) return
+    if (busy || !opened || !parteValid || parteLei === null || !todayIso || !plataNoua?.ok) return
+    if (!plataIdRef.current) plataIdRef.current = generateClientId()
     setBusy('parte')
     setSheetError(null)
     try {
-      await setVanzarePlataPartiala(opened.id, parteLei, todayIso)
-      toast.success(`A dat ${formatLei(parteLei)} · rest ${formatLei(round2(opened.total - parteLei))}`)
-      setSheetView('detalii')
+      await adaugaPlataVanzare({ vanzareId: opened.id, sumaLei: parteLei, dataIso: todayIso, plataId: plataIdRef.current })
+      plataIdRef.current = null
+      toast.success(
+        plataNoua.completeaza
+          ? `Încasat tot: ${formatLei(opened.total)}`
+          : `A dat ${formatLei(parteLei)} · rest ${formatLei(plataNoua.rest)}`,
+      )
+      if (plataNoua.completeaza) setSheetOpen(false)
+      else setSheetView('detalii')
     } catch (cause) {
       setSheetError(errorText(cause, 'Nu s-a salvat. Verifică internetul și încearcă din nou.'))
     } finally {
@@ -368,7 +377,7 @@ export function VanzariPageClient() {
       <BottomSheet
         open={sheetOpen}
         onOpenChange={setSheetOpen}
-        title={sheetView === 'parte' ? 'Cât a dat?' : (opened?.clientNume ?? 'Vânzare')}
+        title={sheetView === 'parte' ? 'Cât a dat acum?' : (opened?.clientNume ?? 'Vânzare')}
         description={
           opened
             ? sheetView === 'parte'
@@ -392,7 +401,7 @@ export function VanzariPageClient() {
                 </Notice>
               ) : null}
               <BigInput
-                label="Suma primită"
+                label="Cât a dat acum"
                 inputMode="decimal"
                 autoComplete="off"
                 enterKeyHint="done"
@@ -400,14 +409,16 @@ export function VanzariPageClient() {
                 value={parteText}
                 onChange={(event) => setParteText(event.target.value)}
                 trailing={<span className={cn('font-bold text-fg-muted', kitText.base)}>lei</span>}
-                hint={
-                  parteLei !== null && parteLei >= opened.total
-                    ? 'E toată suma: întoarce-te și apasă „Marchează încasat azi”.'
-                    : parteValid && parteLei !== null
-                      ? `Rămâne de primit ${formatLei(round2(opened.total - parteLei))}. Vânzarea rămâne Neîncasată până vine restul.`
-                      : 'Vânzarea rămâne Neîncasată până vine restul.'
-                }
+                error={plataNoua && !plataNoua.ok && parteText.trim() !== '' ? plataNoua.motiv : undefined}
+                hint={`A dat până acum: ${formatLei(opened.primit)} · rest ${formatLei(opened.rest)}`}
               />
+              {plataNoua?.ok ? (
+                <p className={cn('text-fg-muted', kitText.secondary)}>
+                  {plataNoua.completeaza
+                    ? 'Cu asta a dat tot: vânzarea devine încasată azi.'
+                    : `După plată: rest ${formatLei(plataNoua.rest)}. Vânzarea rămâne neîncasată până vine restul.`}
+                </p>
+              ) : null}
               <Button type="submit" variant="primary" size="touch-lg" className="w-full" loading={busy === 'parte'} disabled={!parteValid}>
                 {parteValid && parteLei !== null ? `Notează ${formatLei(parteLei)}` : 'Notează suma'}
               </Button>
@@ -480,7 +491,8 @@ export function VanzariPageClient() {
                     disabled={busy !== null}
                     onClick={() => {
                       setSheetError(null)
-                      setParteText(opened.primit > 0 ? formatNumber(opened.primit) : '')
+                      setParteText('')
+                      plataIdRef.current = null
                       setSheetView('parte')
                     }}
                   >

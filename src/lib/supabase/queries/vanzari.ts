@@ -104,32 +104,53 @@ export async function getVanzari(): Promise<Vanzare[]> {
   return (data ?? []) as unknown as Vanzare[]
 }
 
+/** RPC-ul plăților adunate lipsește: migrarea `20261121120000_vanzari_plati_adunate.sql` nu e aplicată. */
+function isMissingRpcError(error: SupabaseLikeError | null | undefined): boolean {
+  return error?.code === 'PGRST202' || error?.code === '42883'
+}
+
+export interface AdaugaPlataInput {
+  vanzareId: string
+  /** Cât a dat acum (lei), > 0 și cel mult restul. */
+  sumaLei: number
+  /** Ziua plății, pe calendarul telefonului. */
+  dataIso: string
+  /**
+   * Cheia plății: aceeași la reîncercare și la dublu-click, alta pentru plata următoare.
+   * Baza de date nu adună de două ori o plată cu aceeași cheie.
+   */
+  plataId: string
+}
+
 /**
- * Notează cât a dat clientul dintr-o vânzare încă Neîncasată („A dat 50 lei · rest 70 lei”).
- * Vânzarea rămâne Neîncasată: venitul se trece o singură dată, cu toată suma, la `data_incasare`.
- * Refuză cât coloanele nu există în baza de date (migrarea `20261120090000_redesign_noapte.sql`).
+ * Adună o plată la ce a dat clientul până acum („A dat până acum: X lei · rest Y lei”). Adunarea e atomică,
+ * în baza de date (RPC `adauga_plata_vanzare`). Când suma ajunge la total, vânzarea devine încasată la ziua
+ * plății, iar venitul intră atunci, integral.
  */
-export async function setVanzarePlataPartiala(id: string, sumaLei: number, dataIso: string): Promise<void> {
-  const { vanzariPlataPartiala } = await loadSchemaFeaturesSafe()
-  if (!vanzariPlataPartiala) {
-    throw new Error('Plata parțială se activează după actualizarea bazei de date.')
-  }
-  const suma = Math.round((Number(sumaLei) || 0) * 100) / 100
+export async function adaugaPlataVanzare(input: AdaugaPlataInput): Promise<Vanzare> {
+  const suma = Math.round((Number(input.sumaLei) || 0) * 100) / 100
   if (!(suma > 0)) throw new Error('Suma primită trebuie să fie mai mare decât 0.')
 
   const supabase = getSupabase()
-  const tenantId = await getTenantId(supabase)
-  const { error } = await supabase
-    .from('vanzari')
-    .update({
-      suma_incasata_partial_lei: suma,
-      data_incasare_partiala: dataIso,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', id)
-    .eq('tenant_id', tenantId)
+  const rpcClient = supabase as unknown as {
+    rpc: (
+      fn: 'adauga_plata_vanzare',
+      args: { p_vanzare_id: string; p_suma_lei: number; p_data: string; p_plata_id: string },
+    ) => Promise<{ data: Vanzare | null; error: SupabaseLikeError | null }>
+  }
+  const { data, error } = await rpcClient.rpc('adauga_plata_vanzare', {
+    p_vanzare_id: input.vanzareId,
+    p_suma_lei: suma,
+    p_data: input.dataIso,
+    p_plata_id: input.plataId,
+  })
 
+  if (isMissingRpcError(error)) {
+    throw new Error('Plățile pe bucăți se activează după actualizarea bazei de date.')
+  }
   if (error) throw toReadableError(error, 'Nu am putut nota suma primită.')
+  if (!data) throw new Error('Nu am primit vânzarea actualizată de la baza de date.')
+  return data
 }
 
 /**

@@ -5,11 +5,11 @@
  * Regula de venit: suma întreagă intră o singură dată, la `data_incasare`. O plată parțială nu e venit încă:
  * doar se notează, ca să se vadă cât mai e de primit.
  */
-import { round2 } from '@/lib/format-ro'
+import { formatLei, round2 } from '@/lib/format-ro'
 import type { Vanzare } from '@/lib/supabase/queries/vanzari'
 
 type MoneyVanzare = Pick<Vanzare, 'cantitate_kg' | 'pret_lei_kg' | 'status_plata'> &
-  Partial<Pick<Vanzare, 'suma_incasata_partial_lei' | 'data_incasare' | 'data'>>
+  Partial<Pick<Vanzare, 'suma_incasata_partial_lei' | 'data_incasare' | 'data' | 'data_incasare_partiala'>>
 
 const PAID_STATUSES = new Set(['platit', 'platita', 'incasat', 'incasata', 'achitat', 'achitata'])
 
@@ -87,4 +87,32 @@ export function venitIncasat(vanzari: readonly MoneyVanzare[], startIso: string,
     total += vanzareTotal(vanzare)
   }
   return round2(total)
+}
+
+export type RezultatPlata<T extends MoneyVanzare> =
+  | { ok: true; vanzare: T; primit: number; rest: number; completeaza: boolean }
+  | { ok: false; motiv: string }
+
+/**
+ * O plată nouă adunată la ce s-a primit deja (aceeași regulă ca RPC-ul `adauga_plata_vanzare`, care face
+ * adunarea atomic în baza de date; aici e pentru validarea din formular și pentru teste).
+ * Plata e > 0 și cel mult restul. Când suma primită ajunge la total, vânzarea devine încasată la ziua plății.
+ */
+export function aplicaPlata<T extends MoneyVanzare>(vanzare: T, sumaLei: number, ziuaIso: string): RezultatPlata<T> {
+  if (isVanzareIncasata(vanzare.status_plata)) return { ok: false, motiv: 'Vânzarea e deja încasată.' }
+  const suma = round2(Number(sumaLei))
+  if (!Number.isFinite(suma) || suma <= 0) return { ok: false, motiv: 'Suma primită trebuie să fie mai mare decât 0.' }
+  const total = vanzareTotal(vanzare)
+  const primit = vanzarePrimit(vanzare)
+  const rest = round2(total - primit)
+  if (suma > rest) return { ok: false, motiv: `Plata depășește restul de plată (rest ${formatLei(rest)}).` }
+  const nou = round2(primit + suma)
+  const completeaza = nou >= total
+  const next: T = {
+    ...vanzare,
+    suma_incasata_partial_lei: nou,
+    data_incasare_partiala: ziuaIso,
+    ...(completeaza ? { status_plata: 'platit', data_incasare: ziuaIso } : {}),
+  }
+  return { ok: true, vanzare: next, primit: nou, rest: round2(total - nou), completeaza }
 }
