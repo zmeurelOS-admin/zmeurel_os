@@ -1,15 +1,17 @@
-import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
+
+import { ParcelaFisaClient } from './ParcelaFisaClient'
 
 type PageProps = {
   params: Promise<{ id: string }>
 }
 
-/** Detaliul vechi `/parcele/[id]` este consolidat în `/parcele?selected=…`. */
-export default async function ParceleParcelaLegacyRedirect({ params }: PageProps) {
+/** Fișa parcelei (înainte era o redirecționare spre `/parcele?selected=…`; acum `?selected=` duce aici). */
+export default async function ParcelaFisaPage({ params }: PageProps) {
   const { id } = await params
-  const trimmed = id?.trim()
-  if (!trimmed) {
-    redirect('/parcele')
-  }
-  redirect(`/parcele?selected=${encodeURIComponent(trimmed)}`)
+  return (
+    <Suspense fallback={null}>
+      <ParcelaFisaClient parcelaId={decodeURIComponent(id ?? '').trim()} />
+    </Suspense>
+  )
 }

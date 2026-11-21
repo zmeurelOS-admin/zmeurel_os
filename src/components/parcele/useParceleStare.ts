@@ -55,12 +55,12 @@ export function useParceleStare(azi: string | null) {
       if (!rand.zi) continue
       for (const parcelaId of rand.parcelaIds) push(parcelaId, { zi: rand.zi, tip: 'tratament' })
     }
-    for (const rand of construiesteJurnalLucrari(lucrari).planificate) {
+    for (const rand of construiesteJurnalLucrari(lucrari, azi).planificate) {
       if (!rand.zi) continue
       for (const parcelaId of rand.parcelaIds) push(parcelaId, { zi: rand.zi, tip: 'lucrare', eticheta: ETICHETA_LUCRARE[rand.tip] })
     }
     return map
-  }, [aplicari, lucrari])
+  }, [aplicari, azi, lucrari])
 
   const stadiuPeParcela = useMemo(() => {
     const map = new Map<string, StadiuCurentParcela>()

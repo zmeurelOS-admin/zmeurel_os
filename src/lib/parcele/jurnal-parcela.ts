@@ -65,6 +65,8 @@ export function jurnalParcela(input: {
   numeStadiu: (stadiu: StadiuJurnal) => string
   /** „Tu” / numele din „Cine”. */
   textCine?: (cine: string | null) => string | null
+  /** Azi (ora României): lucrările de după azi sunt planificate și nu intră în jurnal. */
+  azi?: string | null
 }): ZiJurnal[] {
   const { parcelaId } = input
   const intrari: IntrareJurnal[] = []
@@ -131,7 +133,7 @@ export function jurnalParcela(input: {
   }
 
   // Lucrările făcute.
-  for (const rand of randuriLucrari(input.activitati.filter((row) => row.parcela_id === parcelaId))) {
+  for (const rand of randuriLucrari(input.activitati.filter((row) => row.parcela_id === parcelaId), input.azi)) {
     if (rand.stare !== 'facuta' || !rand.zi) continue
     const eticheta = rand.tipOriginal ?? ETICHETA_LUCRARE[rand.tip]
     const cine = input.textCine ? input.textCine(rand.cine) : rand.cine

@@ -52,8 +52,15 @@ const text = (value: string | null | undefined) => {
   return trimmed || null
 }
 
-export function stareLucrare(row: Pick<LucrareRow, 'status'>): StareLucrare {
-  return row.status === 'planificata' ? 'planificata' : 'facuta'
+/**
+ * Starea unei lucrări. `'planificata'` după migrare; înainte (și la rândurile fără stare), o lucrare cu ziua după
+ * `azi` e tot planificată (Acasă le arăta așa și înainte: „Lucrările planificate vin din Activități”).
+ */
+export function stareLucrare(row: Pick<LucrareRow, 'status' | 'data_aplicare'>, azi?: string | null): StareLucrare {
+  if (row.status === 'planificata') return 'planificata'
+  if (row.status === 'facuta') return 'facuta'
+  const zi = ziuaRo(row.data_aplicare)
+  return azi && zi && zi > azi ? 'planificata' : 'facuta'
 }
 
 /** Doar lucrările (tratamentele vechi ies: le arată Tratamente, „importate”). */
@@ -61,9 +68,9 @@ export function doarLucrari<T extends Pick<LucrareRow, 'tip_activitate'>>(rows: 
   return rows.filter((row) => tipLucrareDin(row.tip_activitate) !== null)
 }
 
-function cheieFaraTimp(row: LucrareRow): string {
+function cheieFaraTimp(row: LucrareRow, azi?: string | null): string {
   return [
-    stareLucrare(row),
+    stareLucrare(row, azi),
     ziuaRo(row.data_aplicare) ?? '',
     tipLucrareDin(row.tip_activitate) ?? '',
     (row.tip_activitate ?? '').trim().toLocaleLowerCase('ro-RO'),
@@ -78,14 +85,14 @@ const momentul = (value: string) => {
 }
 
 /** Grupează rândurile pe salvare. Ordinea în grup: după `created_at`. */
-export function grupeazaLucrari(rows: readonly LucrareRow[]): LucrareRow[][] {
+export function grupeazaLucrari(rows: readonly LucrareRow[], azi?: string | null): LucrareRow[][] {
   const grupuri: LucrareRow[][] = []
   const peLot = new Map<string, LucrareRow[]>()
   const fara: LucrareRow[] = []
 
   for (const row of rows) {
     if (row.lot_id) {
-      const key = `${row.lot_id}:${stareLucrare(row)}`
+      const key = `${row.lot_id}:${stareLucrare(row, azi)}`
       const lista = peLot.get(key)
       if (lista) lista.push(row)
       else {
@@ -102,7 +109,7 @@ export function grupeazaLucrari(rows: readonly LucrareRow[]): LucrareRow[][] {
   const sortate = [...fara].sort((a, b) => momentul(a.created_at) - momentul(b.created_at) || a.id.localeCompare(b.id))
   const deschise = new Map<string, { start: number; rows: LucrareRow[] }>()
   for (const row of sortate) {
-    const key = cheieFaraTimp(row)
+    const key = cheieFaraTimp(row, azi)
     const moment = momentul(row.created_at)
     const grup = deschise.get(key)
     if (grup && moment - grup.start <= FEREASTRA_MS && !grup.rows.some((item) => item.parcela_id === row.parcela_id)) {
@@ -117,13 +124,13 @@ export function grupeazaLucrari(rows: readonly LucrareRow[]): LucrareRow[][] {
   return grupuri
 }
 
-export function randuriLucrari(rows: readonly LucrareRow[]): RandLucrare[] {
-  return grupeazaLucrari(doarLucrari(rows)).map((grup) => {
+export function randuriLucrari(rows: readonly LucrareRow[], azi?: string | null): RandLucrare[] {
+  return grupeazaLucrari(doarLucrari(rows), azi).map((grup) => {
     const prima = [...grup].sort((a, b) => momentul(a.created_at) - momentul(b.created_at))[0]
     const tip = tipLucrareDin(prima.tip_activitate) ?? 'altele'
     return {
-      key: prima.lot_id ? `lot:${prima.lot_id}:${stareLucrare(prima)}` : `lucrare:${prima.id}`,
-      stare: stareLucrare(prima),
+      key: prima.lot_id ? `lot:${prima.lot_id}:${stareLucrare(prima, azi)}` : `lucrare:${prima.id}`,
+      stare: stareLucrare(prima, azi),
       tip,
       tipOriginal: tipOriginalPentruAltele(prima.tip_activitate),
       zi: ziuaRo(prima.data_aplicare),
@@ -138,8 +145,8 @@ export function randuriLucrari(rows: readonly LucrareRow[]): RandLucrare[] {
 }
 
 /** Jurnalul întreg: făcutele de la cea mai nouă, planificatele de la cea mai apropiată. */
-export function construiesteJurnalLucrari(rows: readonly LucrareRow[]): { facute: RandLucrare[]; planificate: RandLucrare[] } {
-  const toate = randuriLucrari(rows)
+export function construiesteJurnalLucrari(rows: readonly LucrareRow[], azi?: string | null): { facute: RandLucrare[]; planificate: RandLucrare[] } {
+  const toate = randuriLucrari(rows, azi)
   const facute = toate
     .filter((rand) => rand.stare === 'facuta')
     .sort((a, b) => (b.zi ?? '').localeCompare(a.zi ?? '') || b.createdAt.localeCompare(a.createdAt))

@@ -155,3 +155,18 @@ describe('formularul de lucrare', () => {
     expect(textCine('  ', true)).toBeNull()
   })
 })
+
+describe('lucrările vechi cu dată în viitor', () => {
+  it('fără stare și după azi = planificată; cu „facuta” = făcută', () => {
+    const rows = [
+      row({ id: 'a', data_aplicare: '2026-07-20T12:00:00Z' }),
+      row({ id: 'b', data_aplicare: '2026-07-20T12:00:00Z', status: 'facuta', parcela_id: 'p2', operator: 'x' }),
+      row({ id: 'c', data_aplicare: '2026-07-10T12:00:00Z', parcela_id: 'p3' }),
+    ]
+    const jurnal = construiesteJurnalLucrari(rows, '2026-07-17')
+    expect(jurnal.planificate.map((rand) => rand.randuri[0].id)).toEqual(['a'])
+    expect(jurnal.facute.map((rand) => rand.randuri[0].id).sort()).toEqual(['b', 'c'])
+    // fără azi: ca înainte, totul e făcut
+    expect(construiesteJurnalLucrari(rows).planificate).toHaveLength(0)
+  })
+})

@@ -86,17 +86,19 @@ export async function creeazaLucrari(randuri: readonly RandLucrareDeSalvat[]): P
   }
 }
 
-/** „Marchează făcut”: `status = 'facuta'`, `data_aplicare` = acum. Doar planificatele. */
+/**
+ * „Marchează făcut”: `data_aplicare` = acum și, după migrare, `status = 'facuta'`. Merge și pe lucrările vechi
+ * cu dată în viitor (planificate înainte de migrare, fără stare).
+ */
 export async function marcheazaLucrariFacute(ids: readonly string[], now: Date = new Date()): Promise<void> {
   if (ids.length === 0) return
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
+  const { lucrariPlanificate } = await loadSchemaFeaturesSafe()
   const { data: userData } = await supabase.auth.getUser()
-  const { error } = await table(supabase, 'activitati_agricole')
-    .update({ status: 'facuta', data_aplicare: now.toISOString(), updated_by: userData.user?.id ?? null })
-    .eq('tenant_id', tenantId)
-    .eq('status', 'planificata')
-    .in('id', ids)
+  const patch: Record<string, unknown> = { data_aplicare: now.toISOString(), updated_by: userData.user?.id ?? null }
+  if (lucrariPlanificate) patch.status = 'facuta'
+  const { error } = await table(supabase, 'activitati_agricole').update(patch).eq('tenant_id', tenantId).in('id', ids)
   if (error) throw toError(error)
 }
 

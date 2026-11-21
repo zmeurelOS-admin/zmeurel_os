@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 import type { Database, TablesInsert } from '@/types/supabase'
 import { DEMO_DATA_ORIGIN } from '@/lib/demo/demo-constants'
+import { seedDemoStadii } from '@/lib/demo/demo-stadii'
 import { seedDemoTratamente } from '@/lib/demo/demo-tratamente'
 import { LEGAL_DOCS_BUCKET } from '@/lib/legal-docs/shared'
 import { getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
@@ -1303,6 +1304,9 @@ export async function seedDemoDataForTenant(
     // Modulul Tratamente plin într-un demo nou. Nu oprește demo-ul dacă dă greș.
     const tratamente = await seedDemoTratamente(supabaseAdmin, tenantId, insertedParcele, day)
     if (tratamente.error) console.warn('[demo-seed] tratamente', tratamente.error)
+    // Stadiile (Maravilla remontantă, cu cohorte). Nu oprește demo-ul dacă dă greș.
+    const stadii = await seedDemoStadii(supabaseAdmin, tenantId, insertedParcele, day(0).slice(0, 10))
+    if (stadii.error) console.warn('[demo-seed] stadii', stadii.error)
   }
 
   if (demoType === 'solar') {

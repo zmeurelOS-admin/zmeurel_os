@@ -71,7 +71,7 @@ export function LucrariPageClient() {
 
   const parcele = useMemo(() => parceleQuery.data ?? [], [parceleQuery.data])
   const numeParcele = useMemo(() => new Map(parcele.map((parcela) => [parcela.id, parcela.nume_parcela?.trim() || 'Parcelă'])), [parcele])
-  const jurnal = useMemo(() => construiesteJurnalLucrari(lucrariQuery.data ?? []), [lucrariQuery.data])
+  const jurnal = useMemo(() => construiesteJurnalLucrari(lucrariQuery.data ?? [], azi), [azi, lucrariQuery.data])
   const lista = fila === 'facute' ? jurnal.facute : jurnal.planificate
 
   // ─── Precompletarea din chatul AI (`?openForm=1&tip=…&parcela_id=…`) sau editarea (`?edit=<id>`) ───

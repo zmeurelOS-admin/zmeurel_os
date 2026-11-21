@@ -64,6 +64,9 @@ export const KIT_RULE_DIRS = [
   'src/components/rapoarte',
   'src/lib/rapoarte',
   // Parcele și Lucrări (prompt 20; fostele Activități agricole)
+  'src/app/(dashboard)/parcele',
+  'src/components/parcele',
+  'src/lib/parcele',
   'src/app/(dashboard)/lucrari',
   'src/components/lucrari',
   'src/lib/lucrari',
@@ -81,6 +84,8 @@ export const KIT_RULE_PENDING_FILES = [
   'src/components/produse/EditProdusDialog.tsx',
   'src/components/produse/ProductAssociationOfferBlock.tsx',
   'src/components/produse/ProdusFormSummary.tsx',
+  // Confirmarea veche de ștergere, folosită încă de Material săditor (nerefăcut).
+  'src/components/parcele/DeleteConfirmDialog.tsx',
 ]
 
 const TEXT_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.css'])
