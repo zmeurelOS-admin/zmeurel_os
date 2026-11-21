@@ -11,6 +11,8 @@ import {
 } from '@/lib/auth/destructive-action-step-up'
 import { createSameOriginRequest } from '@/test/helpers/api-origin-request'
 
+const farmOwnerMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => true))
+
 vi.mock('@/lib/monitoring/report-error', () => ({ captureApiError: vi.fn() }))
 
 const mocks = vi.hoisted(() => ({
@@ -25,6 +27,10 @@ vi.mock('@/lib/supabase/server', () => ({
 
 vi.mock('@/lib/supabase/admin', () => ({
   createServiceRoleClient: () => mocks.createServiceRoleClient(),
+}))
+
+vi.mock('@/lib/tenant/account-deletion', () => ({
+  isFarmOwner: (...args: unknown[]) => farmOwnerMock(...args),
 }))
 
 vi.mock('@/lib/tenant/get-tenant', () => ({
@@ -121,5 +127,19 @@ describe('POST /api/farm/reset step-up guard', () => {
     expect(res.status).toBe(200)
     const payload = (await res.json()) as { success: boolean }
     expect(payload.success).toBe(true)
+  })
+
+  it('operatorul (ferma nu e a lui) e refuzat, chiar cu step-up valid, fără nicio ștergere', async () => {
+    farmOwnerMock.mockResolvedValueOnce(false)
+    const admin = makeAdminClient()
+    mocks.createServiceRoleClient.mockReturnValue(admin)
+    const issued = issueDestructiveActionStepUpToken({ userId: USER_ID, scope: destructiveActionScopes.farmReset })
+    const req = createSameOriginRequest('/api/farm/reset', {
+      method: 'POST',
+      headers: { [DESTRUCTIVE_STEP_UP_HEADER]: issued!.token },
+    })
+    const res = await POST(req)
+    expect(res.status).toBe(403)
+    expect(admin.from).not.toHaveBeenCalled()
   })
 })

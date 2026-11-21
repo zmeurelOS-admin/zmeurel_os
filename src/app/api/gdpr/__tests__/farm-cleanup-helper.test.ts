@@ -4,6 +4,8 @@ import { DELETE } from '@/app/api/gdpr/farm/route'
 import { TENANT_DESTRUCTIVE_CLEANUP_SCOPES } from '@/lib/tenant/destructive-cleanup'
 import { createSameOriginRequest } from '@/test/helpers/api-origin-request'
 
+const farmOwnerMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => true))
+
 vi.mock('@/lib/monitoring/report-error', () => ({ captureApiError: vi.fn() }))
 vi.mock('@/lib/auth/destructive-action-step-up', () => ({
   requireDestructiveActionStepUp: vi.fn(() => null),
@@ -22,6 +24,10 @@ vi.mock('@/lib/supabase/server', () => ({
 
 vi.mock('@/lib/supabase/admin', () => ({
   getSupabaseAdmin: () => mocks.getSupabaseAdmin(),
+}))
+
+vi.mock('@/lib/tenant/account-deletion', () => ({
+  isFarmOwner: (...args: unknown[]) => farmOwnerMock(...args),
 }))
 
 vi.mock('@/lib/tenant/get-tenant', () => ({

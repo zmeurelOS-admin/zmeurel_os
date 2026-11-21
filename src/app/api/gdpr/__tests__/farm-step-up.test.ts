@@ -11,6 +11,8 @@ import {
 } from '@/lib/auth/destructive-action-step-up'
 import { createSameOriginRequest } from '@/test/helpers/api-origin-request'
 
+const farmOwnerMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => true))
+
 vi.mock('@/lib/monitoring/report-error', () => ({ captureApiError: vi.fn() }))
 
 const mocks = vi.hoisted(() => ({
@@ -25,6 +27,10 @@ vi.mock('@/lib/supabase/server', () => ({
 
 vi.mock('@/lib/supabase/admin', () => ({
   getSupabaseAdmin: () => mocks.getSupabaseAdmin(),
+}))
+
+vi.mock('@/lib/tenant/account-deletion', () => ({
+  isFarmOwner: (...args: unknown[]) => farmOwnerMock(...args),
 }))
 
 vi.mock('@/lib/tenant/get-tenant', () => ({

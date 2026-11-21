@@ -10,6 +10,7 @@ import {
   deleteTenantScopedData,
   TENANT_DESTRUCTIVE_CLEANUP_SCOPES,
 } from '@/lib/tenant/destructive-cleanup'
+import { isFarmOwner } from '@/lib/tenant/account-deletion'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 
 export const runtime = 'nodejs'
@@ -67,6 +68,12 @@ export async function POST(request: Request) {
     }
     tenantIdForSentry = tenantId
     const admin = createServiceRoleClient()
+    // `getTenantId` întoarce pentru un operator ferma în care lucrează: doar proprietarul o poate goli.
+    if (!(await isFarmOwner(admin, tenantId, user.id))) {
+      return apiError(403, 'NOT_FARM_OWNER', 'Doar proprietarul fermei poate goli ferma.', {
+        statusKey: 'success',
+      })
+    }
     console.info('[farm-reset] start', { userId: user.id, tenantId })
     const cleanupResult = await deleteTenantScopedData(admin, tenantId, {
       scope: TENANT_DESTRUCTIVE_CLEANUP_SCOPES.farmReset,

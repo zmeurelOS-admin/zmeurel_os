@@ -10,6 +10,7 @@ import {
   deleteTenantScopedData,
   TENANT_DESTRUCTIVE_CLEANUP_SCOPES,
 } from '@/lib/tenant/destructive-cleanup'
+import { isFarmOwner } from '@/lib/tenant/account-deletion'
 import { getTenantIdByUserId } from '@/lib/tenant/get-tenant'
 
 export const runtime = 'nodejs'
@@ -24,9 +25,9 @@ async function getOwnerContext() {
     throw new Error('UNAUTHORIZED')
   }
 
+  let tenantId: string
   try {
-    const tenantId = await getTenantIdByUserId(supabase, user.id)
-    return { user, tenant: { id: tenantId } }
+    tenantId = await getTenantIdByUserId(supabase, user.id)
   } catch (error) {
     captureApiError(error, {
       route: '/api/gdpr/farm:getOwnerContext',
@@ -38,6 +39,16 @@ async function getOwnerContext() {
     }
     throw error
   }
+
+  // Un operator primește aici ferma în care lucrează: n-are voie s-o redenumească sau s-o golească.
+  if (!(await isFarmOwner(getSupabaseAdmin(), tenantId, user.id))) {
+    throw new Error('NOT_FARM_OWNER')
+  }
+  return { user, tenant: { id: tenantId } }
+}
+
+function notOwnerResponse() {
+  return apiError(403, 'NOT_FARM_OWNER', 'Doar proprietarul fermei poate face asta.')
 }
 
 export async function PATCH(request: Request) {
@@ -117,6 +128,10 @@ export async function PATCH(request: Request) {
       return apiError(401, 'UNAUTHORIZED', 'Trebuie sa fii autentificat.')
     }
 
+    if (message === 'NOT_FARM_OWNER') {
+      return notOwnerResponse()
+    }
+
     if (message === 'TENANT_NOT_FOUND') {
       return apiError(404, 'TENANT_NOT_FOUND', 'Tenant-ul nu a fost gasit pentru utilizatorul curent.')
     }
@@ -187,6 +202,9 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ ok: true })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unexpected error'
+    if (message === 'NOT_FARM_OWNER') {
+      return notOwnerResponse()
+    }
     const status = message === 'UNAUTHORIZED' ? 401 : message === 'TENANT_NOT_FOUND' ? 404 : 500
 
     if (status >= 500) {

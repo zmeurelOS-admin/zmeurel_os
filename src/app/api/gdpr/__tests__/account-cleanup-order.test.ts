@@ -17,14 +17,16 @@ vi.mock('@/lib/monitoring/report-error', () => ({ captureApiError: vi.fn() }))
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   getSupabaseAdmin: vi.fn(),
-  getTenantIdByUserId: vi.fn(),
+  ownedTenantIdForDeletion: vi.fn(),
+  deleteFarmMemberships: vi.fn(),
   isSuperAdmin: vi.fn(),
 }))
 
 vi.mock('@/lib/supabase/server', () => ({ createClient: () => mocks.createClient() }))
 vi.mock('@/lib/supabase/admin', () => ({ getSupabaseAdmin: () => mocks.getSupabaseAdmin() }))
-vi.mock('@/lib/tenant/get-tenant', () => ({
-  getTenantIdByUserId: (...args: unknown[]) => mocks.getTenantIdByUserId(...args),
+vi.mock('@/lib/tenant/account-deletion', () => ({
+  ownedTenantIdForDeletion: (...args: unknown[]) => mocks.ownedTenantIdForDeletion(...args),
+  deleteFarmMemberships: (...args: unknown[]) => mocks.deleteFarmMemberships(...args),
 }))
 vi.mock('@/lib/auth/isSuperAdmin', () => ({
   isSuperAdmin: (...args: unknown[]) => mocks.isSuperAdmin(...args),
@@ -50,9 +52,9 @@ function makeRecordingAdmin(failOn: string | null = null) {
     })),
     auth: {
       admin: {
-        deleteUser: vi.fn(async () => {
-          calls.push('auth.deleteUser')
-          return { error: null }
+        deleteUser: vi.fn(async (_id: string, soft?: boolean) => {
+          calls.push(soft ? 'auth.softDeleteUser' : 'auth.deleteUser')
+          return { error: !soft && failOn === 'auth.deleteUser' ? { message: 'fk', code: '23503' } : null }
         }),
       },
     },
@@ -81,7 +83,8 @@ describe('DELETE /api/gdpr/account: curățarea fermei înainte de cont', () => 
         getUser: async () => ({ data: { user: { id: USER_ID, email: 'owner@example.com' } }, error: null }),
       },
     })
-    mocks.getTenantIdByUserId.mockResolvedValue(TENANT_ID)
+    mocks.ownedTenantIdForDeletion.mockResolvedValue(TENANT_ID)
+    mocks.deleteFarmMemberships.mockResolvedValue(undefined)
     mocks.isSuperAdmin.mockResolvedValue(false)
   })
 
@@ -125,5 +128,32 @@ describe('DELETE /api/gdpr/account: curățarea fermei înainte de cont', () => 
     const res = await DELETE(requestWithStepUp())
     expect(res.status).toBe(403)
     expect(calls).toEqual([])
+  })
+
+  it('operatorul (fără fermă proprie) nu atinge ferma în care lucrează: doar legătura, profilul și contul', async () => {
+    mocks.ownedTenantIdForDeletion.mockResolvedValue(null)
+    mocks.deleteFarmMemberships.mockImplementation(async () => {
+      calls.push('farm_members:user')
+    })
+    const { admin, calls } = makeRecordingAdmin()
+    mocks.getSupabaseAdmin.mockReturnValue(admin)
+
+    const res = await DELETE(requestWithStepUp())
+    expect(res.status).toBe(200)
+    expect(calls).not.toContain('delete:tenants')
+    expect(calls).not.toContain('delete:parcele')
+    expect(calls).not.toContain('delete:analytics_events')
+    expect(calls).toEqual(['delete:ai_conversations', 'farm_members:user', 'delete:profiles', 'auth.deleteUser'])
+  })
+
+  it('operatorul care a scris în ferma altcuiva: contul se șterge soft, istoricul fermei rămâne', async () => {
+    mocks.ownedTenantIdForDeletion.mockResolvedValue(null)
+    const { admin, calls } = makeRecordingAdmin('auth.deleteUser')
+    mocks.getSupabaseAdmin.mockReturnValue(admin)
+
+    const res = await DELETE(requestWithStepUp())
+    expect(res.status).toBe(200)
+    expect(calls).not.toContain('delete:tenants')
+    expect(calls.slice(-2)).toEqual(['auth.deleteUser', 'auth.softDeleteUser'])
   })
 })

@@ -16,7 +16,8 @@ vi.mock('@/lib/monitoring/report-error', () => ({ captureApiError: vi.fn() }))
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   getSupabaseAdmin: vi.fn(),
-  getTenantIdByUserId: vi.fn(),
+  ownedTenantIdForDeletion: vi.fn(),
+  deleteFarmMemberships: vi.fn(),
   isSuperAdmin: vi.fn(),
 }))
 
@@ -28,8 +29,9 @@ vi.mock('@/lib/supabase/admin', () => ({
   getSupabaseAdmin: () => mocks.getSupabaseAdmin(),
 }))
 
-vi.mock('@/lib/tenant/get-tenant', () => ({
-  getTenantIdByUserId: (...args: unknown[]) => mocks.getTenantIdByUserId(...args),
+vi.mock('@/lib/tenant/account-deletion', () => ({
+  ownedTenantIdForDeletion: (...args: unknown[]) => mocks.ownedTenantIdForDeletion(...args),
+  deleteFarmMemberships: (...args: unknown[]) => mocks.deleteFarmMemberships(...args),
 }))
 
 vi.mock('@/lib/auth/isSuperAdmin', () => ({
@@ -71,7 +73,8 @@ describe('DELETE /api/gdpr/account step-up guard', () => {
         getUser: async () => ({ data: { user: { id: USER_ID, email: 'owner@example.com' } }, error: null }),
       },
     })
-    mocks.getTenantIdByUserId.mockResolvedValue(TENANT_ID)
+    mocks.ownedTenantIdForDeletion.mockResolvedValue(TENANT_ID)
+    mocks.deleteFarmMemberships.mockResolvedValue(undefined)
     mocks.getSupabaseAdmin.mockReturnValue(makeAdminClient())
     mocks.isSuperAdmin.mockResolvedValue(false)
   })

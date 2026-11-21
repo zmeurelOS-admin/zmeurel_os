@@ -8,15 +8,17 @@ import { isSuperAdmin } from '@/lib/auth/isSuperAdmin'
 import { captureApiError } from '@/lib/monitoring/report-error'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { deleteFarmMemberships, ownedTenantIdForDeletion } from '@/lib/tenant/account-deletion'
 import {
   deleteTenantScopedData,
   TENANT_DESTRUCTIVE_CLEANUP_SCOPES,
 } from '@/lib/tenant/destructive-cleanup'
-import { getTenantIdByUserId } from '@/lib/tenant/get-tenant'
 
 export const runtime = 'nodejs'
 
-async function getOwnerContext() {
+type Admin = ReturnType<typeof getSupabaseAdmin>
+
+async function getAccountContext() {
   const supabase = await createClient()
   const {
     data: { user },
@@ -26,20 +28,43 @@ async function getOwnerContext() {
     throw new Error('UNAUTHORIZED')
   }
 
-  try {
-    const tenantId = await getTenantIdByUserId(supabase, user.id)
-    return { supabase, user, tenant: { id: tenantId } }
-  } catch (error) {
-    captureApiError(error, {
-      route: '/api/gdpr/account:getOwnerContext',
-      userId: user.id,
-    })
-    const message = error instanceof Error ? error.message : 'TENANT_LOOKUP_FAILED'
-    if (message === 'Tenant indisponibil pentru utilizatorul curent.') {
-      throw new Error('TENANT_NOT_FOUND')
-    }
-    throw error
-  }
+  return { supabase, user }
+}
+
+async function deleteAiConversations(admin: Admin, userId: string) {
+  const { error } = await admin
+    .from('ai_conversations' as unknown as 'alert_dismissals')
+    .delete()
+    .eq('user_id', userId)
+
+  if (error) throw error
+}
+
+/** Ferma proprie: datele, evenimentele, conversațiile AI, apoi rândul din `tenants`. Orice eroare critică oprește tot. */
+async function deleteOwnedTenant(admin: Admin, tenantId: string, userId: string) {
+  // Întâi datele fermei, în ordinea cheilor: tratamentele și capcanele au chei `ON DELETE RESTRICT` spre
+  // `parcele` și `produse_fitosanitare`, deci ștergerea directă a rândului din `tenants` poate eșua.
+  // Orice eroare critică oprește aici, înainte să atingem contul (`TenantCleanupError`).
+  await deleteTenantScopedData(admin, tenantId, {
+    scope: TENANT_DESTRUCTIVE_CLEANUP_SCOPES.gdprFarmDelete,
+    verifyCriticalTables: true,
+  })
+
+  const { error: analyticsDeleteError } = await admin
+    .from('analytics_events' as unknown as 'alert_dismissals')
+    .delete()
+    .eq('tenant_id', tenantId)
+
+  if (analyticsDeleteError) throw analyticsDeleteError
+
+  await deleteAiConversations(admin, userId)
+
+  const { error: deleteTenantError } = await admin
+    .from('tenants')
+    .delete()
+    .eq('id', tenantId)
+
+  if (deleteTenantError) throw deleteTenantError
 }
 
 export async function DELETE(request: Request) {
@@ -52,9 +77,8 @@ export async function DELETE(request: Request) {
       return invalidOriginResponse
     }
 
-    const { supabase, user, tenant } = await getOwnerContext()
+    const { supabase, user } = await getAccountContext()
     userId = user.id
-    tenantIdForSentry = tenant.id
 
     const userIsSuperadmin = await isSuperAdmin(supabase, user.id)
     if (
@@ -75,36 +99,18 @@ export async function DELETE(request: Request) {
     }
 
     const admin = getSupabaseAdmin()
-    const tenantId = tenant.id
+    // DOAR ferma al cărei proprietar e utilizatorul. Un operator (din link, cu Google sau cu parolă) nu șterge
+    // niciodată ferma în care lucrează: pleacă legătura lui din `farm_members`, profilul și utilizatorul.
+    const tenantId = await ownedTenantIdForDeletion(admin, user.id)
+    tenantIdForSentry = tenantId
 
-    // Întâi datele fermei, în ordinea cheilor: tratamentele și capcanele au chei `ON DELETE RESTRICT` spre
-    // `parcele` și `produse_fitosanitare`, deci ștergerea directă a rândului din `tenants` poate eșua.
-    // Orice eroare critică oprește aici, înainte să atingem contul (`TenantCleanupError`).
-    await deleteTenantScopedData(admin, tenantId, {
-      scope: TENANT_DESTRUCTIVE_CLEANUP_SCOPES.gdprFarmDelete,
-      verifyCriticalTables: true,
-    })
+    if (tenantId) {
+      await deleteOwnedTenant(admin, tenantId, user.id)
+    } else {
+      await deleteAiConversations(admin, user.id)
+    }
 
-    const { error: analyticsDeleteError } = await admin
-      .from('analytics_events' as unknown as 'alert_dismissals')
-      .delete()
-      .eq('tenant_id', tenantId)
-
-    if (analyticsDeleteError) throw analyticsDeleteError
-
-    const { error: aiConversationsDeleteError } = await admin
-      .from('ai_conversations' as unknown as 'alert_dismissals')
-      .delete()
-      .eq('user_id', user.id)
-
-    if (aiConversationsDeleteError) throw aiConversationsDeleteError
-
-    const { error: deleteTenantError } = await admin
-      .from('tenants')
-      .delete()
-      .eq('id', tenantId)
-
-    if (deleteTenantError) throw deleteTenantError
+    await deleteFarmMemberships(admin, user.id)
 
     const { error: deleteProfileError } = await admin
       .from('profiles')
@@ -114,17 +120,18 @@ export async function DELETE(request: Request) {
     if (deleteProfileError) throw deleteProfileError
 
     const { error: deleteUserError } = await admin.auth.admin.deleteUser(user.id)
-    if (deleteUserError) throw deleteUserError
+    if (deleteUserError) {
+      if (tenantId) throw deleteUserError
+      // Operatorul a scris în ferma altcuiva (`created_by` → `auth.users`, fără cascadă): istoricul fermei rămâne,
+      // iar contul se șterge „soft” (Supabase îl anonimizează și păstrează rândul pentru chei).
+      const { error: softDeleteError } = await admin.auth.admin.deleteUser(user.id, true)
+      if (softDeleteError) throw softDeleteError
+    }
 
     return NextResponse.json({ ok: true })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unexpected error'
-    const status =
-      message === 'UNAUTHORIZED'
-        ? 401
-        : message === 'TENANT_NOT_FOUND'
-          ? 404
-          : 500
+    const status = message === 'UNAUTHORIZED' ? 401 : 500
 
     if (status >= 500) {
       captureApiError(error, {
@@ -136,10 +143,6 @@ export async function DELETE(request: Request) {
 
     if (status === 401) {
       return apiError(401, 'UNAUTHORIZED', 'Trebuie sa fii autentificat.')
-    }
-
-    if (status === 404) {
-      return apiError(404, 'TENANT_NOT_FOUND', 'Tenant-ul nu a fost gasit pentru utilizatorul curent.')
     }
 
     return apiError(500, 'INTERNAL_ERROR', 'Nu am putut sterge contul.')
