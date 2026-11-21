@@ -130,6 +130,7 @@ export function VanzareRapidaForm({ open, onOpenChange, todayIso, clienti, comen
         kg,
         pretLeiKg: pret,
         todayIso,
+        clientSyncId: key,
         pendingComandaId: pending.current?.key === key ? pending.current.comandaId : null,
         onPendingChange: (comandaId) => {
           pending.current = comandaId ? { key, comandaId } : null
