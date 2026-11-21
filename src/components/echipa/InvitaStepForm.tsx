@@ -87,7 +87,7 @@ export function InvitaStepForm({ open, onOpenChange, onInvited }: InvitaStepForm
     try {
       const rezultat =
         draft.rol === 'operator'
-          ? await invitaOperator(accesDinCiorna(draft.drepturi))
+          ? await invitaOperator({ modules: accesDinCiorna(draft.drepturi), name: numeCurat, phone: draft.telefon.trim() })
           : await invitaLivrator({ name: numeCurat, phone: draft.telefon.trim() })
       hapticSuccess()
       setLink(rezultat.link)
@@ -165,8 +165,13 @@ export function InvitaStepForm({ open, onOpenChange, onInvited }: InvitaStepForm
           onValueChange={(value) => set('rol', (value as Rol | null) ?? draft.rol)}
           aria-label="Rolul"
         >
-          <Tile value="operator" leading={<UserRound />} title="Operator" subtitle="Își face cont; vede doar ce-i dai" />
-          <Tile value="livrator" leading={<Truck />} title="Livrator" subtitle="Fără cont; doar Livrări" />
+          <Tile
+            value="operator"
+            leading={<UserRound />}
+            title="Operator"
+            subtitle="Lucrează în ferma ta, doar cu ce-i dai. Intră din link, fără parolă."
+          />
+          <Tile value="livrator" leading={<Truck />} title="Livrator" subtitle="Doar Livrări, din link." />
         </TileGroup>
         <BigInput
           label="Nume"
@@ -244,7 +249,7 @@ export function InvitaStepForm({ open, onOpenChange, onInvited }: InvitaStepForm
             <LinkInvitatie rol={draft.rol} nume={numeCurat} telefon={draft.telefon} link={link} />
             <p className={cn('text-center text-fg-muted', kitText.helper)}>
               {draft.rol === 'operator'
-                ? 'Linkul e valabil 7 zile. Omul își face cont și intră direct în ferma ta.'
+                ? 'Linkul e valabil 7 zile și merge o singură dată. Omul îl deschide pe telefon și intră direct în ferma ta, fără parolă.'
                 : 'Livratorul deschide linkul pe telefon; nu are nevoie de cont.'}
             </p>
             <Button type="button" variant="quiet" size="touch" className="w-full" onClick={close}>

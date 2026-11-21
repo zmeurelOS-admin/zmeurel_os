@@ -27,6 +27,8 @@ export default defineConfig(({ mode }) => {
         'src/app/api/paste-to-investitii/__tests__/*.test.ts',
         'src/app/api/shop/__tests__/*.test.ts',
         'src/app/api/gdpr/__tests__/*.test.ts',
+        'src/app/api/invite/__tests__/*.test.ts',
+        'src/app/api/farm-members/__tests__/*.test.ts',
         'src/app/api/farm/__tests__/*.test.ts',
         'src/app/api/chat/__tests__/*.test.ts',
         'src/app/api/cron/__tests__/*.test.ts',

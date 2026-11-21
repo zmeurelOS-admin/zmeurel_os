@@ -1819,6 +1819,8 @@ export type Database = {
           created_by: string | null
           expires_at: string
           id: string
+          invitee_name: string | null
+          invitee_phone: string | null
           modules_access: Json
           tenant_id: string
           token: string
@@ -1830,6 +1832,8 @@ export type Database = {
           created_by?: string | null
           expires_at: string
           id?: string
+          invitee_name?: string | null
+          invitee_phone?: string | null
           modules_access?: Json
           tenant_id: string
           token: string
@@ -1841,6 +1845,8 @@ export type Database = {
           created_by?: string | null
           expires_at?: string
           id?: string
+          invitee_name?: string | null
+          invitee_phone?: string | null
           modules_access?: Json
           tenant_id?: string
           token?: string

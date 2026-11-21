@@ -135,7 +135,7 @@ Deschide-l pe telefon înainte de fiecare zi de livrări.
 Ți-am pregătit acces de operator în Zmeurel OS:
 ${input.link}
 
-Deschide linkul și creează-ți contul pentru a lucra în ferma mea.`
+Deschide linkul pe telefon și intri direct în ferma mea, fără parolă.`
 }
 
 /** `https://wa.me/?text=…` (sau `wa.me/<telefon>` când telefonul e scris). */

@@ -2,19 +2,37 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { validateSameOriginMutation } from '@/lib/api/route-security'
-import { acceptFarmInviteForUser, validateFarmInviteToken } from '@/lib/farm-members/invite-accept'
-import { createServiceRoleClient } from '@/lib/supabase/admin'
+import { isHiddenOperatorEmail } from '@/lib/farm-members/operator-link'
+import {
+  claimOperatorLink,
+  createHiddenOperatorUser,
+  deleteFreshHiddenUser,
+  firstRouteForMember,
+  getAuthUserEmail,
+  linkUserToFarm,
+  loadOperatorLink,
+  markOperatorLinkUser,
+  releaseOperatorLink,
+  removeAutoCreatedTenants,
+  startSessionWithoutPassword,
+  turnIntoReconnectLink,
+} from '@/lib/farm-members/operator-link-server'
 import { createClient } from '@/lib/supabase/server'
 
+/**
+ * „Intră în fermă”: operatorul intră doar din link, fără email și parolă.
+ * Corpul are DOAR tokenul; ferma și drepturile vin din invitație (niciun `tenant_id` din cerere).
+ */
 const bodySchema = z.object({
   token: z.string().trim().uuid(),
-  name: z.string().trim().min(2).max(120),
-  email: z.string().trim().email(),
-  password: z.string().min(8),
 })
 
 function errorResponse(error: string, status = 400) {
   return NextResponse.json({ success: false, error }, { status })
+}
+
+function linkProblemStatus(reason: string): number {
+  return reason === 'expired' || reason === 'used' || reason === 'inactive' ? 410 : 400
 }
 
 export const runtime = 'nodejs'
@@ -35,57 +53,72 @@ export async function POST(request: Request) {
     return errorResponse('invalid_body', 400)
   }
 
-  const invite = await validateFarmInviteToken(parsed.data.token)
-  if (!invite.valid) {
-    return errorResponse(invite.reason, invite.reason === 'expired' || invite.reason === 'used' ? 410 : 400)
+  const link = await loadOperatorLink(parsed.data.token)
+  if (!link.state.ok || !link.row) {
+    return errorResponse(link.state.ok ? 'not_found' : link.state.reason, link.state.ok ? 400 : linkProblemStatus(link.state.reason))
   }
+  const row = link.row
+  const state = link.state
 
-  const admin = createServiceRoleClient()
-  const email = parsed.data.email.toLowerCase()
-  const { data, error } = await admin.auth.admin.createUser({
-    email,
-    password: parsed.data.password,
-    email_confirm: true,
-    user_metadata: {
-      full_name: parsed.data.name,
-      invite_operator: true,
-    },
-  })
+  const supabase = await createClient()
+  const {
+    data: { user: currentUser },
+  } = await supabase.auth.getUser()
 
-  if (error) {
-    const message = (error.message ?? '').toLowerCase()
-    if (message.includes('already')) {
-      return errorResponse('email_already_registered', 409)
+  // Nu schimbăm contul pe tăcute: cine e logat în alt cont iese întâi (pagina arată „Ești logat ca …”).
+  if (currentUser) {
+    if (state.kind === 'reconectare' && currentUser.id === state.userId) {
+      if (!(await claimOperatorLink(row, state.userId))) return errorResponse('used', 410)
+      return NextResponse.json({ success: true, redirect_to: await firstRouteForMember(row.tenant_id, state.userId) })
     }
-    return errorResponse('signup_failed', 400)
+    return errorResponse('signed_in_as_other', 409)
   }
 
-  if (!data.user?.id) {
+  if (state.kind === 'reconectare') {
+    const email = await getAuthUserEmail(state.userId)
+    if (!email || !isHiddenOperatorEmail(email)) return errorResponse('inactive', 410)
+    if (!(await claimOperatorLink(row, state.userId))) return errorResponse('used', 410)
+
+    if (!(await startSessionWithoutPassword(supabase, email))) {
+      await turnIntoReconnectLink(row.id, state.userId)
+      return errorResponse('signin_failed', 500)
+    }
+    // Telefonul vechi (sau pierdut) iese: rămâne doar sesiunea de acum.
+    await supabase.auth.signOut({ scope: 'others' }).catch(() => undefined)
+    return NextResponse.json({ success: true, redirect_to: await firstRouteForMember(row.tenant_id, state.userId) })
+  }
+
+  // Prima invitație: întâi linkul se marchează folosit (atomic), abia apoi se creează contul.
+  if (!(await claimOperatorLink(row, null))) return errorResponse('used', 410)
+
+  const name = row.invitee_name?.trim() || 'Operator'
+  const created = await createHiddenOperatorUser(name)
+  if (!created) {
+    await releaseOperatorLink(row.id)
     return errorResponse('signup_failed', 500)
   }
 
-  const accepted = await acceptFarmInviteForUser({
-    token: parsed.data.token,
-    userId: data.user.id,
-    name: parsed.data.name,
+  await removeAutoCreatedTenants(created.id)
+  const linked = await linkUserToFarm({
+    tenantId: row.tenant_id,
+    userId: created.id,
+    name,
+    phone: row.invitee_phone ?? null,
+    modules: link.modules,
+    createdBy: row.created_by,
   })
-
-  if (!accepted.ok) {
-    return errorResponse(accepted.error, accepted.error === 'expired' || accepted.error === 'used' ? 410 : 400)
+  if (!linked.ok) {
+    await deleteFreshHiddenUser(created.id)
+    await releaseOperatorLink(row.id)
+    return errorResponse(linked.error, 500)
   }
+  await markOperatorLinkUser(row.id, created.id)
 
-  const supabase = await createClient()
-  const { error: signInError } = await supabase.auth.signInWithPassword({
-    email,
-    password: parsed.data.password,
-  })
-
-  if (signInError) {
+  if (!(await startSessionWithoutPassword(supabase, created.email))) {
+    // Contul și legătura există: același link intră în el la reîncercare, fără un al doilea cont.
+    await turnIntoReconnectLink(row.id, created.id)
     return errorResponse('signin_failed', 500)
   }
 
-  return NextResponse.json({
-    success: true,
-    redirect_to: accepted.redirectTo,
-  })
+  return NextResponse.json({ success: true, redirect_to: await firstRouteForMember(row.tenant_id, created.id) })
 }
