@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 import type { Database, TablesInsert } from '@/types/supabase'
 import { DEMO_DATA_ORIGIN } from '@/lib/demo/demo-constants'
+import { seedDemoTratamente } from '@/lib/demo/demo-tratamente'
 import { LEGAL_DOCS_BUCKET } from '@/lib/legal-docs/shared'
 import { getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
 
@@ -572,6 +573,22 @@ async function deleteRowsByIds(params: {
   }
 }
 
+/**
+ * Aplicările de tratament de pe parcelele demo (cu produsele lor, în cascadă). `aplicari_tratament.parcela_id`
+ * e `ON DELETE RESTRICT`: fără pasul ăsta, reîncărcarea demo-ului s-ar opri la ștergerea parcelelor.
+ */
+async function deleteTreatmentsOnParcels(supabaseAdmin: SupabaseClient<Database>, tenantId: string, parcelaIds: string[]) {
+  for (const chunk of chunkArray(parcelaIds, 500)) {
+    const { error } = await ((supabaseAdmin as unknown as { from: (name: string) => unknown }).from('aplicari_tratament') as {
+      delete: () => { eq: (c: string, v: string) => { in: (c: string, v: string[]) => Promise<{ error: { message?: string } | null }> } }
+    })
+      .delete()
+      .eq('tenant_id', tenantId)
+      .in('parcela_id', chunk)
+    if (error) throw new Error(`Delete failed for aplicari_tratament: ${error.message ?? 'Unknown error'}`)
+  }
+}
+
 async function deleteDemoRows(params: {
   supabaseAdmin: SupabaseClient<Database>
   tenantId: string
@@ -589,6 +606,10 @@ async function deleteDemoRows(params: {
       seedId,
       demoColumnsSupport,
     })
+
+    if (table === 'parcele' && ids.length > 0) {
+      await deleteTreatmentsOnParcels(supabaseAdmin, tenantId, ids)
+    }
 
     await deleteRowsByIds({
       supabaseAdmin,
@@ -820,10 +841,10 @@ export async function seedDemoDataForTenant(
               ['Grădină', 'camp', 'Mix', 2000, 'personal', 'consum'],
             ]
           : [
-              ['Delniwa Nord', 'camp', 'Zmeure Delniwa', 5000, 'comercial', 'productie'],
-              ['Delniwa Sud', 'camp', 'Zmeure Delniwa', 3000, 'comercial', 'productie'],
-              ['Maravilla', 'camp', 'Zmeure Maravilla', 4000, 'comercial', 'productie'],
-              ['Mure Thornfree', 'camp', 'Mure', 2000, 'comercial', 'productie'],
+              ['Delniwa Nord', 'camp', 'Zmeure Delniwa', 5000, 'comercial', 'productie', 2500],
+              ['Delniwa Sud', 'camp', 'Zmeure Delniwa', 3000, 'comercial', 'productie', 1500],
+              ['Maravilla', 'camp', 'Zmeure Maravilla', 4000, 'comercial', 'productie', 2000],
+              ['Mure Thornfree', 'camp', 'Mure', 2000, 'comercial', 'productie', 600],
               ['Afine', 'camp', 'Afine', 1500, 'personal', 'consum'],
               ['Grădina casei', 'camp', 'Mix fructe', 1000, 'personal', 'consum'],
             ]
@@ -843,6 +864,8 @@ export async function seedDemoDataForTenant(
       tip_fruct: String(row[2]),
       soi_plantat: String(row[2]),
       suprafata_m2: Number(row[3]),
+      // Numărul de plante (doar la fructele de pădure): fertirigarea în g/plantă îl folosește.
+      ...(row[6] !== undefined ? { nr_plante: Number(row[6]) } : {}),
       an_plantare: today.getFullYear() - 2,
       status: 'Activ',
       rol: String(row[4]),
@@ -858,13 +881,13 @@ export async function seedDemoDataForTenant(
     }
   })
 
-  let insertedParcele: Array<{ id: string; nume_parcela: string | null; rol: string | null }> = []
+  let insertedParcele: Array<{ id: string; nume_parcela: string | null; rol: string | null; nr_plante?: number | null }> = []
   {
-    const { data, error } = await supabaseAdmin.from('parcele').insert(parcelaRows).select('id,nume_parcela,rol')
+    const { data, error } = await supabaseAdmin.from('parcele').insert(parcelaRows).select('id,nume_parcela,rol,nr_plante')
     if (error) {
       logSeedInsertError(errors, 'parcele', error, parcelaRows[0] ?? null)
     } else {
-      insertedParcele = (data ?? []) as Array<{ id: string; nume_parcela: string | null; rol: string | null }>
+      insertedParcele = (data ?? []) as Array<{ id: string; nume_parcela: string | null; rol: string | null; nr_plante?: number | null }>
       summary.parcele = insertedParcele.length
       logSeedInsertSuccess('parcele', (data ?? []) as Array<Record<string, unknown>>)
     }
@@ -1274,6 +1297,12 @@ export async function seedDemoDataForTenant(
       summary.activitati = (data ?? []).length
       logSeedInsertSuccess('activitati_agricole', (data ?? []) as Array<Record<string, unknown>>)
     }
+  }
+
+  if (demoType === 'berries' && insertedParcele.length > 0) {
+    // Modulul Tratamente plin într-un demo nou. Nu oprește demo-ul dacă dă greș.
+    const tratamente = await seedDemoTratamente(supabaseAdmin, tenantId, insertedParcele, day)
+    if (tratamente.error) console.warn('[demo-seed] tratamente', tratamente.error)
   }
 
   if (demoType === 'solar') {
