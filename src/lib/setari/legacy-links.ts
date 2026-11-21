@@ -17,7 +17,8 @@ export const SETTINGS_LEGACY_HASH_ROUTES: Record<string, string> = {
   gdpr: '/settings/cont',
   'actiuni-permanente': '/settings/cont',
   // Rămân pe ecranele lor
-  'documente-legale': '/settings/documente-legale',
+  'documente-legale': '/settings/ferma/acte',
+  acte: '/settings/ferma/acte',
   echipa: '/settings/echipa',
   // Notificări push → „Ce primești”
   'notificari-push': '/notificari/setari',

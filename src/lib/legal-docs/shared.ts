@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import type { Database } from '@/types/supabase'
+import { acteDinDocument, lipsuriActe } from '@/lib/acte/stare'
 import { normalizePhone } from '@/lib/utils/phone'
 import { ziuaInRomania, zileCalendaristiceIntre } from '@/lib/utils/bucharest-date'
 
@@ -96,28 +97,9 @@ export function isCertificateLegalType(legalType: FarmerLegalType | null | undef
   return legalType === 'certificat_producator'
 }
 
+/** Ce lipsește, cu etichetele din Actele fermei (sursa unică: `lipsuriActe`). */
 export function getLegalDocsMissingFields(doc: Partial<FarmerLegalDocsRow> | null | undefined): string[] {
-  const missing: string[] = []
-  const legalType = doc?.legal_type ?? null
-
-  if (!doc?.full_name?.trim()) missing.push('nume și prenume')
-  if (!legalType) missing.push('formă juridică')
-  if (!doc?.locality?.trim()) missing.push('localitatea de origine')
-  if (!doc?.phone?.trim()) missing.push('telefon de contact')
-  if (!doc?.certificate_photo_url?.trim()) missing.push('document încărcat')
-  if (!doc?.legal_accepted_at) missing.push('confirmarea legală')
-
-  if (legalType === 'certificat_producator') {
-    if (!doc?.certificate_series?.trim()) missing.push('seria certificatului')
-    if (!doc?.certificate_number?.trim()) missing.push('numărul certificatului')
-    if (!doc?.certificate_expiry) missing.push('data expirării vizei')
-  }
-
-  if (legalType === 'pfa' || legalType === 'ii' || legalType === 'srl') {
-    if (!doc?.cui?.trim()) missing.push('CUI / CIF')
-  }
-
-  return missing
+  return lipsuriActe(acteDinDocument(doc)).map((item) => item.eticheta)
 }
 
 export function getCertificateExpiryInfo(
@@ -208,7 +190,7 @@ export function toLegalDocStoragePath(tenantId: string, fileName: string): strin
 }
 
 export function mapLegalDocsMissingSummary(status: LegalDocsStatus): string {
-  if (status.complete) return 'Documente complete'
-  if (status.missingFields.length === 0) return 'Documente incomplete'
-  return `Documente incomplete — lipsește: ${status.missingFields.join(', ')}`
+  if (status.complete) return 'Actele fermei sunt complete'
+  if (status.missingFields.length === 0) return 'Actele fermei sunt incomplete'
+  return `Actele fermei sunt incomplete — lipsește: ${status.missingFields.join(', ')}`
 }

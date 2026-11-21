@@ -53,7 +53,7 @@ export function getNotificationHref(
       return '/produse'
     case 'legal_docs_expiring':
     case 'legal_docs_expired':
-      return '/settings/documente-legale'
+      return '/settings/ferma/acte'
     case 'weekly_sales_summary':
       return '/notificari'
     case 'butasi_delivery_reminder':

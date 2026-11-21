@@ -7,6 +7,7 @@ import {
   DashboardShellTopSlot,
 } from '@/components/layout/DashboardShellSlots'
 import { LegalDocsPersistentBanner } from '@/components/legal-docs/LegalDocsPersistentBanner'
+import { acteDinDocument, stareActe, textBannerActe } from '@/lib/acte/stare'
 import UnifiedMobileFab from '@/components/ui/UnifiedMobileFab'
 import { AiPanelProvider } from '@/contexts/AiPanelContext'
 import { isSuperAdmin } from '@/lib/auth/isSuperAdmin'
@@ -45,7 +46,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   let associationShopApproved = false
   let farmName: string | null = null
-  let shouldShowLegalDocsBanner = false
+  let legalDocsBannerText: string | null = null
   const tenantIdForAuth =
     typeof tenantIdFromProxy === 'string' && tenantIdFromProxy ? tenantIdFromProxy : null
   if (tenantIdForAuth) {
@@ -59,7 +60,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     ])
     associationShopApproved = tenantRow?.is_association_approved === true
     farmName = farmDisplayName(tenantRow?.nume_ferma)
-    shouldShowLegalDocsBanner = !legalDocs.status.complete
+    legalDocsBannerText = legalDocs.status.complete ? null : textBannerActe(stareActe(acteDinDocument(legalDocs.doc)))
   }
 
   const initialAuth = {
@@ -82,7 +83,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <DashboardContextSync />
         <div className="min-h-screen bg-[var(--agri-bg)]">
           <DemoBanner />
-          {shouldShowLegalDocsBanner ? <LegalDocsPersistentBanner /> : null}
+          {legalDocsBannerText ? <LegalDocsPersistentBanner mesaj={legalDocsBannerText} /> : null}
           <DashboardShellTopSlot />
           <DashboardSidebarLoader />
           <main className="min-h-screen transition-[margin-left] duration-300 ease-in-out md:ml-[var(--sidebar-width)]">

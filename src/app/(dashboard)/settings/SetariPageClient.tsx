@@ -14,6 +14,7 @@ import { usePushSubscription } from '@/components/notifications/usePushSubscript
 import { NavRow, RowGroup, ScreenBody, ScreenHeader } from '@/components/setari/SetariUi'
 import { useHydrated } from '@/components/setari/useHydrated'
 import { formatLeiKg } from '@/lib/format-ro'
+import { titluLipsuri } from '@/lib/acte/stare'
 import type { LegalDocsStatus } from '@/lib/legal-docs/shared'
 import { cateSuntPornite, NOTIFICARI_CHEI, NOTIFICARI_PREFERINTE_IMPLICITE } from '@/lib/notifications/preferinte'
 import { usePreferinteNotificari } from '@/lib/notifications/preferinte-client'
@@ -32,7 +33,7 @@ function formatDayMonth(iso: string): string {
   return date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short' })
 }
 
-/** Textul de sub „Documente legale”: complete / ce lipsește / când expiră. */
+/** Textul de sub „Actele fermei”: complete / ce lipsește / când expiră (aceleași lipsuri ca pe ecranul actelor). */
 function legalDocsSub(legal: LegalDocsSummary | null): { text: string; tone: 'muted' | 'warning' | 'danger' | 'success' } {
   if (!legal) return { text: 'Formularul pentru vânzarea prin asociație', tone: 'muted' }
   if (legal.isExpired && legal.expiryDate) return { text: `Certificatul a expirat pe ${formatDayMonth(legal.expiryDate)}`, tone: 'danger' }
@@ -41,7 +42,7 @@ function legalDocsSub(legal: LegalDocsSummary | null): { text: string; tone: 'mu
   if (legal.missingFields.length > 0) {
     const first = legal.missingFields.slice(0, 2).join(', ')
     const more = legal.missingFields.length > 2 ? ` și încă ${legal.missingFields.length - 2}` : ''
-    return { text: `Lipsește: ${first}${more}`, tone: 'warning' }
+    return { text: `${titluLipsuri(legal.missingFields.length)}: ${first}${more}`, tone: 'warning' }
   }
   return { text: 'Necompletate', tone: 'warning' }
 }
@@ -136,8 +137,8 @@ export function SetariPageClient({ farm, legal }: { farm: FarmProfile | null; le
         <RowGroup title="Echipă și acte">
           <NavRow href="/settings/echipa" label="Echipa" sub={teamSub(team)} icon={<Users />} iconTone="neutral" />
           <NavRow
-            href="/settings/documente-legale"
-            label="Documente legale"
+            href="/settings/ferma/acte"
+            label="Actele fermei"
             sub={legalSub.text}
             subTone={legalSub.tone}
             icon={<FileText />}

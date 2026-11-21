@@ -2,11 +2,11 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Crosshair, MapPin } from 'lucide-react'
+import { Crosshair, FileText, MapPin } from 'lucide-react'
 
 import { AppShell } from '@/components/app/AppShell'
 import { BigInput, Button, Notice, kitText } from '@/components/kit'
-import { IconBadge, PanelCard, ScreenBody, ScreenHeader } from '@/components/setari/SetariUi'
+import { IconBadge, NavRow, PanelCard, RowGroup, ScreenBody, ScreenHeader } from '@/components/setari/SetariUi'
 import { SAVE_ERROR_MESSAGE, saveTenantSettingsRow } from '@/lib/farm-settings'
 import { getDevicePosition } from '@/lib/livrari/device'
 import type { FarmProfile } from '@/lib/setari/farm-profile-server'
@@ -191,6 +191,10 @@ export function FermaPageClient({
             </Button>
           </PanelCard>
         </section>
+
+        <RowGroup title="Acte">
+          <NavRow href="/settings/ferma/acte" label="Actele fermei" sub="Formă juridică, certificat de producător, contact" icon={<FileText />} iconTone="neutral" />
+        </RowGroup>
 
         <Button
           type="button"

@@ -12,7 +12,7 @@ describe('settingsRouteForLegacyHash', () => {
     expect(settingsRouteForLegacyHash('#interfata')).toBe('/settings/aspect')
     expect(settingsRouteForLegacyHash('#notificari-push')).toBe('/notificari/setari')
     expect(settingsRouteForLegacyHash('#echipa')).toBe('/settings/echipa')
-    expect(settingsRouteForLegacyHash('#documente-legale')).toBe('/settings/documente-legale')
+    expect(settingsRouteForLegacyHash('#documente-legale')).toBe('/settings/ferma/acte')
     expect(settingsRouteForLegacyHash('#pret-standard')).toBe('/settings/pret-standard')
     expect(settingsRouteForLegacyHash('#acasa')).toBe('/settings/acasa')
     expect(settingsRouteForLegacyHash('#ferma')).toBe('/settings/schimba-ferma')
