@@ -174,6 +174,13 @@ describe('semneFermaReala', () => {
     expect(semneFermaReala(candidat, stareDemo({ membriUserIds: ['u1'] }), ACUM)).toEqual([])
   })
 
+  it('operatorii din link legați doar de demo nu sunt semn de fermă reală; ceilalți membri rămân semn', () => {
+    expect(semneFermaReala(candidat, stareDemo({ membriUserIds: ['u1', 'op1'], operatoriAscunsi: ['op1'] }), ACUM)).toEqual([])
+    expect(
+      semneFermaReala(candidat, stareDemo({ membriUserIds: ['op1', 'u2'], operatoriAscunsi: ['op1'] }), ACUM).length,
+    ).toBeGreaterThan(0)
+  })
+
   it('o fermă care nu mai există nu are semne (nu e nimic de șters)', () => {
     expect(semneFermaReala(candidat, stareDemo({ tenant: null }), ACUM)).toEqual([])
   })

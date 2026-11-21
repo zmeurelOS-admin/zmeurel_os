@@ -43,14 +43,17 @@ class FermaRealaError extends Error {
   }
 }
 
-/** Reverifică o fermă; întoarce semnele de fermă reală (gol = se poate șterge) sau `null` dacă ferma nu mai există. */
+/**
+ * Reverifică o fermă; întoarce semnele de fermă reală (gol = se poate șterge) și operatorii din link legați doar de ea,
+ * sau `null` dacă ferma nu mai există.
+ */
 async function reverifica(
   admin: ReturnType<typeof createServiceRoleClient>,
   candidat: DemoDeSters,
-): Promise<string[] | null> {
+): Promise<{ semne: string[]; operatoriAscunsi: string[] } | null> {
   const stare = await citesteStareaFermei(admin, candidat, isProtectedDemoCleanupOwnerUserId)
   if (!stare.tenant) return null
-  return semneFermaReala(candidat, stare, new Date())
+  return { semne: semneFermaReala(candidat, stare, new Date()), operatoriAscunsi: stare.operatoriAscunsi ?? [] }
 }
 
 /**
@@ -89,15 +92,21 @@ export async function GET(request: Request) {
         fisiereBonuri += (await listeazaBonuri(admin, candidat.tenantId)).length
       }
       const semneFermaRealaGasite: SemnGasit[] = []
+      let operatoriAscunsi = 0
       for (const candidat of lot) {
-        const semne = await reverifica(admin, candidat)
-        if (semne && semne.length > 0) semneFermaRealaGasite.push({ tenantId: candidat.tenantId, email: candidat.email, semne })
+        const verificare = await reverifica(admin, candidat)
+        if (!verificare) continue
+        operatoriAscunsi += verificare.operatoriAscunsi.length
+        if (verificare.semne.length > 0) {
+          semneFermaRealaGasite.push({ tenantId: candidat.tenantId, email: candidat.email, semne: verificare.semne })
+        }
       }
       const payload = {
         ok: true,
         mod: 'proba' as const,
         ...comun,
         fisiereBonuri,
+        operatoriAscunsi,
         emailuriExemplu: selectie.deSters.slice(0, DEMO_CLEANUP_SAMPLE_EMAILS).map((candidat) => candidat.email),
         semneFermaReala: semneFermaRealaGasite,
       }
@@ -107,19 +116,23 @@ export async function GET(request: Request) {
 
     // Mod `sterge`. Întâi reverificăm tot lotul: un singur semn de fermă reală oprește rularea înainte de orice ștergere.
     for (const candidat of lot) {
-      const semne = await reverifica(admin, candidat)
-      if (semne && semne.length > 0) throw new FermaRealaError({ tenantId: candidat.tenantId, email: candidat.email, semne })
+      const verificare = await reverifica(admin, candidat)
+      if (verificare && verificare.semne.length > 0) {
+        throw new FermaRealaError({ tenantId: candidat.tenantId, email: candidat.email, semne: verificare.semne })
+      }
     }
 
     let fermeSterse = 0
     let utilizatoriStersi = 0
+    let operatoriStersi = 0
     let fisiereSterse = 0
     const erori: string[] = []
 
     for (const candidat of lot) {
       // Reverificăm chiar înainte de ștergere (emailul proprietarului, membrii, magazinul…).
-      const semne = await reverifica(admin, candidat)
-      if (semne === null) continue
+      const verificare = await reverifica(admin, candidat)
+      if (verificare === null) continue
+      const { semne } = verificare
       if (semne.length > 0) {
         const error = new FermaRealaError({ tenantId: candidat.tenantId, email: candidat.email, semne })
         captureApiError(error, { route: ROUTE, tenantId: candidat.tenantId, tags: { mod } })
@@ -139,9 +152,10 @@ export async function GET(request: Request) {
       }
 
       try {
-        const rezultat = await stergeFermaDemo(admin, candidat)
+        const rezultat = await stergeFermaDemo(admin, candidat, verificare.operatoriAscunsi)
         fermeSterse += 1
         fisiereSterse += rezultat.fisiere
+        operatoriStersi += rezultat.operatoriStersi
         if (rezultat.utilizatorSters) utilizatoriStersi += 1
         if (rezultat.avertismente.length > 0) {
           const message = `tenant ${candidat.tenantId}: ${rezultat.avertismente.join('; ')}`
@@ -161,6 +175,7 @@ export async function GET(request: Request) {
       ...comun,
       fermeSterse,
       utilizatoriStersi,
+      operatoriStersi,
       fisiereSterse,
       ramasePentruUrmatoareaRulare: Math.max(0, selectie.deSters.length - lot.length),
       ...(erori.length > 0 ? { erori } : {}),

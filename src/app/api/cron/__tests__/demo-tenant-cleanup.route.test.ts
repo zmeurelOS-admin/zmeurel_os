@@ -47,6 +47,7 @@ function makeAdmin(options: {
 
   class Query implements PromiseLike<{ data: unknown; error: null }> {
     private filters: Array<[string, unknown]> = []
+    private notFilters: Array<[string, unknown]> = []
     private isDelete = false
     private single = false
     private limitN: number | null = null
@@ -62,6 +63,10 @@ function makeAdmin(options: {
     }
     eq(column: string, value: unknown) {
       this.filters.push([column, value])
+      return this
+    }
+    neq(column: string, value: unknown) {
+      this.notFilters.push([column, value])
       return this
     }
     limit(n: number) {
@@ -83,10 +88,18 @@ function makeAdmin(options: {
 
     private run() {
       const rows = db[this.table] ?? []
-      const match = (row: Row) => this.filters.every(([column, value]) => row[column] === value)
+      const match = (row: Row) =>
+        this.filters.every(([column, value]) => row[column] === value) &&
+        this.notFilters.every(([column, value]) => row[column] !== value)
       if (this.isDelete) {
         ops.push({ kind: 'delete', target: this.table, filters: [...this.filters] })
+        const deleted = rows.filter(match)
         db[this.table] = rows.filter((row) => !match(row))
+        // Ca în bază: `farm_members.tenant_id` are `on delete cascade`.
+        if (this.table === 'tenants' && db.farm_members) {
+          const ids = new Set(deleted.map((row) => row.id))
+          db.farm_members = db.farm_members.filter((row) => !ids.has(row.tenant_id))
+        }
         return { data: null, error: null }
       }
       let out = rows.filter(match)
@@ -345,6 +358,57 @@ describe('GET /api/cron/demo-tenant-cleanup', () => {
     // Nimic despre fermele reale / de test.
     const touched = JSON.stringify(fake.ops)
     for (const id of [tid(91), tid(92), uid(91), uid(92)]) expect(touched).not.toContain(id)
+  })
+
+  it('sterge: operatorii din link legați doar de demo se șterg odată cu ferma; cei legați și de altă fermă rămân', async () => {
+    process.env.DEMO_CLEANUP_MODE = 'sterge'
+    const s = scenario(2, {
+      users: [
+        { id: uid(50), email: 'op-a@operator.zmeurel.local' },
+        { id: uid(51), email: 'op-b@operator.zmeurel.local' },
+      ],
+    })
+    s.db.farm_members = [
+      { id: 'fm1', tenant_id: tid(1), user_id: uid(50), role: 'operator' },
+      { id: 'fm2', tenant_id: tid(2), user_id: uid(51), role: 'operator' },
+      // uid(51) lucrează și într-o fermă reală (care nu e în curățare): nu e semn pentru demo 2, dar nici nu se șterge.
+      { id: 'fm3', tenant_id: tid(77), user_id: uid(51), role: 'operator' },
+    ]
+    const fake = makeAdmin(s)
+    mocks.createServiceRoleClient.mockReturnValue(fake.admin)
+    wireScopedDelete(fake.ops)
+
+    const { response, payload } = await runRoute()
+
+    // Demo 2 are un operator legat și de altă fermă: e semn de fermă reală, rularea se oprește înainte de ștergeri.
+    expect(response.status).toBe(500)
+    expect(payload.oprit).toBe(true)
+    expect(fake.ops).toEqual([])
+
+    // Fără legătura din ferma reală: ambele demo-uri și ambii operatori pleacă.
+    s.db.farm_members = s.db.farm_members.filter((row) => row.id !== 'fm3')
+    const fake2 = makeAdmin(s)
+    mocks.createServiceRoleClient.mockReturnValue(fake2.admin)
+    wireScopedDelete(fake2.ops)
+    const second = await runRoute()
+    expect(second.response.status).toBe(200)
+    expect(second.payload).toMatchObject({ fermeSterse: 2, utilizatoriStersi: 2, operatoriStersi: 2 })
+    const deletedUsers = fake2.ops.filter((op) => op.kind === 'deleteUser').map((op) => op.target)
+    expect(deletedUsers).toEqual(expect.arrayContaining([uid(1), uid(2), uid(50), uid(51)]))
+    // Operatorul se șterge după rândul din `tenants` (legătura a plecat în cascadă).
+    const kinds = fake2.ops.map((op) => `${op.kind}:${op.target}`)
+    expect(kinds.indexOf(`deleteUser:${uid(50)}`)).toBeGreaterThan(kinds.indexOf('delete:tenants'))
+  })
+
+  it('proba numără operatorii din link ai demo-urilor', async () => {
+    const s = scenario(1, { users: [{ id: uid(50), email: 'op-a@operator.zmeurel.local' }] })
+    s.db.farm_members = [{ id: 'fm1', tenant_id: tid(1), user_id: uid(50), role: 'operator' }]
+    const fake = makeAdmin(s)
+    mocks.createServiceRoleClient.mockReturnValue(fake.admin)
+
+    const { payload } = await runRoute()
+    expect(payload).toMatchObject({ mod: 'proba', operatoriAscunsi: 1, semneFermaReala: [] })
+    expect(fake.ops).toEqual([])
   })
 
   it('sterge: protecțiile (superadmin, lista din env, asociație) nu se ating', async () => {

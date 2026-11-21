@@ -7,6 +7,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { BONURI_BUCKET } from '@/lib/bonuri'
+import { isHiddenOperatorEmail } from '@/lib/farm-members/operator-link'
 import {
   deleteTenantScopedData,
   TENANT_DESTRUCTIVE_CLEANUP_SCOPES,
@@ -187,6 +188,14 @@ export async function citesteStareaFermei(
     .eq('tenant_id', tenantId)
   if (membersError) throw new Error(`Verificare farm_members: ${membersError.message}`)
 
+  const operatoriAscunsi = await citesteOperatoriAscunsi(
+    admin,
+    tenantId,
+    ((memberRows ?? []) as Array<{ user_id: string | null }>)
+      .map((row) => row.user_id)
+      .filter((id): id is string => Boolean(id) && id !== ownerUserId),
+  )
+
   const [ownerInAsociatie, fermeAleProprietarului, comenziMagazin, legaturiMagazin, oferteAsociatie] = await Promise.all([
     numara(admin.from('association_members').select('user_id').eq('user_id', ownerUserId).limit(1), 'association_members'),
     numara(admin.from('tenants').select('id').eq('owner_user_id', ownerUserId), 'tenants'),
@@ -213,10 +222,30 @@ export async function citesteStareaFermei(
     fermeAleProprietarului,
     profileIds: ((profileRows ?? []) as Array<{ id: string }>).map((row) => row.id),
     membriUserIds: ((memberRows ?? []) as Array<{ user_id: string | null }>).map((row) => row.user_id ?? null),
+    operatoriAscunsi,
     comenziMagazin,
     legaturiMagazin,
     oferteAsociatie,
   }
+}
+
+/**
+ * Dintre membrii fermei, operatorii din link (email `@operator.zmeurel.local`) care nu sunt legați de altă fermă
+ * și nu dețin nicio fermă. Doar `select` și `getUserById`.
+ */
+async function citesteOperatoriAscunsi(admin: Admin, tenantId: string, userIds: string[]): Promise<string[]> {
+  const ascunsi: string[] = []
+  for (const userId of new Set(userIds)) {
+    const { data, error } = await admin.auth.admin.getUserById(userId)
+    if (error) throw new Error(`Verificare auth membru: ${error.message}`)
+    if (!isHiddenOperatorEmail(data?.user?.email)) continue
+    const [altundeva, ferme] = await Promise.all([
+      numara(admin.from('farm_members').select('id').eq('user_id', userId).neq('tenant_id', tenantId).limit(1), 'farm_members'),
+      numara(admin.from('tenants').select('id').eq('owner_user_id', userId).limit(1), 'tenants'),
+    ])
+    if (altundeva === 0 && ferme === 0) ascunsi.push(userId)
+  }
+  return ascunsi
 }
 
 // ─── Ștergerea ─────────────────────────────────────────────────────────────────
@@ -224,6 +253,8 @@ export async function citesteStareaFermei(
 export type RezultatStergereDemo = {
   fisiere: number
   utilizatorSters: boolean
+  /** Operatori din link șterși odată cu ferma. */
+  operatoriStersi: number
   avertismente: string[]
 }
 
@@ -236,7 +267,11 @@ async function stergeDupa(admin: Admin, table: (typeof DEMO_ONLY_DELETE_ORDER)[n
  * Șterge un demo deja reverificat. Aruncă la prima problemă (ferma rămâne pentru noaptea următoare);
  * ce s-a șters până atunci rămâne șters, dar rândul din `tenants` și utilizatorul pleacă doar la final.
  */
-export async function stergeFermaDemo(admin: Admin, candidat: DemoDeSters): Promise<RezultatStergereDemo> {
+export async function stergeFermaDemo(
+  admin: Admin,
+  candidat: DemoDeSters,
+  operatoriAscunsi: string[] = [],
+): Promise<RezultatStergereDemo> {
   const { tenantId, ownerUserId } = candidat
   if (!esteTenantIdValid(tenantId)) throw new Error('tenant_id invalid')
   const avertismente: string[] = []
@@ -258,6 +293,9 @@ export async function stergeFermaDemo(admin: Admin, candidat: DemoDeSters): Prom
   }
   // `ai_usage_log.user_id` n-are cascadă spre `auth.users`.
   await stergeDupa(admin, 'ai_usage_log', 'user_id', ownerUserId)
+  for (const operatorId of operatoriAscunsi) {
+    await stergeDupa(admin, 'ai_usage_log', 'user_id', operatorId)
+  }
 
   // 3. Rândul din `tenants` (restul tabelelor cu `tenant_id` pleacă în cascadă), doar dacă e tot al acestui proprietar.
   const { error: tenantError } = await admin
@@ -267,12 +305,38 @@ export async function stergeFermaDemo(admin: Admin, candidat: DemoDeSters): Prom
     .eq('owner_user_id', ownerUserId)
   if (tenantError) throw new Error(`Delete tenants: ${tenantError.message}`)
 
-  // 4. Utilizatorul din `auth` (în cascadă: profiles, notifications, push_subscriptions, notificari_preferinte, feedback…).
+  // 4. Operatorii din link ai fermei (legătura lor din `farm_members` a plecat în cascadă cu ferma). Fiecare se
+  //    reverifică: doar contul ascuns care nu mai e legat de nicio fermă și nu deține niciuna.
+  const operatoriStersi = await stergeOperatoriAscunsi(admin, operatoriAscunsi, avertismente)
+
+  // 5. Utilizatorul din `auth` (în cascadă: profiles, notifications, push_subscriptions, notificari_preferinte, feedback…).
   const { error: authError } = await admin.auth.admin.deleteUser(ownerUserId)
   if (authError) {
     avertismente.push(`utilizatorul n-a putut fi șters: ${authError.message}`)
-    return { fisiere, utilizatorSters: false, avertismente }
+    return { fisiere, utilizatorSters: false, operatoriStersi, avertismente }
   }
 
-  return { fisiere, utilizatorSters: true, avertismente }
+  return { fisiere, utilizatorSters: true, operatoriStersi, avertismente }
+}
+
+async function stergeOperatoriAscunsi(admin: Admin, userIds: string[], avertismente: string[]): Promise<number> {
+  let sterse = 0
+  for (const userId of userIds) {
+    try {
+      const { data, error } = await admin.auth.admin.getUserById(userId)
+      if (error) throw error
+      if (!isHiddenOperatorEmail(data?.user?.email)) continue
+      const [legaturi, ferme] = await Promise.all([
+        numara(admin.from('farm_members').select('id').eq('user_id', userId).limit(1), 'farm_members'),
+        numara(admin.from('tenants').select('id').eq('owner_user_id', userId).limit(1), 'tenants'),
+      ])
+      if (legaturi > 0 || ferme > 0) continue
+      const { error: deleteError } = await admin.auth.admin.deleteUser(userId)
+      if (deleteError) throw deleteError
+      sterse += 1
+    } catch (error) {
+      avertismente.push(`operatorul ${userId} n-a putut fi șters: ${error instanceof Error ? error.message : 'eroare'}`)
+    }
+  }
+  return sterse
 }

@@ -161,6 +161,11 @@ export type StareFermaDemo = {
   profileIds: string[]
   /** `user_id` din `farm_members` pentru fermă (`null` = membru al cărui cont a fost șters). */
   membriUserIds: Array<string | null>
+  /**
+   * Operatorii din link (cont ascuns `@operator.zmeurel.local`) legați DOAR de ferma aceasta: nu sunt semn de fermă
+   * reală și se șterg odată cu ea (altfel ar rămâne conturi orfane).
+   */
+  operatoriAscunsi?: string[]
   /** Rânduri în `shop_orders` / `shop_order_erp_links` / `association_product_offers` pentru fermă. */
   comenziMagazin: number
   legaturiMagazin: number
@@ -172,7 +177,7 @@ export type StareFermaDemo = {
  * - proprietarul s-a schimbat, emailul lui nu mai e demo (sau lipsește), e superadmin, e protejat, e în asociație;
  * - ferma e aprobată în asociație, e mai nouă de 24 h, proprietarul mai deține altă fermă;
  * - în `profiles` mai e cineva cu `tenant_id` = ferma, în afară de proprietar (indiferent de email);
- * - în `farm_members` e cineva în afară de proprietar;
+ * - în `farm_members` e cineva în afară de proprietar (operatorii din link legați doar de ferma aceasta nu contează);
  * - ferma are comenzi în magazin (`shop_orders`, `shop_order_erp_links`) sau oferte în asociație.
  */
 export function semneFermaReala(candidat: DemoDeSters, stare: StareFermaDemo, acum: Date): string[] {
@@ -192,7 +197,8 @@ export function semneFermaReala(candidat: DemoDeSters, stare: StareFermaDemo, ac
 
   const altiInProfiles = stare.profileIds.filter((id) => id !== candidat.ownerUserId).length
   if (altiInProfiles > 0) semne.push(`${altiInProfiles} alți utilizatori în profiles pe fermă`)
-  const altiMembri = stare.membriUserIds.filter((id) => id !== candidat.ownerUserId).length
+  const ascunsi = new Set(stare.operatoriAscunsi ?? [])
+  const altiMembri = stare.membriUserIds.filter((id) => id !== candidat.ownerUserId && !(id && ascunsi.has(id))).length
   if (altiMembri > 0) semne.push(`${altiMembri} alți membri în farm_members`)
   if (stare.comenziMagazin > 0) semne.push('ferma are comenzi în magazin')
   if (stare.legaturiMagazin > 0) semne.push('ferma are comenzi din magazin legate de comenzi')
