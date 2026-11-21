@@ -97,5 +97,6 @@ describe('invitația pe WhatsApp', () => {
     expect(initialeNume('Ana Pavel')).toBe('AP')
     expect(initialeNume('ion')).toBe('I')
     expect(initialeNume('  ')).toBe('?')
+    expect(initialeNume('Tu (cont demo)')).toBe('T')
   })
 })

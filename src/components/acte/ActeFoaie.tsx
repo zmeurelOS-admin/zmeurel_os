@@ -88,7 +88,7 @@ export function ActeFoaie({ rand, onClose, values, formaAleasa, errors, onChange
   } else if (rand === 'certificat') {
     body = (
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-3">
           <BigInput
             label="Numărul"
             value={values.certificate_number ?? ''}

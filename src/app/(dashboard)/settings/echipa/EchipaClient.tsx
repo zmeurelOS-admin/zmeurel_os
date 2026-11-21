@@ -88,6 +88,8 @@ export function EchipaClient() {
       }
     >
       <ScreenBody className="space-y-3 pb-28">
+        {/* Pe desktop bara de jos nu există: butonul stă în pagină. */}
+        <div className="hidden md:block">{invitaButton}</div>
         <ListRow
           leading={<Avatar text={initialeNume(numeProprietar(email))} ton="proprietar" />}
           title={numeProprietar(email)}

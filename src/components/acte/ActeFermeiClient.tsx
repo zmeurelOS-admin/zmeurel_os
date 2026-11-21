@@ -11,6 +11,7 @@ import { Button, CheckRow, ListRow, Notice, kitText } from '@/components/kit'
 import { ScreenBody, ScreenHeader } from '@/components/setari/SetariUi'
 import {
   esteCertificat,
+  insiruire,
   lipsuriPeRand,
   randAlCampului,
   stareActe,
@@ -185,7 +186,7 @@ export function ActeFermeiClient({ initialDocument, initialSignedPhotoUrl }: Act
     const lipsuri = lipsuriPeRand(stare.lipsuri, cheie)
     const lipsa = lipsuri.length > 0 || areEroare(cheie)
     const detaliu = lipsuri.length > 0
-      ? parti(detaliuComplet, `lipsește ${lipsuri.map((item) => item.eticheta).join(', ')}`)
+      ? parti(`lipsește ${insiruire(lipsuri.map((item) => item.eticheta))}`, detaliuComplet)
       : detaliuComplet
     const titlu = cheie === 'poza' && formaAleasa && !esteCertificat(values.legal_type) ? 'Poza documentului' : TITLU_RAND[cheie]
     return (
@@ -205,6 +206,12 @@ export function ActeFermeiClient({ initialDocument, initialSignedPhotoUrl }: Act
       : 'încărcată, nesalvată încă'
     : ''
 
+  const salveazaButton = (
+    <Button type="button" variant="primary" size="touch-lg" className="w-full" loading={saving} disabled={uploading} onClick={() => void salveaza()}>
+      {saving ? 'Se salvează…' : 'Salvează actele'}
+    </Button>
+  )
+
   return (
     <AppShell
       header={<ScreenHeader title="Actele fermei" backHref="/settings/ferma" />}
@@ -212,16 +219,12 @@ export function ActeFermeiClient({ initialDocument, initialSignedPhotoUrl }: Act
       bottomBar={
         dirty ? (
           <div className="mx-auto w-full max-w-md pl-18 pr-4">
-            <div className="rounded-box shadow-2">
-              <Button type="button" variant="primary" size="touch-lg" className="w-full" loading={saving} disabled={uploading} onClick={() => void salveaza()}>
-                {saving ? 'Se salvează…' : 'Salvează actele'}
-              </Button>
-            </div>
+            <div className="rounded-box shadow-2">{salveazaButton}</div>
           </div>
         ) : undefined
       }
     >
-      <ScreenBody className={cn('space-y-3', dirty && 'pb-28')}>
+      <ScreenBody className="space-y-3 pb-28">
         <Notice tone={stare.complete ? 'success' : 'warning'} title={stare.titlu}>
           {stare.complete ? 'Pot fi folosite la magazin și la asociație.' : stare.detaliu}
         </Notice>
@@ -282,6 +285,9 @@ export function ActeFermeiClient({ initialDocument, initialSignedPhotoUrl }: Act
         </div>
 
         <p className={cn('px-1 text-fg-muted', kitText.helper)}>Folosite la magazin și la asociație, când revin.</p>
+
+        {/* Pe desktop bara de jos nu există: butonul stă în pagină. */}
+        {dirty ? <div className="hidden md:block">{salveazaButton}</div> : null}
       </ScreenBody>
 
       <ActeFoaie

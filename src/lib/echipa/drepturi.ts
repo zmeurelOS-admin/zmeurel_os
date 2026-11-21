@@ -102,7 +102,11 @@ export function randMembru(rol: RolMembru, modulesAccess?: unknown): string {
 
 /** Inițialele din cerc: „Ana Pavel” → „AP”, „Ion” → „I”. */
 export function initialeNume(nume: string | null | undefined): string {
-  const parti = (nume ?? '').trim().split(/\s+/).filter(Boolean)
+  const parti = (nume ?? '')
+    .replace(/\([^)]*\)/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
   if (parti.length === 0) return '?'
   const litere = parti.length === 1 ? parti[0].charAt(0) : `${parti[0].charAt(0)}${parti[parti.length - 1].charAt(0)}`
   return litere.toUpperCase()
