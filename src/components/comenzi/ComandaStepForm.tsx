@@ -138,8 +138,8 @@ function readableSaveError(cause: unknown, mode: 'create' | 'edit'): string {
 
 /**
  * Comandă nouă sau editare, pe pași: clientul, apoi detaliile. Salvează direct din pasul 2.
- * `comenzi` nu are cheie de idempotență în baza de date: butonul e blocat cât rulează cererea,
- * iar o cheie de formular se trimite o singură dată.
+ * Cheia formularului pleacă spre server ca `client_sync_id` (după migrarea 20261121140000): o reîncercare
+ * nu dublează comanda. În plus, butonul e blocat cât rulează cererea, iar o cheie se trimite o singură dată.
  */
 export function ComandaStepForm({
   open,
@@ -330,6 +330,7 @@ export function ComandaStepForm({
       } else {
         comanda = await createComanda({
           ...common,
+          client_sync_id: key,
           client_id: draft.clientId,
           client_nume_manual: draft.clientId ? null : draft.manualName.trim() || null,
           telefon: client?.telefon ?? (draft.telefon.trim() || null),

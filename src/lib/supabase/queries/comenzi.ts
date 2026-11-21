@@ -1,6 +1,7 @@
 import { getSupabase } from '../client'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 import { loadSchemaFeaturesSafe } from '@/lib/schema-features'
+import { cheieDeTrimis, findByClientSyncId, isClientSyncConflict } from '@/lib/supabase/idempotency'
 import { getSellableCal1StockSummary } from './miscari-stoc'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/supabase'
 import { type Vanzare } from './vanzari'
@@ -82,6 +83,8 @@ export interface CreateComandaInput {
   order_kind?: ComandaOrderKind
   status?: ComandaStatus
   observatii?: string | null
+  /** Cheia de idempotență a formularului (aceeași la reîncercare). */
+  client_sync_id?: string | null
 }
 
 export interface UpdateComandaInput {
@@ -485,7 +488,9 @@ export async function createComanda(input: CreateComandaInput): Promise<Comanda>
     data: { user },
   } = await supabase.auth.getUser()
   const { fields, hasPrioritara } = await resolveComandaSelect()
+  const key = await cheieDeTrimis(input.client_sync_id)
   const payload: ComandaInsertCompat = {
+    ...(key ? { client_sync_id: key } : {}),
     // Coloana nouă pleacă spre server doar dacă există (altfel PostgREST respinge toată cererea).
     ...(hasPrioritara && input.prioritara !== undefined ? { prioritara: input.prioritara } : {}),
     tenant_id: tenantId,
@@ -506,15 +511,26 @@ export async function createComanda(input: CreateComandaInput): Promise<Comanda>
     updated_by: user?.id ?? null,
   }
 
-  const { data, error } = await supabase
-    .from('comenzi')
-    .insert(payload as TablesInsert<'comenzi'>)
-    .select(fields)
-    .single()
+  // Reîncercarea aceleiași salvări: comanda există deja (cheia de idempotență), nu se creează a doua.
+  let inserted: ComandaQueryRow | null = key
+    ? await findByClientSyncId<ComandaQueryRow>(supabase, 'comenzi', tenantId, key, fields)
+    : null
 
-  if (error) throw toReadableError(error, 'Nu am putut salva comanda.')
+  if (!inserted) {
+    const { data, error } = await supabase
+      .from('comenzi')
+      .insert(payload as TablesInsert<'comenzi'>)
+      .select(fields)
+      .single()
 
-  const inserted = data as unknown as ComandaQueryRow
+    if (error && key && isClientSyncConflict(error)) {
+      inserted = await findByClientSyncId<ComandaQueryRow>(supabase, 'comenzi', tenantId, key, fields)
+    }
+    if (!inserted) {
+      if (error) throw toReadableError(error, 'Nu am putut salva comanda.')
+      inserted = data as unknown as ComandaQueryRow
+    }
+  }
 
   if (requestedStatus !== 'in_livrare') {
     return mapComanda(inserted)

@@ -53,6 +53,7 @@ describe('schema-features', () => {
         'vanzari.suma_incasata_partial_lei',
         'tenant_settings.pret_standard_perioada',
         'tenant_settings.acasa_perioada_mod',
+        'comenzi.client_sync_id',
       ]),
     )
     await expect(probeSchemaFeatures(client)).resolves.toEqual(NO_SCHEMA_FEATURES)
@@ -66,8 +67,9 @@ describe('schema-features', () => {
       vanzariPlataPartiala: true,
       pretStandard: true,
       acasaPerioada: true,
+      cheiIdempotenta: true,
     })
-    expect(calls).toHaveLength(5)
+    expect(calls).toHaveLength(6)
   })
 
   it('o altă eroare nu e luată drept „lipsește”: verificarea se reia', async () => {

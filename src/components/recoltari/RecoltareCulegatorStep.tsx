@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { UserPlus } from 'lucide-react'
 
 import { BigInput, Button, Notice, StepFormTitle, Tile, TileGroup, parseDecimal } from '@/components/kit'
+import { generateClientId } from '@/lib/offline/generateClientId'
 import { queryKeys } from '@/lib/query-keys'
 import { formatKg, splitWorkerName } from '@/lib/recoltari/day-view'
 import { createCulegator, type Culegator } from '@/lib/supabase/queries/culegatori'
@@ -79,6 +80,8 @@ export function RecoltareCulegatorNou({ onCreated }: RecoltareCulegatorNouProps)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const inFlight = useRef(false)
+  // Cheia culegătorului nou: aceeași la reîncercare după eroare, alta după ce a fost creat.
+  const cheie = useRef<string | null>(null)
 
   const numeCurat = nume.trim().replace(/\s+/g, ' ')
   const tarifNumar = parseDecimal(tarif)
@@ -91,7 +94,9 @@ export function RecoltareCulegatorNou({ onCreated }: RecoltareCulegatorNouProps)
     setSaving(true)
     setError(null)
     try {
-      const created = await createCulegator({ nume_prenume: numeCurat, tarif_lei_kg: tarifNumar })
+      cheie.current ??= generateClientId()
+      const created = await createCulegator({ nume_prenume: numeCurat, tarif_lei_kg: tarifNumar, client_sync_id: cheie.current })
+      cheie.current = null
       queryClient.setQueryData<Culegator[]>(queryKeys.culegatori, (previous) =>
         previous ? [created, ...previous.filter((item) => item.id !== created.id)] : previous,
       )

@@ -111,7 +111,7 @@ export function CulegatorStepForm({ open, onOpenChange, editing = null }: Culega
 
     try {
       // La editare, data angajării și statusul nu se trimit: rămân cum sunt în baza de date.
-      const row = editing ? await updateCulegator(editing.id, input) : await createCulegator({ ...input, status_activ: true })
+      const row = editing ? await updateCulegator(editing.id, input) : await createCulegator({ ...input, status_activ: true, client_sync_id: form.clientSyncId })
       queryClient.setQueryData<Culegator[]>(queryKeys.culegatori, (previous) => {
         if (!previous) return previous
         return previous.some((item) => item.id === row.id)

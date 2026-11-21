@@ -4,6 +4,7 @@ import { getSupabase } from '../client'
 import { getFinancialMutationError } from '@/lib/financial/save-errors'
 import { resolveFinancialWriteContext } from '@/lib/financial/write-context'
 import { generateBusinessId } from '@/lib/supabase/business-ids'
+import { cheieDeTrimis, findByClientSyncId, isClientSyncConflict } from '@/lib/supabase/idempotency'
 import { resolveInvestitieCategorie } from '@/lib/financial/categories'
 
 // ===============================
@@ -40,6 +41,8 @@ export interface CreateInvestitieInput {
   descriere?: string
   suma_lei: number
   document_url?: string
+  /** Cheia de idempotență a formularului (aceeași la reîncercare). */
+  client_sync_id?: string | null
 }
 
 export interface UpdateInvestitieInput {
@@ -131,6 +134,11 @@ export async function createInvestitie(
 ): Promise<Investitie> {
   const supabase = getSupabase()
   const { tenantId } = await resolveFinancialWriteContext(supabase, 'investitii')
+  const key = await cheieDeTrimis(input.client_sync_id)
+  if (key) {
+    const existing = await findByClientSyncId<Record<string, unknown>>(supabase, 'investitii', tenantId, key)
+    if (existing) return normalizeInvestitieRow(existing)
+  }
 
   let nextId: string
   try {
@@ -147,6 +155,7 @@ export async function createInvestitie(
   const { data, error } = await supabase
     .from('investitii')
     .insert({
+      ...(key ? { client_sync_id: key } : {}),
       tenant_id: tenantId,
       id_investitie: nextId,
       data: input.data,
@@ -159,6 +168,11 @@ export async function createInvestitie(
     })
     .select()
     .single()
+
+  if (error && key && isClientSyncConflict(error)) {
+    const existing = await findByClientSyncId<Record<string, unknown>>(supabase, 'investitii', tenantId, key)
+    if (existing) return normalizeInvestitieRow(existing)
+  }
 
   if (error) {
     throw getFinancialMutationError(error, {

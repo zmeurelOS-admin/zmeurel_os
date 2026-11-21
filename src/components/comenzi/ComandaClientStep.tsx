@@ -7,6 +7,7 @@ import { Search, UserPlus } from 'lucide-react'
 import { BigInput, Button, ListRow, Notice, StepFormTitle, kitText } from '@/components/kit'
 import { resolveExistingClientByPhone } from '@/lib/comenzi/ai-order-client'
 import { formatLeiKg, phoneDigits, searchKey } from '@/lib/format-ro'
+import { generateClientId } from '@/lib/offline/generateClientId'
 import { queryKeys } from '@/lib/query-keys'
 import { normalizeRomanianMobilePhone, ROMANIAN_PHONE_ERROR } from '@/lib/shop/phone'
 import { createClienți, type Client } from '@/lib/supabase/queries/clienti'
@@ -181,6 +182,8 @@ export function ComandaClientNou({ clienti, seed, onCreated, onUseExisting }: Co
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const inFlight = useRef(false)
+  // Cheia clientului nou: aceeași la reîncercare după eroare, alta după ce a fost creat.
+  const cheie = useRef<string | null>(null)
 
   const numeCurat = nume.trim().replace(/\s+/g, ' ')
   const telefonCurat = telefon.trim()
@@ -203,7 +206,14 @@ export function ComandaClientNou({ clienti, seed, onCreated, onUseExisting }: Co
     setSaving(true)
     setError(null)
     try {
-      const created = await createClienți({ nume_client: numeCurat, telefon: telefonNormalizat, tip: 'standard' })
+      cheie.current ??= generateClientId()
+      const created = await createClienți({
+        nume_client: numeCurat,
+        telefon: telefonNormalizat,
+        tip: 'standard',
+        client_sync_id: cheie.current,
+      })
+      cheie.current = null
       queryClient.setQueryData<Client[]>(queryKeys.clienti, (previous) =>
         previous ? [...previous.filter((item) => item.id !== created.id), created] : previous,
       )

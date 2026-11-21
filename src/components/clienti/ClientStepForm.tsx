@@ -165,7 +165,7 @@ export function ClientStepForm({ open, onOpenChange, clienti, editing = null, pr
     try {
       const client = editing
         ? await updateClienți(editing.id, input)
-        : await createClienți(input, {
+        : await createClienți({ ...input, client_sync_id: form.clientSyncId }, {
             onDuplicateWarning: (existing) =>
               setWarning(`Există deja un client cu nume asemănător: ${existing.nume_client}. L-am salvat și pe acesta.`),
           })

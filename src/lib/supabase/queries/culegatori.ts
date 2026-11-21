@@ -1,5 +1,6 @@
 import { getSupabase } from '../client'
 import { generateBusinessId } from '@/lib/supabase/business-ids'
+import { cheieDeTrimis, findByClientSyncId, isClientSyncConflict } from '@/lib/supabase/idempotency'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 
 // ========================================
@@ -28,6 +29,8 @@ export interface CreateCulegatorInput {
   telefon?: string | null
   tip_angajare?: string | null
   observatii?: string | null
+  /** Cheia de idempotență a formularului (aceeași la reîncercare). */
+  client_sync_id?: string | null
 }
 
 export interface UpdateCulegatorInput {
@@ -69,10 +72,16 @@ export async function createCulegator(
   input: CreateCulegatorInput
 ): Promise<Culegator> {
   const supabase = getSupabase()
-  const id_culegator = await generateBusinessId(supabase, 'CUL')
   const tenantId = await getTenantId(supabase)
+  const key = await cheieDeTrimis(input.client_sync_id)
+  if (key) {
+    const existing = await findByClientSyncId<Culegator>(supabase, 'culegatori', tenantId, key)
+    if (existing) return existing
+  }
+  const id_culegator = await generateBusinessId(supabase, 'CUL')
 
   const payload = {
+    ...(key ? { client_sync_id: key } : {}),
     tenant_id: tenantId,
     id_culegator,
     nume_prenume: input.nume_prenume,
@@ -100,6 +109,10 @@ export async function createCulegator(
     .select()
     .single()
 
+  if (error && key && isClientSyncConflict(error)) {
+    const existing = await findByClientSyncId<Culegator>(supabase, 'culegatori', tenantId, key)
+    if (existing) return existing
+  }
   if (error) throw error
 
   return data as unknown as Culegator

@@ -399,6 +399,8 @@ export function CheltuialaStepForm({
             descriere: descriere || undefined,
             parcela_id: draft.parcelaId ?? undefined,
             document_url: documentUrl ?? undefined,
+            // Cheia formularului: o reîncercare nu dublează investiția (după migrarea 20261121140000).
+            client_sync_id: key,
           })
           sentKeys.current.add(key)
           track('investitie_add', { suma, categorie })

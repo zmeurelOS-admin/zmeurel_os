@@ -1,6 +1,7 @@
 import { loadSchemaFeaturesSafe } from "@/lib/schema-features"
 import { getSupabase } from "@/lib/supabase/client"
 import { generateBusinessId } from "@/lib/supabase/business-ids"
+import { cheieDeTrimis, findByClientSyncId, isClientSyncConflict } from "@/lib/supabase/idempotency"
 import { getTenantId } from "@/lib/tenant/get-tenant"
 import { normalizePhoneNumber } from "@/lib/utils/normalize-phone"
 
@@ -44,6 +45,8 @@ export interface CreateClientInput {
   pret_negociat_lei_kg?: number | null
   observatii?: string | null
   tip?: ClientTip
+  /** Cheia de idempotență a formularului (aceeași la reîncercare). */
+  client_sync_id?: string | null
 }
 
 export interface ClientDuplicateWarning {
@@ -164,6 +167,12 @@ export async function createClienți(
 ): Promise<Client> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
+  const key = await cheieDeTrimis(input.client_sync_id)
+  if (key) {
+    // Reîncercarea aceleiași salvări: clientul există deja, nu se mai creează (nici avertizarea de nume).
+    const existing = await findByClientSyncId<ClientRowLike>(supabase, "clienti", tenantId, key)
+    if (existing) return mapClientRow(existing)
+  }
   const normalizedName = normalizeClientName(input.nume_client)
 
   if (normalizedName) {
@@ -190,6 +199,7 @@ export async function createClienți(
   const { data, error } = await supabase
     .from("clienti")
     .insert({
+      ...(key ? { client_sync_id: key } : {}),
       tenant_id: tenantId,
       id_client,
       nume_client: input.nume_client.trim(),
@@ -204,6 +214,10 @@ export async function createClienți(
     .select()
     .single()
 
+  if (error && key && isClientSyncConflict(error)) {
+    const existing = await findByClientSyncId<ClientRowLike>(supabase, "clienti", tenantId, key)
+    if (existing) return mapClientRow(existing)
+  }
   if (error) throw error
   const client = mapClientRow(data as ClientRowLike)
   triggerGoogleContactPush(client)

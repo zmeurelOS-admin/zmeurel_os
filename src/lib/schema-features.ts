@@ -1,5 +1,6 @@
 /**
- * Ce coloane din migrarea `20261120090000_redesign_noapte.sql` există deja în baza de date.
+ * Ce coloane din migrările redesign-ului (`20261120090000_redesign_noapte.sql`,
+ * `20261121140000_client_sync_id_…`) există deja în baza de date.
  *
  * Migrarea o rulează Andrei, manual, după ce o aprobă. Până atunci codul trebuie să meargă fără ea:
  * - funcțiile care au nevoie de coloanele noi sunt ascunse sau doar pentru citire, cu o valoare de rezervă;
@@ -18,6 +19,7 @@ export type SchemaFeature =
   | 'vanzariPlataPartiala'
   | 'pretStandard'
   | 'acasaPerioada'
+  | 'cheiIdempotenta'
 
 export type SchemaFeatures = Record<SchemaFeature, boolean>
 
@@ -28,6 +30,7 @@ export const NO_SCHEMA_FEATURES: SchemaFeatures = {
   vanzariPlataPartiala: false,
   pretStandard: false,
   acasaPerioada: false,
+  cheiIdempotenta: false,
 }
 
 /** O coloană reprezentativă pe grup: coloanele unui grup se adaugă împreună, în aceeași migrare. */
@@ -37,6 +40,8 @@ const PROBES: Record<SchemaFeature, { table: string; column: string }> = {
   vanzariPlataPartiala: { table: 'vanzari', column: 'suma_incasata_partial_lei' },
   pretStandard: { table: 'tenant_settings', column: 'pret_standard_perioada' },
   acasaPerioada: { table: 'tenant_settings', column: 'acasa_perioada_mod' },
+  // `client_sync_id` pe comenzi, clienti, culegatori, investitii vin împreună (20261121140000).
+  cheiIdempotenta: { table: 'comenzi', column: 'client_sync_id' },
 }
 
 const MISSING_COLUMN_CODES = new Set(['42703', 'PGRST204'])
