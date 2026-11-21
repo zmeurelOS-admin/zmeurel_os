@@ -8,7 +8,7 @@ import { trackEvent } from '@/lib/analytics/trackEvent'
 import { queryKeys } from '@/lib/query-keys'
 import { deleteRecoltare, type Recoltare } from '@/lib/supabase/queries/recoltari'
 import { toast } from '@/lib/ui/toast'
-import { RECOLTARE_INVALIDATED } from '@/lib/recoltari/invalidate'
+import { invalidateDupaRecoltare } from '@/lib/recoltari/invalidate'
 
 /** Cât timp se mai poate anula ștergerea. */
 export const RECOLTARE_UNDO_MS = 5000
@@ -55,7 +55,7 @@ export function useRecoltareDeleteWithUndo({ canDelete }: { canDelete: boolean }
         return
       }
 
-      for (const queryKey of RECOLTARE_INVALIDATED) void queryClient.invalidateQueries({ queryKey })
+      invalidateDupaRecoltare(queryClient)
       trackEvent('delete_item', 'recoltari')
       track('recoltare_delete', { id: recoltareId })
       if (result.warning) toast.warning(result.warning)

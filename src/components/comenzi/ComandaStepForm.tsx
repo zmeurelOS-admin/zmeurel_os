@@ -43,7 +43,7 @@ import {
   type ComandaChoiceKey,
   type ComandaDateValue,
 } from './ComandaDetaliiStep'
-import { COMENZI_INVALIDATED } from './useComandaActions'
+import { invalidateDupaComanda } from './useComandaActions'
 
 /** Ce vine prin URL: din chatul AI (`?openForm=1&…`) sau din fișa clientului (`?client=<id>&nou=1`). Text, posibil gol. */
 export interface ComandaPrefill {
@@ -276,11 +276,7 @@ export function ComandaStepForm({
     (zeroPrice || pret > 0) &&
     !saving
 
-  const refreshLists = () => {
-    for (const queryKey of COMENZI_INVALIDATED) {
-      void queryClient.invalidateQueries({ queryKey })
-    }
-  }
+  const refreshLists = () => invalidateDupaComanda(queryClient)
 
   const save = async () => {
     if (!canSave || draft.cantitateKg === null || inFlight.current) return

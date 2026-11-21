@@ -17,7 +17,7 @@ import {
   Undo2,
 } from 'lucide-react'
 
-import { COMENZI_INVALIDATED, useComandaActions } from '@/components/comenzi/useComandaActions'
+import { invalidateDupaComanda, useComandaActions } from '@/components/comenzi/useComandaActions'
 import {
   BigInput,
   BigTextarea,
@@ -393,8 +393,7 @@ export function StopSheet({
         newDataLivrare: targetDay,
         plata: { statusPlata: copyPlata.statusPlata, sumaPrimitaLei: copyPlata.avansLei, plataId },
       })
-      for (const queryKey of COMENZI_INVALIDATED) void queryClient.invalidateQueries({ queryKey })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.vanzari })
+      invalidateDupaComanda(queryClient)
       onNoAnswer(comanda.id, null)
       const plataNote = copyPlata.paidInFull
         ? ''

@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Store, UserRound } from 'lucide-react'
 
 import { ComandaClientStep } from '@/components/comenzi/ComandaClientStep'
-import { COMENZI_INVALIDATED } from '@/components/comenzi/useComandaActions'
+import { invalidateDupaComanda } from '@/components/comenzi/useComandaActions'
 import {
   Button,
   KgField,
@@ -164,7 +164,7 @@ export function VanzareRapidaForm({ open, onOpenChange, todayIso, clienti, comen
     } finally {
       inFlight.current = false
       // Și la eroare: stocul sau comenzile s-au putut schimba.
-      for (const queryKey of COMENZI_INVALIDATED) void queryClient.invalidateQueries({ queryKey })
+      invalidateDupaComanda(queryClient)
       if (liveKeyRef.current === key) setSaving(false)
     }
   }

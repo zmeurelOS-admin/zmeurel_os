@@ -1,10 +1,10 @@
 'use client'
 
 import { useCallback } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 
 import { track } from '@/lib/analytics/track'
-import { queryKeys } from '@/lib/query-keys'
+import { invalidateStock, queryKeys, STOCK_QUERY_KEYS } from '@/lib/query-keys'
 import { createClienți, type CreateClientInput } from '@/lib/supabase/queries/clienti'
 import { getSupabase } from '@/lib/supabase/client'
 import {
@@ -19,18 +19,16 @@ import {
 } from '@/lib/supabase/queries/comenzi'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 
-/** Tot ce depinde de o comandă: liste, stoc, vânzări, Acasă. */
-export const COMENZI_INVALIDATED = [
-  queryKeys.comenzi,
-  queryKeys.comenziManualInLivrare,
-  queryKeys.comenziStockSummaryAzi,
-  queryKeys.dashboard,
-  queryKeys.vanzari,
-  queryKeys.stocGlobal,
-  queryKeys.stocGlobalCal1,
-  queryKeys.stocuriLocatiiRoot,
-  queryKeys.miscariStoc,
-] as const
+const COMENZI_PROPRII = [queryKeys.comenzi, queryKeys.comenziManualInLivrare, queryKeys.vanzari] as const
+
+/** Tot ce depinde de o comandă: liste, vânzări și stocul (cu Acasă). */
+export const COMENZI_INVALIDATED = [...COMENZI_PROPRII, ...STOCK_QUERY_KEYS] as const
+
+/** După orice schimbare pe o comandă (creată, modificată, livrată, anulată, ștearsă, vânzare rapidă). */
+export function invalidateDupaComanda(queryClient: Pick<QueryClient, 'invalidateQueries'>): void {
+  for (const queryKey of COMENZI_PROPRII) void queryClient.invalidateQueries({ queryKey })
+  invalidateStock(queryClient)
+}
 
 /**
  * Operațiile pe o comandă, cu actualizarea listelor. Aruncă eroarea mai departe: ecranul hotărăște cum o arată
@@ -39,11 +37,7 @@ export const COMENZI_INVALIDATED = [
 export function useComandaActions() {
   const queryClient = useQueryClient()
 
-  const refresh = useCallback(() => {
-    for (const queryKey of COMENZI_INVALIDATED) {
-      void queryClient.invalidateQueries({ queryKey })
-    }
-  }, [queryClient])
+  const refresh = useCallback(() => invalidateDupaComanda(queryClient), [queryClient])
 
   const replaceInCache = useCallback(
     (row: Comanda) => {

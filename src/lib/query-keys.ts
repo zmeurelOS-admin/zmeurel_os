@@ -1,3 +1,5 @@
+import type { QueryClient } from '@tanstack/react-query'
+
 export const queryKeys = {
   activitati: ['activitati'] as const,
   ajustariStoc: ['ajustari-stoc'] as const,
@@ -58,4 +60,28 @@ export const queryKeys = {
   comenziManualInLivrare: ['comenzi', 'manual', 'in_livrare'] as const,
   shopOrdersScheduledToday: (tenantId: string | null) =>
     ['shop_orders', 'scheduled_today', tenantId] as const,
+}
+
+/**
+ * Tot ce arată stocul (cifra din Stocuri, istoricul ajustărilor, stocul din Comenzi și din vânzarea rapidă,
+ * Acasă). O cheie nouă care citește stocul se adaugă AICI, nu în fiecare loc care îl schimbă.
+ */
+export const STOCK_QUERY_KEYS = [
+  queryKeys.stocGlobal,
+  queryKeys.stocGlobalCal1,
+  queryKeys.ajustariStoc,
+  queryKeys.stocuriLocatiiRoot,
+  queryKeys.miscariStoc,
+  queryKeys.comenziStockSummaryAzi,
+  queryKeys.dashboard,
+] as const
+
+/**
+ * Se cheamă după orice schimbă stocul: recoltare (creată, modificată, ștearsă), comandă (creată, livrată,
+ * anulată, redeschisă, ștearsă), vânzare rapidă, ajustare, acțiunile din chatul AI.
+ */
+export function invalidateStock(queryClient: Pick<QueryClient, 'invalidateQueries'>): void {
+  for (const queryKey of STOCK_QUERY_KEYS) {
+    void queryClient.invalidateQueries({ queryKey })
+  }
 }

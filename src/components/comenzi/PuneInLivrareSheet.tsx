@@ -19,7 +19,7 @@ import { toast } from '@/lib/ui/toast'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
 import { cn } from '@/lib/utils'
 
-import { COMENZI_INVALIDATED } from './useComandaActions'
+import { invalidateDupaComanda } from './useComandaActions'
 
 export interface PuneInLivrareSheetProps {
   open: boolean
@@ -63,11 +63,7 @@ export function PuneInLivrareSheet({ open, onOpenChange, aziComenzi, clientName,
   const plan = planDelivery(candidates, selectedLive, stock)
   const stockKnown = stocDisponibilKg !== null
 
-  const refresh = () => {
-    for (const queryKey of COMENZI_INVALIDATED) {
-      void queryClient.invalidateQueries({ queryKey })
-    }
-  }
+  const refresh = () => invalidateDupaComanda(queryClient)
 
   const send = async () => {
     if (!plan.canSubmit || inFlight.current) return

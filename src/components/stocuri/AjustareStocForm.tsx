@@ -20,7 +20,7 @@ import {
   useStepForm,
 } from '@/components/kit'
 import { formatKg, round2 } from '@/lib/format-ro'
-import { queryKeys } from '@/lib/query-keys'
+import { invalidateStock } from '@/lib/query-keys'
 import { ajustareAdauga, deltaKgText, ETICHETA_AJUSTARE, problemaAjustare, TIPURI_AJUSTARE } from '@/lib/stocuri/stoc'
 import { createAjustareStoc, type AjustareStocTip } from '@/lib/supabase/queries/ajustari-stoc'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
@@ -105,10 +105,7 @@ export function AjustareStocForm({ open, onOpenChange, disponibilKg }: AjustareS
     try {
       const rand = await createAjustareStoc({ tip, cantitateKg: kg, motiv: nota.trim() || null, clientSyncId: key })
       savedKeys.current.add(key)
-      void queryClient.invalidateQueries({ queryKey: queryKeys.ajustariStoc })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobalCal1 })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.comenziStockSummaryAzi })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      invalidateStock(queryClient)
       hapticSuccess()
       setSaved({ tip, delta: Number(rand.delta_kg) })
       form.markSuccess({ tip })

@@ -61,7 +61,7 @@ import { cn } from '@/lib/utils'
 import { RecoltareCulegatorNou, RecoltareCulegatorStep } from './RecoltareCulegatorStep'
 import { RECOLTARE_CHOICE_LABEL, RecoltareKgChoice, cropText } from './RecoltareKgChoices'
 import { RecoltareKgStep, type RecoltareKgChoiceKey } from './RecoltareKgStep'
-import { RECOLTARE_INVALIDATED } from '@/lib/recoltari/invalidate'
+import { invalidateDupaRecoltare } from '@/lib/recoltari/invalidate'
 
 /** Ce vine din chatul AI prin URL (`?openForm=1&…`). Toate sunt text, posibil gol. */
 export interface RecoltareAiPrefill {
@@ -99,7 +99,6 @@ export interface RecoltareStepFormProps {
 const STEPS = ['culegator', 'kg'] as const
 const STEPS_WITH_NEW_WORKER = ['culegator', 'culegator-nou', 'kg'] as const
 const KG_FIELDS = ['cal1', 'cal2'] as const
-const INVALIDATED_AFTER_SAVE = RECOLTARE_INVALIDATED
 
 interface Draft {
   culegatorId: string | null
@@ -340,9 +339,7 @@ export function RecoltareStepForm({
         ? previous.map((item) => (item.id === row.id ? row : item))
         : [row, ...previous]
     })
-    for (const queryKey of INVALIDATED_AFTER_SAVE) {
-      void queryClient.invalidateQueries({ queryKey })
-    }
+    invalidateDupaRecoltare(queryClient)
   }
 
   const save = async () => {

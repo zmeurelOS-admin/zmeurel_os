@@ -12,7 +12,9 @@ import { createComanda } from '@/lib/supabase/queries/comenzi'
 import { createInvestitie } from '@/lib/supabase/queries/investitii'
 import { getParcele, type Parcela } from '@/lib/supabase/queries/parcele'
 import { createRecoltare } from '@/lib/supabase/queries/recoltari'
+import { invalidateDupaComanda } from '@/components/comenzi/useComandaActions'
 import { queryKeys } from '@/lib/query-keys'
+import { invalidateDupaRecoltare } from '@/lib/recoltari/invalidate'
 import { toast } from '@/lib/ui/toast'
 import { hapticSuccess } from '@/lib/utils/haptic'
 
@@ -636,12 +638,8 @@ export function AiBottomSheet({ open, onClose, variant = 'sheet' }: AiBottomShee
           return
         }
 
-        queryClient.invalidateQueries({ queryKey: queryKeys.recoltari })
-        queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal })
-        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
-        queryClient.invalidateQueries({ queryKey: queryKeys.stocuriLocatiiRoot })
-        queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
-        queryClient.invalidateQueries({ queryKey: queryKeys.cheltuieli })
+        // Recoltarea schimbă stocul: aceleași chei ca formularul de recoltare (Stocuri, Comenzi, Acasă).
+        invalidateDupaRecoltare(queryClient)
         hapticSuccess()
         if (result.warning) {
           toast.warning(result.warning)
@@ -674,8 +672,8 @@ export function AiBottomSheet({ open, onClose, variant = 'sheet' }: AiBottomShee
           status: 'confirmata',
           observatii: prefillData.observatii ? String(prefillData.observatii) : null,
         })
-        queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
-        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+        // O comandă nouă rezervă stoc: aceleași chei ca formularul de comandă.
+        invalidateDupaComanda(queryClient)
         queryClient.invalidateQueries({ queryKey: queryKeys.clienti })
         hapticSuccess()
         toast.success('Comanda a fost salvată!')
