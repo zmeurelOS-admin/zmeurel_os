@@ -1,6 +1,6 @@
 /* @vitest-environment node */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createSameOriginRequest } from '@/test/helpers/api-origin-request'
 
@@ -41,6 +41,12 @@ function createRequest() {
 }
 
 describe('POST /api/integrations/google/push-client', () => {
+  // Prima încărcare a rutei (transformarea modulelor) durează sub încărcare mai mult decât timeout-ul de 5 s
+  // al unui test. O facem o dată aici, cu timp suficient; `loadRouteModule` o refolosește din cache.
+  beforeAll(async () => {
+    await import('@/app/api/integrations/google/push-client/route')
+  }, 60_000)
+
   beforeEach(() => {
     mocks.createClient.mockReset()
     mocks.createClient.mockResolvedValue({ auth: { getUser: mocks.getUser } })

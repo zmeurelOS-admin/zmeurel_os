@@ -1,6 +1,6 @@
 /* @vitest-environment node */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createSameOriginRequest } from '@/test/helpers/api-origin-request'
 
@@ -59,6 +59,12 @@ async function loadRouteModule() {
 }
 
 describe('POST /api/integrations/google/sync-now', () => {
+  // Prima încărcare a rutei (transformarea modulelor) durează sub încărcare mai mult decât timeout-ul de 5 s
+  // al unui test. O facem o dată aici, cu timp suficient; `loadRouteModule` o refolosește din cache.
+  beforeAll(async () => {
+    await import('@/app/api/integrations/google/sync-now/route')
+  }, 60_000)
+
   beforeEach(() => {
     process.env.CRON_SECRET = 'cron-secret'
     process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.test'

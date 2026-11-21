@@ -1,6 +1,6 @@
 /* @vitest-environment node */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const GOOGLE_CONTACTS_TENANT_ID = '99485d6b-f186-49db-a379-bb9a12d34968'
 const OTHER_TENANT_ID = '33333333-3333-4333-8333-333333333333'
@@ -40,6 +40,12 @@ function createRequest() {
 }
 
 describe('GET /api/integrations/google/connect', () => {
+  // Prima încărcare a rutei (transformarea modulelor) durează sub încărcare mai mult decât timeout-ul de 5 s
+  // al unui test. O facem o dată aici, cu timp suficient; `loadRouteModule` o refolosește din cache.
+  beforeAll(async () => {
+    await import('@/app/api/integrations/google/connect/route')
+  }, 60_000)
+
   beforeEach(() => {
     process.env.GOOGLE_CLIENT_ID = 'test-client-id'
     process.env.GOOGLE_REDIRECT_URI = 'http://localhost:3000/api/integrations/google/callback'
