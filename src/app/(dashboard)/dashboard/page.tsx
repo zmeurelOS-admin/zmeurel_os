@@ -104,6 +104,7 @@ import { isParcelaDashboardRelevant } from '@/lib/parcele/dashboard-relevance'
 import { formatUnitateDisplayName } from '@/lib/parcele/unitate'
 import { toast } from '@/lib/ui/toast'
 import type { Tables } from '@/types/supabase'
+import { inceputSezon, inceputSezonAn } from '@/lib/sezon'
 
 const DashboardEditableGrid = dynamic(
   () =>
@@ -584,8 +585,9 @@ export default function DashboardPage() {
   const todayIso = useMemo(() => toIsoDate(currentDay), [currentDay])
   const yesterdayIso = useMemo(() => toIsoDate(new Date(currentDay.getTime() - DAY_MS)), [currentDay])
   const tomorrowIso = useMemo(() => toIsoDate(new Date(currentDay.getTime() + DAY_MS)), [currentDay])
-  const seasonStartIso = `${currentDay.getFullYear()}-03-01`
-  const previousSeasonStartIso = `${currentDay.getFullYear() - 1}-03-01`
+  // Sezonul: regula unică din `lib/sezon` (prima recoltare din an; fără recoltări, 1 ianuarie), ca pe telefon.
+  const seasonStartIso = inceputSezon(todayIso, recoltari)
+  const previousSeasonStartIso = inceputSezonAn(currentDay.getFullYear() - 1, recoltari)
   const seasonElapsedDays = Math.max(
     0,
     Math.floor(((parseDateOnly(todayIso)?.getTime() ?? 0) - (parseDateOnly(seasonStartIso)?.getTime() ?? 0)) / DAY_MS)

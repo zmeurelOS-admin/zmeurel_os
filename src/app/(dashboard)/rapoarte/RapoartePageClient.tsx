@@ -31,6 +31,7 @@ import { trackEvent } from '@/lib/analytics/trackEvent'
 import { calculatePauseStatus } from '@/lib/supabase/queries/activitati-agricole'
 import { ziuaVenitului } from '@/lib/vanzari/incasari'
 import { investitiiInPerioada, type InvestitieRaport } from '@/lib/rapoarte/investitii'
+import { inceputSezon } from '@/lib/sezon'
 
 type PeriodType = 'sapt' | 'luna' | 'sezon' | 'an'
 type ReportType =
@@ -159,7 +160,11 @@ export function RapoartePageClient({
   initialInvestitii = [],
 }: RapoartePageClientProps) {
   const today = useMemo(() => new Date(), [])
-  const seasonStart = useMemo(() => new Date(today.getFullYear(), 2, 1), [today])
+  // Sezonul: regula unică din `lib/sezon` (prima recoltare din an; fără recoltări, 1 ianuarie).
+  const seasonStart = useMemo(() => {
+    const [y, m, d] = inceputSezon(toIsoDay(today), initialRecoltari).split('-').map(Number)
+    return new Date(y, m - 1, d, 0, 0, 0, 0)
+  }, [initialRecoltari, today])
 
   const [periodType, setPeriodType] = useState<PeriodType>('luna')
   const [selectedParcelaId, setSelectedParcelaId] = useState<string>('all')
@@ -213,16 +218,14 @@ export function RapoartePageClient({
     }
 
     if (periodType === 'sezon') {
-      const start = new Date(today.getFullYear(), 2, 1)
-      start.setHours(0, 0, 0, 0)
-      return { start, end }
+      return { start: new Date(seasonStart), end }
     }
 
     // 'an' — current calendar year
     const start = new Date(today.getFullYear(), 0, 1)
     start.setHours(0, 0, 0, 0)
     return { start, end }
-  }, [periodType, today])
+  }, [periodType, seasonStart, today])
 
   const filteredRecoltari = useMemo(() => {
     return initialRecoltari.filter((r) => {

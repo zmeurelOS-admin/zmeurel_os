@@ -6,6 +6,7 @@
 import { round2 } from '@/lib/format-ro'
 import type { Culegator } from '@/lib/supabase/queries/culegatori'
 import { getRecoltareTotalKg, type Recoltare } from '@/lib/supabase/queries/recoltari'
+import { inceputSezon } from '@/lib/sezon'
 
 export const TIPURI_ANGAJARE = ['Sezonier', 'Permanent', 'Zilier', 'Colaborator'] as const
 export type TipAngajare = (typeof TIPURI_ANGAJARE)[number]
@@ -28,16 +29,17 @@ const EMPTY_STATS: CulegatorStats = { kgAzi: 0, kgSezon: 0, platitSezon: 0, zile
 
 const dayOf = (value: string | null | undefined) => String(value ?? '').slice(0, 10)
 
-/** Sezonul = anul calendaristic al zilei de azi. */
+/** Sezonul: regula unică din `lib/sezon` (de la prima recoltare din anul zilei de azi). */
 export function buildCulegatorStats(recoltari: readonly Recoltare[], todayIso: string): Map<string, CulegatorStats> {
   const year = todayIso.slice(0, 4)
+  const start = inceputSezon(todayIso, recoltari)
   const stats = new Map<string, CulegatorStats>()
   const dayTotals = new Map<string, Map<string, CulegatorZi>>()
 
   for (const recoltare of recoltari) {
     const id = recoltare.culegator_id
     const day = dayOf(recoltare.data)
-    if (!id || !day.startsWith(year)) continue
+    if (!id || !day.startsWith(year) || day < start) continue
 
     const entry = stats.get(id) ?? { ...EMPTY_STATS, zile: [] }
     const kg = getRecoltareTotalKg(recoltare)

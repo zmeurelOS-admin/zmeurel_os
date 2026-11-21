@@ -11,6 +11,7 @@ import type { Comanda } from '@/lib/supabase/queries/comenzi'
 import { getRecoltareTotalKg, type Recoltare } from '@/lib/supabase/queries/recoltari'
 import type { Vanzare } from '@/lib/supabase/queries/vanzari'
 import type { VanzareButasi } from '@/lib/supabase/queries/vanzari-butasi'
+import { inceputSezon, zileRecoltareDinAn } from '@/lib/sezon'
 import { restDeIncasat, venitIncasat } from '@/lib/vanzari/incasari'
 
 export type Perioada = 'sezon' | 'extrasezon'
@@ -45,7 +46,8 @@ export function resolvePerioada(
   recoltari: readonly Pick<Recoltare, 'data'>[],
 ): PerioadaAcasa {
   const year = todayIso.slice(0, 4)
-  const thisYear = recoltari.map((recoltare) => dayOf(recoltare.data)).filter((day) => day.startsWith(year) && day <= todayIso)
+  // Regula de sezon e una singură (`lib/sezon`): sezonul începe la prima recoltare din an.
+  const thisYear = zileRecoltareDinAn(recoltari, year, todayIso)
   const ultimaRecoltare = thisYear.length > 0 ? thisYear.reduce((latest, day) => (day > latest ? day : latest)) : null
 
   if (!settings.acasaConfigurabil) {
@@ -259,14 +261,17 @@ export interface SezonPeScurt {
   incasatLei: number
 }
 
-/** Recoltat și încasat (fructe) de la 1 ianuarie până azi. Detaliul e în Rapoarte. */
+/**
+ * Recoltat și încasat (fructe) de la începutul sezonului până azi. Începutul e regula unică din `lib/sezon`:
+ * prima recoltare din an (fără recoltări anul acesta: 1 ianuarie). Detaliul e în Rapoarte.
+ */
 export function sezonPeScurt(
   todayIso: string,
   recoltari: readonly Recoltare[],
   vanzari: readonly Vanzare[],
 ): SezonPeScurt {
   const year = todayIso.slice(0, 4)
-  const start = `${year}-01-01`
+  const start = inceputSezon(todayIso, recoltari)
   return {
     an: Number(year),
     recoltatKg: round2(
