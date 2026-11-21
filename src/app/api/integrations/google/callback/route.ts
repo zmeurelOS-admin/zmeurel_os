@@ -8,6 +8,7 @@ import { encryptTokenSecret } from '@/lib/integrations/token-secret-crypto'
 import { captureApiError } from '@/lib/monitoring/report-error'
 import { createServiceRoleClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { isFarmOwner } from '@/lib/tenant/account-deletion'
 import { getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
 
 export const runtime = 'nodejs'
@@ -75,6 +76,11 @@ export async function GET(request: NextRequest) {
 
   const tenantId = await getTenantIdByUserIdOrNull(supabase, user.id)
   if (tenantId !== GOOGLE_CONTACTS_TENANT_ID) {
+    return NextResponse.redirect(`${origin}/clienti?google_contacts=error_forbidden`)
+  }
+  // Un operator al fermei primește aici aceeași fermă. Dacă și-ar lega el contul Google, sincronizarea ar citi
+  // și ar scrie contactele din contul lui: legătura o face doar proprietarul.
+  if (!(await isFarmOwner(createServiceRoleClient(), tenantId, user.id))) {
     return NextResponse.redirect(`${origin}/clienti?google_contacts=error_forbidden`)
   }
 

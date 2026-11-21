@@ -5,6 +5,7 @@ import { deleteDemoDataForTenant, getTenantDemoContext } from '@/lib/demo/demo-s
 import { captureApiError } from '@/lib/monitoring/report-error'
 import { createServiceRoleClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { isFarmOwner } from '@/lib/tenant/account-deletion'
 
 export const runtime = 'nodejs'
 
@@ -35,6 +36,10 @@ export async function POST(request: Request) {
     tenantIdForSentry = tenant.id
 
     const admin = createServiceRoleClient()
+    // Ferma rezolvată din sesiune e, pentru un operator, ferma în care lucrează: doar proprietarul șterge datele demo.
+    if (!(await isFarmOwner(admin, tenant.id, user.id))) {
+      return apiError(403, 'NOT_FARM_OWNER', 'Doar proprietarul fermei poate șterge datele demo.')
+    }
     const result = await deleteDemoDataForTenant(admin, tenant.id)
 
     

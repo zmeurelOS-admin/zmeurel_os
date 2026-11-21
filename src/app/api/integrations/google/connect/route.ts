@@ -5,7 +5,9 @@ import { NextResponse } from 'next/server'
 
 import { GOOGLE_CONTACTS_TENANT_ID } from '@/lib/integrations/google-contacts-sync'
 import { GOOGLE_OAUTH_STATE_COOKIE } from '@/lib/integrations/google-oauth-state-cookie'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { isFarmOwner } from '@/lib/tenant/account-deletion'
 import { getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
 
 export const runtime = 'nodejs'
@@ -54,6 +56,10 @@ export async function GET(request: Request) {
 
   const tenantId = await getTenantIdByUserIdOrNull(supabase, user.id)
   if (tenantId !== GOOGLE_CONTACTS_TENANT_ID) {
+    return NextResponse.json({ error: 'Interzis' }, { status: 403 })
+  }
+  // Un operator al fermei primește aici aceeași fermă: contul Google îl leagă doar proprietarul.
+  if (!(await isFarmOwner(getSupabaseAdmin(), tenantId, user.id))) {
     return NextResponse.json({ error: 'Interzis' }, { status: 403 })
   }
 

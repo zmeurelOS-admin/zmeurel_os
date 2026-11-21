@@ -9,10 +9,17 @@ import {
   normalizeLegalDocsPayload,
 } from '@/lib/legal-docs/shared'
 import { captureApiError } from '@/lib/monitoring/report-error'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { isFarmOwner } from '@/lib/tenant/account-deletion'
 import { getTenantIdByUserId } from '@/lib/tenant/get-tenant'
 
 export const runtime = 'nodejs'
+
+/** Actele fermei sunt ale proprietarului: un operator primește aici ferma în care lucrează, dar nu le vede și nu le schimbă. */
+function notOwnerResponse() {
+  return apiError(403, 'NOT_FARM_OWNER', 'Doar proprietarul fermei poate vedea și schimba actele.')
+}
 
 export async function GET() {
   let userId: string | null = null
@@ -32,6 +39,9 @@ export async function GET() {
     userId = user.id
     const tenantId = await getTenantIdByUserId(supabase, user.id)
     tenantIdForSentry = tenantId
+    if (!(await isFarmOwner(getSupabaseAdmin(), tenantId, user.id))) {
+      return notOwnerResponse()
+    }
 
     const { doc, status } = await getTenantLegalDocs(supabase, tenantId)
     const signedPhotoUrl = await createLegalDocSignedUrl(supabase, doc?.certificate_photo_url)
@@ -81,6 +91,9 @@ export async function PUT(request: Request) {
     userId = user.id
     const tenantId = await getTenantIdByUserId(supabase, user.id)
     tenantIdForSentry = tenantId
+    if (!(await isFarmOwner(getSupabaseAdmin(), tenantId, user.id))) {
+      return notOwnerResponse()
+    }
 
     const json = await request.json()
     const parsed = legalDocsFormSchema.safeParse(json)

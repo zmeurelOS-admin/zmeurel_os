@@ -12,6 +12,7 @@ const server = vi.hoisted(() => ({
   currentUser: null as { id: string } | null,
   emails: new Map<string, string>(),
   signOutOthers: 0,
+  activeElsewhere: new Set<string>(),
 }))
 
 vi.mock('@/lib/api/route-security', () => ({ validateSameOriginMutation: () => null }))
@@ -53,6 +54,7 @@ vi.mock('@/lib/farm-members/operator-link-server', () => ({
   linkUserToFarm: async () => ({ ok: true }),
   firstRouteForMember: async () => '/comenzi',
   getAuthUserEmail: async (id: string) => server.emails.get(id) ?? null,
+  hasActiveMembershipElsewhere: async (userId: string) => server.activeElsewhere.has(userId),
   startSessionWithoutPassword: async (_client: unknown, email: string) => {
     server.sessions.push(email)
     return true
@@ -108,6 +110,7 @@ describe('POST /api/invite/accept (intrare din link)', () => {
     server.currentUser = null
     server.emails.clear()
     server.signOutOthers = 0
+    server.activeElsewhere.clear()
   })
 
   it('prima invitație: un cont ascuns, sesiune pornită, primul modul', async () => {
@@ -141,6 +144,18 @@ describe('POST /api/invite/accept (intrare din link)', () => {
     expect(server.createdUsers).toEqual(['op-1'])
     expect(server.sessions).toEqual(['op-1@operator.zmeurel.local', 'op-1@operator.zmeurel.local'])
     expect(server.signOutOthers).toBe(1)
+  })
+
+  it('linkul altei ferme nu intră în contul unui operator activ în ferma lui', async () => {
+    // Operatorul ascuns `op-străin` lucrează în altă fermă; cineva a scris un link de reconectare spre el.
+    server.emails.set('op-strain', 'op-strain@operator.zmeurel.local')
+    server.activeElsewhere.add('op-strain')
+    server.link = linkReconectare('op-strain')
+    const { status, json } = await intra()
+    expect(status).toBe(410)
+    expect(json.error).toBe('inactive')
+    expect(server.sessions).toHaveLength(0)
+    expect(server.claimed.size).toBe(0)
   })
 
   it('link expirat / folosit / dezactivat: refuzat, fără cont', async () => {

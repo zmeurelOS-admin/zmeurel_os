@@ -13,6 +13,12 @@ const mocks = vi.hoisted(() => ({
   readIntegration: vi.fn(),
 }))
 
+const owner = vi.hoisted(() => ({ isFarmOwner: vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => true) }))
+
+vi.mock('@/lib/tenant/account-deletion', () => ({
+  isFarmOwner: (...args: unknown[]) => owner.isFarmOwner(...args),
+}))
+
 vi.mock('@/lib/supabase/server', () => ({
   createClient: () => mocks.createClient(),
 }))
@@ -78,6 +84,8 @@ describe('POST /api/integrations/google/sync-now', () => {
     mocks.getTenantIdByUserIdOrNull.mockReset()
     mocks.getUser.mockReset()
     mocks.readIntegration.mockReset()
+    owner.isFarmOwner.mockReset()
+    owner.isFarmOwner.mockResolvedValue(true)
     vi.stubGlobal('fetch', mocks.fetch)
   })
 
@@ -120,6 +128,20 @@ describe('POST /api/integrations/google/sync-now', () => {
     const response = await POST(createRequest())
 
     expect(response.status).toBe(403)
+    expect(mocks.fetch).not.toHaveBeenCalled()
+  })
+
+  it('returnează 403 pentru un operator al fermei (nu proprietarul)', async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: { id: 'operator-1' } }, error: null })
+    mocks.getTenantIdByUserIdOrNull.mockResolvedValue(tenantId)
+    owner.isFarmOwner.mockResolvedValue(false)
+    const { POST } = await loadRouteModule()
+
+    const response = await POST(createRequest())
+
+    expect(response.status).toBe(403)
+    expect(owner.isFarmOwner).toHaveBeenCalledWith(expect.anything(), tenantId, 'operator-1')
+    expect(mocks.readIntegration).not.toHaveBeenCalled()
     expect(mocks.fetch).not.toHaveBeenCalled()
   })
 

@@ -253,6 +253,27 @@ export async function revokeAllSessions(email: string): Promise<boolean> {
   return !error
 }
 
+/**
+ * `true` dacă utilizatorul e operator activ și în ALTĂ fermă decât cea a linkului.
+ *
+ * Un operator din link ține de o singură fermă: cea care l-a invitat. Un link de reconectare îl pune pe cel care îl
+ * deschide în contul acelui utilizator, iar contul lucrează în cea mai veche fermă în care e activ. Fără verificarea
+ * asta, proprietarul unei alte ferme care ar reuși să scrie singur un rând în `farm_invites` (politica veche îi
+ * dădea voie) ar intra în contul unui operator străin și, prin el, în ferma aceluia. La eroare răspunde `true`
+ * (refuz), ca o citire picată să nu deschidă ușa.
+ */
+export async function hasActiveMembershipElsewhere(userId: string, tenantId: string): Promise<boolean> {
+  const admin = getSupabaseAdmin()
+  const { data, error } = await table(admin, 'farm_members')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .neq('tenant_id', tenantId)
+    .limit(1)
+  if (error) return true
+  return Array.isArray(data) && data.length > 0
+}
+
 /** Link nou de reconectare pentru un operator din link; cele vechi, nefolosite, nu mai merg. */
 export async function createReconnectLink(params: {
   tenantId: string

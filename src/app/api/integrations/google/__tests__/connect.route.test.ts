@@ -12,6 +12,14 @@ const mocks = vi.hoisted(() => ({
   cookieSet: vi.fn(),
 }))
 
+const owner = vi.hoisted(() => ({ isFarmOwner: vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => true) }))
+
+vi.mock('@/lib/tenant/account-deletion', () => ({
+  isFarmOwner: (...args: unknown[]) => owner.isFarmOwner(...args),
+}))
+
+vi.mock('@/lib/supabase/admin', () => ({ getSupabaseAdmin: () => ({}) }))
+
 vi.mock('@/lib/supabase/server', () => ({
   createClient: () => mocks.createClient(),
 }))
@@ -55,6 +63,8 @@ describe('GET /api/integrations/google/connect', () => {
     mocks.getUser.mockReset()
     mocks.getTenantIdByUserIdOrNull.mockReset()
     mocks.cookieSet.mockReset()
+    owner.isFarmOwner.mockReset()
+    owner.isFarmOwner.mockResolvedValue(true)
   })
 
   afterEach(() => {
@@ -83,6 +93,19 @@ describe('GET /api/integrations/google/connect', () => {
     const response = await GET(createRequest())
 
     expect(response.status).toBe(403)
+    expect(mocks.cookieSet).not.toHaveBeenCalled()
+  })
+
+  it('returnează 403 pentru un operator al fermei (nu proprietarul)', async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: { id: 'operator-1' } }, error: null })
+    mocks.getTenantIdByUserIdOrNull.mockResolvedValue(GOOGLE_CONTACTS_TENANT_ID)
+    owner.isFarmOwner.mockResolvedValue(false)
+    const { GET } = await loadRouteModule()
+
+    const response = await GET(createRequest())
+
+    expect(response.status).toBe(403)
+    expect(owner.isFarmOwner).toHaveBeenCalledWith(expect.anything(), GOOGLE_CONTACTS_TENANT_ID, 'operator-1')
     expect(mocks.cookieSet).not.toHaveBeenCalled()
   })
 

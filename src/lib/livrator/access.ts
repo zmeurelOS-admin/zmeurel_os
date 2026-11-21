@@ -81,14 +81,29 @@ export async function listLivratorOrdersInLivrare(tenantId: string): Promise<Sho
   return (data ?? []) as ShopOrderRow[]
 }
 
-export async function markShopOrderLivrata(orderId: string): Promise<void> {
+/**
+ * Marchează livrată o comandă din traseul de azi al fermei livratorului.
+ * Ferma vine din tokenul livratorului, nu din cerere: o comandă a altei ferme, una care nu e „în livrare”
+ * sau una din altă zi nu se atinge (întoarce `false`).
+ */
+export async function markShopOrderLivrata(orderId: string, tenantId: string): Promise<boolean> {
   const admin = getSupabaseAdmin()
-  const { error } = await admin
+  const today = todayBucharestDate()
+  const { startIso, endIso } = getBucharestDayUtcRange(today)
+  const { data, error } = await admin
     .from('shop_orders')
     .update({ status: 'livrata' })
     .eq('id', orderId)
+    .eq('tenant_id', tenantId)
+    .eq('status', 'in_livrare')
+    .or(
+      `delivery_date.eq.${today},and(delivery_date.is.null,created_at.gte.${startIso},created_at.lt.${endIso})`,
+    )
+    .select('id')
 
   if (error) {
     throw error
   }
+
+  return Array.isArray(data) && data.length > 0
 }

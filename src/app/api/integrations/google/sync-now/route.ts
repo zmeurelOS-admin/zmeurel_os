@@ -1,6 +1,7 @@
 import { validateSameOriginMutation } from '@/lib/api/route-security'
 import { createServiceRoleClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { isFarmOwner } from '@/lib/tenant/account-deletion'
 import { getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
 
 const GOOGLE_CONTACTS_TENANT_ID = '99485d6b-f186-49db-a379-bb9a12d34968'
@@ -67,6 +68,10 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const admin = createServiceRoleClient()
+  // Un operator al fermei primește aici aceeași fermă: sincronizarea o pornește doar proprietarul.
+  if (!(await isFarmOwner(admin, tenantId, user.id))) {
+    return Response.json({ error: 'Interzis' }, { status: 403 })
+  }
   const { data: integration, error: integrationError } = await admin
     .from('integrations_google_contacts')
     .select('sync_enabled')

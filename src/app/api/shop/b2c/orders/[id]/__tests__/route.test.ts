@@ -4,6 +4,7 @@ import { PATCH } from '@/app/api/shop/b2c/orders/[id]/route'
 import { createSameOriginRequest } from '@/test/helpers/api-origin-request'
 
 const {
+  resolveFarmActorMock,
   getSupabaseAdminMock,
   getTenantIdByUserIdMock,
   getUserMock,
@@ -15,6 +16,7 @@ const {
   updateEqMock,
   updateSelectMock,
 } = vi.hoisted(() => ({
+  resolveFarmActorMock: vi.fn(),
   getSupabaseAdminMock: vi.fn(),
   getTenantIdByUserIdMock: vi.fn(),
   getUserMock: vi.fn(),
@@ -38,6 +40,11 @@ vi.mock('@/lib/supabase/server', () => ({
 
 vi.mock('@/lib/supabase/admin', () => ({
   getSupabaseAdmin: getSupabaseAdminMock,
+}))
+
+vi.mock('@/lib/farm-members/actor-auth', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/farm-members/actor-auth')>()),
+  resolveFarmActor: (...args: unknown[]) => resolveFarmActorMock(...args),
 }))
 
 vi.mock('@/lib/tenant/get-tenant', () => ({
@@ -99,6 +106,13 @@ describe('PATCH /api/shop/b2c/orders/[id]', () => {
       error: null,
     })
     getTenantIdByUserIdMock.mockResolvedValue(tenantId)
+    resolveFarmActorMock.mockResolvedValue({
+      userId: '00000000-0000-4000-8000-000000000001',
+      email: null,
+      tenantId,
+      isOwner: true,
+      access: [],
+    })
     updateSelectMock.mockResolvedValue({
       data: [{ id: orderId }],
       error: null,
@@ -212,8 +226,57 @@ describe('PATCH /api/shop/b2c/orders/[id]', () => {
     })
   })
 
+  it('operatorul fără „Scrie” pe Comenzi sau Livrări nu schimbă comanda (scrierea e cu service role)', async () => {
+    resolveFarmActorMock.mockResolvedValue({
+      userId: '00000000-0000-4000-8000-000000000001',
+      email: null,
+      tenantId,
+      isOwner: false,
+      access: [
+        { module: 'recoltari', level: 'write' },
+        { module: 'comenzi', level: 'read' },
+      ],
+    })
+
+    const response = await patchRequest({ notes: 'altceva' })
+
+    expect(response.status).toBe(403)
+    expect(updateMock).not.toHaveBeenCalled()
+  })
+
+  it('operatorul cu „Scrie” pe Livrări poate schimba comanda', async () => {
+    resolveFarmActorMock.mockResolvedValue({
+      userId: '00000000-0000-4000-8000-000000000001',
+      email: null,
+      tenantId,
+      isOwner: false,
+      access: [{ module: 'livrari', level: 'write' }],
+    })
+
+    const response = await patchRequest({ notes: 'sună înainte' })
+
+    expect(response.status).toBe(200)
+    expect(updateMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('un actor rezolvat pe altă fermă decât cea a sesiunii e refuzat', async () => {
+    resolveFarmActorMock.mockResolvedValue({
+      userId: '00000000-0000-4000-8000-000000000001',
+      email: null,
+      tenantId: '00000000-0000-4000-8000-000000000999',
+      isOwner: true,
+      access: [],
+    })
+
+    const response = await patchRequest({ notes: 'x' })
+
+    expect(response.status).toBe(403)
+    expect(updateMock).not.toHaveBeenCalled()
+  })
+
   it('filtrează update-ul generic după id și tenantul sesiunii', async () => {
-    const response = await patchRequest({ status: 'confirmata' })
+    // Un câmp scris direct (statusul „confirmata” trece prin RPC, fără update direct).
+    const response = await patchRequest({ notes: 'sună înainte' })
 
     expect(response.status).toBe(200)
     expect(getTenantIdByUserIdMock).toHaveBeenCalledWith(

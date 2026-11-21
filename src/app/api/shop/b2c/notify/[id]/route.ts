@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { validateSameOriginMutation } from '@/lib/api/route-security'
+import { isSuperAdmin } from '@/lib/auth/isSuperAdmin'
 import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -35,6 +36,13 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   if (!user) {
     return errorResponse('Trebuie să fii autentificat.', 401)
+  }
+
+  // Scrierea de mai jos e cu service role. `shop_notify_requests` n-are fermă pe rând, iar politica ei RLS
+  // lasă citirea și schimbarea doar superadminului: aceeași regulă aici, altfel orice cont logat putea marca
+  // orice cerere.
+  if (!(await isSuperAdmin(supabase, user.id))) {
+    return errorResponse('Nu ai voie să schimbi cererea.', 403)
   }
 
   let json: unknown

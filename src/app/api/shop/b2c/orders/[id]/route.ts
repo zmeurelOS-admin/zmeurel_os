@@ -6,6 +6,7 @@ import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
 import { todayBucharestDate } from '@/lib/shop/b2c-order-helpers'
 import { upsertClientFromShopOrder } from '@/lib/shop/clienti-sync'
 import { normalizeRomanianMobilePhone, ROMANIAN_PHONE_ERROR } from '@/lib/shop/phone'
+import { actorCanWrite, resolveFarmActor } from '@/lib/farm-members/actor-auth'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getTenantIdByUserId } from '@/lib/tenant/get-tenant'
@@ -267,6 +268,22 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const admin = getSupabaseAdmin()
+
+  // De aici se scrie cu service role, deci RLS nu mai oprește nimic. Aceeași regulă ca politica de UPDATE
+  // de pe `shop_orders`: proprietarul sau operatorul cu „Scrie” pe Comenzi ori Livrări.
+  try {
+    const actor = await resolveFarmActor(admin, user)
+    if (!actor || actor.tenantId !== tenantId || !actorCanWrite(actor, 'comenzi', 'livrari')) {
+      return errorResponse('Nu ai voie să schimbi comenzile.', 403)
+    }
+  } catch (actorError) {
+    console.error(
+      '[shop/b2c/orders] access lookup failed',
+      sanitizeForLog(toSafeErrorContext(actorError)),
+    )
+    return errorResponse('Nu am putut verifica drepturile.', 500)
+  }
+
   let currentOrderForStatus:
     | {
         status: string

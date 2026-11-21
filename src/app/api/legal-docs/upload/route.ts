@@ -3,7 +3,9 @@ import { NextResponse } from 'next/server'
 import { apiError, validateSameOriginMutation } from '@/lib/api/route-security'
 import { LEGAL_DOCS_BUCKET, sanitizeStorageFilename, toLegalDocStoragePath } from '@/lib/legal-docs/shared'
 import { captureApiError } from '@/lib/monitoring/report-error'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { isFarmOwner } from '@/lib/tenant/account-deletion'
 import { getTenantIdByUserId } from '@/lib/tenant/get-tenant'
 
 export const runtime = 'nodejs'
@@ -34,6 +36,10 @@ export async function POST(request: Request) {
     userId = user.id
     const tenantId = await getTenantIdByUserId(supabase, user.id)
     tenantIdForSentry = tenantId
+    // Actele fermei sunt ale proprietarului; operatorul primește aici ferma în care lucrează.
+    if (!(await isFarmOwner(getSupabaseAdmin(), tenantId, user.id))) {
+      return apiError(403, 'NOT_FARM_OWNER', 'Doar proprietarul fermei poate urca actele.')
+    }
 
     const formData = await request.formData()
     const fileValue = formData.get('file')

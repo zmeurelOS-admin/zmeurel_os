@@ -20,6 +20,12 @@ const mocks = vi.hoisted(() => ({
   fetch: vi.fn(),
 }))
 
+const owner = vi.hoisted(() => ({ isFarmOwner: vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => true) }))
+
+vi.mock('@/lib/tenant/account-deletion', () => ({
+  isFarmOwner: (...args: unknown[]) => owner.isFarmOwner(...args),
+}))
+
 vi.mock('@/lib/supabase/server', () => ({
   createClient: () => mocks.createClient(),
 }))
@@ -105,6 +111,9 @@ describe('GET /api/integrations/google/callback', () => {
     mocks.encryptTokenSecret.mockReset()
     mocks.encryptTokenSecret.mockImplementation((value: string) => `enc:${value}`)
     mocks.createServiceRoleClient.mockReset()
+    mocks.createServiceRoleClient.mockReturnValue({})
+    owner.isFarmOwner.mockReset()
+    owner.isFarmOwner.mockResolvedValue(true)
     mocks.captureApiError.mockReset()
     global.fetch = mocks.fetch
     mocks.fetch.mockReset()
@@ -154,6 +163,21 @@ describe('GET /api/integrations/google/callback', () => {
     expect(response.status).toBe(307)
     expect(response.headers.get('location')).toContain('google_contacts=error_state')
     expect(mocks.getToken).not.toHaveBeenCalled()
+  })
+
+  it('un operator al fermei nu-și poate lega contul Google: fără token, fără scriere', async () => {
+    owner.isFarmOwner.mockResolvedValue(false)
+    const { admin, upsert } = createUpsertMock()
+    mocks.createServiceRoleClient.mockReturnValue(admin)
+    const { GET } = await loadRouteModule()
+
+    const response = await GET(createRequest('?code=auth-code&state=' + SAVED_STATE))
+
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toContain('google_contacts=error_forbidden')
+    expect(owner.isFarmOwner).toHaveBeenCalledWith(expect.anything(), GOOGLE_CONTACTS_TENANT_ID, 'user-1')
+    expect(mocks.getToken).not.toHaveBeenCalled()
+    expect(upsert).not.toHaveBeenCalled()
   })
 
   it('redirecționează cu eroare pentru un tenant diferit de cel al integrării', async () => {

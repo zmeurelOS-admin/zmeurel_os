@@ -9,6 +9,7 @@ import {
   deleteFreshHiddenUser,
   firstRouteForMember,
   getAuthUserEmail,
+  hasActiveMembershipElsewhere,
   linkUserToFarm,
   loadOperatorLink,
   markOperatorLinkUser,
@@ -77,6 +78,8 @@ export async function POST(request: Request) {
   if (state.kind === 'reconectare') {
     const email = await getAuthUserEmail(state.userId)
     if (!email || !isHiddenOperatorEmail(email)) return errorResponse('inactive', 410)
+    // Contul ascuns ține de ferma care l-a invitat. Un link al altei ferme nu intră în el (vezi funcția).
+    if (await hasActiveMembershipElsewhere(state.userId, row.tenant_id)) return errorResponse('inactive', 410)
     if (!(await claimOperatorLink(row, state.userId))) return errorResponse('used', 410)
 
     if (!(await startSessionWithoutPassword(supabase, email))) {

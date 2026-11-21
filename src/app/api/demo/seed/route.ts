@@ -6,6 +6,7 @@ import { getTenantDemoContext, seedDemoDataForTenant } from '@/lib/demo/demo-see
 import { captureApiError } from '@/lib/monitoring/report-error'
 import { createServiceRoleClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { isFarmOwner } from '@/lib/tenant/account-deletion'
 
 export const runtime = 'nodejs'
 
@@ -63,6 +64,10 @@ export async function POST(request: Request) {
     tenantIdForSentry = tenant.id
 
     const admin = createServiceRoleClient()
+    // Ferma rezolvată din sesiune e, pentru un operator, ferma în care lucrează: datele demo le pune doar proprietarul.
+    if (!(await isFarmOwner(admin, tenant.id, user.id))) {
+      return NextResponse.json({ error: 'not_farm_owner' }, { status: 403 })
+    }
     const result = await seedDemoDataForTenant(admin, tenant.id, demoType)
 
     

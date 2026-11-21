@@ -31,14 +31,20 @@ export async function POST(request: Request) {
     return errorResponse('Link invalid sau expirat.', 401)
   }
 
+  let delivered = false
   try {
-    await markShopOrderLivrata(parsed.data.order_id)
+    // Ferma vine din tokenul livratorului: doar comenzile ei, aflate azi în livrare.
+    delivered = await markShopOrderLivrata(parsed.data.order_id, member.tenant_id)
   } catch (error) {
     console.error(
       '[livrator/deliver] update failed',
       sanitizeForLog(toSafeErrorContext(error)),
     )
     return errorResponse('Nu am putut marca livrarea.', 500)
+  }
+
+  if (!delivered) {
+    return errorResponse('Comanda nu e în livrările tale de azi.', 404)
   }
 
   return NextResponse.json({ success: true })
