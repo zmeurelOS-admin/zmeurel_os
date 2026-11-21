@@ -64,6 +64,8 @@ Client pages follow a two-file pattern:
 
 „Activități agricole” s-a redenumit **Lucrări**: `src/app/(dashboard)/lucrari/` (tabelul rămâne `activitati_agricole`, cheia modulului pentru operatori rămâne `activitati`). `/activitati-agricole` e doar o redirecționare la `/lucrari`, cu parametrii păstrați (precompletările din chatul AI). Tratamentele vechi din acel tabel se văd în Tratamente, „importate”; în Lucrări apar doar lucrările (`src/lib/lucrari/tipuri.ts` mapează tipurile vechi pe cele 8 noi, doar la afișare). Fișa parcelei e `/parcele/[id]`; `/parcele?selected=<id>` duce acolo.
 
+Drepturile operatorilor (`src/lib/farm-members/access.ts`): Tratamentele au modulul lor, `tratamente` (Nu / Citește / Scrie, ruta `/tratamente`), separat de Lucrări (`activitati`). Drepturile salvate se citesc **doar** prin `resolveFarmMemberAccess`: un rând vechi cu `activitati` și fără `tratamente` primește `tratamente: read` (fără update în `farm_members`); „Nu” explicit se scrie cu `toStoredFarmMemberAccess` ca `{ module: 'tratamente', level: 'none' }`, ignorat de baza de date. Echipa e `/settings/echipa` (logica în `src/lib/echipa`); „Documente legale” sunt **Actele fermei**, `/settings/ferma/acte` (`/settings/documente-legale` redirecționează); ce lipsește vine dintr-o singură funcție, `stareActe` (`src/lib/acte/stare.ts`), folosită de ecran, banner și Setări.
+
 TanStack Query defaults (set in `src/app/providers.tsx`):
 ```ts
 staleTime: 60_000, gcTime: 10 * 60_000,
@@ -175,7 +177,7 @@ Baza modulelor refăcute (Recoltări, apoi Comenzi + Livrări). Totul se import�
 
 **Verificare automată**
 
-`npm run check:kit` (`scripts/check-kit-rules.mjs`) pică la orice abatere de la regulile de mai sus în folderele din `KIT_RULE_DIRS` (`scripts/kit-rules.mjs`): kitul, `/admin/kit` și toate modulele refăcute (Recoltări, Comenzi, Livrări, Acasă pe telefon, Clienți, Culegători, Cheltuieli + Investiții, Vânzări, Mai mult, Notificări, Setări, Tratamente, Stocuri, Produse, Rapoarte, Parcele, Lucrări), cu folderele lor din `src/app/(dashboard)`, `src/components` și `src/lib`. Fișierele vechi rămase într-un folder verificat stau în `KIT_RULE_PENDING_FILES`. Folderul fiecărui modul refăcut se adaugă pe listă când începe refacerea lui. Testele kitului sunt în `src/components/kit/__tests__/` și rulează cu `npm run test:critical:unit`.
+`npm run check:kit` (`scripts/check-kit-rules.mjs`) pică la orice abatere de la regulile de mai sus în folderele din `KIT_RULE_DIRS` (`scripts/kit-rules.mjs`): kitul, `/admin/kit` și toate modulele refăcute (Recoltări, Comenzi, Livrări, Acasă pe telefon, Clienți, Culegători, Cheltuieli + Investiții, Vânzări, Mai mult, Notificări, Setări, Tratamente, Stocuri, Produse, Rapoarte, Parcele, Lucrări, Echipa, Actele fermei, acceptarea invitației), cu folderele lor din `src/app/(dashboard)`, `src/components` și `src/lib`. Fișierele vechi rămase într-un folder verificat stau în `KIT_RULE_PENDING_FILES`. Folderul fiecărui modul refăcut se adaugă pe listă când începe refacerea lui. Testele kitului sunt în `src/components/kit/__tests__/` și rulează cu `npm run test:critical:unit`.
 
 ## AI Chat Widget
 
