@@ -13,6 +13,8 @@ import { AiPanelProvider } from '@/contexts/AiPanelContext'
 import { isSuperAdmin } from '@/lib/auth/isSuperAdmin'
 import { getAssociationRole } from '@/lib/association/auth'
 import { parseFarmMemberAccessHeader } from '@/lib/farm-members/access'
+import { isHiddenOperatorEmail } from '@/lib/farm-members/operator-link'
+import { loadOwnerName } from '@/lib/farm-members/operator-link-server'
 import { getTenantLegalDocs } from '@/lib/legal-docs/server'
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
@@ -67,6 +69,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
         : textBannerActe(stareActe(acteDinDocument(legalDocs.doc)))
   }
 
+  const linkOnly = memberRoleFromProxy === 'operator' && isHiddenOperatorEmail(user.email)
+  const ownerName = linkOnly && tenantIdForAuth ? await loadOwnerName(tenantIdForAuth).catch(() => null) : null
+
   const initialAuth = {
     userId: user.id,
     email: user.email ?? null,
@@ -79,6 +84,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
     memberAccess,
     accessModule: headerStore.get('x-zmeurel-access-module'),
     accessLevel,
+    linkOnly,
+    ownerName,
   }
 
   return (

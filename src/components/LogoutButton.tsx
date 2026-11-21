@@ -4,8 +4,10 @@ import { useQueryClient } from '@tanstack/react-query'
 import { LogOut } from 'lucide-react'
 import { useRef } from 'react'
 
+import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { usePushSubscription } from '@/components/notifications/usePushSubscription'
 import { prepareClientBeforeServerSignOut } from '@/lib/auth/server-sign-out-form'
+import { mesajIesireOperatorLink } from '@/lib/farm-members/operator-link'
 
 interface LogoutButtonProps {
   className?: string
@@ -17,6 +19,7 @@ export default function LogoutButton({ className, label, variant = 'solid' }: Lo
   const queryClient = useQueryClient()
   const { unsubscribe } = usePushSubscription()
   const submittingRef = useRef(false)
+  const { linkOnly, ownerName } = useDashboardAuth()
 
   const defaultClassName =
     variant === 'ghost'
@@ -30,8 +33,10 @@ export default function LogoutButton({ className, label, variant = 'solid' }: Lo
       className="inline w-full"
       onSubmit={async (event) => {
         if (submittingRef.current) return
-        submittingRef.current = true
         event.preventDefault()
+        // Operatorul din link (fără parolă) intră din nou doar cu un link nou de la proprietar.
+        if (linkOnly && !window.confirm(`Ieși din cont? ${mesajIesireOperatorLink(ownerName)}`)) return
+        submittingRef.current = true
         const form = event.currentTarget
         await prepareClientBeforeServerSignOut(queryClient, { unsubscribePush: unsubscribe })
         form.submit()

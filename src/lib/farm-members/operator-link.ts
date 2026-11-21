@@ -128,3 +128,8 @@ export function ownerDisplayName(user: {
 export function cereLinkNou(owner: string | null): string {
   return owner ? `Cere-i lui ${owner} un link nou.` : 'Cere-i proprietarului fermei un link nou.'
 }
+
+/** Confirmarea la ieșirea din cont a operatorului din link (nu mai poate intra fără link nou). */
+export function mesajIesireOperatorLink(owner: string | null | undefined): string {
+  return `Ca să intri din nou îți trebuie un link nou de la ${owner?.trim() || 'proprietarul fermei'}.`
+}

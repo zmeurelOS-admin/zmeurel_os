@@ -25,6 +25,10 @@ export interface DashboardAuthValue {
   accessModule?: string | null
   /** Nivelul de acces pentru modulul curent (`read` ascunde scrierile în UI). */
   accessLevel?: 'read' | 'write' | null
+  /** Operator din link (cont ascuns, fără parolă): la ieșire i se spune că îi trebuie link nou. */
+  linkOnly?: boolean
+  /** Numele proprietarului fermei, doar pentru operatorul din link (textul de la ieșire). */
+  ownerName?: string | null
 }
 
 const DashboardAuthContext = createContext<DashboardAuthValue>({
@@ -39,6 +43,8 @@ const DashboardAuthContext = createContext<DashboardAuthValue>({
   memberAccess: [],
   accessModule: null,
   accessLevel: null,
+  linkOnly: false,
+  ownerName: null,
 })
 
 export function DashboardAuthProvider({

@@ -35,12 +35,13 @@ import {
 
 import { AppShell } from '@/components/app/AppShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
-import { StatusPill, kitFocus, kitText } from '@/components/kit'
+import { BottomSheet, Button, StatusPill, kitFocus, kitText } from '@/components/kit'
 import { usePushSubscription } from '@/components/notifications/usePushSubscription'
 import { IconBadge, NavRow, RowGroup, ScreenBody, ScreenHeader, type IconTone } from '@/components/setari/SetariUi'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { prepareClientBeforeServerSignOut } from '@/lib/auth/server-sign-out-form'
 import type { FarmMemberModuleAccess } from '@/lib/farm-members/access'
+import { mesajIesireOperatorLink } from '@/lib/farm-members/operator-link'
 import { useUnreadNotificationsCount } from '@/lib/notifications/useUnreadCount'
 import { queryKeys } from '@/lib/query-keys'
 import { getParcele } from '@/lib/supabase/queries/parcele'
@@ -171,11 +172,17 @@ export function MaiMultPageClient({ farmName, localitate }: { farmName: string |
     memberRole,
     memberAccess,
     farmName: contextFarmName,
+    linkOnly,
+    ownerName,
   } = useDashboardAuth()
   const { unsubscribe: unsubscribePush } = usePushSubscription()
   const { data: unread = 0 } = useUnreadNotificationsCount()
   const { data: shopInLivrareCount = 0 } = useShopOrdersInLivrareCount()
   const submittingRef = useRef(false)
+  const signOutFormRef = useRef<HTMLFormElement>(null)
+  // Operatorul din link confirmă ieșirea: fără parolă, intră din nou doar cu un link nou.
+  const [confirmIesire, setConfirmIesire] = useState(false)
+  const iesireConfirmataRef = useRef(false)
 
   const isOperator = memberRole === 'operator'
   const canSeeParcele = canOperatorSeeParcele(memberRole, memberAccess)
@@ -319,10 +326,15 @@ export function MaiMultPageClient({ farmName, localitate }: { farmName: string |
             iconTone="neutral"
           />
           <form
+            ref={signOutFormRef}
             action="/api/auth/sign-out"
             method="POST"
             onSubmit={async (event) => {
               event.preventDefault()
+              if (linkOnly && !iesireConfirmataRef.current) {
+                setConfirmIesire(true)
+                return
+              }
               if (submittingRef.current) return
               submittingRef.current = true
               const form = event.currentTarget
@@ -347,6 +359,33 @@ export function MaiMultPageClient({ farmName, localitate }: { farmName: string |
         </RowGroup>
 
       </ScreenBody>
+      <BottomSheet
+        open={confirmIesire}
+        onOpenChange={setConfirmIesire}
+        title="Ieși din cont?"
+        footer={
+          <div className="flex flex-col gap-2.5">
+            <Button
+              type="button"
+              variant="danger"
+              size="touch-lg"
+              className="w-full"
+              onClick={() => {
+                iesireConfirmataRef.current = true
+                setConfirmIesire(false)
+                signOutFormRef.current?.requestSubmit()
+              }}
+            >
+              Da, ieși
+            </Button>
+            <Button type="button" variant="neutral" size="touch" className="w-full" onClick={() => setConfirmIesire(false)}>
+              Rămân
+            </Button>
+          </div>
+        }
+      >
+        <p className={cn('text-fg', kitText.base)}>{mesajIesireOperatorLink(ownerName)}</p>
+      </BottomSheet>
     </AppShell>
   )
 }
