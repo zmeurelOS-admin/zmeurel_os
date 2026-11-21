@@ -59,6 +59,7 @@ import { saveClientLocation, type Client } from '@/lib/supabase/queries/clienti'
 import { deliverAndCloneComanda, type Comanda } from '@/lib/supabase/queries/comenzi'
 import { adaugaPlataVanzare } from '@/lib/supabase/queries/vanzari'
 import { generateClientId } from '@/lib/offline/generateClientId'
+import { plataLaLivrare, type PlataLivrare } from '@/lib/livrari/plata'
 import { toast } from '@/lib/ui/toast'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
 import { cn } from '@/lib/utils'
@@ -75,7 +76,7 @@ export interface RouteStop {
 
 export type StopSheetEntry = 'meniu' | 'livrat' | 'apel'
 type SheetView = StopSheetEntry | 'muta' | 'copiaza' | 'locatie'
-type Payment = 'cash' | 'transfer' | 'neplatit'
+type Payment = PlataLivrare
 
 export interface StopSheetProps {
   open: boolean
@@ -262,9 +263,7 @@ export function StopSheet({
   const expectedLei = zeroPrice ? 0 : round2(deliveredKg * (Number(comanda.pret_per_kg) || 0))
   const sumaShown = sumaEdited ? sumaText : formatNumber(expectedLei)
   const parsedSuma = parseDecimal(sumaShown)
-  const sumaValid = payment === 'neplatit' || zeroPrice || (parsedSuma !== null && parsedSuma >= 0 && parsedSuma <= expectedLei)
-  const receivedLei = payment === 'neplatit' || zeroPrice ? 0 : round2(parsedSuma ?? 0)
-  const paidInFull = zeroPrice || (payment !== 'neplatit' && receivedLei >= expectedLei)
+  const { sumaValid, receivedLei, paidInFull } = plataLaLivrare({ expectedLei, payment, parsedSuma, zeroPrice })
   const position = geo.status === 'ok' ? geo.position : null
   const positionSaveable = position !== null && canSaveLocation(position.accuracyM)
 
@@ -379,18 +378,66 @@ export function StopSheet({
   }
 
   const parsedCopyKg = parseDecimal(copyKg)
-  const copyValid = parsedCopyKg !== null && parsedCopyKg > 0 && targetDay !== null
+  // „Livrează și copiază” livrează toată comanda: aceleași opțiuni de plată ca livrarea obișnuită.
+  const copyExpectedLei = zeroPrice ? 0 : round2(fullKg * (Number(comanda.pret_per_kg) || 0))
+  const copySumaShown = sumaEdited ? sumaText : formatNumber(copyExpectedLei)
+  const copyPlata = plataLaLivrare({ expectedLei: copyExpectedLei, payment, parsedSuma: parseDecimal(copySumaShown), zeroPrice })
+  const copyValid = parsedCopyKg !== null && parsedCopyKg > 0 && targetDay !== null && copyPlata.sumaValid
 
   const deliverAndCopy = () => {
     if (!copyValid || parsedCopyKg === null || !targetDay) return
     void run('copiaza', async () => {
-      await deliverAndCloneComanda({ comandaId: comanda.id, newCantitateKg: parsedCopyKg, newDataLivrare: targetDay })
+      await deliverAndCloneComanda({
+        comandaId: comanda.id,
+        newCantitateKg: parsedCopyKg,
+        newDataLivrare: targetDay,
+        plata: { statusPlata: copyPlata.statusPlata, sumaPrimitaLei: copyPlata.avansLei, plataId },
+      })
       for (const queryKey of COMENZI_INVALIDATED) void queryClient.invalidateQueries({ queryKey })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.vanzari })
       onNoAnswer(comanda.id, null)
-      toast.success(`${stop.name}: livrată. Comanda nouă e pe ${weekdayDateRo(targetDay)}.`)
+      const plataNote = copyPlata.paidInFull
+        ? ''
+        : copyPlata.avansLei > 0
+          ? ` A dat ${formatLei(copyPlata.avansLei)}, rest ${formatLei(round2(copyExpectedLei - copyPlata.avansLei))}.`
+          : ' Vânzarea e trecută ca neîncasată.'
+      toast.success(`${stop.name}: livrată. Comanda nouă e pe ${weekdayDateRo(targetDay)}.${plataNote}`)
       close()
     })
   }
+
+  /** Cash / Transfer / Nu a plătit și suma: aceleași în confirmarea livrării și în „Livrează și copiază”. */
+  const paymentControls = (expected: number, shown: string, plata: ReturnType<typeof plataLaLivrare>, partialHint: string) =>
+    zeroPrice ? null : (
+      <>
+        <Segments<Payment>
+          aria-label="Cum a plătit"
+          value={payment}
+          onValueChange={setPayment}
+          options={[
+            { value: 'cash', label: 'Cash' },
+            { value: 'transfer', label: 'Transfer' },
+            { value: 'neplatit', label: 'Nu a plătit' },
+          ]}
+        />
+        {payment === 'neplatit' ? null : (
+          <BigInput
+            label="Suma încasată (lei)"
+            value={shown}
+            onChange={(event) => {
+              setSumaEdited(true)
+              setSumaText(event.target.value)
+            }}
+            inputMode="decimal"
+            autoComplete="off"
+            enterKeyHint="done"
+            trailing={<span className={cn('font-bold text-fg-muted', kitText.secondary)}>lei</span>}
+            error={!plata.sumaValid ? `Scrie o sumă între 0 și ${formatLei(expected)}.` : undefined}
+            hint={!plata.paidInFull && plata.sumaValid ? partialHint : undefined}
+          />
+        )}
+      </>
+    )
 
   const backToOrders = () =>
     run('scoate', async () => {
@@ -464,41 +511,13 @@ export function StopSheet({
           </p>
         </div>
 
-        {zeroPrice ? null : (
-          <>
-            <Segments<Payment>
-              aria-label="Cum a plătit"
-              value={payment}
-              onValueChange={setPayment}
-              options={[
-                { value: 'cash', label: 'Cash' },
-                { value: 'transfer', label: 'Transfer' },
-                { value: 'neplatit', label: 'Nu a plătit' },
-              ]}
-            />
-            {payment === 'neplatit' ? null : (
-              <BigInput
-                label="Suma încasată (lei)"
-                value={sumaShown}
-                onChange={(event) => {
-                  setSumaEdited(true)
-                  setSumaText(event.target.value)
-                }}
-                inputMode="decimal"
-                autoComplete="off"
-                enterKeyHint="done"
-                trailing={<span className={cn('font-bold text-fg-muted', kitText.secondary)}>lei</span>}
-                error={!sumaValid ? `Scrie o sumă între 0 și ${formatLei(expectedLei)}.` : undefined}
-                hint={
-                  !paidInFull && sumaValid
-                    ? hasPlataPartiala
-                      ? `Vânzarea rămâne neîncasată: a dat ${formatLei(receivedLei)}, rest ${formatLei(round2(expectedLei - receivedLei))}.`
-                      : 'Mai puțin decât totalul: vânzarea se trece ca neîncasată.'
-                    : undefined
-                }
-              />
-            )}
-          </>
+        {paymentControls(
+          expectedLei,
+          sumaShown,
+          { sumaValid, receivedLei, paidInFull, statusPlata: paidInFull ? 'platit' : 'neplatit', avansLei: 0 },
+          hasPlataPartiala
+            ? `Vânzarea rămâne neîncasată: a dat ${formatLei(receivedLei)}, rest ${formatLei(round2(expectedLei - receivedLei))}.`
+            : 'Mai puțin decât totalul: vânzarea se trece ca neîncasată.',
         )}
 
         <ToggleRow
@@ -667,8 +686,16 @@ export function StopSheet({
       <div className="space-y-4">
         {errorNotice}
         <p className={cn('text-fg-muted', kitText.secondary)}>
-          Comanda de azi se marchează livrată întreagă, iar una nouă se pune pe ziua aleasă.
+          Comanda de azi se marchează livrată întreagă ({zeroPrice ? formatKg(fullKg) : `${formatKg(fullKg)} · ${formatLei(copyExpectedLei)}`}), iar una nouă se pune pe ziua aleasă.
         </p>
+        {paymentControls(
+          copyExpectedLei,
+          copySumaShown,
+          copyPlata,
+          copyPlata.receivedLei > 0
+            ? `Vânzarea rămâne neîncasată: a dat ${formatLei(copyPlata.receivedLei)}, rest ${formatLei(round2(copyExpectedLei - copyPlata.receivedLei))}.`
+            : 'Vânzarea se trece ca neîncasată.',
+        )}
         <BigInput
           label="Cantitatea comenzii noi (kg)"
           value={copyKg}
@@ -788,7 +815,16 @@ export function StopSheet({
               <CalendarDays aria-hidden />
               Mută pe altă zi
             </Button>
-            <Button type="button" variant="neutral" size="touch" className="w-full" onClick={() => setView('copiaza')}>
+            <Button
+              type="button"
+              variant="neutral"
+              size="touch"
+              className="w-full"
+              onClick={() => {
+                setSumaEdited(false)
+                setView('copiaza')
+              }}
+            >
               <Copy aria-hidden />
               Copiază pentru livrarea următoare
             </Button>

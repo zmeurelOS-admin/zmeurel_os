@@ -279,6 +279,20 @@ type ComenziRpcClient = ReturnType<typeof getSupabase> & {
       error: SupabaseLikeError | null
     }>
     (
+      fn: 'livreaza_si_copiaza_comanda',
+      args: {
+        p_comanda_id: string
+        p_new_cantitate_kg: number
+        p_new_data_livrare: string
+        p_status_plata: 'platit' | 'neplatit'
+        p_suma_primita_lei: number
+        p_plata_id: string
+      }
+    ): Promise<{
+      data: DeliverAndCloneComandaPayload | null
+      error: SupabaseLikeError | null
+    }>
+    (
       fn: 'deliver_and_clone_comanda',
       args: {
         p_comanda_id: string
@@ -681,11 +695,23 @@ export interface DeliverAndCloneComandaInput {
   comandaId: string
   newCantitateKg: number
   newDataLivrare: string
+  /**
+   * Plata comenzii livrate, ca la livrarea obișnuită. Lipsă sau `platit`: încasat tot (drumul vechi,
+   * `deliver_and_clone_comanda`). `neplatit` (cu sau fără avans): `livreaza_si_copiaza_comanda`.
+   */
+  plata?: {
+    statusPlata: 'platit' | 'neplatit'
+    /** Avansul primit (0 = nimic). */
+    sumaPrimitaLei: number
+    /** Cheia plății: aceeași la reîncercare. */
+    plataId: string
+  }
 }
 
 /**
  * Livrează integral o comandă `in_livrare` ȘI creează o clonă `programata`
- * pentru livrarea următoare, atomic (RPC `deliver_and_clone_comanda`).
+ * pentru livrarea următoare, atomic. Încasat tot: RPC `deliver_and_clone_comanda`;
+ * avans sau neîncasat: RPC `livreaza_si_copiaza_comanda` (migrarea 20261121130000).
  */
 export async function deliverAndCloneComanda(input: DeliverAndCloneComandaInput): Promise<{
   deliveredOrder: Comanda
@@ -701,11 +727,28 @@ export async function deliverAndCloneComanda(input: DeliverAndCloneComandaInput)
   }
 
   const rpcClient = getSupabase() as ComenziRpcClient
-  const { data, error } = await rpcClient.rpc('deliver_and_clone_comanda', {
-    p_comanda_id: input.comandaId,
-    p_new_cantitate_kg: newCantitateKg,
-    p_new_data_livrare: input.newDataLivrare,
-  })
+  const plata = input.plata
+  const { data, error } =
+    plata && plata.statusPlata === 'neplatit'
+      ? await rpcClient.rpc('livreaza_si_copiaza_comanda', {
+          p_comanda_id: input.comandaId,
+          p_new_cantitate_kg: newCantitateKg,
+          p_new_data_livrare: input.newDataLivrare,
+          p_status_plata: 'neplatit',
+          p_suma_primita_lei: round2(Math.max(0, plata.sumaPrimitaLei)),
+          p_plata_id: plata.plataId,
+        })
+      : await rpcClient.rpc('deliver_and_clone_comanda', {
+          p_comanda_id: input.comandaId,
+          p_new_cantitate_kg: newCantitateKg,
+          p_new_data_livrare: input.newDataLivrare,
+        })
+
+  if (error?.code === 'PGRST202' || error?.code === '42883') {
+    throw new Error(
+      'Avansul și „Nu a plătit” la „Livrează și copiază” se activează după actualizarea bazei de date. Până atunci alege Cash sau Transfer cu toată suma.',
+    )
+  }
 
   if (error) {
     throw toReadableError(error, 'Nu am putut livra si clona comanda.')
