@@ -9,6 +9,10 @@
  *
  * Verificarea se face o singură dată pe sesiune: câte un `select('<coloană>').limit(1)` pe grup.
  * Eroarea `42703` (Postgres) sau `PGRST204` (PostgREST) înseamnă „coloana lipsește”.
+ *
+ * Un grup găsit o dată rămâne ținut minte în browser (`localStorage`): o coloană adăugată nu mai dispare, deci
+ * nu are rost să fie căutată la fiecare deschidere a aplicației (erau 8 cereri pe Acasă). Se mai verifică doar
+ * grupurile care încă lipsesc. Structura e a bazei de date, nu a fermei: nu depinde de cont.
  */
 import { useQuery } from '@tanstack/react-query'
 
@@ -80,11 +84,83 @@ async function probe(client: ProbeClient, feature: SchemaFeature): Promise<boole
   throw Object.assign(new Error(error.message || 'Nu am putut verifica structura bazei de date.'), { code: error.code })
 }
 
-/** Verifică toate grupurile. Exportată separat pentru teste. */
-export async function probeSchemaFeatures(client: ProbeClient): Promise<SchemaFeatures> {
-  const features = Object.keys(PROBES) as SchemaFeature[]
+const ALL_FEATURES = Object.keys(PROBES) as SchemaFeature[]
+
+type CombinedProbeClient = {
+  from: (table: string) => {
+    select: (columns: string) => CombinedProbeQuery
+  }
+}
+type CombinedProbeQuery = PromiseLike<{ error: ProbeError }> & {
+  limit: (count: number, options?: { referencedTable?: string }) => CombinedProbeQuery
+}
+
+/**
+ * Toate grupurile cerute, într-o singură cerere: tabelele probate au fiecare o singură legătură spre `tenants`,
+ * deci coloanele lor se pot cere „îmbrăcate” în `tenants` (cel mult un rând din fiecare). Dacă cererea trece,
+ * toate coloanele există. `false` = nu știm (o coloană lipsește sau cererea n-a mers): se verifică pe rând.
+ */
+async function probeTogether(client: ProbeClient, features: readonly SchemaFeature[]): Promise<boolean> {
+  const columnsByTable = new Map<string, string[]>()
+  for (const feature of features) {
+    const { table, column } = PROBES[feature]
+    columnsByTable.set(table, [...(columnsByTable.get(table) ?? []), column])
+  }
+  try {
+    const select = ['id', ...[...columnsByTable].map(([table, columns]) => `${table}(${columns.join(',')})`)].join(',')
+    let query = (client as unknown as CombinedProbeClient).from('tenants').select(select).limit(1)
+    for (const table of columnsByTable.keys()) query = query.limit(1, { referencedTable: table })
+    const { error } = await query
+    return !error
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Verifică grupurile (toate, sau doar cele din `only`; restul sunt socotite existente, fără cerere).
+ * Exportată separat pentru teste.
+ */
+export async function probeSchemaFeatures(client: ProbeClient, only?: readonly SchemaFeature[]): Promise<SchemaFeatures> {
+  const features = only ?? ALL_FEATURES
   const results = await Promise.all(features.map((feature) => probe(client, feature)))
-  return Object.fromEntries(features.map((feature, index) => [feature, results[index]])) as SchemaFeatures
+  const found = Object.fromEntries(ALL_FEATURES.map((feature) => [feature, true])) as SchemaFeatures
+  features.forEach((feature, index) => {
+    found[feature] = results[index]
+  })
+  return found
+}
+
+// ─── Ce s-a găsit deja, ținut minte în browser ───
+
+const STORAGE_KEY = `zmeurel:schema-features:${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}`
+
+/** Grupurile găsite la o verificare anterioară (doar cele existente; `[]` fără `localStorage` sau la orice eroare). */
+function readKnownFeatures(): SchemaFeature[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? '[]')
+    if (!Array.isArray(parsed)) return []
+    return ALL_FEATURES.filter((feature) => parsed.includes(feature))
+  } catch {
+    return []
+  }
+}
+
+function rememberFeatures(features: SchemaFeatures): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(ALL_FEATURES.filter((feature) => features[feature])))
+  } catch {
+    // Fără loc sau fără acces la `localStorage`: se verifică din nou data viitoare.
+  }
+}
+
+/** Pentru verificarea fără niciun grup de căutat: nu se ajunge niciodată la el. */
+const NO_PROBE_CLIENT: ProbeClient = {
+  from: () => {
+    throw new Error('Nicio verificare de făcut.')
+  },
 }
 
 let cached: Promise<SchemaFeatures> | null = null
@@ -95,9 +171,20 @@ let cached: Promise<SchemaFeatures> | null = null
  */
 export function loadSchemaFeatures(): Promise<SchemaFeatures> {
   if (!cached) {
-    const attempt = probeSchemaFeatures(getSupabase() as unknown as ProbeClient)
+    const known = readKnownFeatures()
+    const missing = ALL_FEATURES.filter((feature) => !known.includes(feature))
+    // Totul e deja știut ca existent: nicio cerere. Altfel, întâi o singură cerere pentru tot ce lipsește;
+    // doar dacă ea nu trece se verifică grupurile pe rând (ca să aflăm care anume lipsește).
+    const attempt =
+      missing.length === 0
+        ? probeSchemaFeatures(NO_PROBE_CLIENT, missing)
+        : (async () => {
+            const client = getSupabase() as unknown as ProbeClient
+            const allThere = missing.length > 1 && (await probeTogether(client, missing))
+            return allThere ? probeSchemaFeatures(NO_PROBE_CLIENT, []) : probeSchemaFeatures(client, missing)
+          })()
     cached = attempt
-    attempt.catch(() => {
+    attempt.then(rememberFeatures, () => {
       if (cached === attempt) cached = null
     })
   }
@@ -113,9 +200,15 @@ export async function loadSchemaFeaturesSafe(): Promise<SchemaFeatures> {
   }
 }
 
-/** Doar pentru teste. */
+/** Doar pentru teste: uită și ce e ținut minte în browser. */
 export function resetSchemaFeaturesCache(): void {
   cached = null
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // Fără acces la `localStorage`: nu e nimic de uitat.
+  }
 }
 
 export const schemaFeaturesQueryKey = ['schema-features'] as const
