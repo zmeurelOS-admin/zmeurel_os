@@ -12,11 +12,11 @@ import {
   Snowflake,
   SprayCan,
   Sprout,
-  TriangleAlert,
   Truck,
 } from 'lucide-react'
 
 import { Button, ListRow, Notice, StatusPill, kitFocus, kitText } from '@/components/kit'
+import { PauzeNotice } from '@/components/tratamente/PauzeNotice'
 import {
   amanaIntrebarea,
   buildAcasaExtrasezon,
@@ -37,7 +37,7 @@ import type { VanzareButasi } from '@/lib/supabase/queries/vanzari-butasi'
 import { queryKeys } from '@/lib/query-keys'
 import { marcheazaFacut } from '@/lib/supabase/queries/tratamente'
 import type { PauzaParcela } from '@/lib/tratamente/pauza'
-import { detaliuPauza, titluPauza } from '@/lib/tratamente/texte'
+import { titluPauza } from '@/lib/tratamente/texte'
 import { toast } from '@/lib/ui/toast'
 import { cn } from '@/lib/utils'
 
@@ -247,18 +247,15 @@ export function AcasaMobile({
             </Notice>
           ) : null}
 
-          {pauze.map((pauza) => (
+          {pauze.length > 0 ? (
             <Link
-              key={`pauza-${pauza.parcelaId}`}
               href="/tratamente"
               className={cn('block rounded-box', kitFocus)}
-              aria-label={`${titluPauza(pauza.nume, pauza)}. Deschide Tratamente`}
+              aria-label={`${pauze.length === 1 ? titluPauza(pauze[0].nume, pauze[0]) : `${pauze.length} parcele în pauză`}. Deschide Tratamente`}
             >
-              <Notice tone="warning" icon={<TriangleAlert aria-hidden />} title={titluPauza(pauza.nume, pauza)}>
-                {detaliuPauza(pauza, todayIso)}
-              </Notice>
+              <PauzeNotice pauze={pauze} azi={todayIso} />
             </Link>
-          ))}
+          ) : null}
 
           <section aria-labelledby="acasa-de-facut" className="space-y-2">
             <h2 id="acasa-de-facut" className={cn('px-1 font-extrabold text-fg', kitText.card)}>

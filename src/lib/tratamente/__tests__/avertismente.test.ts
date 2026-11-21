@@ -29,6 +29,15 @@ describe('avertismentele la stropire', () => {
     const list = avertismenteStropire({ produse: [switchProdus], parcele: [M1], istoric: [scalaMarti], zi: '2026-07-17', azi: '2026-07-17' })
     expect(list.map((item) => item.tip)).toEqual(['frac'])
     expect(list[0].titlu).toBe('Grupa FRAC 9, de două ori la rând')
+    // Mai multe grupe comune: un singur avertisment pe produs.
+    const dublu = avertismenteStropire({
+      produse: [switchProdus],
+      parcele: [M1],
+      istoric: [{ ...scalaMarti, produse: [{ produsId: 'sw', nume: 'Switch', frac: 'FRAC 9 + 12' }] }],
+      zi: '2026-07-17',
+      azi: '2026-07-17',
+    }).filter((item) => item.tip === 'frac')
+    expect(dublu.map((item) => item.titlu)).toEqual(['Grupa FRAC 9 și 12, de două ori la rând'])
     expect(list[0].detaliu).toContain('ca Scala')
   })
 

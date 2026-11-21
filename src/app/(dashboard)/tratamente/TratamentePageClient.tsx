@@ -22,6 +22,7 @@ import {
   type StatusTone,
 } from '@/components/kit'
 import { ScreenBody, ScreenHeader } from '@/components/setari/SetariUi'
+import { PauzeNotice } from '@/components/tratamente/PauzeNotice'
 import { TratamentStepForm, type ParcelaTratament } from '@/components/tratamente/TratamentStepForm'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { useMeteo } from '@/hooks/useMeteo'
@@ -40,7 +41,6 @@ import {
 } from '@/lib/tratamente/jurnal'
 import { ETICHETA_TIP, type TipJurnal } from '@/lib/tratamente/model'
 import { pauzeOrdonate } from '@/lib/tratamente/pauza'
-import { detaliuPauza, titluPauza } from '@/lib/tratamente/texte'
 import { aziRo, ziCuDataRo, zileText, ZiCuDataRo, ziRelativaRo } from '@/lib/tratamente/zile'
 import { toast } from '@/lib/ui/toast'
 import { cn } from '@/lib/utils'
@@ -232,21 +232,20 @@ export function TratamentePageClient() {
       }
     >
       <ScreenBody className="space-y-3.5 pb-28">
-        {subtitlu ? <p className={cn('-mt-2 text-fg-muted', kitText.secondary)}>{subtitlu}</p> : null}
+        {subtitlu && !loadingAll ? <p className={cn('-mt-2 text-fg-muted', kitText.secondary)}>{subtitlu}</p> : null}
 
-        {azi
-          ? pauzeLista.map((pauza) => (
-              <Notice key={pauza.parcelaId} tone="warning" title={titluPauza(numeParcele.get(pauza.parcelaId) ?? 'Parcelă', pauza)}>
-                {detaliuPauza(pauza, azi)}
-              </Notice>
-            ))
-          : null}
+        {azi ? (
+          <PauzeNotice pauze={pauzeLista.map((pauza) => ({ ...pauza, nume: numeParcele.get(pauza.parcelaId) ?? 'Parcelă' }))} azi={azi} />
+        ) : null}
 
         {eroare ? (
           <Notice tone="danger" title="Parcelele nu s-au încărcat">
             Verifică internetul și deschide din nou pagina.
           </Notice>
         ) : null}
+
+        {/* Pe desktop bara de jos nu există: butonul stă în pagină (ca la Recoltări). */}
+        <div className="hidden md:block">{addButton}</div>
 
         <Segments
           aria-label="Ce tratamente arăt"

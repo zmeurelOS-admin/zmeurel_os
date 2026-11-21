@@ -55,6 +55,18 @@ export function grupeRezistenta(frac: string | null | undefined): string[] {
   return result
 }
 
+/** [„FRAC 9”, „FRAC 12”] → „Grupa FRAC 9 și 12”; prefixe diferite → „Grupele FRAC 9 și IRAC 3A”. */
+function textGrupe(grupe: readonly string[]): string {
+  if (grupe.length === 1) return `Grupa ${grupe[0]}`
+  const prefixe = new Set(grupe.map((grupa) => grupa.split(' ')[0]))
+  if (prefixe.size === 1) {
+    const [prefix] = [...prefixe]
+    const coduri = grupe.map((grupa) => grupa.slice(prefix.length + 1))
+    return `Grupa ${prefix} ${coduri.slice(0, -1).join(', ')} și ${coduri[coduri.length - 1]}`
+  }
+  return `Grupele ${grupe.slice(0, -1).join(', ')} și ${grupe[grupe.length - 1]}`
+}
+
 const cheieProdus = (produs: { produsId: string | null; nume: string }) =>
   produs.produsId ? `id:${produs.produsId}` : `nume:${produs.nume.trim().toLocaleLowerCase('ro-RO')}`
 
@@ -102,15 +114,18 @@ export function avertismenteStropire(input: {
 
     if (anterior) {
       for (const produs of input.produse) {
-        for (const grupa of grupeRezistenta(produs.frac)) {
-          const vechi = anterior.produse.find((item) => grupeRezistenta(item.frac).includes(grupa))
-          if (!vechi) continue
-          adauga({
-            tip: 'frac',
-            titlu: `Grupa ${grupa}, de două ori la rând`,
-            detaliu: `${produs.nume} e tot grupa ${grupa}, ca ${vechi.nume} (${ziRelativaRo(anterior.zi, input.azi).toLocaleLowerCase('ro-RO')}, ${parcela.nume}). Alternează grupele, ca boala să nu devină rezistentă.`,
-          })
-        }
+        // Un singur avertisment pe produs, cu toate grupele comune („FRAC 9 și 12”).
+        const comune = grupeRezistenta(produs.frac).filter((grupa) =>
+          anterior.produse.some((item) => grupeRezistenta(item.frac).includes(grupa)),
+        )
+        if (comune.length === 0) continue
+        const vechi = anterior.produse.find((item) => grupeRezistenta(item.frac).includes(comune[0]))!
+        const text = textGrupe(comune)
+        adauga({
+          tip: 'frac',
+          titlu: `${text}, de două ori la rând`,
+          detaliu: `${produs.nume} e tot ${text.charAt(0).toLocaleLowerCase('ro-RO')}${text.slice(1)}, ca ${vechi.nume} (${ziRelativaRo(anterior.zi, input.azi).toLocaleLowerCase('ro-RO')}, ${parcela.nume}). Alternează grupele, ca boala să nu devină rezistentă.`,
+        })
       }
     }
 

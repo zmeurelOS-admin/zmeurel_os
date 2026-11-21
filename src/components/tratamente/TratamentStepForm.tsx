@@ -315,13 +315,12 @@ export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplica
       const total = cantitateStropire({ doza: produs.doza, mod: ciorna.mod, volumL, suprafataHa: ha })
       return `${produs.nume} ${total !== null ? formatCantitate(total, produs.unitate) : '—'}`
     })
-    .join(' · ')
   const plante = alese.reduce((sum, parcela) => sum + (Number(parcela.nr_plante) || 0), 0)
   const zileBaza = cand === 'acum' ? todayIso : zi
   const rezumat: RezumatTratament = {
     unde: `${textParcele(ciorna.parcelaIds, numeParcele)}${plante > 0 ? ` · ${new Intl.NumberFormat('ro-RO').format(plante)} plante` : ''}`,
     solutie: ciorna.metoda === 'stropire' && volumL ? `${new Intl.NumberFormat('ro-RO').format(volumL)} l` : null,
-    produse: produseRezumat || '—',
+    produse: produseRezumat,
     pauza,
     panaLa: pauza.zile > 0 && cand !== 'planifica' && zileBaza ? adaugaZile(zileBaza, pauza.zile) : null,
     parceleText: textParcele(ciorna.parcelaIds, numeParcele),

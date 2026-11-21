@@ -11,7 +11,8 @@ export type CandTip = 'acum' | 'alta_zi' | 'planifica'
 export interface RezumatTratament {
   unde: string
   solutie: string | null
-  produse: string
+  /** Câte un rând pe produs, cu cantitatea calculată. */
+  produse: string[]
   pauza: { zile: number; produs: string | null }
   /** Prima zi de recoltare, dacă tratamentul are pauză și nu e doar planificat. */
   panaLa: string | null
@@ -77,9 +78,20 @@ export function PasCand({
       ) : null}
 
       <SummaryList>
-        <SummaryRow label="Unde" value={rezumat.unde} />
+        <SummaryRow label="Unde" value={<span className="block whitespace-normal">{rezumat.unde}</span>} />
         {rezumat.solutie ? <SummaryRow label="Soluție" value={rezumat.solutie} /> : null}
-        <SummaryRow label="Produse" value={rezumat.produse} />
+        <SummaryRow
+          label="Produse"
+          value={
+            rezumat.produse.length > 0
+              ? rezumat.produse.map((linie) => (
+                  <span key={linie} className="block whitespace-normal">
+                    {linie}
+                  </span>
+                ))
+              : '—'
+          }
+        />
         <SummaryRow
           label="Pauză"
           value={rezumat.pauza.zile > 0 ? `${zileText(rezumat.pauza.zile)}${rezumat.pauza.produs ? ` (${rezumat.pauza.produs})` : ''}` : 'Fără pauză'}
