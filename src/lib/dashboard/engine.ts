@@ -13,6 +13,7 @@ import type { Parcela } from '@/lib/supabase/queries/parcele'
 import type { Recoltare } from '@/lib/supabase/queries/recoltari'
 import type { StocLocationRow } from '@/lib/supabase/queries/miscari-stoc'
 import type { Vanzare } from '@/lib/supabase/queries/vanzari'
+import type { PauzaParcela } from '@/lib/tratamente/pauza'
 import type { DashboardTaskItem } from '@/components/dashboard/TaskList'
 
 export interface MeteoData {
@@ -56,6 +57,13 @@ export interface DashboardRawData {
   meteo: MeteoData | null
   /** Interval minim de tratament per parcelă comercială (zile). */
   treatmentIntervalByParcela: Map<string, number>
+  /**
+   * Pauzele active azi, din sursa unică (`lib/tratamente/pauza`: aplicările noi + activitățile vechi).
+   * Lipsă = calculul vechi, doar din `activitati_agricole`.
+   */
+  pauzePeParcela?: ReadonlyMap<string, PauzaParcela>
+  /** Tratamentele planificate azi (modulul Tratamente), pentru lista de sarcini de pe desktop. */
+  tratamentePlanificateAzi?: ReadonlyArray<{ key: string; text: string }>
 }
 
 export type TreatmentAttention =
@@ -252,7 +260,13 @@ export function buildParcelDashboardStates(raw: DashboardRawData): ParcelDashboa
 
     let pauseStatus: PauseStatus = 'none'
     let pauseDaysRemaining = 0
-    if (latestPauseActivity) {
+    if (raw.pauzePeParcela) {
+      const pauza = raw.pauzePeParcela.get(parcelaId)
+      if (pauza && pauza.zileRamase > 0) {
+        pauseStatus = pauza.zileRamase <= 2 ? 'urgent' : 'active'
+        pauseDaysRemaining = pauza.zileRamase
+      }
+    } else if (latestPauseActivity) {
       const active = isPauseActive(
         {
           data_aplicare: latestPauseActivity.data_aplicare,
@@ -321,6 +335,16 @@ export function buildDashboardTasks(
         tone: 'urgent',
       })
     }
+  }
+
+  for (const planificat of raw.tratamentePlanificateAzi ?? []) {
+    tasks.push({
+      id: `tratament-planificat:${planificat.key}`,
+      icon: '🧪',
+      text: planificat.text,
+      tag: 'AZI',
+      tone: 'warning',
+    })
   }
 
   const parcelsWithActivePause = parcelStates.filter(

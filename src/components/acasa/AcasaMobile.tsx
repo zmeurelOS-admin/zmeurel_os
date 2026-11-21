@@ -34,6 +34,10 @@ import type { Comanda } from '@/lib/supabase/queries/comenzi'
 import type { Recoltare } from '@/lib/supabase/queries/recoltari'
 import type { Vanzare } from '@/lib/supabase/queries/vanzari'
 import type { VanzareButasi } from '@/lib/supabase/queries/vanzari-butasi'
+import { queryKeys } from '@/lib/query-keys'
+import { marcheazaFacut } from '@/lib/supabase/queries/tratamente'
+import type { PauzaParcela } from '@/lib/tratamente/pauza'
+import { detaliuPauza, titluPauza } from '@/lib/tratamente/texte'
 import { toast } from '@/lib/ui/toast'
 import { cn } from '@/lib/utils'
 
@@ -54,6 +58,20 @@ export interface AcasaMobileProps {
   stocDisponibilKg: number | null
   parcelStates: readonly ParcelDashboardState[]
   meteo: MeteoLike
+  /** Pauzele active azi (sursa unică din `lib/tratamente/pauza`), cu numele parcelei. */
+  pauze?: ReadonlyArray<PauzaParcela & { nume: string }>
+  /** Tratamentele planificate azi (modulul Tratamente). */
+  tratamenteAzi?: ReadonlyArray<TratamentAzi>
+}
+
+export interface TratamentAzi {
+  key: string
+  titlu: string
+  detaliu: string
+  aplicareIds: string[]
+  /** Are produse cu pauză: după „Marchează făcut” pornește pauza. */
+  areProduseCuPauza: boolean
+  parceleText: string
 }
 
 /**
@@ -70,6 +88,8 @@ export function AcasaMobile({
   stocDisponibilKg,
   parcelStates,
   meteo,
+  pauze = [],
+  tratamenteAzi = [],
 }: AcasaMobileProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -112,6 +132,48 @@ export function AcasaMobile({
   }
 
   const go = (href: string) => () => router.push(href)
+
+  const [marcand, setMarcand] = useState<string | null>(null)
+  const marcheaza = async (tratament: TratamentAzi) => {
+    if (marcand) return
+    setMarcand(tratament.key)
+    try {
+      await marcheazaFacut(tratament.aplicareIds)
+      await queryClient.invalidateQueries({ queryKey: queryKeys.tratamente })
+      toast.success(
+        tratament.areProduseCuPauza
+          ? `Notat ca făcut azi. Pauza pentru ${tratament.parceleText} a pornit.`
+          : 'Notat ca făcut azi.',
+      )
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : ''
+      toast.error(/row-level security|42501/i.test(message) ? 'Nu ai drept de scriere pe tratamente.' : message || 'Nu s-a salvat. Încearcă din nou.')
+    } finally {
+      setMarcand(null)
+    }
+  }
+
+  const randuriTratamenteAzi = tratamenteAzi.map((tratament) => (
+    <li key={`tratament-azi-${tratament.key}`} className="space-y-2">
+      <ListRow
+        avatar={false}
+        leading={<RowIcon tone="success"><SprayCan aria-hidden /></RowIcon>}
+        title={tratament.titlu}
+        detail={tratament.detaliu}
+        onClick={go('/tratamente?fila=planificate')}
+      />
+      <Button
+        type="button"
+        variant="neutral"
+        size="touch"
+        className="w-full"
+        loading={marcand === tratament.key}
+        onClick={() => void marcheaza(tratament)}
+      >
+        Marchează făcut
+      </Button>
+    </li>
+  ))
   const sprayNote = meteo?.spray
     ? meteo.spray.canSpray
       ? 'Azi vremea permite stropitul.'
@@ -185,22 +247,25 @@ export function AcasaMobile({
             </Notice>
           ) : null}
 
+          {pauze.map((pauza) => (
+            <Link
+              key={`pauza-${pauza.parcelaId}`}
+              href="/tratamente"
+              className={cn('block rounded-box', kitFocus)}
+              aria-label={`${titluPauza(pauza.nume, pauza)}. Deschide Tratamente`}
+            >
+              <Notice tone="warning" icon={<TriangleAlert aria-hidden />} title={titluPauza(pauza.nume, pauza)}>
+                {detaliuPauza(pauza, todayIso)}
+              </Notice>
+            </Link>
+          ))}
+
           <section aria-labelledby="acasa-de-facut" className="space-y-2">
             <h2 id="acasa-de-facut" className={cn('px-1 font-extrabold text-fg', kitText.card)}>
               De făcut azi
             </h2>
             <ul className="space-y-2">
-              {sezon.parcelePauza.map((parcel) => (
-                <li key={`pauza-${parcel.id}`}>
-                  <ListRow
-                    avatar={false}
-                    leading={<RowIcon tone="warning"><TriangleAlert aria-hidden /></RowIcon>}
-                    title={`Nu recolta: ${parcel.name}`}
-                    detail={`Pauză după tratament${parcel.zile > 0 ? `: încă ${parcel.zile} ${parcel.zile === 1 ? 'zi' : 'zile'}` : ''}`}
-                    onClick={go('/activitati-agricole')}
-                  />
-                </li>
-              ))}
+              {randuriTratamenteAzi}
               {sezon.inLivrareCount > 0 ? (
                 <li>
                   <ListRow
@@ -239,7 +304,7 @@ export function AcasaMobile({
                     leading={<RowIcon tone={parcel.intarziat ? 'warning' : 'neutral'}><SprayCan aria-hidden /></RowIcon>}
                     title={`Tratament: ${parcel.name}`}
                     detail={[parcel.intarziat ? 'Întârziat' : 'Urmează în curând', sprayNote].filter(Boolean).join(' · ')}
-                    onClick={go('/activitati-agricole')}
+                    onClick={go('/tratamente')}
                   />
                 </li>
               ))}
@@ -293,6 +358,7 @@ export function AcasaMobile({
               De făcut
             </h2>
             <ul className="space-y-2">
+              {randuriTratamenteAzi}
               {afiseaza.comenzi_butasi && extrasezon.butasiDeschiseCount > 0 ? (
                 <li>
                   <ListRow
@@ -346,7 +412,7 @@ export function AcasaMobile({
                     leading={<RowIcon tone={parcel.intarziat ? 'warning' : 'neutral'}><SprayCan aria-hidden /></RowIcon>}
                     title={`Tratament: ${parcel.name}`}
                     detail={[parcel.intarziat ? 'Întârziat' : 'Urmează în curând', sprayNote].filter(Boolean).join(' · ')}
-                    onClick={go('/activitati-agricole')}
+                    onClick={go('/tratamente')}
                   />
                 </li>
               ))}
@@ -355,7 +421,8 @@ export function AcasaMobile({
             (!afiseaza.rest_incasat || extrasezon.restCount === 0) &&
             comenziFructe === 0 &&
             (!afiseaza.lucrari || extrasezon.lucrari.length === 0) &&
-            sezon.parceleTratament.length === 0 ? (
+            sezon.parceleTratament.length === 0 &&
+            tratamenteAzi.length === 0 ? (
               <Notice tone="success" title="Nimic urgent">
                 Lucrările planificate apar aici când le treci în Activități, cu o dată în viitor.
               </Notice>

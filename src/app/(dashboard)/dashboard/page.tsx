@@ -76,6 +76,10 @@ import {
 } from '@/lib/calculations/stock-audit-thresholds'
 import { useMeteo } from '@/hooks/useMeteo'
 import { queryKeys } from '@/lib/query-keys'
+import { useAplicariTratament } from '@/lib/tratamente/hooks'
+import { construiesteJurnal, planificateInZi, textParcele, textProduse } from '@/lib/tratamente/jurnal'
+import { ETICHETA_TIP } from '@/lib/tratamente/model'
+import { pauzeActive, pauzeOrdonate } from '@/lib/tratamente/pauza'
 import { getSupabase } from '@/lib/supabase/client'
 import { resolveDashboardMicroclimate } from '@/lib/dashboard/microclimate'
 import { getActivitatiAgricole } from '@/lib/supabase/queries/activitati-agricole'
@@ -548,6 +552,8 @@ export default function DashboardPage() {
   const recoltari = recoltariQuery.data ?? EMPTY_LIST
   const parcele = parceleQuery.data ?? EMPTY_LIST
   const activitati = activitatiQuery.data ?? EMPTY_LIST
+  const tratamenteQuery = useAplicariTratament()
+  const aplicariTratament = tratamenteQuery.data ?? EMPTY_LIST
   const vanzari = vanzariQuery.data ?? EMPTY_LIST
   const vanzariButasi = vanzariButasiQuery.data ?? EMPTY_LIST
   const cheltuieli = cheltuieliQuery.data ?? EMPTY_LIST
@@ -903,6 +909,44 @@ export default function DashboardPage() {
     return byParcela
   }, [treatmentIntervalsQuery.data])
 
+  // Pauza din sursa unică (aplicările noi + activitățile vechi) și tratamentele planificate azi.
+  const pauzePeParcela = useMemo(
+    () => pauzeActive({ aplicari: aplicariTratament, activitati, ziua: todayIso }),
+    [activitati, aplicariTratament, todayIso],
+  )
+  const numeParceleTratament = useMemo(
+    () => new Map(parcele.map((parcela) => [parcela.id, parcela.nume_parcela?.trim() || 'Parcelă'])),
+    [parcele],
+  )
+  const tratamenteAzi = useMemo(
+    () => planificateInZi(construiesteJurnal({ aplicari: aplicariTratament, activitati: [] }).planificate, todayIso),
+    [aplicariTratament, todayIso],
+  )
+  const tratamentePlanificateAzi = useMemo(
+    () =>
+      tratamenteAzi.map((rand) => ({
+        key: rand.key,
+        text: `${ETICHETA_TIP[rand.tip]} planificată: ${textParcele(rand.parcelaIds, numeParceleTratament)}`,
+      })),
+    [numeParceleTratament, tratamenteAzi],
+  )
+  const acasaPauze = useMemo(
+    () => pauzeOrdonate(pauzePeParcela).map((pauza) => ({ ...pauza, nume: numeParceleTratament.get(pauza.parcelaId) ?? 'Parcelă' })),
+    [numeParceleTratament, pauzePeParcela],
+  )
+  const acasaTratamenteAzi = useMemo(
+    () =>
+      tratamenteAzi.map((rand) => ({
+        key: rand.key,
+        titlu: `${ETICHETA_TIP[rand.tip]} planificată`,
+        detaliu: [textParcele(rand.parcelaIds, numeParceleTratament), textProduse(rand.produse, false)].filter(Boolean).join(' · '),
+        aplicareIds: rand.aplicari.map((aplicare) => aplicare.id),
+        areProduseCuPauza: rand.pauza !== null,
+        parceleText: textParcele(rand.parcelaIds, numeParceleTratament),
+      })),
+    [numeParceleTratament, tratamenteAzi],
+  )
+
   const dashboardRawData = useMemo<DashboardRawData>(() => {
     return {
       currentDay,
@@ -921,8 +965,12 @@ export default function DashboardPage() {
       cheltuieli,
       meteo: meteo.data,
       treatmentIntervalByParcela,
+      pauzePeParcela,
+      tratamentePlanificateAzi,
     }
   }, [
+    pauzePeParcela,
+    tratamentePlanificateAzi,
     activitatiDashboard,
     cheltuieli,
     comenzi,
@@ -1644,6 +1692,8 @@ export default function DashboardPage() {
                 stocDisponibilKg={stocuriQuery.data ? stocuriQuery.data.disponibilCal1Kg : null}
                 parcelStates={parcelStates}
                 meteo={meteo.data}
+                pauze={acasaPauze}
+                tratamenteAzi={acasaTratamenteAzi}
               />
             </div>
 

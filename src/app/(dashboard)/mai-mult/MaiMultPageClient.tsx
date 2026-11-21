@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { useMemo, useRef, type ReactNode } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Archive,
   ArrowLeft,
@@ -24,6 +24,7 @@ import {
   Receipt,
   Settings,
   ShieldCheck,
+  SprayCan,
   Sprout,
   Store,
   Tag,
@@ -34,14 +35,20 @@ import {
 
 import { AppShell } from '@/components/app/AppShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
-import { kitFocus, kitText } from '@/components/kit'
+import { StatusPill, kitFocus, kitText } from '@/components/kit'
 import { usePushSubscription } from '@/components/notifications/usePushSubscription'
 import { IconBadge, NavRow, RowGroup, ScreenBody, ScreenHeader, type IconTone } from '@/components/setari/SetariUi'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { prepareClientBeforeServerSignOut } from '@/lib/auth/server-sign-out-form'
 import type { FarmMemberModuleAccess } from '@/lib/farm-members/access'
 import { useUnreadNotificationsCount } from '@/lib/notifications/useUnreadCount'
+import { queryKeys } from '@/lib/query-keys'
+import { getParcele } from '@/lib/supabase/queries/parcele'
 import { useShopOrdersInLivrareCount } from '@/lib/shop/useShopOrdersInLivrareCount'
+import { usePauzeActive } from '@/lib/tratamente/hooks'
+import { pauzeOrdonate } from '@/lib/tratamente/pauza'
+import { pastilaPauza } from '@/lib/tratamente/texte'
+import { aziRo } from '@/lib/tratamente/zile'
 import { SUPPORT_WHATSAPP_URL } from '@/lib/support'
 import { cn } from '@/lib/utils'
 
@@ -81,6 +88,12 @@ const ADMIN_ROWS = [
 
 /** Ce e deja în bara de jos nu se repetă pe plăci (aceeași regulă ca foaia de dinainte). */
 const MOBILE_NAV_PRIMARY = new Set(['/dashboard', '/livrari', '/recoltari', '/comenzi'])
+
+/** Tratamentele stau la modulul `activitati` pentru operatori (vezi `FARM_MEMBER_MODULE_ROUTES`). */
+function canOperatorSeeTratamente(memberRole: 'operator' | null | undefined, access: FarmMemberModuleAccess[] | undefined) {
+  if (memberRole !== 'operator') return true
+  return (access ?? []).some((item) => item.module === 'activitati')
+}
 
 function canOperatorSeeParcele(memberRole: 'operator' | null | undefined, access: FarmMemberModuleAccess[] | undefined) {
   if (memberRole !== 'operator') return true
@@ -123,6 +136,12 @@ function CountBadge({ count, className }: { count: number; className?: string })
   )
 }
 
+/** Numele parcelelor (pentru pastila de pauză), din lista de parcele deja în cache. */
+function useParcelNames(ids: readonly string[], enabled: boolean): string[] {
+  const { data } = useQuery({ queryKey: queryKeys.parcele, queryFn: getParcele, enabled: enabled && ids.length > 0, staleTime: 30_000, refetchOnWindowFocus: false })
+  return ids.map((id) => data?.find((parcela) => parcela.id === id)?.nume_parcela?.trim() || 'parcelă')
+}
+
 function NavTile({ item, badge }: { item: TileDef; badge?: number }) {
   return (
     <Link
@@ -160,6 +179,12 @@ export function MaiMultPageClient({ farmName, localitate }: { farmName: string |
 
   const isOperator = memberRole === 'operator'
   const canSeeParcele = canOperatorSeeParcele(memberRole, memberAccess)
+  const canSeeTratamente = canOperatorSeeTratamente(memberRole, memberAccess)
+  // Semnalul de pauză de pe rândul „Tratamente” (aceeași sursă ca Acasă și Recoltări).
+  const [azi] = useState(aziRo)
+  const { pauze } = usePauzeActive(azi, { enabled: canSeeTratamente })
+  const numeParcelePauza = useParcelNames(pauzeOrdonate(pauze).map((pauza) => pauza.parcelaId), canSeeTratamente)
+  const pastila = pastilaPauza(numeParcelePauza)
   // Deschisă din bara asociației (`/mai-mult?spatiu=asociatie`): aceeași listă ca foaia de dinainte.
   const inAssociationWorkspace = searchParams.get('spatiu') === 'asociatie' && Boolean(associationRole)
 
@@ -253,6 +278,18 @@ export function MaiMultPageClient({ farmName, localitate }: { farmName: string |
             {groups.map((group) => (
               <section key={group.title} className="space-y-2">
                 <h2 className={cn('font-bold text-fg-muted', kitText.secondary)}>{group.title}</h2>
+                {group.title === 'Ferma' && canSeeTratamente ? (
+                  <div className="overflow-hidden rounded-box border border-border bg-surface">
+                    <NavRow
+                      href="/tratamente"
+                      label="Tratamente"
+                      sub="Stropiri, fertirigare, pauză"
+                      icon={<SprayCan />}
+                      iconTone="primary"
+                      trailing={pastila ? <StatusPill tone="warning">{pastila}</StatusPill> : undefined}
+                    />
+                  </div>
+                ) : null}
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
                   {group.items.map((item) => (
                     <NavTile key={item.href} item={item} badge={item.href === '/livrari' ? shopInLivrareCount : undefined} />
