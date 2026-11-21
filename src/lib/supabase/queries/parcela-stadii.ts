@@ -130,3 +130,36 @@ export async function createParcelaStadiuCanonic(
   if (error) throw error
   return data
 }
+
+/** Stadiile din sezonul `an` pentru toate parcelele fermei (lista de parcele: stadiul curent pe card). */
+export async function getStadiiCanoniceFerma(an = getCurrentSezon()): Promise<ParcelaStadiuCanonic[]> {
+  const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
+
+  const { data, error } = await supabase
+    .from('stadii_fenologice_parcela')
+    .select(STADIU_SELECT)
+    .eq('tenant_id', tenantId)
+    .eq('an', an)
+    .order('data_observata', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(2000)
+
+  if (error) throw error
+  return data ?? []
+}
+
+/** Configurările de sezon (`sistem_conducere`: remontant sau nu) pentru toate parcelele fermei. */
+export async function getConfigurariSezonFerma(an = getCurrentSezon()): Promise<ConfigurareParcelaSezon[]> {
+  const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
+
+  const { data, error } = await supabase
+    .from('configurari_parcela_sezon')
+    .select(CONFIGURARE_SELECT)
+    .eq('tenant_id', tenantId)
+    .eq('an', an)
+
+  if (error) throw error
+  return data ?? []
+}

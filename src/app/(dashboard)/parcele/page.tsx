@@ -1,6 +1,11 @@
-import { ParcelePageClient } from '@/components/parcele/ParcelePageClient'
+import { Suspense } from 'react'
+
+import { ParceleListClient } from './ParceleListClient'
 
 export default function ParcelePage() {
-  return <ParcelePageClient />
+  return (
+    <Suspense fallback={null}>
+      <ParceleListClient />
+    </Suspense>
+  )
 }
-

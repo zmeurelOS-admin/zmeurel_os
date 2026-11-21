@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronRight, Ellipsis, Pencil, Plus, Shovel, Trash2 } from 'lucide-react'
@@ -32,25 +32,10 @@ import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { getLucrari, marcheazaLucrariFacute, stergeLucrare } from '@/lib/supabase/queries/lucrari'
 import { getParcele } from '@/lib/supabase/queries/parcele'
 import { textParcele } from '@/lib/tratamente/jurnal'
-import { aziRo, ZiCuDataRo, ziRelativaRo } from '@/lib/tratamente/zile'
+import { ZiCuDataRo, ziRelativaRo } from '@/lib/tratamente/zile'
+import { useAziRo } from '@/hooks/useAziRo'
 import { toast } from '@/lib/ui/toast'
 import { cn } from '@/lib/utils'
-
-// ─── Ziua de azi, în ora României (se schimbă singură peste noapte) ───────────
-
-function subscribeToDayChange(onChange: () => void) {
-  const onVisible = () => {
-    if (document.visibilityState === 'visible') onChange()
-  }
-  document.addEventListener('visibilitychange', onVisible)
-  const timer = window.setInterval(onChange, 60_000)
-  return () => {
-    document.removeEventListener('visibilitychange', onVisible)
-    window.clearInterval(timer)
-  }
-}
-const readToday = () => aziRo()
-const noServerDay = () => null
 
 /** Parametrii trimiși de chatul AI (și păstrați de redirecționarea din `/activitati-agricole`). */
 const PARAMETRI_AI = ['openForm', 'tip', 'parcela', 'parcela_id', 'parcela_label', 'produs', 'doza', 'data', 'observatii', 'edit'] as const
@@ -71,7 +56,7 @@ export function LucrariPageClient() {
   const { memberRole } = useDashboardAuth()
   const vedeProprietarul = memberRole !== 'operator'
 
-  const azi = useSyncExternalStore(subscribeToDayChange, readToday, noServerDay)
+  const azi = useAziRo()
   const [fila, setFila] = useState<'facute' | 'planificate'>(() => (searchParams.get('fila') === 'planificate' ? 'planificate' : 'facute'))
   const [deschis, setDeschis] = useState<RandLucrare | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
