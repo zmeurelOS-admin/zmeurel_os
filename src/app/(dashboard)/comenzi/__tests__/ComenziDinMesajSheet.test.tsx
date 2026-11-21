@@ -378,6 +378,96 @@ describe('ComenziDinMesajSheet', () => {
     expect(screen.queryByText('AI-ul a extras datele cu încredere mare')).not.toBeInTheDocument()
   })
 
+  it('reîncercarea aceleiași comenzi trimite aceleași chei: un singur client, o singură comandă', async () => {
+    // Serverul, pe scurt: un rând pe cheie. Prima salvare a comenzii ajunge, dar răspunsul se pierde.
+    const clientiSalvati = new Map<string, { id: string }>()
+    const comenziSalvate = new Map<string, Comanda>()
+    let pierdeRaspunsul = true
+    createCliențiMock.mockImplementation(async (input: { client_sync_id: string }) => {
+      const existing = clientiSalvati.get(input.client_sync_id) ?? { id: `client-${clientiSalvati.size + 1}` }
+      clientiSalvati.set(input.client_sync_id, existing)
+      return existing
+    })
+    createComandaMock.mockImplementation(async (input: { client_sync_id: string; client_id: string }) => {
+      const existing =
+        comenziSalvate.get(input.client_sync_id) ??
+        ({ ...createdOrder, id: `order-${comenziSalvate.size + 1}`, client_id: input.client_id } as Comanda)
+      comenziSalvate.set(input.client_sync_id, existing)
+      if (pierdeRaspunsul) {
+        pierdeRaspunsul = false
+        throw new Error('Failed to fetch')
+      }
+      return existing
+    })
+    const onCreated = vi.fn()
+
+    renderWithClient(<SheetHarness clienti={[]} onCreated={onCreated} />)
+    const user = await analyzeMessage({
+      nume_client: 'Client Nou',
+      telefon: '0740111222',
+      localitate: 'Ipotești',
+      adresa: 'Str. Florilor 4',
+      cantitate: 4,
+      unitate: 'kg',
+      pret_per_kg: 19,
+      data_livrare: '2026-06-21',
+      observatii: null,
+      incredere: 'mare',
+      campuri_lipsa: [],
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Creează comanda' }))
+    await waitFor(() => expect(toastErrorMock).toHaveBeenCalledWith('Failed to fetch'))
+    await user.click(screen.getByRole('button', { name: 'Creează comanda' }))
+    await waitFor(() => expect(onCreated).toHaveBeenCalledWith('order-1'))
+
+    expect(createComandaMock).toHaveBeenCalledTimes(2)
+    expect(createCliențiMock).toHaveBeenCalledTimes(2)
+    expect(clientiSalvati.size).toBe(1)
+    expect(comenziSalvate.size).toBe(1)
+    const cheiComanda = createComandaMock.mock.calls.map(([input]) => input.client_sync_id)
+    expect(cheiComanda[0]).toBeTruthy()
+    expect(cheiComanda[1]).toBe(cheiComanda[0])
+    // Clientul și comanda au chei diferite.
+    expect(createCliențiMock.mock.calls[0][0].client_sync_id).not.toBe(cheiComanda[0])
+  })
+
+  it('după o comandă salvată, următoarea (foaie redeschisă) pleacă cu altă cheie', async () => {
+    createComandaMock.mockResolvedValue(createdOrder)
+    const raspuns = {
+      nume_client: 'Maria',
+      telefon: '0740123456',
+      localitate: 'Burdujeni',
+      adresa: 'Str. Vișinilor 10',
+      cantitate: 2,
+      unitate: 'kg',
+      data_livrare: '2026-06-20',
+      observatii: null,
+      incredere: 'mare',
+      campuri_lipsa: [],
+    }
+
+    renderWithClient(<SheetHarness clienti={[existingClient]} />)
+    const user = await analyzeMessage(raspuns)
+    await user.click(screen.getByRole('button', { name: 'Creează comanda' }))
+    await waitFor(() => expect(createComandaMock).toHaveBeenCalledTimes(1))
+
+    await user.click(screen.getByRole('button', { name: 'Redeschide' }))
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => raspuns })
+    await user.type(
+      await screen.findByPlaceholderText('Lipește mesajul clientului (WhatsApp, SMS, orice...)'),
+      'Vreau comandă',
+    )
+    await user.click(screen.getByRole('button', { name: /Extrage datele/i }))
+    await user.click(await screen.findByRole('button', { name: 'Creează comanda' }))
+    await waitFor(() => expect(createComandaMock).toHaveBeenCalledTimes(2))
+
+    const chei = createComandaMock.mock.calls.map(([input]) => input.client_sync_id)
+    expect(chei[0]).toBeTruthy()
+    expect(chei[1]).toBeTruthy()
+    expect(chei[1]).not.toBe(chei[0])
+  })
+
   it('butonul principal după extracție este Creează comanda și fluxul normal nu pune PII în URL', async () => {
     renderWithClient(<SheetHarness clienti={[existingClient]} />)
     await analyzeMessage({

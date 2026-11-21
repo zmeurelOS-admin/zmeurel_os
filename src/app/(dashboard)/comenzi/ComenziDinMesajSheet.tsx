@@ -22,6 +22,7 @@ import {
   type ClientMatchSummary,
   type ClientPhoneMatchResult,
 } from '@/lib/comenzi/ai-order-client'
+import { generateClientId } from '@/lib/offline/generateClientId'
 import { queryKeys } from '@/lib/query-keys'
 import { createClienți, type ClientTip } from '@/lib/supabase/queries/clienti'
 import { createComanda } from '@/lib/supabase/queries/comenzi'
@@ -263,6 +264,10 @@ export function ComenziDinMesajSheet({
   const [isParsing, setIsParsing] = useState(false)
   const [parseError, setParseError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
+  // Cheile de idempotență ale comenzii propuse (și ale clientului nou din mesaj): aceleași cât e deschisă foaia,
+  // și la reîncercare, pentru același mesaj. Alt mesaj = altă comandă = alte chei. Se golesc la închidere.
+  const cheiPeMesaj = useRef(new Map<string, { comanda: string; client: string }>())
+  const cheiCurente = useRef<{ comanda: string; client: string } | null>(null)
 
   const confidenceUi = useMemo(
     () => (parsed ? getConfidenceUi(parsed.incredere) : null),
@@ -297,6 +302,8 @@ export function ComenziDinMesajSheet({
     setParseError(null)
     setFormError(null)
     setIsParsing(false)
+    cheiPeMesaj.current.clear()
+    cheiCurente.current = null
   }
 
   useEffect(() => {
@@ -391,9 +398,13 @@ export function ComenziDinMesajSheet({
         throw new Error(clientPlan.message)
       }
 
+      const chei = cheiCurente.current ?? { comanda: generateClientId(), client: generateClientId() }
+      cheiCurente.current = chei
+
       let finalClientId = resolvedClientId
       if (clientPlan.action === 'create-new') {
-        const createdClient = await createClienți(clientPlan.input)
+        // Cu cheie: dacă comanda pică după ce clientul s-a salvat, reîncercarea primește același client.
+        const createdClient = await createClienți({ ...clientPlan.input, client_sync_id: chei.client })
         finalClientId = createdClient.id
       }
 
@@ -411,6 +422,8 @@ export function ComenziDinMesajSheet({
         pret_per_kg: price,
         status: 'confirmata',
         observatii: currentDraft.notes.trim() || null,
+        // O comandă deja salvată cu această cheie nu se mai creează a doua oară (se întoarce cea existentă).
+        client_sync_id: chei.comanda,
       })
 
       return createdComanda
@@ -437,6 +450,10 @@ export function ComenziDinMesajSheet({
       toast.error('Lipește mesajul clientului înainte de extragere.')
       return
     }
+
+    const chei = cheiPeMesaj.current.get(text) ?? { comanda: generateClientId(), client: generateClientId() }
+    cheiPeMesaj.current.set(text, chei)
+    cheiCurente.current = chei
 
     setIsParsing(true)
     setParsed(null)
