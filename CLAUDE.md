@@ -171,7 +171,7 @@ Baza modulelor refăcute (Recoltări, apoi Comenzi + Livrări). Totul se import�
 
 **Verificare automată**
 
-`npm run check:kit` (`scripts/check-kit-rules.mjs`) pică la orice abatere de la regulile de mai sus în folderele din `KIT_RULE_DIRS` (`scripts/kit-rules.mjs`): acum `src/components/kit`, `src/app/(dashboard)/admin/kit`, `src/app/(dashboard)/recoltari` și `src/components/recoltari`. Folderul fiecărui modul refăcut se adaugă pe listă când începe refacerea lui. Testele kitului sunt în `src/components/kit/__tests__/` și rulează cu `npm run test:critical:unit`.
+`npm run check:kit` (`scripts/check-kit-rules.mjs`) pică la orice abatere de la regulile de mai sus în folderele din `KIT_RULE_DIRS` (`scripts/kit-rules.mjs`): kitul, `/admin/kit` și toate modulele refăcute (Recoltări, Comenzi, Livrări, Acasă pe telefon, Clienți, Culegători, Cheltuieli + Investiții, Vânzări, Mai mult, Notificări, Setări), cu folderele lor din `src/app/(dashboard)`, `src/components` și `src/lib`. Fișierele vechi rămase într-un folder verificat stau în `KIT_RULE_PENDING_FILES`. Folderul fiecărui modul refăcut se adaugă pe listă când începe refacerea lui. Testele kitului sunt în `src/components/kit/__tests__/` și rulează cu `npm run test:critical:unit`.
 
 ## AI Chat Widget
 

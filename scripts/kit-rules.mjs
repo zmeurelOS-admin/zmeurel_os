@@ -43,6 +43,12 @@ export const KIT_RULE_DIRS = [
   'src/app/(dashboard)/mai-mult',
   'src/app/(dashboard)/notificari',
   'src/app/(dashboard)/settings',
+  // Logica din spatele ecranelor refăcute: Recoltări, Setări (profilul fermei, exportul) și Acasă pe telefon.
+  // `src/components/notifications` și `src/lib/notifications/config.ts` rămân afară: clopoțelul și bannerul
+  // de pe desktop nu sunt refăcute, iar culorile hex din config merg în notificările push, nu în CSS.
+  'src/lib/recoltari',
+  'src/lib/setari',
+  'src/lib/dashboard',
 ]
 
 /**
