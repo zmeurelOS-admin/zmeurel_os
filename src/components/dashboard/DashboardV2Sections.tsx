@@ -392,42 +392,6 @@ export function DashboardQuickActionsCard({
   )
 }
 
-export function DashboardSeasonOverviewCard({
-  items,
-}: {
-  items: DashboardSeasonStatItem[]
-}) {
-  return (
-    <DashboardSectionCard
-      eyebrow="Sezonul curent"
-      title="Sezonul curent"
-      description="Indicatori cheie pentru ritmul comercial al fermei."
-    >
-      <div className="space-y-3">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="flex items-start justify-between gap-4"
-          >
-            <div className="min-w-0">
-              <p className="text-[13px] text-[var(--text-secondary)]">{item.label}</p>
-              {item.meta ? (
-                <p className="mt-0.5 text-[12px] leading-5 text-[var(--text-secondary)]">{item.meta}</p>
-              ) : null}
-              {item.trendLabel ? (
-                <p className="mt-0.5 text-[12px] leading-5 text-[var(--text-secondary)]">{item.trendLabel}</p>
-              ) : null}
-            </div>
-            <p className="shrink-0 text-right text-[1.05rem] font-semibold tabular-nums tracking-[-0.03em] text-[var(--text-primary)]">
-              {item.value}
-            </p>
-          </div>
-        ))}
-      </div>
-    </DashboardSectionCard>
-  )
-}
-
 export function DashboardTodayCard({
   stats,
   focusItems,

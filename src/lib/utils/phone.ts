@@ -26,21 +26,6 @@ export function isValidRomanianPhone(raw: string): boolean {
   return normalizePhone(raw) !== null
 }
 
-/** tel: link — always uses normalized 07xxxxxxxx */
-export function toTelLink(raw: string): string {
-  const n = normalizePhone(raw)
-  return n ? `tel:${n}` : `tel:${raw}`
-}
-
-/** WhatsApp link — uses 40xxxxxxxxx (without leading 0) */
-export function toWhatsAppLink(raw: string): string {
-  const n = normalizePhone(raw)
-  if (!n) return ''
-  // n is 07xxxxxxxx → replace leading 0 with 40
-  const intl = '40' + n.slice(1)
-  return `https://wa.me/${intl}`
-}
-
 /** Human-readable display: 07XX XXX XXX */
 export function formatPhoneDisplay(raw: string): string {
   const n = normalizePhone(raw)

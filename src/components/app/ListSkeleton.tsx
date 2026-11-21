@@ -31,14 +31,6 @@ export function ListSkeletonCard({ className }: ListSkeletonProps) {
   )
 }
 
-export function ListSkeletonRow({ className }: ListSkeletonProps) {
-  return (
-    <div className={cn('rounded-[var(--agri-radius)] border border-[var(--divider)] bg-[var(--surface-card)] px-4 py-3.5', className)}>
-      <SkeletonContent />
-    </div>
-  )
-}
-
 /** Loading listă entități (module dashboard) — același ritm ca MobileEntityCard. */
 export function EntityListSkeleton({ count = 4 }: { count?: number }) {
   return (

@@ -43,30 +43,3 @@ export function FormPageSkeleton({ fieldCount = 3 }: { fieldCount?: number }) {
     </div>
   )
 }
-
-/**
- * Skeleton pentru wizard-uri cu pași (ex. import Excel, plan nou), cu un
- * stepper static deasupra corpului de formular — oglindește structura
- * vizuală reală a stepper-ului din ImportFlowClient/PlanWizardScreen.
- */
-export function FormWizardSkeleton({ steps = 3 }: { steps?: number }) {
-  return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center">
-          {Array.from({ length: steps }).map((_, index) => (
-            <div key={index} className="flex items-center gap-3 md:flex-1">
-              <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
-              <Skeleton className="h-3 w-16 rounded-md" />
-              {index < steps - 1 ? (
-                <Skeleton className="hidden h-px flex-1 rounded-full md:block" />
-              ) : null}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <FormPageSkeleton fieldCount={3} />
-    </div>
-  )
-}

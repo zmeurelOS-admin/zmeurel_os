@@ -76,11 +76,6 @@ export function pretPentruClient(
   return { pret: standard.activ, sursa: 'standard' }
 }
 
-export function usePretStandard(): PretStandard {
-  const { settings } = useFarmSettings()
-  return resolvePretStandard(settings)
-}
-
 /**
  * Prețul standard plus starea încărcării. Cât `seIncarca` e `true`, prețul e cel de rezervă (35 lei/kg),
  * nu cel din Setări: ecranele arată un schelet în loc de preț și nu salvează cu el.

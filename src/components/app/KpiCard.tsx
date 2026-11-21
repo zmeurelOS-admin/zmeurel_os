@@ -5,7 +5,6 @@ import { ArrowDownRight, ArrowRight, ArrowUpRight } from 'lucide-react'
 
 import { InfoCard } from '@/components/ui/app-card'
 import { getStatusToneTokens, type StatusTone } from '@/lib/ui/theme'
-import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
 interface KpiCardProps {
@@ -91,18 +90,6 @@ export function KpiCard({
             {trend === 'up' ? 'Up' : trend === 'down' ? 'Down' : 'Stabil'}
           </span>
         </div>
-      </div>
-    </InfoCard>
-  )
-}
-
-export function KpiCardSkeleton() {
-  return (
-    <InfoCard className="animate-pulse">
-      <div className="space-y-3">
-        <Skeleton className="h-3 w-28" />
-        <Skeleton className="h-10 w-32" />
-        <Skeleton className="h-4 w-40" />
       </div>
     </InfoCard>
   )

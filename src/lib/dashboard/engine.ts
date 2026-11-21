@@ -486,38 +486,6 @@ export function buildDashboardAlerts(
   return alerts
 }
 
-export function buildDailySummary(params: {
-  greeting: string
-  todayLabel: string
-  greetingSummary: string | null
-  meteo: MeteoData | null
-}): DailySummary {
-  const meteoReason = params.meteo?.spray?.reason ?? null
-
-  return {
-    greeting: params.greeting,
-    todayLabel: params.todayLabel,
-    headline: params.greetingSummary,
-    meteoReason,
-  }
-}
-
-export function buildWeatherWindow(meteo: MeteoData | null): WeatherWindow {
-  return {
-    today: {
-      canSpray: meteo?.spray?.canSpray ?? null,
-      reason: meteo?.spray?.reason ?? null,
-    },
-    tomorrow: meteo?.forecastTomorrow
-      ? {
-          tempMin: meteo.forecastTomorrow.tempMin,
-          tempMax: meteo.forecastTomorrow.tempMax,
-          pop: meteo.forecastTomorrow.pop,
-        }
-      : null,
-  }
-}
-
 export function isWidgetEmpty(
   widgetId: DashboardWidgetId,
   params: {

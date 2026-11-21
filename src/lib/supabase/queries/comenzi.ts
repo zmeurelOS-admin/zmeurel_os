@@ -805,25 +805,3 @@ export async function getComenziStockSummaryAzi(): Promise<{
     legacyInLivrareKg: summary.legacyInLivrareFaraRezervareKg,
   }
 }
-
-export async function getKgAngajatInLivrare(): Promise<number> {
-  const summary = await getSellableCal1StockSummary()
-  return round2(summary.rezervatActivCal1Kg)
-}
-
-export async function fetchComenziManualInLivrare(): Promise<Comanda[]> {
-  const supabase = getSupabase()
-  const tenantId = await getTenantId(supabase)
-  const { fields } = await resolveComandaSelect()
-  const { data, error } = await supabase
-    .from('comenzi')
-    .select(fields)
-    .eq('tenant_id', tenantId)
-    .eq('status', 'in_livrare')
-    .or('data_origin.is.null,data_origin.not.in.(shop_order_bridge,magazin_asociatie)')
-    .order('data_livrare', { ascending: true, nullsFirst: false })
-    .order('created_at', { ascending: true })
-
-  if (error) throw toReadableError(error, 'Nu am putut încărca comenzile manuale în livrare.')
-  return ((data ?? []) as unknown as ComandaQueryRow[]).map(mapComanda)
-}

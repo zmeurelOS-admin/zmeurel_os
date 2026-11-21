@@ -295,50 +295,6 @@ export function getFinancialMutationError(error: unknown, context: {
   })
 }
 
-export function logFinancialMutationError(error: unknown, context?: {
-  fallbackMessage?: string
-  module?: FinancialModule
-  operation?: FinancialOperation
-  tableOrRpc?: FinancialTableOrRpc
-}) {
-  const normalized =
-    error instanceof FinancialMutationError
-      ? error
-      : context
-        ? getFinancialMutationError(error, {
-            fallbackMessage: context.fallbackMessage ?? 'Nu s-a putut salva. Încearcă din nou.',
-            module: context.module ?? 'cheltuieli',
-            operation: context.operation ?? 'insert',
-            tableOrRpc: context.tableOrRpc ?? 'public.cheltuieli_diverse',
-          })
-        : null
-
-  const payload = normalized
-    ? {
-        code: normalized.code ?? null,
-        message: normalized.message,
-        details: normalized.details ?? null,
-        hint: normalized.hint ?? null,
-        status: normalized.status ?? null,
-        module: normalized.module,
-        operation: normalized.operation,
-        tableOrRpc: normalized.tableOrRpc,
-      }
-    : {
-        code: null,
-        message: error instanceof Error ? error.message : 'unknown',
-        details: null,
-        hint: null,
-        status: null,
-        module: context?.module ?? null,
-        operation: context?.operation ?? null,
-        tableOrRpc: context?.tableOrRpc ?? null,
-      }
-
-  console.error('[financial-mutation]', payload)
-  return normalized
-}
-
 export type {
   FinancialModule,
   FinancialOperation,

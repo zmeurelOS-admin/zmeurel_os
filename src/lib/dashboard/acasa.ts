@@ -4,7 +4,7 @@
  */
 import { bucketOfComanda, isComandaDeschisa } from '@/lib/comenzi/day-view'
 import type { FarmSettings } from '@/lib/farm-settings'
-import { daysBetween, round2, shiftIso } from '@/lib/format-ro'
+import { round2, shiftIso } from '@/lib/format-ro'
 import type { ParcelDashboardState } from '@/lib/dashboard/engine'
 import type { ActivitateAgricola } from '@/lib/supabase/queries/activitati-agricole'
 import type { Comanda } from '@/lib/supabase/queries/comenzi'
@@ -284,10 +284,4 @@ export function sezonPeScurt(
 /** Comenzile deschise de fructe (pentru rândul din extrasezon, dacă mai există). */
 export function comenziDeschiseCount(comenzi: readonly Pick<Comanda, 'status'>[]): number {
   return comenzi.filter(isComandaDeschisa).length
-}
-
-/** Câte zile au trecut de la o zi (pentru „ultima recoltare: acum N zile”). */
-export function zileDeLa(dayIso: string | null, todayIso: string): number | null {
-  if (!dayIso) return null
-  return daysBetween(dayIso, todayIso)
 }

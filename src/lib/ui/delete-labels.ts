@@ -48,23 +48,6 @@ export function buildActivitateDeleteLabel(activitate: {
   ])
 }
 
-export function buildVanzareDeleteLabel(vanzare: {
-  data?: MaybeString
-  cantitate_kg?: MaybeNumber
-  pret_lei_kg?: MaybeNumber
-} | null | undefined, clientName?: MaybeString): string {
-  if (!vanzare) return 'Vanzare selectata'
-
-  const kg = Number(vanzare.cantitate_kg ?? 0)
-  const pret = Number(vanzare.pret_lei_kg ?? 0)
-  return joinParts([
-    formatDateRo(vanzare.data),
-    Number.isFinite(kg) ? `${kg.toFixed(2)} kg` : '',
-    Number.isFinite(pret) && pret > 0 ? `${pret.toFixed(2)} lei/kg` : '',
-    clientName || '',
-  ])
-}
-
 export function buildButasiOrderDeleteLabel(order: {
   data_comanda?: MaybeString
   items?: Array<{ soi?: MaybeString }>
@@ -80,37 +63,5 @@ export function buildButasiOrderDeleteLabel(order: {
     firstSoi ? `Soi: ${firstSoi}` : '',
     Number.isFinite(total) ? `${total.toFixed(2)} lei` : '',
     clientName || '',
-  ])
-}
-
-export function buildInvestitieDeleteLabel(investitie: {
-  data?: MaybeString
-  categorie?: MaybeString
-  suma_lei?: MaybeNumber
-} | null | undefined, parcelaName?: MaybeString): string {
-  if (!investitie) return 'Investitie selectata'
-
-  const suma = Number(investitie.suma_lei ?? 0)
-  return joinParts([
-    formatDateRo(investitie.data),
-    investitie.categorie || 'Investitie',
-    Number.isFinite(suma) ? `${suma.toFixed(2)} lei` : '',
-    parcelaName || '',
-  ])
-}
-
-export function buildCheltuialaDeleteLabel(cheltuiala: {
-  data?: MaybeString
-  categorie?: MaybeString
-  suma_lei?: MaybeNumber
-  furnizor?: MaybeString
-} | null | undefined): string {
-  if (!cheltuiala) return 'Cheltuiala selectata'
-  const suma = Number(cheltuiala.suma_lei ?? 0)
-  return joinParts([
-    formatDateRo(cheltuiala.data),
-    cheltuiala.categorie || 'Cheltuiala',
-    Number.isFinite(suma) ? `${suma.toFixed(2)} lei` : '',
-    cheltuiala.furnizor || '',
   ])
 }

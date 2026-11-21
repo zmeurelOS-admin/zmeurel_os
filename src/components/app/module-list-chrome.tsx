@@ -4,30 +4,6 @@ import type { ReactNode } from 'react'
 
 import { cn } from '@/lib/utils'
 
-/** Suprafață comună pentru scoreboard-uri de listă (module mobile). */
-export function ModuleScoreboard({
-  tone = 'surface',
-  className,
-  children,
-}: {
-  tone?: 'surface' | 'tinted'
-  className?: string
-  children: ReactNode
-}) {
-  return (
-    <div
-      className={cn(
-        'flex flex-wrap items-baseline gap-3 rounded-[var(--agri-radius-lg)] border px-3.5 py-2.5 shadow-[var(--agri-shadow)]',
-        tone === 'surface' && 'border-[var(--agri-border-card)] bg-[var(--agri-surface)]',
-        tone === 'tinted' && 'border-[var(--pill-active-border)] bg-[var(--pill-active-bg)]',
-        className,
-      )}
-    >
-      {children}
-    </div>
-  )
-}
-
 export function ModulePillRow({ className, children }: { className?: string; children: ReactNode }) {
   return <div className={cn('flex flex-wrap gap-1.5', className)}>{children}</div>
 }
