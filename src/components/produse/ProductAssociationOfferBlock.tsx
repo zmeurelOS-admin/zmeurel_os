@@ -1,5 +1,8 @@
 'use client'
 
+// Nefolosit din prompt 19: ecranul Produse e pe kit (`ProdusForm`), iar pozele, magazinul și asociația
+// nu se afișează până la magazinul nou. Codul rămâne pentru atunci; datele din bază sunt neatinse.
+
 import { useCallback, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'

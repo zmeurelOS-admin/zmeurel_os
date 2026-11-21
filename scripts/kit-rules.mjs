@@ -57,6 +57,9 @@ export const KIT_RULE_DIRS = [
   'src/app/(dashboard)/stocuri',
   'src/components/stocuri',
   'src/lib/stocuri',
+  'src/app/(dashboard)/produse',
+  'src/components/produse',
+  'src/lib/produse',
 ]
 
 /**
@@ -64,7 +67,14 @@ export const KIT_RULE_DIRS = [
  * Se scot de aici când modulul respectiv e refăcut.
  * - Echipa rămâne pe ecranul ei de dinainte (prompt 13: Setări s-a refăcut, Echipa nu).
  */
-export const KIT_RULE_PENDING_FILES = ['src/app/(dashboard)/settings/echipa/EchipaClient.tsx']
+export const KIT_RULE_PENDING_FILES = [
+  'src/app/(dashboard)/settings/echipa/EchipaClient.tsx',
+  // Produse: formularele vechi cu poze și blocul de asociație, nefolosite până la magazinul nou (prompt 19).
+  'src/components/produse/AddProdusDialog.tsx',
+  'src/components/produse/EditProdusDialog.tsx',
+  'src/components/produse/ProductAssociationOfferBlock.tsx',
+  'src/components/produse/ProdusFormSummary.tsx',
+]
 
 const TEXT_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.css'])
 const EXCLUDED_PATH_PATTERNS = [/\/__tests__\//, /\.test\.[cm]?[jt]sx?$/]

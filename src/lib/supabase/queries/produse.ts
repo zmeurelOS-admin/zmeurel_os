@@ -40,6 +40,7 @@ export interface CreateProdusInput {
   pret_unitar?: number | null
   poza_1_url?: string | null
   poza_2_url?: string | null
+  status?: 'activ' | 'inactiv'
 }
 
 export interface UpdateProdusInput {
@@ -122,6 +123,7 @@ export async function createProdus(input: CreateProdusInput): Promise<Produs> {
       pret_unitar: input.pret_unitar ?? null,
       poza_1_url: input.poza_1_url ?? null,
       poza_2_url: input.poza_2_url ?? null,
+      status: input.status ?? 'activ',
     })
     .select(SELECT_COLS)
     .single()
@@ -157,6 +159,23 @@ export async function deleteProdus(id: string): Promise<void> {
     .eq('tenant_id', tenantId)
 
   if (error) throw error
+}
+
+/**
+ * În câte comenzi și vânzări apare produsul (`comenzi.produs_id`, `vanzari.produs_id`, chei `ON DELETE SET NULL`).
+ * Ecranul Produse nu lasă ștergerea unui produs folosit: ar rămâne istoric fără produs.
+ */
+export async function getUtilizareProdus(id: string): Promise<{ comenzi: number; vanzari: number }> {
+  const supabase = getSupabase() as AnySupabase
+  const tenantId = await getTenantId(supabase)
+
+  const [comenzi, vanzari] = await Promise.all([
+    supabase.from('comenzi').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('produs_id', id),
+    supabase.from('vanzari').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('produs_id', id),
+  ])
+  if (comenzi.error) throw comenzi.error
+  if (vanzari.error) throw vanzari.error
+  return { comenzi: comenzi.count ?? 0, vanzari: vanzari.count ?? 0 }
 }
 
 /** Resize image on canvas to maxWidth (default 800) and return a JPEG Blob */
