@@ -587,38 +587,6 @@ export function CheltuialaStepForm({
             {saveError}
           </Notice>
         ) : null}
-        {bonUploadFailed ? (
-          <Notice
-            tone="danger"
-            title="Bonul nu s-a putut încărca."
-            action={
-              <div className="flex flex-col gap-2">
-                <Button type="button" variant="neutral" size="touch" className="w-full" disabled={!canSave} onClick={() => void save()}>
-                  Încearcă din nou
-                </Button>
-                <Button
-                  type="button"
-                  variant="neutral"
-                  size="touch"
-                  className="w-full"
-                  disabled={!canSave}
-                  onClick={() => void save({ withoutBon: true })}
-                >
-                  Salvează fără bon
-                </Button>
-              </div>
-            }
-          />
-        ) : showOfflineBon ? (
-          <Notice tone="warning" title="Poza bonului se poate adăuga doar cu internet.">
-            {editing
-              ? 'Modificările se salvează fără poza nouă.'
-              : isInvestitie
-                ? 'Investiția se salvează fără bon.'
-                : 'Cheltuiala se salvează fără bon.'}
-          </Notice>
-        ) : null}
-        {bonReadError ? <Notice tone="danger" title={BON_UNREADABLE_MESSAGE} /> : null}
 
         <div className="grid grid-cols-2 gap-2">
           <Pastila
@@ -664,6 +632,37 @@ export function CheltuialaStepForm({
         </div>
 
         <BonRow bon={bon} savedUrl={savedBonUrl} preparing={bonPreparing} disabled={saving} onPick={pickBon} onRemove={dropBon} />
+        {/*
+          Problemele cu bonul stau aici, sub rândul bonului, nu deasupra sumei: la 390 px o bandă deasupra
+          împingea suma sub tastatură. „Încearcă din nou” e butonul principal de jos.
+        */}
+        {bonUploadFailed ? (
+          <Notice
+            tone="danger"
+            title="Bonul nu s-a putut încărca."
+            action={
+              <Button
+                type="button"
+                variant="neutral"
+                size="touch"
+                className="w-full"
+                disabled={!canSave}
+                onClick={() => void save({ withoutBon: true })}
+              >
+                Salvează fără bon
+              </Button>
+            }
+          />
+        ) : showOfflineBon ? (
+          <Notice tone="warning" title="Poza bonului se poate adăuga doar cu internet.">
+            {editing
+              ? 'Modificările se salvează fără poza nouă.'
+              : isInvestitie
+                ? 'Investiția se salvează fără bon.'
+                : 'Cheltuiala se salvează fără bon.'}
+          </Notice>
+        ) : null}
+        {bonReadError ? <Notice tone="danger" title={BON_UNREADABLE_MESSAGE} /> : null}
         {/* Selectorul nativ al telefonului (cameră sau galerie), nu o fereastră a noastră peste formular. */}
         <input
           ref={bonInputRef}
@@ -713,7 +712,9 @@ export function CheltuialaStepForm({
               primary: {
                 label: saving
                   ? 'Se salvează…'
-                  : editing
+                  : bonUploadFailed
+                    ? 'Încearcă din nou'
+                    : editing
                     ? 'Salvează modificările'
                     : suma > 0
                       ? `Salvează ${formatLei(suma)}`
