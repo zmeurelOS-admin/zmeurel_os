@@ -76,6 +76,11 @@ function StatCard({ label, value }: { label: string; value: string }) {
   )
 }
 
+/** Începutul intervalului cerut (ISO), față de acum. */
+function sinceIso(rangeDays: number): string {
+  return new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000).toISOString()
+}
+
 export default async function AnalyticsMagazinPage({
   searchParams,
 }: {
@@ -83,7 +88,7 @@ export default async function AnalyticsMagazinPage({
 }) {
   const params = (await searchParams) ?? {}
   const rangeDays = parseRange(params.range)
-  const since = new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000).toISOString()
+  const since = sinceIso(rangeDays)
 
   const supabase = await createClient()
   const tenantId = await getTenantIdOrNull(supabase)

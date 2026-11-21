@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   addMonths,
   eachDayOfInterval,
@@ -223,6 +223,11 @@ function CalendarPanel({
   )
 }
 
+/** Luna afișată la deschidere: a valorii alese, altfel luna de azi. */
+function monthBaseFor(value: string, mode: AppDatePickerMode): Date {
+  return getSelectedDate(value, mode) ?? new Date()
+}
+
 export function AppDatePicker({
   id,
   label,
@@ -246,14 +251,19 @@ export function AppDatePicker({
   const [draftTime, setDraftTime] = useState(parsedDateTime?.time ?? '12:00')
   const [pendingDate, setPendingDate] = useState<string | null>(parsedDateTime?.date ?? (value.trim() || null))
 
-  useEffect(() => {
-    if (!open) return
-    const base = getSelectedDate(value, mode) ?? new Date()
-    setViewMonth(base)
-    const parsed = mode === 'datetime' ? parseDateTimeLocalValue(value) : null
-    setDraftTime(parsed?.time ?? '12:00')
-    setPendingDate(parsed?.date ?? (value.trim() || null))
-  }, [open, value, mode])
+  // La deschidere (și când valoarea se schimbă cât e deschis) ciorna pornește de la valoarea curentă.
+  // Ajustare în timpul randării, nu în efect: fără randarea în plus.
+  const syncKey = open ? `${mode}|${value}` : null
+  const [syncedKey, setSyncedKey] = useState<string | null>(null)
+  if (syncKey !== syncedKey) {
+    setSyncedKey(syncKey)
+    if (syncKey !== null) {
+      setViewMonth(monthBaseFor(value, mode))
+      const parsed = mode === 'datetime' ? parseDateTimeLocalValue(value) : null
+      setDraftTime(parsed?.time ?? '12:00')
+      setPendingDate(parsed?.date ?? (value.trim() || null))
+    }
+  }
 
   const labelId = label ? `${id}-label` : undefined
   const panelId = `${id}-calendar`
