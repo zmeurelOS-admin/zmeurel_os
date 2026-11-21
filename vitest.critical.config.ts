@@ -53,6 +53,8 @@ export default defineConfig(({ mode }) => {
         'src/lib/recoltari/__tests__/*.test.ts',
         'src/lib/tratamente/__tests__/*.test.ts',
         'src/lib/rapoarte/__tests__/*.test.ts',
+        'src/lib/stocuri/__tests__/*.test.ts',
+        'src/lib/produse/__tests__/*.test.ts',
         'src/lib/security/__tests__/*.test.ts',
         'src/lib/supabase/queries/__tests__/financial-saves.test.ts',
         'src/lib/supabase/queries/__tests__/livreaza-si-copiaza.test.ts',

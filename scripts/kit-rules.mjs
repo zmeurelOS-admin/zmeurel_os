@@ -53,6 +53,10 @@ export const KIT_RULE_DIRS = [
   'src/app/(dashboard)/tratamente',
   'src/components/tratamente',
   'src/lib/tratamente',
+  // Stocuri, Produse, Rapoarte (prompt 19)
+  'src/app/(dashboard)/stocuri',
+  'src/components/stocuri',
+  'src/lib/stocuri',
 ]
 
 /**

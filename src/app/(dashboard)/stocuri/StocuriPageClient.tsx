@@ -1,201 +1,222 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Ban, Home, Minus, MoreHorizontal, Plus, Snowflake, SlidersHorizontal, Soup } from 'lucide-react'
 
 import { AppShell } from '@/components/app/AppShell'
-import { DashboardContentShell } from '@/components/app/DashboardContentShell'
-import { ErrorState } from '@/components/app/ErrorState'
-import { LoadingState } from '@/components/app/LoadingState'
-import { PageHeader } from '@/components/app/PageHeader'
-import { AjustareStocDialog } from '@/components/stocuri/AjustareStocDialog'
-import { Button } from '@/components/ui/button'
-import StatusBadge from '@/components/ui/StatusBadge'
-import {
-  STOCK_AUDIT_CRITICAL_STOCK_THRESHOLD_KG,
-  STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG,
-} from '@/lib/calculations/stock-audit-thresholds'
+import { Button, EmptyState, ListRow, Notice, StatHero, kitText } from '@/components/kit'
+import { ScreenBody, ScreenHeader } from '@/components/setari/SetariUi'
+import { AjustareStocForm } from '@/components/stocuri/AjustareStocForm'
+import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
+import { formatKg, formatNumber } from '@/lib/format-ro'
 import { queryKeys } from '@/lib/query-keys'
-import {
-  AJUSTARE_STOC_TIP_LABELS,
-  getAjustariStoc,
-  type AjustareStocTip,
-} from '@/lib/supabase/queries/ajustari-stoc'
+import { ajustariPeZile, cal2InSezon, deltaKgText, descompunereStoc, esteTipAjustare, etichetaAjustare } from '@/lib/stocuri/stoc'
+import { getAjustariStoc, type AjustareStocTip } from '@/lib/supabase/queries/ajustari-stoc'
 import { getSellableCal1StockSummary } from '@/lib/supabase/queries/miscari-stoc'
+import { getParcele } from '@/lib/supabase/queries/parcele'
+import { getRecoltari } from '@/lib/supabase/queries/recoltari'
+import { aziRo, ziRelativaRo } from '@/lib/tratamente/zile'
+import { cn } from '@/lib/utils'
 
-function formatKg(value: number): string {
-  return new Intl.NumberFormat('ro-RO', {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  }).format(Number(value || 0))
+function subscribeToDayChange(onChange: () => void) {
+  const onVisible = () => {
+    if (document.visibilityState === 'visible') onChange()
+  }
+  document.addEventListener('visibilitychange', onVisible)
+  const timer = window.setInterval(onChange, 60_000)
+  return () => {
+    document.removeEventListener('visibilitychange', onVisible)
+    window.clearInterval(timer)
+  }
+}
+const readToday = () => aziRo()
+const noServerDay = () => null
+
+const ICON_TIP: Record<AjustareStocTip, React.ReactNode> = {
+  congelat: <Snowflake aria-hidden />,
+  procesat: <Soup aria-hidden />,
+  pierdere: <Ban aria-hidden />,
+  consum_propriu: <Home aria-hidden />,
+  corectie_plus: <Plus aria-hidden />,
+  corectie_minus: <Minus aria-hidden />,
+  altul: <MoreHorizontal aria-hidden />,
 }
 
-function formatDeltaKg(value: number): string {
-  const formatted = new Intl.NumberFormat('ro-RO', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Math.abs(Number(value || 0)))
-  return `${value >= 0 ? '+' : '−'}${formatted} kg`
-}
-
-function formatDataRo(value: string): string {
-  const parsed = new Date(`${value.slice(0, 10)}T12:00:00`)
-  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString('ro-RO')
-}
-
-function tipLabel(tip: string): string {
-  return AJUSTARE_STOC_TIP_LABELS[tip as AjustareStocTip] ?? tip
-}
-
-function stockStatus(totalKg: number): { label: string; tone: 'success' | 'warning' | 'danger' } {
-  if (totalKg <= 0) return { label: 'Gol', tone: 'danger' }
-  if (totalKg < STOCK_AUDIT_CRITICAL_STOCK_THRESHOLD_KG) return { label: 'Critic', tone: 'danger' }
-  if (totalKg < STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG) return { label: 'Atenție', tone: 'warning' }
-  return { label: 'OK', tone: 'success' }
-}
-
-function StockMetric({
-  label,
-  value,
-  tone = 'default',
-}: {
-  label: string
-  value: number
-  tone?: 'default' | 'success' | 'warning'
-}) {
-  const toneClass =
-    tone === 'success'
-      ? 'text-[var(--status-success-text)]'
-      : tone === 'warning'
-        ? 'text-[var(--status-warning-text)]'
-        : 'text-[var(--text-primary)]'
-
+function TipBadge({ tip }: { tip: string }) {
+  const cunoscut = esteTipAjustare(tip)
   return (
-    <div className="rounded-[18px] bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)]">
-      <p className="text-sm font-semibold text-[var(--text-secondary)]">{label}</p>
-      <p className={`mt-2 text-2xl tabular-nums [font-weight:750] ${toneClass}`}>
-        {formatKg(value)} kg
-      </p>
+    <span
+      aria-hidden
+      className={cn(
+        'flex size-11 shrink-0 items-center justify-center rounded-full [&_svg]:size-5',
+        tip === 'pierdere' ? 'bg-danger-bg text-danger-text' : tip === 'corectie_plus' ? 'bg-primary-soft text-primary' : 'bg-neutral-bg text-neutral-text',
+      )}
+    >
+      {cunoscut ? ICON_TIP[tip] : <MoreHorizontal aria-hidden />}
+    </span>
+  )
+}
+
+function RandDescompunere({ label, value, first = false }: { label: string; value: string; first?: boolean }) {
+  return (
+    <div className={cn('flex min-h-[52px] items-center justify-between gap-3 px-4 py-2', !first && 'border-t border-border')}>
+      <span className={cn('text-fg-muted', kitText.secondary)}>{label}</span>
+      <span className={cn('whitespace-nowrap font-extrabold tabular-nums text-fg', kitText.base)}>{value}</span>
     </div>
   )
 }
 
+/** „− 1.590 kg” / „+ 4 kg”, cu semnul cerut (descompunerea se citește ca o socoteală). */
+function semnKg(semn: '+' | '−', kg: number): string {
+  return `${semn} ${formatKg(Math.abs(kg))}`
+}
+
 export function StocuriPageClient() {
-  const [ajustareOpen, setAjustareOpen] = useState(false)
+  useTrackModuleView('stocuri')
+  const azi = useSyncExternalStore(subscribeToDayChange, readToday, noServerDay)
+  const [formOpen, setFormOpen] = useState(false)
 
-  const {
-    data: summary,
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = useQuery({
-    queryKey: queryKeys.stocGlobalCal1,
-    queryFn: getSellableCal1StockSummary,
-  })
+  const summaryQuery = useQuery({ queryKey: queryKeys.stocGlobalCal1, queryFn: getSellableCal1StockSummary })
+  const ajustariQuery = useQuery({ queryKey: queryKeys.ajustariStoc, queryFn: getAjustariStoc, staleTime: 30_000, refetchOnWindowFocus: false })
+  const recoltariQuery = useQuery({ queryKey: queryKeys.recoltari, queryFn: getRecoltari, staleTime: 30_000, refetchOnWindowFocus: false })
+  const parceleQuery = useQuery({ queryKey: queryKeys.parcele, queryFn: getParcele, staleTime: 30_000, refetchOnWindowFocus: false })
 
-  const ajustariQuery = useQuery({
-    queryKey: queryKeys.ajustariStoc,
-    queryFn: getAjustariStoc,
-    staleTime: 30000,
-    refetchOnWindowFocus: false,
-  })
-  const ajustari = ajustariQuery.data ?? []
+  const stoc = summaryQuery.data ? descompunereStoc(summaryQuery.data) : null
+  const cal2 = useMemo(
+    () => (azi && recoltariQuery.data && parceleQuery.data ? cal2InSezon(recoltariQuery.data, parceleQuery.data, azi) : null),
+    [azi, recoltariQuery.data, parceleQuery.data],
+  )
+  const zile = useMemo(() => ajustariPeZile(ajustariQuery.data ?? []), [ajustariQuery.data])
 
-  const disponibil = summary?.disponibilCal1Kg ?? 0
-  const status = stockStatus(disponibil)
+  const loading = summaryQuery.isLoading
+  const addButton = (
+    <Button type="button" variant="primary" size="touch-lg" className="w-full" disabled={!stoc} onClick={() => setFormOpen(true)}>
+      <SlidersHorizontal aria-hidden />
+      Ajustează stocul
+    </Button>
+  )
 
   return (
-    <AppShell header={<PageHeader title="Stocuri" subtitle="Pool vandabil cal. I" />}>
-      <DashboardContentShell variant="centered">
-        {isLoading ? <LoadingState label="Încărcăm stocul..." /> : null}
-
-        {isError ? (
-          <ErrorState
-            title="Nu am putut încărca stocul"
-            message={error instanceof Error ? error.message : 'Încearcă din nou.'}
-            onRetry={() => void refetch()}
-          />
+    <AppShell
+      header={<ScreenHeader title="Stocuri" backHref="/mai-mult" />}
+      bottomBarFixed
+      bottomBar={
+        stoc ? (
+          <div className="mx-auto w-full max-w-md pl-18 pr-4">
+            <div className="rounded-box shadow-2">{addButton}</div>
+          </div>
+        ) : undefined
+      }
+    >
+      <ScreenBody className="space-y-3.5 pb-28">
+        {summaryQuery.isError ? (
+          <Notice
+            tone="danger"
+            title="Stocul nu s-a încărcat"
+            action={
+              <Button type="button" variant="neutral" size="touch" className="w-full" onClick={() => void summaryQuery.refetch()}>
+                Încearcă din nou
+              </Button>
+            }
+          >
+            Verifică internetul și încearcă din nou.
+          </Notice>
         ) : null}
 
-        {!isLoading && !isError && summary ? (
-          <div className="space-y-5 pb-[calc(env(safe-area-inset-bottom)+24px)]">
-            <section className="rounded-[22px] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-[var(--text-secondary)]">Zmeură cal. I</p>
-                  <h2 className="mt-2 text-4xl leading-none text-[var(--text-primary)] [font-weight:750]">
-                    {formatKg(disponibil)} kg
-                  </h2>
-                  <p className="mt-2 text-sm text-[var(--text-secondary)]">
-                    Disponibil pentru comenzi, calculat din recoltări, comenzi și ajustări.
-                  </p>
-                </div>
-                <StatusBadge text={status.label} variant={status.tone} />
-              </div>
-              <div className="mt-4">
-                <Button type="button" onClick={() => setAjustareOpen(true)}>
-                  Ajustează stocul
-                </Button>
-              </div>
+        {loading ? (
+          <div className="space-y-3" aria-busy="true" aria-label="Se încarcă stocul">
+            <div className="h-40 animate-pulse rounded-card bg-surface-muted" />
+            <div className="h-52 animate-pulse rounded-box bg-surface-muted" />
+          </div>
+        ) : null}
+
+        {stoc ? (
+          <>
+            <StatHero
+              label="Zmeură cal. I disponibilă"
+              value={formatNumber(stoc.disponibil)}
+              unit="kg"
+              footer={
+                <p className={cn('font-semibold opacity-85', kitText.secondary)}>
+                  {stoc.disponibil > 0
+                    ? 'poți pune în livrare acum'
+                    : stoc.disponibil < 0
+                      ? 'comenzile depășesc ce ai recoltat'
+                      : 'nimic de pus în livrare acum'}
+                </p>
+              }
+            />
+
+            {/* Pe desktop bara de jos nu există: butonul stă în pagină. */}
+            <div className="hidden md:block">{addButton}</div>
+
+            <section aria-label="Din ce se compune" className="overflow-hidden rounded-box border border-border bg-surface">
+              <RandDescompunere first label="Recoltat cal. I" value={formatKg(stoc.recoltat)} />
+              <RandDescompunere label="Livrat" value={semnKg('−', stoc.livrat)} />
+              <RandDescompunere label="În livrare" value={semnKg('−', stoc.inLivrare)} />
+              <RandDescompunere label="Ajustări" value={stoc.ajustari === 0 ? formatKg(0) : semnKg(stoc.ajustari < 0 ? '−' : '+', stoc.ajustari)} />
             </section>
 
-            <section className="grid gap-3 md:grid-cols-3">
-              <StockMetric label="Recoltat cal. I" value={summary.recoltatCal1Kg} tone="success" />
-              <StockMetric label="Livrat" value={summary.consumatDefinitivCal1Kg} />
-              <StockMetric label="În livrare" value={summary.rezervatActivCal1Kg} tone="warning" />
-            </section>
+            <ListRow
+              avatar={false}
+              title="Cal. II"
+              detail="în sezon · informativ, nu intră în comenzi"
+              trailing={<span className={cn('whitespace-nowrap font-extrabold tabular-nums text-fg', kitText.base)}>{cal2 === null ? '…' : formatKg(cal2)}</span>}
+            />
 
-            <section className="rounded-[22px] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
-              <h3 className="text-sm font-semibold text-[var(--text-secondary)]">Istoric ajustări</h3>
+            <section aria-labelledby="stoc-ajustari" className="space-y-2">
+              <h2 id="stoc-ajustari" className={cn('px-1 pt-1 font-bold uppercase tracking-wide text-fg-subtle', kitText.helper)}>
+                Ajustări
+              </h2>
               {ajustariQuery.isError ? (
-                <p className="mt-3 text-sm text-[var(--status-danger-text)]">
-                  Nu am putut încărca istoricul ajustărilor.
-                </p>
-              ) : null}
-              {!ajustariQuery.isError && ajustari.length === 0 ? (
-                <p className="mt-3 text-sm text-[var(--text-secondary)]">
-                  Nicio ajustare încă. Folosește „Ajustează stocul” pentru congelat, procesat, pierderi sau consum
-                  propriu.
-                </p>
-              ) : null}
-              {ajustari.length > 0 ? (
-                <ul className="mt-3 divide-y divide-[var(--surface-divider)]">
-                  {ajustari.map((ajustare) => (
-                    <li key={ajustare.id} className="flex items-start justify-between gap-3 py-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-[var(--text-primary)]">
-                          {tipLabel(ajustare.tip)}
-                        </p>
-                        <p className="text-xs text-[var(--text-secondary)]">
-                          {formatDataRo(ajustare.data)}
-                          {ajustare.motiv ? ` • ${ajustare.motiv}` : ''}
-                        </p>
-                      </div>
-                      <span
-                        className={`shrink-0 text-sm font-semibold tabular-nums ${
-                          ajustare.delta_kg >= 0
-                            ? 'text-[var(--status-success-text)]'
-                            : 'text-[var(--status-danger-text)]'
-                        }`}
-                      >
-                        {formatDeltaKg(ajustare.delta_kg)}
-                      </span>
+                <Notice tone="danger" title="Istoricul ajustărilor nu s-a încărcat" />
+              ) : ajustariQuery.isLoading ? (
+                <div className="h-[68px] animate-pulse rounded-box bg-surface-muted" aria-busy="true" />
+              ) : zile.length === 0 ? (
+                <EmptyState
+                  icon={<SlidersHorizontal />}
+                  title="Nicio ajustare"
+                  description="Congelat, procesat, pierderi sau consum propriu: le notezi cu „Ajustează stocul”."
+                />
+              ) : (
+                <ul className="space-y-2">
+                  {zile.map((grupa) => (
+                    <li key={grupa.zi} className="space-y-2">
+                      <h3 className={cn('px-1 pt-1 font-bold text-fg-subtle', kitText.helper)}>{azi ? ziRelativaRo(grupa.zi, azi) : grupa.zi}</h3>
+                      <ul className="space-y-2">
+                        {grupa.randuri.map((rand) => (
+                          <li key={rand.id}>
+                            <ListRow
+                              avatar={false}
+                              leading={<TipBadge tip={rand.tip} />}
+                              title={etichetaAjustare(rand.tip)}
+                              detail={rand.motiv?.trim() || undefined}
+                              trailing={
+                                <span
+                                  className={cn(
+                                    'whitespace-nowrap font-extrabold tabular-nums',
+                                    kitText.base,
+                                    Number(rand.delta_kg) < 0 ? 'text-fg' : 'text-primary',
+                                  )}
+                                >
+                                  {deltaKgText(Number(rand.delta_kg))}
+                                </span>
+                              }
+                            />
+                          </li>
+                        ))}
+                      </ul>
                     </li>
                   ))}
                 </ul>
-              ) : null}
+              )}
             </section>
-
-            <section className="rounded-[18px] bg-[var(--surface-card-muted)] p-4 text-sm leading-relaxed text-[var(--text-secondary)]">
-              Stocul este afișat ca total pe fermă. Detalierea pe parcelă sau pe mișcări istorice nu mai este sursa de
-              adevăr pentru disponibilul vandabil.
-            </section>
-          </div>
+          </>
         ) : null}
-      </DashboardContentShell>
+      </ScreenBody>
 
-      <AjustareStocDialog open={ajustareOpen} onOpenChange={setAjustareOpen} disponibilKg={disponibil} />
+      <AjustareStocForm open={formOpen} onOpenChange={setFormOpen} disponibilKg={stoc?.disponibil ?? 0} />
     </AppShell>
   )
 }
