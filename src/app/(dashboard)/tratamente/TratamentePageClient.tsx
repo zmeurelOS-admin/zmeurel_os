@@ -1,9 +1,9 @@
 'use client'
 
-import { useMemo, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Droplets, FlaskConical, Mountain, Plus, SprayCan } from 'lucide-react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 import { AppShell } from '@/components/app/AppShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
@@ -101,6 +101,7 @@ export function TratamentePageClient() {
   useTrackModuleView('tratamente')
   const queryClient = useQueryClient()
   const searchParams = useSearchParams()
+  const router = useRouter()
   const { memberRole } = useDashboardAuth()
   // Operatorul vede jurnalul; scrierea o decide baza de date (`operator_can_write('tratamente')`).
   const isOperator = memberRole === 'operator'
@@ -113,6 +114,7 @@ export function TratamentePageClient() {
   const [formOpen, setFormOpen] = useState(false)
   const [initial, setInitial] = useState<CiornaTratament | null>(null)
   const [busy, setBusy] = useState<'facut' | 'anulat' | null>(null)
+  const [parcelaInitiala, setParcelaInitiala] = useState<string | null>(null)
 
   const { pauze, aplicari, activitati, loading } = usePauzeActive(azi)
   const parceleQuery = useQuery({ queryKey: queryKeys.parcele, queryFn: getParcele, staleTime: 30_000, refetchOnWindowFocus: false })
@@ -145,8 +147,24 @@ export function TratamentePageClient() {
 
   const deschideFormular = (ciorna: CiornaTratament | null) => {
     setInitial(ciorna)
+    setParcelaInitiala(null)
     setFormOpen(true)
   }
+
+  // „+ Tratament” din fișa parcelei: `/tratamente?parcela=<id>` deschide formularul cu parcela aleasă.
+  const parcelaDinUrl = searchParams.get('parcela')?.trim() ?? ''
+  useEffect(() => {
+    if (!parcelaDinUrl || !azi || parceleQuery.isLoading) return
+    const exista = (parceleQuery.data ?? []).some((parcela) => parcela.id === parcelaDinUrl)
+    queueMicrotask(() => {
+      if (exista) {
+        setInitial(null)
+        setParcelaInitiala(parcelaDinUrl)
+        setFormOpen(true)
+      }
+      router.replace('/tratamente', { scroll: false })
+    })
+  }, [azi, parcelaDinUrl, parceleQuery.data, parceleQuery.isLoading, router])
 
   const repeta = (rand: RandJurnal) => {
     const ciorna = ciornaDinTratament(rand.aplicari, new Set(parcele.map((parcela) => parcela.id)), catalogPeId)
@@ -355,6 +373,7 @@ export function TratamentePageClient() {
           aplicari={aplicari}
           todayIso={azi}
           initial={initial}
+          parcelaInitiala={parcelaInitiala}
           meteo={meteo.data ?? null}
         />
       ) : null}

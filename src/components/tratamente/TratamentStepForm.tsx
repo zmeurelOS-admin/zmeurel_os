@@ -63,6 +63,8 @@ export interface TratamentStepFormProps {
   todayIso: string
   /** „Repetă” din jurnal: formularul pornește direct la pasul 2, cu ciorna asta. */
   initial: CiornaTratament | null
+  /** Din fișa parcelei („+ Tratament”): parcela vine aleasă, oricare ar fi metoda. */
+  parcelaInitiala?: string | null
   meteo: {
     spray?: { canSpray: boolean; reason?: string } | null
     current?: { temp: number | null; windSpeed: number | null } | null
@@ -109,7 +111,7 @@ function istoricDin(aplicari: readonly AplicareRow[]): AplicareIstoric[] {
  * Alegerea produsului și calendarul țin locul conținutului pasului (nimic nu se deschide peste formular).
  * Cheia formularului (`form.clientSyncId`) e lotul aplicărilor: aceeași la reîncercare, deci fără dublare.
  */
-export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplicari, todayIso, initial, meteo }: TratamentStepFormProps) {
+export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplicari, todayIso, initial, parcelaInitiala = null, meteo }: TratamentStepFormProps) {
   const queryClient = useQueryClient()
   const form = useStepForm({
     steps: STEPS,
@@ -132,7 +134,7 @@ export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplica
   if (!open && sessionKey !== null) setSessionKey(null)
   if (open && sessionKey !== form.clientSyncId) {
     setSessionKey(form.clientSyncId)
-    setCiorna(initial ?? EMPTY)
+    setCiorna(initial ?? (parcelaInitiala ? { ...EMPTY, parcelaIds: [parcelaInitiala] } : EMPTY))
     setVolumEditat(false)
     setVedere(null)
     setCand('acum')
@@ -233,7 +235,14 @@ export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplica
       ...EMPTY,
       metoda,
       // Fertirigarea pornește pe toate parcelele (bifezi doar ce uzi azi); stropirea, cu una dacă e singura.
-      parcelaIds: metoda === 'fertirigare' ? parceleSortate.map((parcela) => parcela.id) : parceleSortate.length === 1 ? [parceleSortate[0].id] : [],
+      parcelaIds:
+        parcelaInitiala && parceleSortate.some((parcela) => parcela.id === parcelaInitiala)
+          ? [parcelaInitiala]
+          : metoda === 'fertirigare'
+            ? parceleSortate.map((parcela) => parcela.id)
+            : parceleSortate.length === 1
+              ? [parceleSortate[0].id]
+              : [],
     })
     setVolumEditat(false)
     form.next()
