@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { jurnalParcela } from '@/lib/parcele/jurnal-parcela'
 import { semnalParcela, textPlanificat } from '@/lib/parcele/semnal'
 import { kgPeParcela, sezonParcela } from '@/lib/parcele/sezon-parcela'
-import { stadiuCurentParcela } from '@/lib/parcele/stadiu-curent'
+import { grupBiologicParcela, stadiuCurentParcela } from '@/lib/parcele/stadiu-curent'
 import type { AplicareRow } from '@/lib/tratamente/model'
 import type { ParcelaStadiuCanonic } from '@/lib/supabase/queries/parcela-stadii'
 
@@ -156,8 +156,16 @@ describe('stadiul curent', () => {
       config: { sistem_conducere: 'mixt_floricane_primocane' },
     })
     expect(result.mixt).toBe(true)
-    expect(result.text).toMatch(/^Floricane: .+ · Primocane: .+$/)
+    expect(result.text).toBe('Recoltare pe floricane · Înflorit pe primocane')
+    expect(result.text?.split(' · ')).toHaveLength(2)
     expect(result.ziua).toBe('2026-07-14')
+  })
+
+  it('grupul biologic: zmeura și când cultura e scrisă cu soiul', () => {
+    expect(grupBiologicParcela({ cultura: 'Zmeură' })).toBe('rubus')
+    expect(grupBiologicParcela({ cultura: 'Zmeure Maravilla' })).toBe('rubus')
+    expect(grupBiologicParcela({ cultura: null, tip_fruct: 'zmeure' })).toBe('rubus')
+    expect(grupBiologicParcela({ cultura: 'Necunoscut' })).toBeNull()
   })
 
   it('fără stadii', () => {

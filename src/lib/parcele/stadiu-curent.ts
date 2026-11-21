@@ -35,17 +35,28 @@ export function formatStadiuFenologicCurentSummary(
     .filter((entry) => options?.includeEmptyCohorts || entry.stage)
     .map((entry) => {
       const label = entry.stage ? formatStadiuFenologicLabel(entry.stage, grupBiologic, entry.cohort) : 'Fără stadiu'
-      if (entry.cohort) return `${getCohortaLabel(entry.cohort)}: ${label}`
-      return label
+      if (!entry.cohort) return label
+      // Etichetele de zmeură spun deja cohorta („După recoltare floricane”): nu o mai scriem de două ori.
+      if (label.toLocaleLowerCase('ro-RO').includes(entry.cohort)) return label
+      return `${getCohortaLabel(entry.cohort)}: ${label}`
     })
 
   if (parts.length === 0) return emptyLabel
   return parts.join(' · ')
 }
 
-/** Grupul biologic al parcelei (zmeura = `rubus`), din cultura ei. */
+/**
+ * Grupul biologic al parcelei (zmeura = `rubus`), din cultura ei. Cultura e uneori scrisă împreună cu soiul
+ * („Zmeure Maravilla”): se încearcă și primul cuvânt.
+ */
 export function grupBiologicParcela(parcela: { cultura?: string | null; tip_fruct?: string | null }): GrupBiologic | null {
-  return getGrupBiologicForCropCod(normalizeCropCod(parcela.cultura) ?? normalizeCropCod(parcela.tip_fruct))
+  const primulCuvant = (value: string | null | undefined) => String(value ?? '').trim().split(/\s+/)[0] ?? ''
+  const cod =
+    normalizeCropCod(parcela.cultura) ??
+    normalizeCropCod(parcela.tip_fruct) ??
+    normalizeCropCod(primulCuvant(parcela.cultura)) ??
+    normalizeCropCod(primulCuvant(parcela.tip_fruct))
+  return getGrupBiologicForCropCod(cod)
 }
 
 export interface StadiuCurentParcela {

@@ -145,7 +145,8 @@ export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
       numeStadiu: (row) => {
         const cohort = normalizeCohort(row.cohort)
         const label = formatStadiuFenologicLabel(row, grup, cohort)
-        return cohort ? `${cohort === 'floricane' ? 'Floricane' : 'Primocane'}: ${label.toLocaleLowerCase('ro-RO')}` : label
+        if (!cohort || label.toLocaleLowerCase('ro-RO').includes(cohort)) return label
+        return `${cohort === 'floricane' ? 'Floricane' : 'Primocane'}: ${label.toLocaleLowerCase('ro-RO')}`
       },
       textCine: (cine) => textCine(cine, vedeProprietarul),
       azi,

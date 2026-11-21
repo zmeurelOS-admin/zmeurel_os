@@ -151,6 +151,7 @@ const LEGACY_CROP_CODE_MAP: Record<string, CropCod> = {
   visin: 'visin',
   zmeur: 'zmeur',
   zmeura: 'zmeur',
+  zmeure: 'zmeur',
 }
 
 export function isValidCropCod(value: string): value is CropCod {

@@ -91,7 +91,9 @@ export function StadiuStepForm({ open, onOpenChange, parcelaId, parcelaNume, gru
       void queryClient.invalidateQueries({ queryKey: queryKeys.stadiiFerma(an) })
       void queryClient.invalidateQueries({ queryKey: queryKeys.parcelaCultureStages(parcelaId) })
       hapticSuccess()
-      setSaved(`${mixt ? `${getCohortaLabel(cohort)}: ` : ''}${eticheta(stadiu)} · ${ZiCuDataRo(zi)}`)
+      const nume = eticheta(stadiu)
+      const cuCohorta = mixt && !nume.toLocaleLowerCase('ro-RO').includes(cohort) ? `${getCohortaLabel(cohort)}: ${nume}` : nume
+      setSaved(`${cuCohorta} · ${ZiCuDataRo(zi)}`)
       form.markSuccess()
     } catch (error) {
       hapticError()

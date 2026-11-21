@@ -6,6 +6,7 @@ import { ChevronDown, Plus, Sprout, Thermometer } from 'lucide-react'
 
 import { Button, ListRow, StatTile, kitFocus, kitText } from '@/components/kit'
 import { useMeteo } from '@/hooks/useMeteo'
+import { shortDateRo } from '@/lib/format-ro'
 import { getConditiiMediuLabel } from '@/lib/parcele/culturi'
 import { queryKeys } from '@/lib/query-keys'
 import { getCulturiForSolar, type Cultura } from '@/lib/supabase/queries/culturi'
@@ -72,7 +73,7 @@ export function CulturiSolar({
               <ListRow
                 avatar={false}
                 title={numeCultura(cultura)}
-                detail={[cultura.nr_plante ? `${cultura.nr_plante} plante` : null, cultura.suprafata_ocupata ? `${cultura.suprafata_ocupata} m²` : null, cultura.data_plantarii ? `plantată ${cultura.data_plantarii}` : null].filter(Boolean).join(' · ') || undefined}
+                detail={[cultura.nr_plante ? `${cultura.nr_plante} plante` : null, cultura.suprafata_ocupata ? `${cultura.suprafata_ocupata} m²` : null, cultura.data_plantarii ? `plantată ${shortDateRo(cultura.data_plantarii)}` : null].filter(Boolean).join(' · ') || undefined}
                 trailing={
                   poateScrie ? (
                     <Button type="button" variant="quiet" size="touch" onClick={() => onDesfiinteaza(cultura)}>
@@ -92,7 +93,7 @@ export function CulturiSolar({
             {desfiintate.map((cultura) => (
               <li key={cultura.id} className={cn('text-fg-muted', kitText.secondary)}>
                 {numeCultura(cultura)}
-                {cultura.data_desfiintare ? ` · ${cultura.data_desfiintare}` : ''}
+                {cultura.data_desfiintare ? ` · desființată ${shortDateRo(cultura.data_desfiintare)}` : ''}
                 {cultura.motiv_desfiintare ? ` · ${cultura.motiv_desfiintare}` : ''}
               </li>
             ))}
