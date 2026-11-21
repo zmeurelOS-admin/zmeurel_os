@@ -12,6 +12,7 @@ import { PageViewTracker } from '@/components/app/PageViewTracker'
 import { RouteTransitionIndicator } from '@/components/app/RouteTransitionIndicator'
 import { NotificationToastProvider } from '@/components/notifications/NotificationToastProvider'
 import { AddActionProvider } from '@/contexts/AddActionContext'
+import { QUERY_DEFAULT_OPTIONS } from '@/lib/query-defaults'
 import { primeTenantIdCache } from '@/lib/tenant/get-tenant'
 
 export function Providers({
@@ -21,25 +22,11 @@ export function Providers({
   children: React.ReactNode
   initialAuth: DashboardAuthValue
 }) {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 60_000,
-            gcTime: 10 * 60_000,
-            placeholderData: (previousData: unknown) => previousData,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-            retry: 1,
-          },
-        },
-      })
-  )
+  const [queryClient] = useState(() => new QueryClient({ defaultOptions: QUERY_DEFAULT_OPTIONS }))
 
-  // Serverul (proxy → layout) a rezolvat deja tenantul sesiunii: îl dăm funcțiilor de query înainte de primele
-  // interogări (efectele copiilor rulează după acest render), ca să nu-l mai caute fiecare în parte.
+  // Când layout-ul are tenantul sesiunii (din antetul pus de proxy), îl dăm funcțiilor de query înainte de primele
+  // interogări (efectele copiilor rulează după acest render), ca să nu-l mai caute nici măcar o dată.
+  // Fără el (`tenantId: null`), `getTenantId` îl rezolvă singur, o singură dată pe sesiune.
   const tenantKey = `${initialAuth.userId ?? ''}:${initialAuth.tenantId ?? ''}`
   const [primedTenantKey, setPrimedTenantKey] = useState<string | null>(null)
   if (primedTenantKey !== tenantKey) {

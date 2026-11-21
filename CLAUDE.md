@@ -11,7 +11,7 @@ npm run typecheck    # tsc --noEmit
 npm run build        # next build --webpack (runs check-env.js first)
 npm run check        # lint + typecheck + build (full CI gate)
 npm run check:kit    # regulile kitului de componente (tokeni canonici, text ≥ 13 px, straturi)
-npm run test:critical:unit  # testele unitare (vitest, `vitest.critical.config.ts`; fișierele noi de test se adaugă în `include`)
+npm run test:critical:unit  # testele unitare (vitest, `vitest.critical.config.ts`; fișierele noi de test se adaugă în `include`; un folder cu paranteze se scrie `[(]dashboard[)]`)
 npm run test:e2e     # Playwright e2e tests (`e2e/admin-access.spec.ts`: acces admin; dacă DB-ul blochează `is_superadmin` via service role, setează E2E_SUPERADMIN_EMAIL/PASSWORD în `.env.local`)
 ```
 
@@ -66,11 +66,17 @@ Client pages follow a two-file pattern:
 
 Drepturile operatorilor (`src/lib/farm-members/access.ts`): Tratamentele au modulul lor, `tratamente` (Nu / Citește / Scrie, ruta `/tratamente`), separat de Lucrări (`activitati`). Drepturile salvate se citesc **doar** prin `resolveFarmMemberAccess`: un rând vechi cu `activitati` și fără `tratamente` primește `tratamente: read` (fără update în `farm_members`); „Nu” explicit se scrie cu `toStoredFarmMemberAccess` ca `{ module: 'tratamente', level: 'none' }`, ignorat de baza de date. Echipa e `/settings/echipa` (logica în `src/lib/echipa`); „Documente legale” sunt **Actele fermei**, `/settings/ferma/acte` (`/settings/documente-legale` redirecționează); ce lipsește vine dintr-o singură funcție, `stareActe` (`src/lib/acte/stare.ts`), folosită de ecran, banner și Setări.
 
-TanStack Query defaults (set in `src/app/providers.tsx`):
+TanStack Query defaults (`QUERY_DEFAULT_OPTIONS` din `src/lib/query-defaults.ts`, puse în `src/app/providers.tsx`):
 ```ts
 staleTime: 60_000, gcTime: 10 * 60_000,
-refetchOnWindowFocus: false, refetchOnReconnect: false, refetchOnMount: false, retry: 1
+refetchOnWindowFocus: false, refetchOnReconnect: false, retry: 1,
+refetchOnMount: (query) => query.state.isInvalidated
 ```
+`refetchOnMount`: o pagină redeschisă arată datele din memorie fără altă cerere, în afară de cazul în care interogarea a fost invalidată cât pagina era închisă (atunci se reîncarcă). Nu pune `refetchOnMount: false` pe o interogare: invalidările făcute din altă pagină s-ar pierde.
+
+Tenantul în browser: `getTenantId` / `getTenantIdOrNull` îl rezolvă o singură dată pe utilizator și îl țin în modul (cel mult 10 minute; `resetTenantIdCache()` la delogare și la acceptarea invitației). Pe server nu se ține nimic. Ce coloane noi există (`schema-features`) se ține minte în `localStorage`.
+
+Tot ce schimbă stocul cheamă `invalidateStock(queryClient)` (`src/lib/query-keys.ts`, lista `STOCK_QUERY_KEYS`), direct sau prin `invalidateDupaRecoltare` / `invalidateDupaComanda`. O cheie nouă care citește stocul se adaugă în listă.
 
 All query keys are defined in `src/lib/query-keys.ts`.
 
@@ -79,7 +85,8 @@ All query keys are defined in `src/lib/query-keys.ts`.
 Nu există coadă offline: o salvare fără internet pică, iar formularul păstrează ce s-a scris și cheia, ca „Salvează” apăsat din nou să nu dubleze. Formularele de creare trimit un `client_sync_id` (UUID; `form.clientSyncId` din `useStepForm`, altfel `generateClientId()` din `src/lib/offline/generateClientId.ts`), același cât e deschis formularul și la reîncercare. Serverul deduplică pe el; `23505` pe indexul cheii înseamnă că rândul există deja și se tratează ca reușită (se recitește rândul).
 
 - `recoltari`, `vanzari`, `cheltuieli_diverse`, `activitati_agricole`: `client_sync_id uuid not null default gen_random_uuid()` + index unic pe `(client_sync_id)`. Recoltările trec prin RPC-ul `create_recoltare_idempotent`.
-- `comenzi`, `clienti`, `culegatori`, `investitii` (migrarea `20261121140000`): `client_sync_id uuid null` + index unic parțial pe `(tenant_id, client_sync_id)`. Helper-ele din `src/lib/supabase/idempotency.ts` (`cheieDeTrimis`, `findByClientSyncId`, `isClientSyncConflict`); cheia pleacă doar când coloana există (`schema-features`, grupul `cheiIdempotenta`).
+- `comenzi`, `clienti`, `culegatori`, `investitii` (migrarea `20261121140000`): `client_sync_id uuid null` + index unic parțial pe `(tenant_id, client_sync_id)`. Helper-ele din `src/lib/supabase/idempotency.ts` (`cheieDeTrimis`, `findByClientSyncId`, `isClientSyncConflict`); cheia pleacă doar când coloana există (`schema-features`, grupul `cheiIdempotenta`). Vânzarea rapidă și „Din mesaj” trimit și ele cheia pe comandă (și pe clientul nou).
+- `ajustari_stoc` (migrarea `20261121190000`): aceeași formă, iar RPC-ul `create_ajustare_stoc` primește `p_client_sync_id` și întoarce rândul existent pentru o cheie deja scrisă. Fără migrare, PostgREST răspunde `PGRST202` și `createAjustareStoc` trimite din nou, fără cheie.
 - Plățile parțiale ale unei vânzări: RPC `adauga_plata_vanzare` cu cheia plății (`vanzari.plati_aplicate`), migrarea `20261121120000`.
 
 ### UI Layout
