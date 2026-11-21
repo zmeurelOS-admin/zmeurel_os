@@ -1,4 +1,5 @@
 import { getSupabase } from '../client'
+import { isClientSyncConflict } from '@/lib/supabase/idempotency'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 import type { Tables } from '@/types/supabase'
 
@@ -32,6 +33,8 @@ export interface CreateAjustareStocInput {
   cantitateKg: number
   motiv?: string | null
   data?: string | null
+  /** Cheia de idempotență a formularului (aceeași la reîncercare): o cheie deja salvată nu mai face altă ajustare. */
+  clientSyncId?: string | null
 }
 
 type SupabaseLikeError = {
@@ -49,8 +52,42 @@ type AjustariRpcClient = ReturnType<typeof getSupabase> & {
       p_delta_kg: number
       p_motiv: string | null
       p_data: string | null
+      p_client_sync_id?: string
     },
   ) => Promise<{ data: AjustareStoc | null; error: SupabaseLikeError | null }>
+}
+
+const AJUSTARE_COLUMNS = 'id,tenant_id,data,delta_kg,tip,motiv,created_by,created_at'
+
+/**
+ * Are RPC-ul parametrul `p_client_sync_id` (migrarea `20261121190000_ajustari_stoc_client_sync_id.sql`)?
+ * `null` = încă nu știm. Aflăm din primul apel: PostgREST răspunde `PGRST202` când funcția nu are parametrul,
+ * iar atunci cererea se reia fără cheie (ca înainte de migrare). Fără o cerere de probă în plus.
+ */
+let rpcAreCheie: boolean | null = null
+
+/** Doar pentru teste. */
+export function resetAjustariStocCheieCache(): void {
+  rpcAreCheie = null
+}
+
+/** Funcția nu există cu acești parametri (migrarea cu cheia nu e aplicată). */
+function isMissingRpcParam(error: SupabaseLikeError | null): boolean {
+  if (!error) return false
+  return error.code === 'PGRST202' || /could not find the function/i.test(error.message ?? '')
+}
+
+async function findAjustareByKey(key: string): Promise<AjustareStoc | null> {
+  const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
+  const { data, error } = await supabase
+    .from('ajustari_stoc')
+    .select(AJUSTARE_COLUMNS)
+    .eq('tenant_id', tenantId)
+    .eq('client_sync_id', key)
+    .maybeSingle()
+  if (error) throw toReadableError(error, 'Nu am putut verifica ajustarea salvată.')
+  return (data as AjustareStoc | null) ?? null
 }
 
 function round2(value: number): number {
@@ -90,17 +127,37 @@ export async function createAjustareStoc(input: CreateAjustareStocInput): Promis
 
   const delta = input.tip === 'corectie_plus' ? cantitate : -cantitate
   const rpcClient = supabase as AjustariRpcClient
-
-  const { data, error } = await rpcClient.rpc('create_ajustare_stoc', {
+  const args = {
     p_tip: input.tip,
     p_delta_kg: delta,
     p_motiv: input.motiv?.trim() || null,
     p_data: input.data || null,
-  })
+  }
+  const key = input.clientSyncId || null
 
-  if (error) throw toReadableError(error, 'Nu am putut salva ajustarea de stoc.')
-  if (!data) throw new Error('Nu am primit ajustarea salvată de la baza de date.')
-  return data
+  let result: { data: AjustareStoc | null; error: SupabaseLikeError | null }
+  if (key && rpcAreCheie !== false) {
+    result = await rpcClient.rpc('create_ajustare_stoc', { ...args, p_client_sync_id: key })
+    if (isMissingRpcParam(result.error)) {
+      // Migrarea cu cheia nu e aplicată: aceeași salvare, fără cheie.
+      rpcAreCheie = false
+      result = await rpcClient.rpc('create_ajustare_stoc', args)
+    } else if (!result.error) {
+      rpcAreCheie = true
+    }
+  } else {
+    result = await rpcClient.rpc('create_ajustare_stoc', args)
+  }
+
+  // Două cereri simultane cu aceeași cheie: rândul există deja, îl recitim (reușită, nu eroare).
+  if (result.error && key && isClientSyncConflict(result.error)) {
+    const existing = await findAjustareByKey(key)
+    if (existing) return existing
+  }
+
+  if (result.error) throw toReadableError(result.error, 'Nu am putut salva ajustarea de stoc.')
+  if (!result.data) throw new Error('Nu am primit ajustarea salvată de la baza de date.')
+  return result.data
 }
 
 export async function getAjustariStoc(): Promise<AjustareStoc[]> {
@@ -109,7 +166,7 @@ export async function getAjustariStoc(): Promise<AjustareStoc[]> {
 
   const { data, error } = await supabase
     .from('ajustari_stoc')
-    .select('id,tenant_id,data,delta_kg,tip,motiv,created_by,created_at')
+    .select(AJUSTARE_COLUMNS)
     .eq('tenant_id', tenantId)
     .order('data', { ascending: false })
     .order('created_at', { ascending: false })

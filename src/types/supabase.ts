@@ -275,6 +275,7 @@ export type Database = {
       }
       ajustari_stoc: {
         Row: {
+          client_sync_id: string | null
           created_at: string
           created_by: string | null
           data: string
@@ -285,6 +286,7 @@ export type Database = {
           tip: string
         }
         Insert: {
+          client_sync_id?: string | null
           created_at?: string
           created_by?: string | null
           data?: string
@@ -295,6 +297,7 @@ export type Database = {
           tip: string
         }
         Update: {
+          client_sync_id?: string | null
           created_at?: string
           created_by?: string | null
           data?: string
@@ -5154,12 +5157,14 @@ export type Database = {
       }
       create_ajustare_stoc: {
         Args: {
+          p_client_sync_id?: string
           p_data?: string
           p_delta_kg: number
           p_motiv?: string
           p_tip: string
         }
         Returns: {
+          client_sync_id: string | null
           created_at: string
           created_by: string | null
           data: string

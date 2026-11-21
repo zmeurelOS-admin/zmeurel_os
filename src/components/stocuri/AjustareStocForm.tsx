@@ -87,7 +87,8 @@ export function AjustareStocForm({ open, onOpenChange, disponibilKg }: AjustareS
   }
 
   const kg = fields.numbers.kg
-  // `ajustari_stoc` nu are cheie de idempotență: o cheie de formular salvată nu mai pleacă a doua oară.
+  // Cheia formularului pleacă spre server (`client_sync_id`): o reîncercare primește ajustarea deja scrisă.
+  // Garda din memorie rămâne pentru baza de date fără migrarea cu cheia.
   const savedKeys = useRef(new Set<string>())
   const inFlight = useRef(false)
 
@@ -102,7 +103,7 @@ export function AjustareStocForm({ open, onOpenChange, disponibilKg }: AjustareS
     setSaving(true)
     setSaveError(null)
     try {
-      const rand = await createAjustareStoc({ tip, cantitateKg: kg, motiv: nota.trim() || null })
+      const rand = await createAjustareStoc({ tip, cantitateKg: kg, motiv: nota.trim() || null, clientSyncId: key })
       savedKeys.current.add(key)
       void queryClient.invalidateQueries({ queryKey: queryKeys.ajustariStoc })
       void queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobalCal1 })
