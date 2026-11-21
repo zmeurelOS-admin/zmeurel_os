@@ -371,8 +371,6 @@ _Last updated: 2026-03-20 (session 4)_
 | `src/lib/supabase/queries/investitii.ts` | CRUD investiții de capital |
 | `src/lib/supabase/queries/miscari-stoc.ts` ⭐ | Mișcări stoc, stoc global, filtre locații |
 | `src/lib/supabase/queries/culturi.ts` | CRUD culturi sere/solarii |
-| `src/lib/supabase/queries/crops.ts` | Catalog culturi global + auto-creare |
-| `src/lib/supabase/queries/crop-varieties.ts` | Varietăți culturi |
 | `src/lib/supabase/queries/manopera-auto.ts` | Creare automată cheltuieli manoperă din recoltări |
 | `src/lib/supabase/queries/alertDismissals.ts` | Dismiss alerte |
 | `src/lib/supabase/queries/solar-tracking.ts` | Tracking sere: stadii + climă |
@@ -398,7 +396,6 @@ _Last updated: 2026-03-20 (session 4)_
 | Fișier | Descriere |
 |--------|-----------|
 | `src/lib/offline/generateClientId.ts` | `generateClientId()` — UUID pentru idempotency |
-| `src/lib/offline/syncEngine.ts` ⭐ | IndexedDB queue + retry cu exponential backoff |
 
 ### calculations/
 | Fișier | Descriere |

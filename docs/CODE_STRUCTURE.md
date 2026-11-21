@@ -200,8 +200,6 @@ Key query files:
 - `investitii.ts`
 - `vanzari-butasi.ts`
 - `solar-tracking.ts`
-- `crops.ts`
-- `crop-varieties.ts`
 
 Query-urile și agregările campaniei B2C care nu sunt CRUD generic stau în `src/lib/shop/`: `campaign-admin-queries.ts` conține agregarea pură după telefon și atribuirea premiilor finale, iar `shop-orders-queries.ts` deservește listele operaționale Shop din ERP.
 
@@ -213,7 +211,7 @@ Implementation note:
 
 - `src/proxy.ts` request guard and tenant header injector (Next.js 16: `export const config` in the same file; no separate `middleware.ts`)
 - `src/lib/tenant/destructive-cleanup.ts` canonical tenant-scoped destructive delete order shared by reset/GDPR/demo cleanup flows
-- `src/lib/offline/syncables.ts` local allowlist for tables that may use the generic idempotent sync RPC
+- `src/lib/supabase/idempotency.ts` cheia de idempotență (`client_sync_id`) la creare pentru comenzi, clienți, culegători, investiții
 - `src/lib/prefetch-idle.ts` constrained-network-aware idle prefetch helper used by mobile/dashboard navigation
 - `src/lib/financial/categories.ts` centralized financial taxonomies and legacy-to-current normalization for cheltuieli/investiții/payment methods
 - `next.config.js` PWA + Sentry config, plus conditional bundle analyzer support when `ANALYZE=true`

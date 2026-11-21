@@ -14,8 +14,6 @@ export const queryKeys = {
   comenzi: ['comenzi'] as const,
   comenziStockSummaryAzi: ['comenzi', 'stock-summary-azi'] as const,
   culegatori: ['culegatori'] as const,
-  crops: (tipUnitate: string) => ['crops', tipUnitate] as const,
-  cropVarieties: (cropId: string | null) => ['crop-varieties', cropId] as const,
   dashboard: ['dashboard'] as const,
   investitii: ['investitii'] as const,
   meteo: ['meteo'] as const,

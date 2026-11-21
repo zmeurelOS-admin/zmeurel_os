@@ -210,7 +210,7 @@ Actualizată:
 - Prefer minimal, local changes over large refactors.
 - Keep new code consistent with existing module/query/component patterns.
 - Preserve idempotency and offline sync semantics where `client_sync_id`, `sync_status`, or RPC upsert flows already exist.
-- Keep the offline sync table allowlist in `src/lib/offline/syncables.ts` aligned with the SQL `upsert_with_idempotency` contract.
+- There is no offline queue anymore (the old `src/lib/offline` engine was removed on 2026-11-21); idempotent creates use `client_sync_id` (see `src/lib/supabase/idempotency.ts`).
 - Preserve analytics and monitoring hooks unless the task explicitly changes instrumentation.
 - Pentru logare server-side în zone sensibile (AI chat, integrații, endpointuri publice), folosește helper-ele din `src/lib/logging/redaction.ts` (`sanitizeForLog`, `toSafeErrorContext`) și evită logarea inputului brut, tokenurilor, emailurilor, telefoanelor sau body-urilor externe complete.
 - Sentry a fost eliminat în `2026-05-08`. Plan de reinstalare: la `50+` utilizatori activi, errors-only, fără Replay.
