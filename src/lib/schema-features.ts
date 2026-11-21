@@ -1,6 +1,6 @@
 /**
  * Ce coloane din migrările redesign-ului (`20261120090000_redesign_noapte.sql`,
- * `20261121140000_client_sync_id_…`) există deja în baza de date.
+ * `20261121140000_client_sync_id_…`, `20261121160000_tratamente_modul.sql`) există deja în baza de date.
  *
  * Migrarea o rulează Andrei, manual, după ce o aprobă. Până atunci codul trebuie să meargă fără ea:
  * - funcțiile care au nevoie de coloanele noi sunt ascunse sau doar pentru citire, cu o valoare de rezervă;
@@ -20,6 +20,7 @@ export type SchemaFeature =
   | 'pretStandard'
   | 'acasaPerioada'
   | 'cheiIdempotenta'
+  | 'tratamenteLot'
 
 export type SchemaFeatures = Record<SchemaFeature, boolean>
 
@@ -31,6 +32,7 @@ export const NO_SCHEMA_FEATURES: SchemaFeatures = {
   pretStandard: false,
   acasaPerioada: false,
   cheiIdempotenta: false,
+  tratamenteLot: false,
 }
 
 /** O coloană reprezentativă pe grup: coloanele unui grup se adaugă împreună, în aceeași migrare. */
@@ -42,6 +44,9 @@ const PROBES: Record<SchemaFeature, { table: string; column: string }> = {
   acasaPerioada: { table: 'tenant_settings', column: 'acasa_perioada_mod' },
   // `client_sync_id` pe comenzi, clienti, culegatori, investitii vin împreună (20261121140000).
   cheiIdempotenta: { table: 'comenzi', column: 'client_sync_id' },
+  // Modulul Tratamente (20261121160000): `aplicari_tratament.lot_id`, `aplicari_tratament_produse.rezervor` și
+  // `doza_g_per_planta`, `parcele.volum_solutie_l` vin împreună.
+  tratamenteLot: { table: 'aplicari_tratament', column: 'lot_id' },
 }
 
 const MISSING_COLUMN_CODES = new Set(['42703', 'PGRST204'])

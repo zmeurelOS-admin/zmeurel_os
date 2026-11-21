@@ -54,6 +54,7 @@ describe('schema-features', () => {
         'tenant_settings.pret_standard_perioada',
         'tenant_settings.acasa_perioada_mod',
         'comenzi.client_sync_id',
+        'aplicari_tratament.lot_id',
       ]),
     )
     await expect(probeSchemaFeatures(client)).resolves.toEqual(NO_SCHEMA_FEATURES)
@@ -68,8 +69,9 @@ describe('schema-features', () => {
       pretStandard: true,
       acasaPerioada: true,
       cheiIdempotenta: true,
+      tratamenteLot: true,
     })
-    expect(calls).toHaveLength(6)
+    expect(calls).toHaveLength(7)
   })
 
   it('o altă eroare nu e luată drept „lipsește”: verificarea se reia', async () => {

@@ -403,6 +403,7 @@ export type Database = {
           doza_l_per_ha: number | null
           doza_ml_per_hl: number | null
           id: string
+          lot_id: string | null
           meteo_snapshot: Json | null
           metoda_aplicare: string | null
           observatii: string | null
@@ -434,6 +435,7 @@ export type Database = {
           doza_l_per_ha?: number | null
           doza_ml_per_hl?: number | null
           id?: string
+          lot_id?: string | null
           meteo_snapshot?: Json | null
           metoda_aplicare?: string | null
           observatii?: string | null
@@ -465,6 +467,7 @@ export type Database = {
           doza_l_per_ha?: number | null
           doza_ml_per_hl?: number | null
           id?: string
+          lot_id?: string | null
           meteo_snapshot?: Json | null
           metoda_aplicare?: string | null
           observatii?: string | null
@@ -551,12 +554,14 @@ export type Database = {
           created_at: string
           doza_l_per_ha: number | null
           doza_ml_per_hl: number | null
+          doza_g_per_planta: number | null
           frac_irac_snapshot: string | null
           id: string
           observatii: string | null
           ordine: number
           phi_zile_snapshot: number | null
           plan_linie_produs_id: string | null
+          rezervor: string | null
           produs_id: string | null
           produs_nume_manual: string | null
           produs_nume_snapshot: string
@@ -574,12 +579,14 @@ export type Database = {
           created_at?: string
           doza_l_per_ha?: number | null
           doza_ml_per_hl?: number | null
+          doza_g_per_planta?: number | null
           frac_irac_snapshot?: string | null
           id?: string
           observatii?: string | null
           ordine: number
           phi_zile_snapshot?: number | null
           plan_linie_produs_id?: string | null
+          rezervor?: string | null
           produs_id?: string | null
           produs_nume_manual?: string | null
           produs_nume_snapshot: string
@@ -597,12 +604,14 @@ export type Database = {
           created_at?: string
           doza_l_per_ha?: number | null
           doza_ml_per_hl?: number | null
+          doza_g_per_planta?: number | null
           frac_irac_snapshot?: string | null
           id?: string
           observatii?: string | null
           ordine?: number
           phi_zile_snapshot?: number | null
           plan_linie_produs_id?: string | null
+          rezervor?: string | null
           produs_id?: string | null
           produs_nume_manual?: string | null
           produs_nume_snapshot?: string
@@ -2468,6 +2477,7 @@ export type Database = {
           tip_unitate: string
           updated_at: string
           updated_by: string | null
+          volum_solutie_l: number | null
         }
         Insert: {
           an_plantare: number
@@ -2503,6 +2513,7 @@ export type Database = {
           tip_unitate?: string
           updated_at?: string
           updated_by?: string | null
+          volum_solutie_l?: number | null
         }
         Update: {
           an_plantare?: number
@@ -2538,6 +2549,7 @@ export type Database = {
           tip_unitate?: string
           updated_at?: string
           updated_by?: string | null
+          volum_solutie_l?: number | null
         }
         Relationships: [
           {
