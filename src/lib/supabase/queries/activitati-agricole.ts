@@ -3,6 +3,7 @@ import { getSupabase } from '../client'
 import { generateBusinessId } from '@/lib/supabase/business-ids'
 import { ACTIVITATI_PER_TIP } from '@/lib/activitati/activity-options'
 import { getTenantId } from '@/lib/tenant/get-tenant'
+import { loadSchemaFeaturesSafe } from '@/lib/schema-features'
 
 export { TIPURI_ACTIVITATE_DEPRECATE } from '@/lib/activitati/activity-options'
 
@@ -76,17 +77,24 @@ const toError = (error: SupabaseLikeError): Error & SupabaseLikeError => {
   })
 }
 
+/**
+ * Activitățile făcute (lucrări și tratamentele vechi). Lucrările planificate (`status = 'planificata'`, după
+ * migrarea `20261121180000`) nu intră: nu s-au făcut încă, deci nu țin pauze, „ultima activitate” sau rapoarte.
+ * Le citește doar modulul Lucrări (`getLucrari`).
+ */
 export async function getActivitatiAgricole(): Promise<ActivitateAgricola[]> {
   const supabase = getSupabase()
+  const { lucrariPlanificate } = await loadSchemaFeaturesSafe()
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('activitati_agricole')
     .select('id,id_activitate,data_aplicare,parcela_id,tip_activitate,tip_deprecat,produs_utilizat,doza,timp_pauza_zile,operator,observatii,created_at,updated_at,tenant_id')
+  if (lucrariPlanificate) query = query.or('status.is.null,status.neq.planificata')
+  const { data, error } = await query
     .order('data_aplicare', { ascending: false })
     .order('created_at', { ascending: false })
 
   if (error) {
-    
     throw error
   }
 

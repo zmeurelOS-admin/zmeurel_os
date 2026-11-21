@@ -16,6 +16,10 @@ export const queryKeys = {
   culegatori: ['culegatori'] as const,
   dashboard: ['dashboard'] as const,
   investitii: ['investitii'] as const,
+  /** Lucrările (rândurile din `activitati_agricole`, cu planificatele, după migrarea `20261121180000`). */
+  lucrari: ['lucrari'] as const,
+  /** Stadiile și configurările de sezon ale tuturor parcelelor fermei, pe an (lista de parcele). */
+  stadiiFerma: (an: number) => ['stadii-ferma', an] as const,
   meteo: ['meteo'] as const,
   miscariStoc: ['miscari-stoc'] as const,
   currentUserProfile: ['current-user-profile'] as const,

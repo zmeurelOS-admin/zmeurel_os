@@ -60,7 +60,7 @@ const FARM_GROUPS: TileGroupDef[] = [
     title: 'Ferma',
     items: [
       { href: '/parcele', label: 'Parcele', icon: <Map />, tone: 'primary' },
-      { href: '/activitati-agricole', label: 'Activități', icon: <Sprout />, tone: 'primary' },
+      { href: '/lucrari', label: 'Lucrări', icon: <Sprout />, tone: 'primary' },
       { href: '/stocuri', label: 'Stocuri', icon: <Archive />, tone: 'primary' },
       { href: '/produse', label: 'Produse', icon: <Tag />, tone: 'primary' },
       { href: '/vanzari-butasi', label: 'Material săditor', icon: <Leaf />, tone: 'primary' },

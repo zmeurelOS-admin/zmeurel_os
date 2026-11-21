@@ -247,7 +247,7 @@ export function ActivitatiPlanificateWidget({
       placeholder={empty}
       footer={
         <Button asChild size="sm" variant="outline">
-          <Link href="/activitati-agricole">Vezi activitățile</Link>
+          <Link href="/lucrari">Vezi lucrările</Link>
         </Button>
       }
     >

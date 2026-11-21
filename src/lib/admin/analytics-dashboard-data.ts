@@ -233,6 +233,7 @@ async function avgDaysToFirstParcel(
 
 const MODULE_ROUTE_ALIASES: Record<string, string> = {
   'activitati-agricole': 'activitati',
+  lucrari: 'activitati',
   'vanzari-butasi': 'vanzari',
 }
 

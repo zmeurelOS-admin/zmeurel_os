@@ -259,7 +259,7 @@ function buildSmartActions(params: {
       id: 'treatments',
       label: 'Vezi tratamentele pe teren',
       hint: 'Ai parcele cu tratamente sau pauze active.',
-      href: '/activitati-agricole',
+      href: '/tratamente',
     })
   }
   if (hasLowStock) {
@@ -325,7 +325,7 @@ export default function DashboardPage() {
   }, [])
 
   useEffect(() => {
-    const routesToPrefetch = ['/parcele', '/activitati-agricole', '/recoltari', '/vanzari', '/comenzi', '/stocuri']
+    const routesToPrefetch = ['/parcele', '/lucrari', '/recoltari', '/vanzari', '/comenzi', '/stocuri']
     const runPrefetch = () => {
       routesToPrefetch.forEach((href) => {
         router.prefetch(href)

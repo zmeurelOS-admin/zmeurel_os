@@ -28,7 +28,7 @@ export const FARM_MEMBER_MODULE_LABELS: Record<FarmMemberModule, string> = {
   clienti: 'Clienți',
   culegatori: 'Culegători',
   produse: 'Produse',
-  activitati: 'Activități agricole',
+  activitati: 'Lucrări',
 }
 
 export const FARM_MEMBER_MODULE_ROUTES: Record<FarmMemberModule, string[]> = {
@@ -39,8 +39,9 @@ export const FARM_MEMBER_MODULE_ROUTES: Record<FarmMemberModule, string[]> = {
   clienti: ['/clienti', '/clienti-magazin'],
   culegatori: ['/culegatori'],
   produse: ['/produse'],
-  // Tratamentele intră la Activități: operatorul le vede; scrierea cere dreptul `tratamente` din baza de date.
-  activitati: ['/activitati-agricole', '/tratamente'],
+  // Lucrările (fostele Activități agricole; `/activitati-agricole` redirecționează la `/lucrari`) și Tratamentele:
+  // operatorul le vede; scrierea tratamentelor cere dreptul `tratamente` din baza de date. Cheia modulului rămâne `activitati`.
+  activitati: ['/lucrari', '/activitati-agricole', '/tratamente'],
 }
 
 export const FARM_MEMBER_MODULE_DEFAULT_ROUTE: Record<FarmMemberModule, string> = {
@@ -51,7 +52,7 @@ export const FARM_MEMBER_MODULE_DEFAULT_ROUTE: Record<FarmMemberModule, string> 
   clienti: '/clienti',
   culegatori: '/culegatori',
   produse: '/produse',
-  activitati: '/activitati-agricole',
+  activitati: '/lucrari',
 }
 
 export const LEGACY_OPERATOR_ACCESS: FarmMemberModuleAccess[] = [

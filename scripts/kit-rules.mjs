@@ -63,6 +63,10 @@ export const KIT_RULE_DIRS = [
   'src/app/(dashboard)/rapoarte',
   'src/components/rapoarte',
   'src/lib/rapoarte',
+  // Parcele și Lucrări (prompt 20; fostele Activități agricole)
+  'src/app/(dashboard)/lucrari',
+  'src/components/lucrari',
+  'src/lib/lucrari',
 ]
 
 /**

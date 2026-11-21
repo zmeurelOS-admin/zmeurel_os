@@ -397,7 +397,7 @@ export function AcasaMobile({
                         leading={<RowIcon><CalendarClock aria-hidden /></RowIcon>}
                         title={lucrare.titlu}
                         detail={`Planificată: ${weekdayDateRo(lucrare.data)}`}
-                        onClick={go('/activitati-agricole')}
+                        onClick={go('/lucrari?fila=planificate')}
                       />
                     </li>
                   ))

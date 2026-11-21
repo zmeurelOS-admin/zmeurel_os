@@ -810,9 +810,9 @@ export const DASHBOARD_PRIMARY_QUICK_ACTIONS: DashboardQuickActionItem[] = [
   },
   {
     id: 'activities',
-    label: 'Activități',
-    hint: 'Lucrări și tratamente',
-    href: '/activitati-agricole',
+    label: 'Lucrări',
+    hint: 'Tăiere, palisare, prășit, irigație',
+    href: '/lucrari',
     icon: Sprout,
   },
   {
