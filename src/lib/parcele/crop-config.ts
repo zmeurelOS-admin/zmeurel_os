@@ -5,6 +5,28 @@ const PARCEL_CROPS_START = '[zmeurel:parcel-crops]'
 const PARCEL_CROPS_END = '[/zmeurel:parcel-crops]'
 const HARVEST_CROP_START = '[zmeurel:harvest-crop]'
 const HARVEST_CROP_END = '[/zmeurel:harvest-crop]'
+/**
+ * Recoltarea făcută dintr-o parcelă în pauză după tratament: motivul ales („Recoltez totuși”).
+ * Stă în `observatii`, ascuns, ca `[zmeurel:harvest-crop]`: semnătura RPC-ului de creare nu se schimbă
+ * și nu e nevoie de o migrare. `resolve_recoltare_stock_identity` citește doar blocul harvest-crop.
+ */
+const HARVEST_PAUSE_START = '[zmeurel:recoltare-pauza]'
+const HARVEST_PAUSE_END = '[/zmeurel:recoltare-pauza]'
+
+export type MotivRecoltarePauza = 'consum_propriu' | 'fructe_aruncate' | 'altceva'
+
+export const MOTIV_RECOLTARE_PAUZA_TEXT: Record<MotivRecoltarePauza, string> = {
+  consum_propriu: 'Pentru consum propriu',
+  fructe_aruncate: 'Fructe aruncate',
+  altceva: 'Altceva',
+}
+
+export interface RecoltarePauza {
+  motiv: MotivRecoltarePauza
+  /** Prima zi permisă la momentul recoltării. */
+  panaLa: string | null
+  produs: string | null
+}
 
 export interface ParcelCropRow {
   id: string
@@ -78,7 +100,24 @@ function normalizeCropRow(row: Partial<ParcelCropRow>, index: number): ParcelCro
 export function stripHiddenAgricultureMetadata(observatii: MaybeString): string {
   const raw = normalizeText(observatii)
   if (!raw) return ''
-  return removeBlock(removeBlock(raw, PARCEL_CROPS_START, PARCEL_CROPS_END), HARVEST_CROP_START, HARVEST_CROP_END)
+  return removeBlock(
+    removeBlock(removeBlock(raw, PARCEL_CROPS_START, PARCEL_CROPS_END), HARVEST_CROP_START, HARVEST_CROP_END),
+    HARVEST_PAUSE_START,
+    HARVEST_PAUSE_END,
+  )
+}
+
+/** Motivul recoltării din parcela în pauză, dacă a fost notat. */
+export function getHarvestPauseReason(observatii: MaybeString): RecoltarePauza | null {
+  const payload = extractBlock(normalizeText(observatii), HARVEST_PAUSE_START, HARVEST_PAUSE_END)
+  if (!payload) return null
+  const parsed = safeJsonParse<Partial<RecoltarePauza>>(payload)
+  if (!parsed || !parsed.motiv || !(parsed.motiv in MOTIV_RECOLTARE_PAUZA_TEXT)) return null
+  return {
+    motiv: parsed.motiv,
+    panaLa: normalizeText(parsed.panaLa) || null,
+    produs: normalizeText(parsed.produs) || null,
+  }
 }
 
 export function getParcelCropRowsFromObservatii(observatii: MaybeString): ParcelCropRow[] {
@@ -172,9 +211,13 @@ export function getHarvestCropSelection(observatii: MaybeString): HarvestCropSel
 export function buildHarvestObservatii(
   notes: MaybeString,
   cropSelection: HarvestCropSelection | null | undefined,
+  pauza?: RecoltarePauza | null,
 ): string | null {
   const visibleNotes = stripHiddenAgricultureMetadata(notes)
-  if (!cropSelection) return visibleNotes || null
+  const pauseBlock = pauza
+    ? `${HARVEST_PAUSE_START}${JSON.stringify({ motiv: pauza.motiv, panaLa: pauza.panaLa, produs: pauza.produs })}${HARVEST_PAUSE_END}`
+    : null
+  if (!cropSelection) return [visibleNotes, pauseBlock].filter(Boolean).join('\n\n').trim() || null
 
   const normalized = {
     cropId: normalizeText(cropSelection.cropId) || toCropId(cropSelection.culture, cropSelection.variety, 0),
@@ -183,5 +226,5 @@ export function buildHarvestObservatii(
   }
 
   const metadata = `${HARVEST_CROP_START}${JSON.stringify(normalized)}${HARVEST_CROP_END}`
-  return [visibleNotes, metadata].filter(Boolean).join('\n\n').trim() || null
+  return [visibleNotes, metadata, pauseBlock].filter(Boolean).join('\n\n').trim() || null
 }

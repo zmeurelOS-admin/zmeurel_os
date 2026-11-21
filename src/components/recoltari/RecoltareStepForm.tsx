@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 
 import {
   Button,
@@ -22,8 +22,10 @@ import { trackEvent } from '@/lib/analytics/trackEvent'
 import {
   buildHarvestObservatii,
   getHarvestCropSelection,
+  getHarvestPauseReason,
   getParcelaCropRows,
   stripHiddenAgricultureMetadata,
+  type MotivRecoltarePauza,
 } from '@/lib/parcele/crop-config'
 import { queryKeys } from '@/lib/query-keys'
 import {
@@ -44,11 +46,7 @@ import {
   type RecoltareSaveGuard,
   type RecoltareSaved,
 } from '@/lib/recoltari/save-guard'
-import {
-  calculatePauseStatus,
-  getActivitatiAgricole,
-  type ActivitateAgricola,
-} from '@/lib/supabase/queries/activitati-agricole'
+import { usePauzeActive } from '@/lib/tratamente/hooks'
 import type { Culegator } from '@/lib/supabase/queries/culegatori'
 import type { Parcela } from '@/lib/supabase/queries/parcele'
 import {
@@ -115,6 +113,8 @@ interface Draft {
   kgFromChat: boolean
   /** Precompletarea aplicată acestei înregistrări (parcela ei se rezolvă când se încarcă parcelele). */
   prefill: RecoltareAiPrefill | null
+  /** „Recoltez totuși” dintr-o parcelă în pauză: motivul ales (se salvează în `observatii`). */
+  motivPauza: MotivRecoltarePauza | null
 }
 
 const EMPTY_DRAFT: Draft = {
@@ -126,6 +126,7 @@ const EMPTY_DRAFT: Draft = {
   withCal2: false,
   kgFromChat: false,
   prefill: null,
+  motivPauza: null,
 }
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
@@ -147,24 +148,6 @@ function readableSaveError(message: string, mode: 'create' | 'edit'): string {
   }
   const known = Object.keys(SERVER_MESSAGES).find((code) => message.includes(code))
   return known ? SERVER_MESSAGES[known] : message
-}
-
-/** Primul tratament aflat încă în perioada de pauză pe parcela aleasă. Avertizează, nu blochează (ca până acum). */
-function findPauseWarning(
-  activitati: readonly ActivitateAgricola[],
-  parcelaId: string | null,
-): { produs: string | null; permisDeLa: string } | null {
-  if (!parcelaId) return null
-  for (const activitate of activitati) {
-    if (activitate.parcela_id !== parcelaId) continue
-    const { dataRecoltarePermisa, status } = calculatePauseStatus(activitate.data_aplicare, activitate.timp_pauza_zile)
-    if (status !== 'Pauza') continue
-    return {
-      produs: activitate.produs_utilizat?.trim() || null,
-      permisDeLa: new Date(dataRecoltarePermisa).toLocaleDateString('ro-RO'),
-    }
-  }
-  return null
 }
 
 const dayOnly = (value: string | null | undefined) => String(value ?? '').slice(0, 10)
@@ -257,6 +240,7 @@ export function RecoltareStepForm({
         cropId: getHarvestCropSelection(editing.observatii)?.cropId ?? null,
         note: stripHiddenAgricultureMetadata(editing.observatii),
         withCal2: editing.kg_cal2 > 0,
+        motivPauza: getHarvestPauseReason(editing.observatii)?.motiv ?? null,
       })
       fields.setValue('cal1', editing.kg_cal1 > 0 ? editing.kg_cal1 : null)
       fields.setValue('cal2', editing.kg_cal2 > 0 ? editing.kg_cal2 : null)
@@ -317,14 +301,11 @@ export function RecoltareStepForm({
   const paymentLei = estimatePaymentLei(totalKg, tarifLeiKg)
   const workerName = culegator?.nume_prenume?.trim() || 'Culegător'
 
-  const { data: activitati = [] } = useQuery({
-    queryKey: queryKeys.activitati,
-    queryFn: getActivitatiAgricole,
-    enabled: open,
-    staleTime: 30000,
-    refetchOnWindowFocus: false,
-  })
-  const pauseWarning = findPauseWarning(activitati, parcelaId)
+  // Pauza după tratament, în ziua recoltării (aplicările noi + activitățile vechi). Doar avertizare.
+  const { pauze } = usePauzeActive(date, { enabled: open })
+  const pauseWarning = parcelaId ? (pauze.get(parcelaId) ?? null) : null
+  // „Recoltez totuși” cere un motiv la o recoltare nouă; la editare, motivul vechi rămâne pe aceeași parcelă.
+  const needsPauseReason = pauseWarning !== null && !editing && draft.motivPauza === null
 
   // ─── Ce s-ar pierde la închidere ───
   const dirty = editing
@@ -366,6 +347,11 @@ export function RecoltareStepForm({
 
   const save = async () => {
     if (!canSave || !culegator || !parcela) return
+    if (needsPauseReason) {
+      // Parcela e în pauză: întâi avertismentul, cu „Alege altă parcelă” sau „Recoltez totuși” + motiv.
+      setChoice('tratament')
+      return
+    }
 
     const key = form.clientSyncId
     const attempt: RecoltareAttempt = {
@@ -375,7 +361,15 @@ export function RecoltareStepForm({
       kg_cal1: kgCal1,
       kg_cal2: kgCal2,
     }
-    const observatii = buildHarvestObservatii(draft.note.trim() || undefined, cropForSave) || undefined
+    const savedPause = editing && parcelaId === editing.parcela_id ? getHarvestPauseReason(editing.observatii) : null
+    const pauzaForSave = draft.motivPauza
+      ? {
+          motiv: draft.motivPauza,
+          panaLa: pauseWarning?.panaLa ?? savedPause?.panaLa ?? null,
+          produs: pauseWarning?.produs ?? savedPause?.produs ?? null,
+        }
+      : null
+    const observatii = buildHarvestObservatii(draft.note.trim() || undefined, cropForSave, pauzaForSave) || undefined
 
     if (editing) {
       if (editInFlight.current) return
@@ -559,12 +553,16 @@ export function RecoltareStepForm({
         parcelaId={parcelaId}
         parcelaLabel={parcela?.nume_parcela?.trim() || null}
         onParcela={(nextParcelaId) => {
+          const changed = nextParcelaId !== parcelaId
           setDraft((previous) => ({
             ...previous,
             parcelaId: nextParcelaId,
-            cropId: nextParcelaId === parcelaId ? previous.cropId : null,
+            cropId: changed ? null : previous.cropId,
+            motivPauza: changed ? null : previous.motivPauza,
           }))
-          setChoice(null)
+          // O parcelă în pauză: avertismentul apare imediat (la o recoltare nouă, fără motiv ales încă).
+          const inPauza = pauze.has(nextParcelaId)
+          setChoice(inPauza && !editing && (changed || draft.motivPauza === null) ? 'tratament' : null)
         }}
         crops={crops}
         cropId={crop?.id ?? null}
@@ -578,6 +576,12 @@ export function RecoltareStepForm({
           setChoice(null)
         }}
         pauseWarning={pauseWarning}
+        pauze={pauze}
+        motivPauza={draft.motivPauza}
+        onMotivPauza={(motivPauza) => {
+          setDraft((previous) => ({ ...previous, motivPauza }))
+          setChoice(null)
+        }}
       />
     )
   } else if (onKgStep) {

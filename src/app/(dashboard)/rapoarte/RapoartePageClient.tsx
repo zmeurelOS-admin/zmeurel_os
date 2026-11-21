@@ -28,7 +28,7 @@ import { butasiRevenueBetween, butasiRevenueDate, type ButasiRevenueSource } fro
 import { calculateProfit } from '@/lib/calculations/profit'
 import { resolveCheltuialaCategorie } from '@/lib/financial/categories'
 import { trackEvent } from '@/lib/analytics/trackEvent'
-import { calculatePauseStatus } from '@/lib/supabase/queries/activitati-agricole'
+import { adaugaZile, aziRo, ziuaRo } from '@/lib/tratamente/zile'
 import { ziuaVenitului } from '@/lib/vanzari/incasari'
 import { investitiiInPerioada, type InvestitieRaport } from '@/lib/rapoarte/investitii'
 import { inceputSezon } from '@/lib/sezon'
@@ -652,10 +652,13 @@ export function RapoartePageClient({
       )
       .map((activitate) => {
         const parcela = activitate.parcela_id ? parcelaMap[activitate.parcela_id] : null
-        const pause = calculatePauseStatus(
-          activitate.data_aplicare,
-          Number(activitate.timp_pauza_zile || 0)
-        )
+        // Aceeași regulă ca pauza din Recoltări și Acasă (`lib/tratamente/pauza`): zile întregi, ora României.
+        const ziAplicare = ziuaRo(activitate.data_aplicare)
+        const permisa = ziAplicare ? adaugaZile(ziAplicare, Math.max(0, Number(activitate.timp_pauza_zile || 0))) : ''
+        const pause = {
+          dataRecoltarePermisa: permisa,
+          status: permisa && aziRo() < permisa ? 'Pauza' : 'OK',
+        }
 
         return {
           DataAplicare: new Date(activitate.data_aplicare).toLocaleDateString('ro-RO'),
