@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { getFarmOwnerContext } from '@/lib/farm-members/owner-auth'
+import { operatorAccountKind, type OperatorAccountKind } from '@/lib/farm-members/operator-link'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 
 export type FarmMemberApiRow = {
@@ -16,6 +17,8 @@ export type FarmMemberApiRow = {
   is_active: boolean
   created_by: string | null
   modules_access: unknown
+  /** Doar pentru operatori: cum intră (din link, cu Google, cu email și parolă). */
+  account_kind?: OperatorAccountKind | null
 }
 
 function errorResponse(error: string, status = 400) {
@@ -41,5 +44,14 @@ export async function GET() {
     return errorResponse('load_failed', 500)
   }
 
-  return NextResponse.json({ success: true, members: (data ?? []) as unknown as FarmMemberApiRow[] })
+  const members = (data ?? []) as unknown as FarmMemberApiRow[]
+  const withKind = await Promise.all(
+    members.map(async (member) => {
+      if (member.role !== 'operator' || !member.user_id) return member
+      const { data: account } = await admin.auth.admin.getUserById(member.user_id)
+      return { ...member, account_kind: account?.user ? operatorAccountKind(account.user) : null }
+    }),
+  )
+
+  return NextResponse.json({ success: true, members: withKind })
 }

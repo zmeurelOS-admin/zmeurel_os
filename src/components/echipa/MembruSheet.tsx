@@ -30,11 +30,12 @@ export interface MembruSheetProps {
   onDeactivated: (id: string) => void
 }
 
-/** Foaia unui om din echipă: schimbă accesul, retrimite linkul (livrator), dezactivează (cu confirmare). */
+/** Foaia unui om din echipă: schimbă accesul, retrimite linkul (livrator, operator din link), dezactivează. */
 export function MembruSheet({ membru, open, onOpenChange, onAccessSaved, onDeactivated }: MembruSheetProps) {
   const [mod, setMod] = useState<Mod>('actiuni')
   const [ciorna, setCiorna] = useState<CiornaDrepturi | null>(null)
   const [link, setLink] = useState<string | null>(null)
+  const [sesiuniInchise, setSesiuniInchise] = useState(false)
   const [busy, setBusy] = useState(false)
   const [eroare, setEroare] = useState<string | null>(null)
 
@@ -46,12 +47,21 @@ export function MembruSheet({ membru, open, onOpenChange, onAccessSaved, onDeact
     setMod('actiuni')
     setCiorna(null)
     setLink(null)
+    setSesiuniInchise(false)
     setBusy(false)
     setEroare(null)
   }
 
   if (!membru) return null
   const esteOperator = membru.role === 'operator'
+  // Operatorul din link primește link nou; cel cu Google sau parolă intră singur din pagina de logare.
+  const operatorDinLink = esteOperator && membru.account_kind === 'link'
+  const intrareOperator =
+    membru.account_kind === 'google'
+      ? 'Intră cu Google din pagina de logare.'
+      : membru.account_kind === 'parola'
+        ? 'Intră cu emailul și parola din pagina de logare.'
+        : null
 
   const run = async (actiune: () => Promise<void>) => {
     if (busy) return
@@ -79,6 +89,7 @@ export function MembruSheet({ membru, open, onOpenChange, onAccessSaved, onDeact
     run(async () => {
       const rezultat = await retrimiteLink(membru.id)
       setLink(rezultat.link)
+      setSesiuniInchise(rezultat.sesiuniInchise)
       setMod('link')
     })
 
@@ -122,8 +133,12 @@ export function MembruSheet({ membru, open, onOpenChange, onAccessSaved, onDeact
     titlu = 'Link nou'
     body = (
       <div className="space-y-3">
-        <p className={cn('text-fg-muted', kitText.secondary)}>Linkul vechi nu mai merge. Trimite-i lui {membru.name} pe acesta.</p>
-        <LinkInvitatie rol="livrator" nume={membru.name} telefon={membru.phone} link={link} />
+        <p className={cn('text-fg-muted', kitText.secondary)}>
+          {esteOperator
+            ? `Linkul vechi nu mai merge${sesiuniInchise ? ', iar telefonul vechi a ieșit din cont' : ''}. Trimite-i lui ${membru.name} pe acesta: intră în același cont, cu tot ce a notat.`
+            : `Linkul vechi nu mai merge. Trimite-i lui ${membru.name} pe acesta.`}
+        </p>
+        <LinkInvitatie rol={membru.role} nume={membru.name} telefon={membru.phone} link={link} />
       </div>
     )
     footer = (
@@ -162,7 +177,11 @@ export function MembruSheet({ membru, open, onOpenChange, onAccessSaved, onDeact
           <SummaryRow label="Poate" value={cePoateFace(membru.role, membru.modules_access)} />
           <SummaryRow label="Telefon" value={membru.phone?.trim() ? formatPhoneDisplay(membru.phone) : '—'} />
           <SummaryRow label="Adăugat" value={dataRo(membru.created_at)} />
+          {esteOperator && membru.account_kind ? (
+            <SummaryRow label="Intră" value={operatorDinLink ? 'Din link, fără parolă' : membru.account_kind === 'google' ? 'Cu Google' : 'Cu email și parolă'} />
+          ) : null}
         </SummaryList>
+        {intrareOperator ? <p className={cn('text-fg-muted', kitText.secondary)}>{intrareOperator}</p> : null}
       </div>
     )
     footer = (
@@ -182,7 +201,14 @@ export function MembruSheet({ membru, open, onOpenChange, onAccessSaved, onDeact
             <ShieldCheck aria-hidden />
             Schimbă accesul
           </Button>
-        ) : (
+        ) : null}
+        {operatorDinLink ? (
+          <Button type="button" variant="neutral" size="touch-lg" className="w-full" loading={busy} onClick={() => void linkNou()}>
+            <Link2 aria-hidden />
+            Retrimite linkul
+          </Button>
+        ) : null}
+        {esteOperator ? null : (
           <Button type="button" variant="primary" size="touch-lg" className="w-full" loading={busy} onClick={() => void linkNou()}>
             <Link2 aria-hidden />
             Retrimite linkul

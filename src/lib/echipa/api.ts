@@ -13,6 +13,8 @@ export type MembruEchipa = {
   phone: string | null
   invite_token: string | null
   modules_access?: unknown
+  /** Operator: `link` (cont ascuns, intră din link), `google`, `parola`. */
+  account_kind?: 'link' | 'google' | 'parola' | null
 }
 
 export function mesajEroare(cod: string | undefined, implicit: string): string {
@@ -25,6 +27,8 @@ export function mesajEroare(cod: string | undefined, implicit: string): string {
       return 'Alege cel puțin un modul.'
     case 'not_found':
       return 'Omul nu mai e în echipă. Reîncarcă lista.'
+    case 'not_link_operator':
+      return 'Omul intră cu contul lui din pagina de logare; nu are nevoie de link.'
     default:
       return implicit
   }
@@ -49,10 +53,18 @@ export async function incarcaEchipa(): Promise<MembruEchipa[]> {
   return json.members ?? []
 }
 
-export async function invitaOperator(modules: FarmMemberModuleAccess[]): Promise<{ link: string }> {
+export async function invitaOperator(input: {
+  modules: FarmMemberModuleAccess[]
+  name: string
+  phone?: string
+}): Promise<{ link: string }> {
   const json = await cerere<{ invite_url?: string }>(
     '/api/farm-members/create-invite',
-    { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ modules }) },
+    {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ modules: input.modules, name: input.name, phone: input.phone || undefined }),
+    },
     'Nu am putut genera invitația.',
   )
   if (!json.invite_url) throw new Error('Nu am putut genera invitația.')
@@ -79,14 +91,14 @@ export async function salveazaAcces(id: string, modules: FarmMemberModuleAccess[
   return json.modules
 }
 
-export async function retrimiteLink(id: string): Promise<{ link: string }> {
-  const json = await cerere<{ invite_url?: string }>(
+export async function retrimiteLink(id: string): Promise<{ link: string; sesiuniInchise: boolean }> {
+  const json = await cerere<{ invite_url?: string; sessions_closed?: boolean }>(
     `/api/farm-members/${encodeURIComponent(id)}/regenerate-token`,
     { method: 'POST' },
     'Nu am putut face un link nou.',
   )
   if (!json.invite_url) throw new Error('Nu am putut face un link nou.')
-  return { link: json.invite_url }
+  return { link: json.invite_url, sesiuniInchise: json.sessions_closed === true }
 }
 
 export async function dezactiveaza(id: string): Promise<void> {
