@@ -62,7 +62,7 @@ Client pages follow a two-file pattern:
 - `page.tsx` — thin server component that just renders the client component
 - `*PageClient.tsx` — `'use client'` component with all React Query hooks and mutations
 
-**Exception**: `src/app/(dashboard)/activitati-agricole/page.tsx` is itself the full client implementation (not split into a separate file).
+„Activități agricole” s-a redenumit **Lucrări**: `src/app/(dashboard)/lucrari/` (tabelul rămâne `activitati_agricole`, cheia modulului pentru operatori rămâne `activitati`). `/activitati-agricole` e doar o redirecționare la `/lucrari`, cu parametrii păstrați (precompletările din chatul AI). Tratamentele vechi din acel tabel se văd în Tratamente, „importate”; în Lucrări apar doar lucrările (`src/lib/lucrari/tipuri.ts` mapează tipurile vechi pe cele 8 noi, doar la afișare). Fișa parcelei e `/parcele/[id]`; `/parcele?selected=<id>` duce acolo.
 
 TanStack Query defaults (set in `src/app/providers.tsx`):
 ```ts
@@ -175,7 +175,7 @@ Baza modulelor refăcute (Recoltări, apoi Comenzi + Livrări). Totul se import�
 
 **Verificare automată**
 
-`npm run check:kit` (`scripts/check-kit-rules.mjs`) pică la orice abatere de la regulile de mai sus în folderele din `KIT_RULE_DIRS` (`scripts/kit-rules.mjs`): kitul, `/admin/kit` și toate modulele refăcute (Recoltări, Comenzi, Livrări, Acasă pe telefon, Clienți, Culegători, Cheltuieli + Investiții, Vânzări, Mai mult, Notificări, Setări), cu folderele lor din `src/app/(dashboard)`, `src/components` și `src/lib`. Fișierele vechi rămase într-un folder verificat stau în `KIT_RULE_PENDING_FILES`. Folderul fiecărui modul refăcut se adaugă pe listă când începe refacerea lui. Testele kitului sunt în `src/components/kit/__tests__/` și rulează cu `npm run test:critical:unit`.
+`npm run check:kit` (`scripts/check-kit-rules.mjs`) pică la orice abatere de la regulile de mai sus în folderele din `KIT_RULE_DIRS` (`scripts/kit-rules.mjs`): kitul, `/admin/kit` și toate modulele refăcute (Recoltări, Comenzi, Livrări, Acasă pe telefon, Clienți, Culegători, Cheltuieli + Investiții, Vânzări, Mai mult, Notificări, Setări, Tratamente, Stocuri, Produse, Rapoarte, Parcele, Lucrări), cu folderele lor din `src/app/(dashboard)`, `src/components` și `src/lib`. Fișierele vechi rămase într-un folder verificat stau în `KIT_RULE_PENDING_FILES`. Folderul fiecărui modul refăcut se adaugă pe listă când începe refacerea lui. Testele kitului sunt în `src/components/kit/__tests__/` și rulează cu `npm run test:critical:unit`.
 
 ## AI Chat Widget
 
