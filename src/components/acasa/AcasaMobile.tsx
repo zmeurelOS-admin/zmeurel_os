@@ -9,6 +9,7 @@ import {
   CalendarClock,
   ClipboardList,
   Scale,
+  Shovel,
   Snowflake,
   SprayCan,
   Sprout,
@@ -36,6 +37,7 @@ import type { Vanzare } from '@/lib/supabase/queries/vanzari'
 import type { VanzareButasi } from '@/lib/supabase/queries/vanzari-butasi'
 import { queryKeys } from '@/lib/query-keys'
 import { marcheazaFacut } from '@/lib/supabase/queries/tratamente'
+import { marcheazaLucrariFacute } from '@/lib/supabase/queries/lucrari'
 import type { PauzaParcela } from '@/lib/tratamente/pauza'
 import { titluPauza } from '@/lib/tratamente/texte'
 import { toast } from '@/lib/ui/toast'
@@ -62,6 +64,18 @@ export interface AcasaMobileProps {
   pauze?: ReadonlyArray<PauzaParcela & { nume: string }>
   /** Tratamentele planificate azi (modulul Tratamente). */
   tratamenteAzi?: ReadonlyArray<TratamentAzi>
+  /** Lucrările planificate azi (modulul Lucrări). */
+  lucrariAzi?: ReadonlyArray<LucrareAzi>
+  /** Rândurile din Lucrări (cu planificatele), pentru „Planificată: …” din extrasezon. Lipsă = `activitati`. */
+  lucrari?: ReadonlyArray<Pick<ActivitateAgricola, 'id' | 'data_aplicare' | 'tip_activitate' | 'produs_utilizat'> & { status?: string | null }>
+}
+
+export interface LucrareAzi {
+  key: string
+  titlu: string
+  detaliu: string
+  /** Rândurile lucrării (unul pe parcelă). */
+  ids: string[]
 }
 
 export interface TratamentAzi {
@@ -90,6 +104,8 @@ export function AcasaMobile({
   meteo,
   pauze = [],
   tratamenteAzi = [],
+  lucrariAzi = [],
+  lucrari,
 }: AcasaMobileProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -105,8 +121,8 @@ export function AcasaMobile({
     [comenzi, parcelStates, recoltari, stocDisponibilKg, todayIso],
   )
   const extrasezon = useMemo(
-    () => buildAcasaExtrasezon({ todayIso, vanzariButasi, vanzari, activitati }),
-    [activitati, todayIso, vanzari, vanzariButasi],
+    () => buildAcasaExtrasezon({ todayIso, vanzariButasi, vanzari, activitati: lucrari ?? activitati }),
+    [activitati, lucrari, todayIso, vanzari, vanzariButasi],
   )
   const peScurt = useMemo(() => sezonPeScurt(todayIso, recoltari, vanzari), [recoltari, todayIso, vanzari])
   const comenziFructe = comenziDeschiseCount(comenzi)
@@ -169,6 +185,43 @@ export function AcasaMobile({
         className="w-full"
         loading={marcand === tratament.key}
         onClick={() => void marcheaza(tratament)}
+      >
+        Marchează făcut
+      </Button>
+    </li>
+  ))
+  const marcheazaLucrare = async (lucrare: LucrareAzi) => {
+    if (marcand) return
+    setMarcand(`lucrare:${lucrare.key}`)
+    try {
+      await marcheazaLucrariFacute(lucrare.ids)
+      await queryClient.invalidateQueries({ queryKey: queryKeys.lucrari })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.activitati })
+      toast.success('Notată ca făcută azi.')
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : ''
+      toast.error(/row-level security|42501/i.test(message) ? 'Nu ai drept de scriere pe lucrări.' : message || 'Nu s-a salvat. Încearcă din nou.')
+    } finally {
+      setMarcand(null)
+    }
+  }
+
+  const randuriLucrariAzi = lucrariAzi.map((lucrare) => (
+    <li key={`lucrare-azi-${lucrare.key}`} className="space-y-2">
+      <ListRow
+        avatar={false}
+        leading={<RowIcon><Shovel aria-hidden /></RowIcon>}
+        title={lucrare.titlu}
+        detail={lucrare.detaliu}
+        onClick={go('/lucrari?fila=planificate')}
+      />
+      <Button
+        type="button"
+        variant="neutral"
+        size="touch"
+        className="w-full"
+        loading={marcand === `lucrare:${lucrare.key}`}
+        onClick={() => void marcheazaLucrare(lucrare)}
       >
         Marchează făcut
       </Button>
@@ -263,6 +316,7 @@ export function AcasaMobile({
             </h2>
             <ul className="space-y-2">
               {randuriTratamenteAzi}
+              {randuriLucrariAzi}
               {sezon.inLivrareCount > 0 ? (
                 <li>
                   <ListRow
@@ -356,6 +410,7 @@ export function AcasaMobile({
             </h2>
             <ul className="space-y-2">
               {randuriTratamenteAzi}
+              {randuriLucrariAzi}
               {afiseaza.comenzi_butasi && extrasezon.butasiDeschiseCount > 0 ? (
                 <li>
                   <ListRow
@@ -419,9 +474,10 @@ export function AcasaMobile({
             comenziFructe === 0 &&
             (!afiseaza.lucrari || extrasezon.lucrari.length === 0) &&
             sezon.parceleTratament.length === 0 &&
-            tratamenteAzi.length === 0 ? (
+            tratamenteAzi.length === 0 &&
+            lucrariAzi.length === 0 ? (
               <Notice tone="success" title="Nimic urgent">
-                Lucrările planificate apar aici când le treci în Activități, cu o dată în viitor.
+                Lucrările planificate în Lucrări apar aici în ziua lor.
               </Notice>
             ) : null}
           </section>

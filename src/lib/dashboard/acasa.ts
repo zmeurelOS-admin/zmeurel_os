@@ -190,7 +190,7 @@ export function buildAcasaExtrasezon(input: {
   todayIso: string
   vanzariButasi: readonly VanzareButasi[]
   vanzari: readonly Vanzare[]
-  activitati: readonly ActivitateAgricola[]
+  activitati: ReadonlyArray<Pick<ActivitateAgricola, 'id' | 'data_aplicare' | 'tip_activitate' | 'produs_utilizat'> & { status?: string | null }>
 }): AcasaExtrasezon {
   const weekEnd = endOfWeekIso(input.todayIso)
   const deschise = input.vanzariButasi.filter((order) => BUTASI_DESCHISE.has(order.status))
@@ -235,14 +235,17 @@ export function buildAcasaExtrasezon(input: {
   }
 }
 
-/** Lucrările planificate vin din Activități: înregistrările cu dată în viitor, cele mai apropiate întâi. */
+/**
+ * Lucrările planificate de după azi (cele de azi stau la „De făcut azi”), cele mai apropiate întâi: rândurile
+ * cu `status = 'planificata'` (după migrarea `20261121180000`) și cele vechi, fără stare, cu dată în viitor.
+ */
 export function lucrariPlanificate(
-  activitati: readonly ActivitateAgricola[],
+  activitati: ReadonlyArray<Pick<ActivitateAgricola, 'id' | 'data_aplicare' | 'tip_activitate' | 'produs_utilizat'> & { status?: string | null }>,
   todayIso: string,
   limit = 4,
 ): Array<{ id: string; data: string; titlu: string }> {
   return activitati
-    .filter((activitate) => dayOf(activitate.data_aplicare) > todayIso)
+    .filter((activitate) => activitate.status !== 'facuta' && dayOf(activitate.data_aplicare) > todayIso)
     .sort((left, right) => dayOf(left.data_aplicare).localeCompare(dayOf(right.data_aplicare)))
     .slice(0, limit)
     .map((activitate) => ({

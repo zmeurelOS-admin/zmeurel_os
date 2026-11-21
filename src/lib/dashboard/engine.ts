@@ -64,6 +64,8 @@ export interface DashboardRawData {
   pauzePeParcela?: ReadonlyMap<string, PauzaParcela>
   /** Tratamentele planificate azi (modulul Tratamente), pentru lista de sarcini de pe desktop. */
   tratamentePlanificateAzi?: ReadonlyArray<{ key: string; text: string }>
+  /** Lucrările planificate azi (modulul Lucrări), tot în lista de sarcini. */
+  lucrariPlanificateAzi?: ReadonlyArray<{ key: string; text: string }>
 }
 
 export type TreatmentAttention =
@@ -341,6 +343,16 @@ export function buildDashboardTasks(
     tasks.push({
       id: `tratament-planificat:${planificat.key}`,
       icon: '🧪',
+      text: planificat.text,
+      tag: 'AZI',
+      tone: 'warning',
+    })
+  }
+
+  for (const planificat of raw.lucrariPlanificateAzi ?? []) {
+    tasks.push({
+      id: `lucrare-planificata:${planificat.key}`,
+      icon: '🛠️',
       text: planificat.text,
       tag: 'AZI',
       tone: 'warning',

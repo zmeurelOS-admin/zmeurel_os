@@ -83,6 +83,10 @@ import { pauzeActive, pauzeOrdonate } from '@/lib/tratamente/pauza'
 import { getSupabase } from '@/lib/supabase/client'
 import { resolveDashboardMicroclimate } from '@/lib/dashboard/microclimate'
 import { getActivitatiAgricole } from '@/lib/supabase/queries/activitati-agricole'
+import { getLucrari } from '@/lib/supabase/queries/lucrari'
+import { construiesteJurnalLucrari, lucrariPlanificateInZi } from '@/lib/lucrari/jurnal'
+import { ETICHETA_LUCRARE } from '@/lib/lucrari/tipuri'
+import { textCine } from '@/lib/lucrari/formular'
 import { getCheltuieli } from '@/lib/supabase/queries/cheltuieli'
 import { getComenzi } from '@/lib/supabase/queries/comenzi'
 import {
@@ -307,7 +311,7 @@ function getComparableLayoutJson(layout: DashboardLayoutConfig): string {
 export default function DashboardPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const { userId, tenantId, associationShopApproved } = useDashboardAuth()
+  const { userId, tenantId, associationShopApproved, memberRole } = useDashboardAuth()
   const meteo = useMeteo()
   const [editMode, setEditMode] = useState(false)
   const [editableGridReady, setEditableGridReady] = useState(false)
@@ -362,6 +366,13 @@ export default function DashboardPage() {
     placeholderData: (previousData) => previousData,
   })
 
+  // Lucrările, cu planificatele (Acasă: „De făcut azi” și „Planificată: …” din extrasezon).
+  const lucrariQuery = useQuery({
+    queryKey: queryKeys.lucrari,
+    queryFn: getLucrari,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  })
   const activitatiQuery = useQuery({
     queryKey: queryKeys.activitati,
     queryFn: getActivitatiAgricole,
@@ -934,6 +945,28 @@ export default function DashboardPage() {
     () => pauzeOrdonate(pauzePeParcela).map((pauza) => ({ ...pauza, nume: numeParceleTratament.get(pauza.parcelaId) ?? 'Parcelă' })),
     [numeParceleTratament, pauzePeParcela],
   )
+  const lucrariAzi = useMemo(
+    () => lucrariPlanificateInZi(construiesteJurnalLucrari(lucrariQuery.data ?? [], todayIso).planificate, todayIso),
+    [lucrariQuery.data, todayIso],
+  )
+  const lucrariPlanificateAzi = useMemo(
+    () =>
+      lucrariAzi.map((rand) => ({
+        key: rand.key,
+        text: `${ETICHETA_LUCRARE[rand.tip]} planificată: ${textParcele(rand.parcelaIds, numeParceleTratament)}`,
+      })),
+    [lucrariAzi, numeParceleTratament],
+  )
+  const acasaLucrariAzi = useMemo(
+    () =>
+      lucrariAzi.map((rand) => ({
+        key: rand.key,
+        titlu: `${ETICHETA_LUCRARE[rand.tip]} planificată`,
+        detaliu: [textParcele(rand.parcelaIds, numeParceleTratament), textCine(rand.cine, memberRole !== 'operator')].filter(Boolean).join(' · '),
+        ids: rand.randuri.map((row) => row.id),
+      })),
+    [lucrariAzi, memberRole, numeParceleTratament],
+  )
   const acasaTratamenteAzi = useMemo(
     () =>
       tratamenteAzi.map((rand) => ({
@@ -967,10 +1000,12 @@ export default function DashboardPage() {
       treatmentIntervalByParcela,
       pauzePeParcela,
       tratamentePlanificateAzi,
+      lucrariPlanificateAzi,
     }
   }, [
     pauzePeParcela,
     tratamentePlanificateAzi,
+    lucrariPlanificateAzi,
     activitatiDashboard,
     cheltuieli,
     comenzi,
@@ -1694,6 +1729,8 @@ export default function DashboardPage() {
                 meteo={meteo.data}
                 pauze={acasaPauze}
                 tratamenteAzi={acasaTratamenteAzi}
+                lucrariAzi={acasaLucrariAzi}
+                lucrari={lucrariQuery.data}
               />
             </div>
 
