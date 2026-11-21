@@ -4,7 +4,7 @@ import { RapoartePageClient } from './RapoartePageClient'
 export default async function RapoartePage() {
   const supabase = await createClient()
 
-  const [{ data: recoltari = [] }, { data: vanzari = [] }, { data: cheltuieli = [] }, { data: parcele = [] }, { data: culegatori = [] }, { data: clienti = [] }, { data: activitati = [] }, { data: butasiLivrate = [] }] =
+  const [{ data: recoltari = [] }, { data: vanzari = [] }, { data: cheltuieli = [] }, { data: parcele = [] }, { data: culegatori = [] }, { data: clienti = [] }, { data: activitati = [] }, { data: butasiLivrate = [] }, { data: investitii = [] }] =
     await Promise.all([
       supabase
         .from('recoltari')
@@ -36,6 +36,11 @@ export default async function RapoartePage() {
         .from('vanzari_butasi')
         .select('id,status,total_lei,data_livrare_estimata,data_comanda')
         .eq('status', 'livrata'),
+      // Investițiile: secțiune proprie, nu intră la costuri și nu scad din profit.
+      supabase
+        .from('investitii')
+        .select('id,data,categorie,suma_lei')
+        .order('data', { ascending: false }),
     ])
 
   return (
@@ -48,6 +53,7 @@ export default async function RapoartePage() {
       initialClienți={clienti ?? []}
       initialActivitati={activitati ?? []}
       initialButasiLivrate={butasiLivrate ?? []}
+      initialInvestitii={investitii ?? []}
     />
   )
 }

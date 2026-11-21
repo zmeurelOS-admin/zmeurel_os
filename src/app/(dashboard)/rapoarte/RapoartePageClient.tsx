@@ -30,6 +30,7 @@ import { resolveCheltuialaCategorie } from '@/lib/financial/categories'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { calculatePauseStatus } from '@/lib/supabase/queries/activitati-agricole'
 import { ziuaVenitului } from '@/lib/vanzari/incasari'
+import { investitiiInPerioada, type InvestitieRaport } from '@/lib/rapoarte/investitii'
 
 type PeriodType = 'sapt' | 'luna' | 'sezon' | 'an'
 type ReportType =
@@ -115,6 +116,8 @@ interface RapoartePageClientProps {
   initialActivitati: ActivitateLite[]
   /** Comenzi de material săditor livrate — intră la venituri la data livrării. */
   initialButasiLivrate?: ButasiRevenueSource[]
+  /** Investițiile: secțiune separată; nu intră la costuri și nu scad din profit. */
+  initialInvestitii?: InvestitieRaport[]
 }
 
 interface DetailRow {
@@ -153,6 +156,7 @@ export function RapoartePageClient({
   initialClienți,
   initialActivitati,
   initialButasiLivrate = [],
+  initialInvestitii = [],
 }: RapoartePageClientProps) {
   const today = useMemo(() => new Date(), [])
   const seasonStart = useMemo(() => new Date(today.getFullYear(), 2, 1), [today])
@@ -266,6 +270,11 @@ export function RapoartePageClient({
       ...calculateProfit(venitLei, costLei),
     }
   }, [filteredCheltuieli, filteredRecoltari, filteredVanzari, initialButasiLivrate, range.start, range.end])
+
+  const investitiiPerioada = useMemo(
+    () => investitiiInPerioada(initialInvestitii, toIsoDay(range.start), toIsoDay(range.end)),
+    [initialInvestitii, range.end, range.start],
+  )
 
   const monthlyFinancialRows = useMemo(() => {
     const grouped = new Map<string, { venit: number; cheltuieli: number }>()
@@ -759,6 +768,36 @@ export function RapoartePageClient({
             </div>
           ))}
         </div>
+
+        {/* Investițiile: separat, nu intră la cheltuieli și nu scad din profit */}
+        <section
+          aria-labelledby="rapoarte-investitii"
+          style={{ background: 'var(--agri-surface)', borderRadius: 12, border: '1px solid var(--agri-border)', padding: '12px 14px' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+            <h3 id="rapoarte-investitii" style={{ fontSize: 15, fontWeight: 700, color: 'var(--agri-text)' }}>
+              🏗️ Investiții
+            </h3>
+            <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--agri-text)' }}>
+              {currencyFormatter.format(investitiiPerioada.totalLei)}
+            </span>
+          </div>
+          <p style={{ fontSize: 13, color: 'var(--agri-text-muted)', marginTop: 2 }}>
+            {investitiiPerioada.count === 0
+              ? 'Nicio investiție în perioada aleasă.'
+              : `${investitiiPerioada.count} ${investitiiPerioada.count === 1 ? 'investiție' : 'investiții'} în perioada aleasă. Nu intră la cheltuieli și nu scad din profit.`}
+          </p>
+          {investitiiPerioada.peCategorii.length > 0 ? (
+            <ul style={{ marginTop: 8, display: 'grid', gap: 4 }}>
+              {investitiiPerioada.peCategorii.map((item) => (
+                <li key={item.categorie} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, color: 'var(--agri-text)' }}>
+                  <span>{item.categorie}</span>
+                  <span style={{ fontWeight: 600 }}>{currencyFormatter.format(item.lei)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
 
         {/* Filters */}
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
