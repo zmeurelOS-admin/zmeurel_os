@@ -148,7 +148,94 @@ export async function getTenantByUserIdOrNull(
   return getTenantByIdOrNull(supabase, tenantId)
 }
 
+// ─── Tenantul ținut minte în browser ───
+//
+// Fiecare funcție de query cheamă `getTenantId`. Fără memorie, fiecare apel însemna 3 cereri (`auth/v1/user`,
+// `farm_members`, `tenants`) ÎNAINTEA interogării propriu-zise: pe Acasă, ~40 din ~70 de cereri.
+// În browser, tenantul se rezolvă o singură dată pe utilizator:
+// - utilizatorul vine din sesiunea locală (`auth.getSession()`, fără rețea); alt utilizator = altă intrare;
+// - rezultatul se ține în modul, cel mult `TENANT_CACHE_TTL_MS` (un operator scos din fermă nu rămâne agățat);
+// - `primeTenantIdCache` îl primește gata rezolvat de server (proxy → layout), deci de obicei zero cereri;
+// - `resetTenantIdCache` îl golește la delogare și la acceptarea unei invitații.
+// Pe server (API, componente server) nu se ține nimic: fiecare cerere își verifică utilizatorul cu `getUser()`.
+// Securitatea nu se schimbă: accesul la date îl hotărăște RLS pe server, nu `tenant_id`-ul trimis de client.
+
+const TENANT_CACHE_TTL_MS = 10 * 60_000
+
+type TenantCacheEntry = { userId: string; promise: Promise<string | null>; expiresAt: number }
+
+let tenantCache: TenantCacheEntry | null = null
+
+function isBrowser(): boolean {
+  return typeof window !== 'undefined'
+}
+
+/** Golește tenantul ținut minte (delogare, schimbarea fermei, teste). */
+export function resetTenantIdCache(): void {
+  tenantCache = null
+}
+
+/** Tenantul rezolvat deja de server pentru sesiunea curentă: următoarele `getTenantId` nu mai fac cereri. */
+export function primeTenantIdCache(userId: string | null | undefined, tenantId: string | null | undefined): void {
+  if (!isBrowser() || !userId || !tenantId) return
+  tenantCache = { userId, promise: Promise.resolve(tenantId), expiresAt: Date.now() + TENANT_CACHE_TTL_MS }
+}
+
+/** Utilizatorul sesiunii din browser, fără rețea. `null` dacă nu există sesiune sau clientul nu o poate citi. */
+async function getBrowserSessionUserId(supabase: SupabaseClient<Database>): Promise<string | null> {
+  if (!isBrowser() || typeof supabase.auth?.getSession !== 'function') return null
+  try {
+    const { data } = await supabase.auth.getSession()
+    return data.session?.user?.id ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Aceeași regulă ca `getTenantIdByUserIdOrNull` (operator → fermă proprie → profil), dar cu primele două
+ * întrebări puse deodată: în browser, interogările paginii așteaptă după răspuns, deci contează fiecare drum.
+ */
+async function resolveTenantIdInBrowser(supabase: SupabaseClient<Database>, userId: string): Promise<string | null> {
+  const [operatorTenantId, ownedTenantId] = await Promise.all([
+    getOperatorTenantIdOrNull(supabase, userId),
+    getOwnedTenantIdOrNull(supabase, userId),
+  ])
+  if (operatorTenantId) return operatorTenantId
+  if (ownedTenantId) return ownedTenantId
+
+  const profile = await getProfileTenantRow(supabase, userId)
+  return profile?.tenant_id ?? null
+}
+
+function getCachedTenantIdOrNull(supabase: SupabaseClient<Database>, userId: string): Promise<string | null> {
+  if (tenantCache && tenantCache.userId === userId && tenantCache.expiresAt > Date.now()) {
+    return tenantCache.promise
+  }
+
+  const promise = resolveTenantIdInBrowser(supabase, userId)
+  const entry: TenantCacheEntry = { userId, promise, expiresAt: Date.now() + TENANT_CACHE_TTL_MS }
+  tenantCache = entry
+  // O eroare sau „fără tenant” nu rămâne în memorie: următorul apel încearcă din nou.
+  const forget = () => {
+    if (tenantCache === entry) tenantCache = null
+  }
+  promise.then((tenantId) => {
+    if (!tenantId) forget()
+  }, forget)
+  return promise
+}
+
 export async function getTenantId(supabase: SupabaseClient<Database>): Promise<string> {
+  const sessionUserId = await getBrowserSessionUserId(supabase)
+  if (sessionUserId) {
+    const tenantId = await getCachedTenantIdOrNull(supabase, sessionUserId)
+    if (!tenantId) {
+      throw new Error('Tenant indisponibil pentru utilizatorul curent.')
+    }
+    return tenantId
+  }
+
   const {
     data: { user },
     error: authError,
@@ -162,6 +249,11 @@ export async function getTenantId(supabase: SupabaseClient<Database>): Promise<s
 }
 
 export async function getTenantIdOrNull(supabase: SupabaseClient<Database>): Promise<string | null> {
+  const sessionUserId = await getBrowserSessionUserId(supabase)
+  if (sessionUserId) {
+    return getCachedTenantIdOrNull(supabase, sessionUserId)
+  }
+
   const {
     data: { user },
     error: authError,

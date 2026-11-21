@@ -12,6 +12,7 @@ import { PageViewTracker } from '@/components/app/PageViewTracker'
 import { RouteTransitionIndicator } from '@/components/app/RouteTransitionIndicator'
 import { NotificationToastProvider } from '@/components/notifications/NotificationToastProvider'
 import { AddActionProvider } from '@/contexts/AddActionContext'
+import { primeTenantIdCache } from '@/lib/tenant/get-tenant'
 
 export function Providers({
   children,
@@ -36,6 +37,15 @@ export function Providers({
         },
       })
   )
+
+  // Serverul (proxy → layout) a rezolvat deja tenantul sesiunii: îl dăm funcțiilor de query înainte de primele
+  // interogări (efectele copiilor rulează după acest render), ca să nu-l mai caute fiecare în parte.
+  const tenantKey = `${initialAuth.userId ?? ''}:${initialAuth.tenantId ?? ''}`
+  const [primedTenantKey, setPrimedTenantKey] = useState<string | null>(null)
+  if (primedTenantKey !== tenantKey) {
+    setPrimedTenantKey(tenantKey)
+    primeTenantIdCache(initialAuth.userId, initialAuth.tenantId)
+  }
 
   return (
     <QueryClientProvider client={queryClient}>

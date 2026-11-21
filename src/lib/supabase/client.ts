@@ -1,4 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr'
+import { resetTenantIdCache } from '@/lib/tenant/get-tenant'
 import type { Database } from '@/types/supabase'
 
 let supabaseInstance: ReturnType<typeof createBrowserClient<Database>> | null = null
@@ -29,6 +30,8 @@ export function getSupabase() {
  */
 export function resetSupabaseInstance() {
   supabaseInstance = null
+  // Altă sesiune = alt tenant: cel ținut minte de `getTenantId` nu mai e valabil.
+  resetTenantIdCache()
 }
 
 export function createClient() {

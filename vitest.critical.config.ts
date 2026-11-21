@@ -68,6 +68,7 @@ export default defineConfig(({ mode }) => {
         'src/lib/supabase/queries/__tests__/ajustari-stoc-cheie.test.ts',
         'src/lib/tenant/__tests__/destructive-cleanup.test.ts',
         'src/lib/tenant/__tests__/demo-cleanup.test.ts',
+        'src/lib/tenant/__tests__/tenant-cache.test.ts',
       ],
       exclude: ['node_modules', 'e2e', 'tests', '.next'],
     },

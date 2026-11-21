@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { BigInput, Button, kitText } from '@/components/kit'
 import { buildAuthCallbackUrl } from '@/lib/auth/redirects'
 import { getSupabase } from '@/lib/supabase/client'
+import { resetTenantIdCache } from '@/lib/tenant/get-tenant'
 import { toast } from '@/lib/ui/toast'
 import { cn } from '@/lib/utils'
 
@@ -74,6 +75,8 @@ export function InviteSignupClient({ token }: { token: string }) {
         throw new Error(message)
       }
 
+      // Sesiune nouă, altă fermă: tenantul ținut minte în browser nu mai e valabil.
+      resetTenantIdCache()
       toast.success('Cont creat. Intri în fermă.')
       router.replace(json.redirect_to || '/comenzi')
       router.refresh()
