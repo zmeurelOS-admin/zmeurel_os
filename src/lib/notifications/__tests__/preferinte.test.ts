@@ -145,9 +145,15 @@ describe('normalizeazaPreferinte', () => {
     expect(normalizeazaPreferinte({ tipuri: [1, 2], liniste_noaptea: 'da' })).toEqual({ tipuri: {}, linisteNoaptea: true })
   })
 
-  it('cateSuntPornite numără cele 7', () => {
-    expect(cateSuntPornite(NOTIFICARI_PREFERINTE_IMPLICITE)).toBe(7)
-    expect(cateSuntPornite({ tipuri: { noi: false, sapt: false }, linisteNoaptea: true })).toBe(5)
+  it('cateSuntPornite numără cele 8', () => {
+    expect(cateSuntPornite(NOTIFICARI_PREFERINTE_IMPLICITE)).toBe(8)
+    expect(cateSuntPornite({ tipuri: { noi: false, sapt: false }, linisteNoaptea: true })).toBe(6)
+  })
+
+  it('tratamentele planificate au comutatorul lor, `tratamente`', () => {
+    expect(cheiePentruTip('tratament_planificat')).toBe('tratamente')
+    expect(permitePush({ tipuri: { tratamente: false }, linisteNoaptea: false }, 'tratament_planificat')).toBe(false)
+    expect(permitePush({ tipuri: { pauza: false }, linisteNoaptea: false }, 'tratament_planificat')).toBe(true)
   })
 })
 

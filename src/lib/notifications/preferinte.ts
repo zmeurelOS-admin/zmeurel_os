@@ -9,7 +9,7 @@
  */
 
 /** Cheile din `notificari_preferinte.tipuri`, în ordinea din ecran. */
-export const NOTIFICARI_CHEI = ['noi', 'maine', 'rest', 'meteo', 'pauza', 'sapt', 'acte'] as const
+export const NOTIFICARI_CHEI = ['noi', 'maine', 'rest', 'meteo', 'pauza', 'tratamente', 'sapt', 'acte'] as const
 
 export type NotificareCheie = (typeof NOTIFICARI_CHEI)[number]
 
@@ -33,6 +33,7 @@ export const NOTIFICARI_TEXTE: Record<NotificareCheie, { titlu: string; detaliu:
   rest: { titlu: 'Bani de încasat', detaliu: 'La 7, 14 și 30 de zile de la livrare' },
   meteo: { titlu: 'Îngheț și grindină', detaliu: 'Dimineața, pentru {loc}' },
   pauza: { titlu: 'Pauza după tratament', detaliu: 'Când se poate culege din nou din parcelă' },
+  tratamente: { titlu: 'Tratamente planificate', detaliu: 'Dimineața, în ziua lor' },
   sapt: { titlu: 'Săptămâna ta', detaliu: 'Duminică seara: încasat, livrat, cheltuit' },
   acte: { titlu: 'Echipa și documentele', detaliu: 'Cineva nou în echipă, un act care expiră' },
 }
@@ -49,6 +50,8 @@ export const NOTIFICARI_METEO_FARA_LOC = 'Dimineața, după ce salvezi locul fer
  * - `butasi_delivery_reminder` și `comenzi_maine` → `maine`: mementourile din cron pentru livrările de mâine
  *   (material săditor, respectiv comenzile de fructe încă nepuse în livrare).
  * - `incasari_restante` → `rest`: clienții cu bani de dat de 7, 14 sau 30 de zile.
+ * - `tratament_planificat` → `tratamente` (cheie nouă, nu `pauza`): mementoul de dimineață pentru tratamentele
+ *   planificate azi. E altceva decât pauza (care anunță când se poate culege din nou), deci are comutatorul lui.
  * - Perechile lui `product_listed` / `producer_approved` (`product_unlisted`, `producer_suspended`)
  *   și actele care expiră (`legal_docs_*`) intră tot la `acte`.
  * - Tipurile care încep cu `meteo_` (`meteo_inghet`, `meteo_grindina`) → `meteo`.
@@ -62,6 +65,7 @@ const TIP_LA_CHEIE: Record<string, NotificareCheie> = {
   comenzi_maine: 'maine',
   incasari_restante: 'rest',
   tratament_reminder: 'pauza',
+  tratament_planificat: 'tratamente',
   weekly_sales_summary: 'sapt',
   system: 'acte',
   producer_approved: 'acte',
@@ -134,7 +138,7 @@ export function normalizeazaPreferinte(
   }
 }
 
-/** Câte din cele 7 sunt pornite (pentru rândul din Setări: „7 din 7”). */
+/** Câte comutatoare sunt pornite (pentru rândul din Setări: „8 din 8”). */
 export function cateSuntPornite(preferinte: NotificariPreferinte): number {
   return NOTIFICARI_CHEI.filter((cheie) => isCheiePornita(preferinte, cheie)).length
 }

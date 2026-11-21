@@ -51,6 +51,7 @@ export default defineConfig(({ mode }) => {
         'src/lib/notifications/zilnice/__tests__/*.test.ts',
         'supabase/functions/_shared/__tests__/*.test.ts',
         'src/lib/recoltari/__tests__/*.test.ts',
+        'src/lib/tratamente/__tests__/*.test.ts',
         'src/lib/rapoarte/__tests__/*.test.ts',
         'src/lib/security/__tests__/*.test.ts',
         'src/lib/supabase/queries/__tests__/financial-saves.test.ts',

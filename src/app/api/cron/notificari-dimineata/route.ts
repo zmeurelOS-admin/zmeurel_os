@@ -6,7 +6,9 @@ import {
   alertaMeteo,
   baniDeIncasat,
   prognozaDinFetchMeteo,
+  tratamentePlanificateAzi,
   ziuaInBucuresti,
+  type AplicarePlanificata,
   type RaspunsFetchMeteo,
   type VanzarePentruIncasare,
 } from '@/lib/notifications/zilnice'
@@ -54,6 +56,38 @@ async function vanzariFerma(admin: Admin, tenantId: string): Promise<VanzarePent
   return rows.map((row) => ({ ...row, client_nume: row.client_id ? (nume.get(row.client_id) ?? null) : null }))
 }
 
+/** Coloana lipsește (migrarea încă neaplicată): Postgres 42703, PostgREST PGRST204. */
+function isMissingColumnError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false
+  if (error.code === '42703' || error.code === 'PGRST204') return true
+  return /column .* does not exist|could not find the .* column/i.test(error.message ?? '')
+}
+
+/**
+ * Tratamentele planificate azi ale fermei (doar citire). `lot_id` vine după migrarea `20261121160000`;
+ * până atunci fiecare aplicare contează separat (câte un rând pe parcelă).
+ */
+async function planificateAzi(admin: Admin, tenantId: string, azi: string): Promise<AplicarePlanificata[]> {
+  const cuLot = await admin
+    .from('aplicari_tratament')
+    .select('id, tenant_id, status, data_planificata, lot_id')
+    .eq('tenant_id', tenantId)
+    .eq('status', 'planificata')
+    .eq('data_planificata', azi)
+    .limit(500)
+  if (!cuLot.error) return (cuLot.data ?? []) as AplicarePlanificata[]
+  if (!isMissingColumnError(cuLot.error)) throw cuLot.error
+  const faraLot = await admin
+    .from('aplicari_tratament')
+    .select('id, tenant_id, status, data_planificata')
+    .eq('tenant_id', tenantId)
+    .eq('status', 'planificata')
+    .eq('data_planificata', azi)
+    .limit(500)
+  if (faraLot.error) throw faraLot.error
+  return (faraLot.data ?? []) as AplicarePlanificata[]
+}
+
 /**
  * Prognoza prin Edge Function-ul `fetch-meteo` (cu cache pe fermă), apelat cu service role.
  * Ca `useMeteo`, dacă `fetch-meteo` nu răspunde, încearcă `get-meteo` (același cod, fără verificarea JWT
@@ -72,7 +106,8 @@ async function prognozaFerma(admin: Admin, tenantId: string): Promise<RaspunsFet
 /**
  * Dimineața (05:00 UTC: 7:00 iarna, 8:00 vara, ora României), pentru fiecare fermă reală:
  * - „Îngheț și grindină”, doar dacă ferma are locul salvat (Setări › Ferma);
- * - „Bani de încasat”, clienții cu bani de dat de 7, 14 sau 30 de zile.
+ * - „Bani de încasat”, clienții cu bani de dat de 7, 14 sau 30 de zile;
+ * - „Tratamente planificate”, o notificare pe fermă în ziua lor (cheia `tratament:<fermă>:<zi>`).
  * Doar citește și inserează în `notifications`.
  */
 export async function GET(request: Request) {
@@ -85,7 +120,12 @@ export async function GET(request: Request) {
     const acum = new Date()
     const azi = ziuaInBucuresti(acum)
     const ferme = await citesteFermeleReale(admin)
-    const contor = contorNou([TIPURI_ZILNICE.meteo_inghet, TIPURI_ZILNICE.meteo_grindina, TIPURI_ZILNICE.incasari_restante])
+    const contor = contorNou([
+      TIPURI_ZILNICE.meteo_inghet,
+      TIPURI_ZILNICE.meteo_grindina,
+      TIPURI_ZILNICE.incasari_restante,
+      TIPURI_ZILNICE.tratament_planificat,
+    ])
 
     // Fermele cu locul salvat. Fără loc nu cerem prognoza și nu ghicim.
     const cuLoc = new Set<string>()
@@ -128,6 +168,16 @@ export async function GET(request: Request) {
         verificata = false
         contor.erori += 1
         captureApiError(error, { route: ROUTE, tenantId: ferma.id, tags: { pas: 'incasari' } })
+      }
+
+      try {
+        for (const notificare of tratamentePlanificateAzi(await planificateAzi(admin, ferma.id, azi), azi)) {
+          numara(contor, notificare.type, await trimiteNotificareZilnica(admin, notificare))
+        }
+      } catch (error) {
+        verificata = false
+        contor.erori += 1
+        captureApiError(error, { route: ROUTE, tenantId: ferma.id, tags: { pas: 'tratamente' } })
       }
 
       if (verificata) contor.fermeVerificate += 1

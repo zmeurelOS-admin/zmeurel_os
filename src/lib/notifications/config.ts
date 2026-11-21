@@ -111,6 +111,16 @@ export const NOTIFICATION_CONFIG = {
     playSound: false,
     pushEnabled: true,
   },
+  tratament_planificat: {
+    icon: '🧪',
+    color: '#3D7A5F',
+    /** Informare: tratamentele planificate azi (cronul `notificari-dimineata`). */
+    ton: 'informare',
+    toastDuration: 6000,
+    showToast: true,
+    playSound: false,
+    pushEnabled: true,
+  },
   meteo_inghet: {
     icon: '❄️',
     color: '#e6a817',

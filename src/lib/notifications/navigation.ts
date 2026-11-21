@@ -60,6 +60,8 @@ export function getNotificationHref(
       return '/vanzari-butasi'
     case 'comenzi_maine':
       return '/comenzi'
+    case 'tratament_planificat':
+      return '/tratamente?fila=planificate'
     case 'incasari_restante': {
       // Un client: fișa lui. Mai mulți (varianta grupată): lista de clienți.
       const clientId = typeof d['client_id'] === 'string' && d['client_id'] ? d['client_id'] : null

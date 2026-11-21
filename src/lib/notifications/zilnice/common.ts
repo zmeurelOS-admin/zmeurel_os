@@ -1,5 +1,5 @@
 /**
- * Ce au în comun verificările zilnice (ger, comenzi de mâine, bani de încasat). Funcții pure.
+ * Ce au în comun verificările zilnice (ger, comenzi de mâine, bani de încasat, tratamente planificate). Funcții pure.
  */
 
 export const TIPURI_ZILNICE = {
@@ -7,6 +7,7 @@ export const TIPURI_ZILNICE = {
   incasari_restante: 'incasari_restante',
   meteo_inghet: 'meteo_inghet',
   meteo_grindina: 'meteo_grindina',
+  tratament_planificat: 'tratament_planificat',
 } as const
 
 export type TipZilnic = (typeof TIPURI_ZILNICE)[keyof typeof TIPURI_ZILNICE]
