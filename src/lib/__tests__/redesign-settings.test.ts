@@ -55,6 +55,7 @@ describe('schema-features', () => {
         'tenant_settings.acasa_perioada_mod',
         'comenzi.client_sync_id',
         'aplicari_tratament.lot_id',
+        'activitati_agricole.status',
       ]),
     )
     await expect(probeSchemaFeatures(client)).resolves.toEqual(NO_SCHEMA_FEATURES)
@@ -70,8 +71,9 @@ describe('schema-features', () => {
       acasaPerioada: true,
       cheiIdempotenta: true,
       tratamenteLot: true,
+      lucrariPlanificate: true,
     })
-    expect(calls).toHaveLength(7)
+    expect(calls).toHaveLength(8)
   })
 
   it('o altă eroare nu e luată drept „lipsește”: verificarea se reia', async () => {

@@ -27,10 +27,12 @@ export type Database = {
           doza: string | null
           id: string
           id_activitate: string
+          lot_id?: string | null
           observatii: string | null
           operator: string | null
           parcela_id: string | null
           produs_utilizat: string | null
+          status?: string | null
           sync_status: string | null
           tenant_id: string | null
           timp_pauza_zile: number | null
@@ -51,10 +53,12 @@ export type Database = {
           doza?: string | null
           id?: string
           id_activitate: string
+          lot_id?: string | null
           observatii?: string | null
           operator?: string | null
           parcela_id?: string | null
           produs_utilizat?: string | null
+          status?: string | null
           sync_status?: string | null
           tenant_id?: string | null
           timp_pauza_zile?: number | null
@@ -75,10 +79,12 @@ export type Database = {
           doza?: string | null
           id?: string
           id_activitate?: string
+          lot_id?: string | null
           observatii?: string | null
           operator?: string | null
           parcela_id?: string | null
           produs_utilizat?: string | null
+          status?: string | null
           sync_status?: string | null
           tenant_id?: string | null
           timp_pauza_zile?: number | null
