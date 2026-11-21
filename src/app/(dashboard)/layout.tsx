@@ -60,7 +60,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
     ])
     associationShopApproved = tenantRow?.is_association_approved === true
     farmName = farmDisplayName(tenantRow?.nume_ferma)
-    legalDocsBannerText = legalDocs.status.complete ? null : textBannerActe(stareActe(acteDinDocument(legalDocs.doc)))
+    // Operatorul nu poate deschide Actele fermei (Setări sunt blocate pentru el), deci nu vede bannerul.
+    legalDocsBannerText =
+      memberRoleFromProxy === 'operator' || legalDocs.status.complete
+        ? null
+        : textBannerActe(stareActe(acteDinDocument(legalDocs.doc)))
   }
 
   const initialAuth = {

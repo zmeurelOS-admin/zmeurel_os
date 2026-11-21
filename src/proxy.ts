@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { stripProxyOwnedHeaders } from '@/lib/auth/proxy-headers'
 import { buildLoginUrl } from '@/lib/auth/redirects'
 import {
   firstAllowedRoute,
@@ -28,16 +29,22 @@ function clearStaleSupabaseAuthCookies(request: NextRequest, response: NextRespo
   })
 }
 
-function redirectTo(request: NextRequest, pathname: string) {
+/** Copiază pe `target` cookie-urile puse de Supabase (sesiune reîmprospătată, cookie-uri șterse). */
+function withSessionCookies<T extends NextResponse>(target: T, source: NextResponse | null): T {
+  source?.cookies.getAll().forEach((cookie) => target.cookies.set(cookie))
+  return target
+}
+
+function redirectTo(request: NextRequest, pathname: string, cookieSource: NextResponse | null = null) {
   const redirectUrl = request.nextUrl.clone()
   redirectUrl.pathname = pathname
   redirectUrl.search = ''
-  return NextResponse.redirect(redirectUrl)
+  return withSessionCookies(NextResponse.redirect(redirectUrl), cookieSource)
 }
 
-function redirectToLogin(request: NextRequest) {
+function redirectToLogin(request: NextRequest, cookieSource: NextResponse | null = null) {
   const next = `${request.nextUrl.pathname}${request.nextUrl.search}`
-  return NextResponse.redirect(new URL(buildLoginUrl({ next }), request.url))
+  return withSessionCookies(NextResponse.redirect(new URL(buildLoginUrl({ next }), request.url)), cookieSource)
 }
 
 const DEFAULT_SHOP_DOMAIN = 'comanda.zmeurel.ro'
@@ -64,6 +71,7 @@ function isPurePublicNoAuthBypassRoute(pathname: string, request: NextRequest): 
 
 export async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers)
+  stripProxyOwnedHeaders(requestHeaders)
   const { pathname } = request.nextUrl
   const publicShopHost = isPublicShopHost(request)
 
@@ -120,6 +128,18 @@ export async function proxy(request: NextRequest) {
     }
   )
 
+  /**
+   * Răspunsul care merge mai departe spre pagină: creat abia acum, cu antetele finale (Next le copiază la creare,
+   * deci ce se pune după `NextResponse.next()` nu mai ajunge la layout), plus cookie-urile sesiunii.
+   * Cookie-urile reîmprospătate merg și în cererea spre pagină (`request.cookies.set` scrie în `request.headers`).
+   */
+  const continueRequest = () => {
+    const cookieHeader = request.headers.get('cookie')
+    if (cookieHeader) requestHeaders.set('cookie', cookieHeader)
+    else requestHeaders.delete('cookie')
+    return withSessionCookies(NextResponse.next({ request: { headers: requestHeaders } }), supabaseResponse)
+  }
+
   const isApiRoute = pathname.startsWith('/api/')
   const isStaticPublicFile = /\.(?:js|map|svg|png|jpg|jpeg|gif|webp|ico)$/i.test(pathname)
   const isPublicAssetRoute =
@@ -162,7 +182,7 @@ export async function proxy(request: NextRequest) {
 
   // Never touch auth cookies on callback routes; PKCE exchange depends on code_verifier.
   if (isAuthCallbackRoute) {
-    return supabaseResponse
+    return continueRequest()
   }
 
   // Get the current user session
@@ -190,16 +210,16 @@ export async function proxy(request: NextRequest) {
   if (!user) {
     // Allow access to public routes
     if (isPublicRoute) {
-      return supabaseResponse
+      return continueRequest()
     }
 
     // Redirect to login for protected routes
-    return redirectToLogin(request)
+    return redirectToLogin(request, supabaseResponse)
   }
 
   // Landing is always visible, even for authenticated users.
   if (pathname === '/') {
-    return supabaseResponse
+    return continueRequest()
   }
 
   const needsTenantGuard =
@@ -210,7 +230,7 @@ export async function proxy(request: NextRequest) {
     (!isPublicRoute && !isApiRoute)
 
   if (!needsTenantGuard) {
-    return supabaseResponse
+    return continueRequest()
   }
 
   let tenantId: string | null = null
@@ -290,7 +310,7 @@ export async function proxy(request: NextRequest) {
         userId: user.id,
         message: error instanceof Error ? error.message : 'unknown',
       })
-      return supabaseResponse
+      return continueRequest()
     }
   }
 
@@ -308,15 +328,15 @@ export async function proxy(request: NextRequest) {
   }
 
   if (pathname === '/login' || pathname === '/register' || pathname === '/reset-password-request') {
-    return redirectTo(request, operatorMember ? operatorFirstRoute : tenantId ? '/dashboard' : '/start')
+    return redirectTo(request, operatorMember ? operatorFirstRoute : tenantId ? '/dashboard' : '/start', supabaseResponse)
   }
 
   if (pathname === '/start') {
-    return operatorMember ? redirectTo(request, operatorFirstRoute) : supabaseResponse
+    return operatorMember ? redirectTo(request, operatorFirstRoute, supabaseResponse) : continueRequest()
   }
 
   if (!tenantId && !isPublicRoute && !isApiRoute) {
-    return redirectTo(request, '/start')
+    return redirectTo(request, '/start', supabaseResponse)
   }
 
   if (operatorMember) {
@@ -337,7 +357,7 @@ export async function proxy(request: NextRequest) {
       isOperatorHardBlockedPath(pathname) ||
       (!isPublicRoute && !isApiRoute && !isPathAllowedForAccess(pathname, operatorAccess))
     ) {
-      return redirectTo(request, operatorFirstRoute)
+      return redirectTo(request, operatorFirstRoute, supabaseResponse)
     }
   } else {
     requestHeaders.delete('x-zmeurel-member-role')
@@ -347,7 +367,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // User is authenticated, allow access to protected routes
-  return supabaseResponse
+  return continueRequest()
 }
 
 /**
