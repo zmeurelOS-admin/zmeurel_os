@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 
 import { AppShell } from '@/components/app/AppShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
+import { accessLevelForModule } from '@/lib/farm-members/access'
 import {
   BottomSheet,
   Button,
@@ -102,9 +103,10 @@ export function TratamentePageClient() {
   const queryClient = useQueryClient()
   const searchParams = useSearchParams()
   const router = useRouter()
-  const { memberRole } = useDashboardAuth()
-  // Operatorul vede jurnalul; scrierea o decide baza de date (`operator_can_write('tratamente')`).
+  const { memberRole, memberAccess } = useDashboardAuth()
+  // Operatorul cu `tratamente: read` doar vede jurnalul; baza de date refuză oricum scrierea (`operator_can_write('tratamente')`).
   const isOperator = memberRole === 'operator'
+  const poateScrie = !isOperator || accessLevelForModule(memberAccess, 'tratamente') === 'write'
 
   const azi = useSyncExternalStore(subscribeToDayChange, readToday, noServerDay)
   const [fila, setFila] = useState<'facute' | 'planificate'>(() => (searchParams.get('fila') === 'planificate' ? 'planificate' : 'facute'))
@@ -157,14 +159,14 @@ export function TratamentePageClient() {
     if (!parcelaDinUrl || !azi || parceleQuery.isLoading) return
     const exista = (parceleQuery.data ?? []).some((parcela) => parcela.id === parcelaDinUrl)
     queueMicrotask(() => {
-      if (exista) {
+      if (exista && poateScrie) {
         setInitial(null)
         setParcelaInitiala(parcelaDinUrl)
         setFormOpen(true)
       }
       router.replace('/tratamente', { scroll: false })
     })
-  }, [azi, parcelaDinUrl, parceleQuery.data, parceleQuery.isLoading, router])
+  }, [azi, parcelaDinUrl, parceleQuery.data, parceleQuery.isLoading, poateScrie, router])
 
   const repeta = (rand: RandJurnal) => {
     const ciorna = ciornaDinTratament(rand.aplicari, new Set(parcele.map((parcela) => parcela.id)), catalogPeId)
@@ -242,7 +244,7 @@ export function TratamentePageClient() {
       header={<ScreenHeader title="Tratamente" backHref="/mai-mult" />}
       bottomBarFixed
       bottomBar={
-        !loadingAll ? (
+        !loadingAll && poateScrie ? (
           <div className="mx-auto w-full max-w-md pl-18 pr-4">
             <div className="rounded-box shadow-2">{addButton}</div>
           </div>
@@ -314,7 +316,7 @@ export function TratamentePageClient() {
         onOpenChange={setSheetOpen}
         title={deschis ? `${ETICHETA_TIP[deschis.tip]}${deschis.zi ? ` · ${ZiCuDataRo(deschis.zi)}` : ''}` : 'Tratament'}
         footer={
-          deschis && !deschis.importat ? (
+          deschis && !deschis.importat && poateScrie ? (
             deschis.stare === 'planificat' ? (
               <div className="flex flex-col gap-2.5">
                 <Button type="button" variant="primary" size="touch-lg" className="w-full" loading={busy === 'facut'} onClick={() => void schimbaStarea(deschis, 'facut')}>
@@ -357,8 +359,8 @@ export function TratamentePageClient() {
                 }
               />
             </SummaryList>
-            {isOperator && !deschis.importat ? (
-              <p className={cn('text-fg-muted', kitText.helper)}>Dacă nu ai drept de scriere pe tratamente, salvarea va fi refuzată.</p>
+            {!poateScrie && !deschis.importat ? (
+              <p className={cn('text-fg-muted', kitText.helper)}>Ai doar citire pe tratamente. Proprietarul fermei îți poate da și scriere.</p>
             ) : null}
           </div>
         ) : null}

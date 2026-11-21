@@ -89,10 +89,10 @@ const ADMIN_ROWS = [
 /** Ce e deja în bara de jos nu se repetă pe plăci (aceeași regulă ca foaia de dinainte). */
 const MOBILE_NAV_PRIMARY = new Set(['/dashboard', '/livrari', '/recoltari', '/comenzi'])
 
-/** Tratamentele stau la modulul `activitati` pentru operatori (vezi `FARM_MEMBER_MODULE_ROUTES`). */
+/** Tratamentele au dreptul lor (`tratamente`); cine avea doar Lucrări le citește (regula din `resolveFarmMemberAccess`). */
 function canOperatorSeeTratamente(memberRole: 'operator' | null | undefined, access: FarmMemberModuleAccess[] | undefined) {
   if (memberRole !== 'operator') return true
-  return (access ?? []).some((item) => item.module === 'activitati')
+  return (access ?? []).some((item) => item.module === 'tratamente')
 }
 
 function canOperatorSeeParcele(memberRole: 'operator' | null | undefined, access: FarmMemberModuleAccess[] | undefined) {

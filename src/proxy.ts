@@ -8,6 +8,7 @@ import {
   isOperatorHardBlockedPath,
   isPathAllowedForAccess,
   normalizeFarmMemberAccess,
+  resolveFarmMemberAccess,
 } from '@/lib/farm-members/access'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { getNonOperatorTenantIdOrNull, getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
@@ -257,7 +258,7 @@ export async function proxy(request: NextRequest) {
         role: farmMember.role ?? 'operator',
         modules_access: farmMember.modules_access,
       }
-      operatorAccess = normalizeFarmMemberAccess(operatorMember.modules_access, { legacyFallback: true })
+      operatorAccess = resolveFarmMemberAccess(operatorMember.modules_access, { legacyFallback: true })
       operatorFirstRoute = firstAllowedRoute(operatorAccess)
     }
   } catch (error) {

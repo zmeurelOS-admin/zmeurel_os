@@ -6,6 +6,7 @@ import {
   FARM_MEMBER_ACCESS_LEVELS,
   FARM_MEMBER_MODULES,
   normalizeFarmMemberAccess,
+  toStoredFarmMemberAccess,
 } from '@/lib/farm-members/access'
 import { getFarmOwnerContext } from '@/lib/farm-members/owner-auth'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
@@ -79,7 +80,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   const { error: updateError } = await admin
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .from('farm_members' as any)
-    .update({ modules_access: modules })
+    .update({ modules_access: toStoredFarmMemberAccess(modules) })
     .eq('id', id)
     .eq('tenant_id', owner.tenantId)
 

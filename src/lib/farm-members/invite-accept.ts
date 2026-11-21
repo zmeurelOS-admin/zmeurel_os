@@ -1,6 +1,7 @@
 import {
   firstAllowedRoute,
-  normalizeFarmMemberAccess,
+  resolveFarmMemberAccess,
+  toStoredFarmMemberAccess,
   type FarmMemberModuleAccess,
 } from '@/lib/farm-members/access'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
@@ -52,7 +53,7 @@ export async function validateFarmInviteToken(token: string): Promise<FarmInvite
     return { valid: false, reason: 'expired' }
   }
 
-  const modulesAccess = normalizeFarmMemberAccess(invite.modules_access)
+  const modulesAccess = resolveFarmMemberAccess(invite.modules_access)
   if (modulesAccess.length === 0) {
     return { valid: false, reason: 'no_modules' }
   }
@@ -199,7 +200,7 @@ export async function acceptFarmInviteForUser(params: {
       .from('farm_members' as any)
       .update({
         role: 'operator',
-        modules_access: invite.modules_access,
+        modules_access: toStoredFarmMemberAccess(invite.modules_access),
         name: params.name,
       })
       .eq('id', (existingMember as unknown as { id: string }).id)
@@ -216,7 +217,7 @@ export async function acceptFarmInviteForUser(params: {
         user_id: params.userId,
         role: 'operator',
         name: params.name,
-        modules_access: invite.modules_access,
+        modules_access: toStoredFarmMemberAccess(invite.modules_access),
         is_active: true,
         created_by: invite.created_by,
       })

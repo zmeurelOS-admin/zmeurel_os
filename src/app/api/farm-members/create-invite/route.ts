@@ -6,6 +6,7 @@ import {
   FARM_MEMBER_ACCESS_LEVELS,
   FARM_MEMBER_MODULES,
   normalizeFarmMemberAccess,
+  toStoredFarmMemberAccess,
 } from '@/lib/farm-members/access'
 import { farmOperatorInviteUrl, getFarmOwnerContext } from '@/lib/farm-members/owner-auth'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
     .insert({
       tenant_id: owner.tenantId,
       token,
-      modules_access: modules,
+      modules_access: toStoredFarmMemberAccess(modules),
       created_by: owner.userId,
       expires_at: expiresAt,
     })

@@ -11,6 +11,7 @@ export const FARM_MEMBER_MODULES = [
   'culegatori',
   'produse',
   'activitati',
+  'tratamente',
 ] as const
 
 export type FarmMemberModule = (typeof FARM_MEMBER_MODULES)[number]
@@ -29,6 +30,7 @@ export const FARM_MEMBER_MODULE_LABELS: Record<FarmMemberModule, string> = {
   culegatori: 'Culegători',
   produse: 'Produse',
   activitati: 'Lucrări',
+  tratamente: 'Tratamente',
 }
 
 export const FARM_MEMBER_MODULE_ROUTES: Record<FarmMemberModule, string[]> = {
@@ -39,9 +41,10 @@ export const FARM_MEMBER_MODULE_ROUTES: Record<FarmMemberModule, string[]> = {
   clienti: ['/clienti', '/clienti-magazin'],
   culegatori: ['/culegatori'],
   produse: ['/produse'],
-  // Lucrările (fostele Activități agricole; `/activitati-agricole` redirecționează la `/lucrari`) și Tratamentele:
-  // operatorul le vede; scrierea tratamentelor cere dreptul `tratamente` din baza de date. Cheia modulului rămâne `activitati`.
-  activitati: ['/lucrari', '/activitati-agricole', '/tratamente'],
+  // Lucrările (fostele Activități agricole; `/activitati-agricole` redirecționează la `/lucrari`). Cheia rămâne `activitati`.
+  activitati: ['/lucrari', '/activitati-agricole'],
+  // Tratamentele au dreptul lor (RLS: `operator_can_write('tratamente')`).
+  tratamente: ['/tratamente'],
 }
 
 export const FARM_MEMBER_MODULE_DEFAULT_ROUTE: Record<FarmMemberModule, string> = {
@@ -53,6 +56,7 @@ export const FARM_MEMBER_MODULE_DEFAULT_ROUTE: Record<FarmMemberModule, string> 
   culegatori: '/culegatori',
   produse: '/produse',
   activitati: '/lucrari',
+  tratamente: '/tratamente',
 }
 
 export const LEGACY_OPERATOR_ACCESS: FarmMemberModuleAccess[] = [
@@ -103,6 +107,72 @@ export function normalizeFarmMemberAccess(
   }
 
   return normalized
+}
+
+/**
+ * Refuzul explicit al tratamentelor, păstrat în `modules_access` ca `{ module: 'tratamente', level: 'none' }`.
+ * Bazei de date nu-i schimbă nimic (`operator_can_write` citește doar `read` / `write`); îi spune aplicației
+ * că proprietarul a ales „Nu”, ca regula de compatibilitate de mai jos să nu mai dea citire.
+ */
+export const FARM_MEMBER_DENIED_LEVEL = 'none'
+
+function hasExplicitTratamenteDeny(value: unknown): boolean {
+  return (
+    Array.isArray(value) &&
+    value.some((item) => isRecord(item) && item.module === 'tratamente' && item.level === FARM_MEMBER_DENIED_LEVEL)
+  )
+}
+
+/**
+ * Compatibilitate `activitati` → `tratamente: read`.
+ * Până la dreptul separat, `/tratamente` stătea la modulul `activitati`: cine avea Lucrări vedea și Tratamentele.
+ * La citirea drepturilor, dacă `tratamente` lipsește și `activitati` e prezent (și nu există refuzul explicit),
+ * operatorul primește `tratamente: read`. Rândurile din `farm_members` nu se schimbă.
+ */
+export function applyTratamenteCompat(
+  access: FarmMemberModuleAccess[],
+  options: { explicitDeny?: boolean } = {},
+): FarmMemberModuleAccess[] {
+  if (options.explicitDeny) return access
+  const hasActivitati = access.some((item) => item.module === 'activitati')
+  const hasTratamente = access.some((item) => item.module === 'tratamente')
+  if (!hasActivitati || hasTratamente) return access
+  return normalizeFarmMemberAccess([...access, { module: 'tratamente', level: 'read' }])
+}
+
+/**
+ * Drepturile unui operator așa cum le citește aplicația dintr-un rând salvat (`farm_members` / `farm_invites`):
+ * normalizare + regula de compatibilitate pentru tratamente. Folosită de gărzile de rută, Echipa și acceptarea invitației.
+ */
+export function resolveFarmMemberAccess(
+  value: unknown,
+  options: { legacyFallback?: boolean } = {},
+): FarmMemberModuleAccess[] {
+  const access = normalizeFarmMemberAccess(value, options)
+  return applyTratamenteCompat(access, { explicitDeny: hasExplicitTratamenteDeny(value) })
+}
+
+export type StoredFarmMemberAccessItem =
+  | FarmMemberModuleAccess
+  | { module: 'tratamente'; level: typeof FARM_MEMBER_DENIED_LEVEL }
+
+/**
+ * Ce se scrie în `modules_access`: drepturile alese plus refuzul explicit al tratamentelor
+ * când Lucrări e dat și Tratamente nu (altfel, la citire, regula de compatibilitate ar da citire).
+ */
+export function toStoredFarmMemberAccess(access: FarmMemberModuleAccess[]): StoredFarmMemberAccessItem[] {
+  const normalized = normalizeFarmMemberAccess(access)
+  const needsDeny =
+    normalized.some((item) => item.module === 'activitati') && !normalized.some((item) => item.module === 'tratamente')
+  return needsDeny ? [...normalized, { module: 'tratamente', level: FARM_MEMBER_DENIED_LEVEL }] : normalized
+}
+
+/** Nivelul unui modul pentru operator (`null` = nu-l vede). */
+export function accessLevelForModule(
+  access: FarmMemberModuleAccess[] | undefined,
+  module: FarmMemberModule,
+): FarmMemberAccessLevel | null {
+  return (access ?? []).find((item) => item.module === module)?.level ?? null
 }
 
 export function parseFarmMemberAccessHeader(value: string | null | undefined): FarmMemberModuleAccess[] {

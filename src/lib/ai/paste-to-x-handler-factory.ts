@@ -6,7 +6,7 @@ import type { BucharestNowContext } from '@/app/api/chat/date-helpers'
 import { consumeFixedWindowRateLimit } from '@/lib/api/rate-limit'
 import { PASTE_TO_X_MODEL, type PasteToXModule } from '@/lib/ai/paste-to-x'
 import { apiError, validateSameOriginMutation } from '@/lib/api/route-security'
-import { normalizeFarmMemberAccess } from '@/lib/farm-members/access'
+import { resolveFarmMemberAccess } from '@/lib/farm-members/access'
 import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -230,7 +230,7 @@ export async function resolvePasteToXWriteAccess(
   }
 
   const operatorMember = member as FarmMemberRow | null
-  const access = normalizeFarmMemberAccess(operatorMember?.modules_access, { legacyFallback: true })
+  const access = resolveFarmMemberAccess(operatorMember?.modules_access, { legacyFallback: true })
   const canWriteModule = access.some(
     (item) => item.module === requiredAccessModule && item.level === 'write',
   )
