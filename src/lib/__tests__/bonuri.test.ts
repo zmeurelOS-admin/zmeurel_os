@@ -9,6 +9,7 @@ import {
   fitWithin,
   prepareBonImage,
   resolveBonLink,
+  textSalvat,
 } from '@/lib/bonuri'
 
 describe('fitWithin', () => {
@@ -110,5 +111,21 @@ describe('legătura bonului', () => {
     expect(resolveBonLink(null)).toBeNull()
     expect(resolveBonLink('')).toBeNull()
     expect(resolveBonLink('   ')).toBeNull()
+  })
+})
+
+describe('textSalvat', () => {
+  it('cu bon sau fără poză aleasă: doar rezumatul', () => {
+    expect(textSalvat('Ambalaje · 12,50 lei', null)).toBe('Ambalaje · 12,50 lei')
+  })
+
+  it('„Salvează fără bon” după o urcare picată: spune „fără bon”', () => {
+    expect(textSalvat('Ambalaje · 12,50 lei', 'ales')).toBe('Ambalaje · 12,50 lei · fără bon. Poza o adaugi din „Editează”.')
+  })
+
+  it('fără internet: spune „fără bon” și că poza se adaugă cu internet', () => {
+    expect(textSalvat('Ambalaje · 12,50 lei', 'offline')).toBe(
+      'Ambalaje · 12,50 lei · fără bon. Poza o adaugi din „Editează”, cu internet.',
+    )
   })
 })

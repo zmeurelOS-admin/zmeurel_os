@@ -28,8 +28,10 @@ import {
   prepareBonImage,
   removeBon,
   signedBonUrl,
+  textSalvat,
   uploadBon,
   type BonTable,
+  type FaraBon,
 } from '@/lib/bonuri'
 import {
   CATEGORII_CHELTUIELI,
@@ -178,7 +180,7 @@ export function CheltuialaStepForm({
   const [confirmingClose, setConfirmingClose] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [saved, setSaved] = useState<{ suma: number; categorie: string; withoutBon: boolean } | null>(null)
+  const [saved, setSaved] = useState<{ suma: number; categorie: string; faraBon: FaraBon } | null>(null)
   const [bon, setBon] = useState<BonDraft>(NO_BON)
   const [bonPreparing, setBonPreparing] = useState(false)
   const [bonReadError, setBonReadError] = useState(false)
@@ -327,7 +329,7 @@ export function CheltuialaStepForm({
 
     // Investițiile nu au cheie de idempotență în bază: o cheie de formular se trimite o singură dată.
     if (!editing && isInvestitie && sentKeys.current.has(key)) {
-      setSaved({ suma, categorie, withoutBon: false })
+      setSaved({ suma, categorie, faraBon: null })
       form.markSuccess({ has_bon: uploadedBon.current !== null })
       return
     }
@@ -438,7 +440,8 @@ export function CheltuialaStepForm({
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
       hapticSuccess()
       if (liveKeyRef.current === key) {
-        setSaved({ suma, categorie, withoutBon: skippedOffline })
+        // „Salvează fără bon” după o urcare picată: ecranul de final spune și el „fără bon”.
+        setSaved({ suma, categorie, faraBon: skippedOffline ? 'offline' : withoutBon && bon.kind === 'new' ? 'ales' : null })
         form.markSuccess({ has_bon: Boolean(documentUrl) })
       }
     } catch (cause) {
@@ -732,11 +735,7 @@ export function CheltuialaStepForm({
         saved ? (
           <SuccessScreen
             title={editing ? 'Modificat' : 'Salvat'}
-            description={
-              saved.withoutBon
-                ? `${saved.categorie} · ${formatLei(saved.suma)} · fără bon. Poza o adaugi din „Editează”, cu internet.`
-                : `${saved.categorie} · ${formatLei(saved.suma)}`
-            }
+            description={textSalvat(`${saved.categorie} · ${formatLei(saved.suma)}`, saved.faraBon)}
             primaryAction={{ label: 'Gata', onClick: close }}
             secondaryAction={
               editing

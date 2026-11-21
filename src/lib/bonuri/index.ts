@@ -16,6 +16,19 @@ export const BON_UNREADABLE_MESSAGE = 'Poza nu s-a putut citi. Încearcă alta.'
 
 export type BonTable = 'cheltuieli' | 'investitii'
 
+/**
+ * De ce s-a salvat rândul fără poza aleasă: `offline` = nu era internet (poza nu pleacă și nu intră în coadă);
+ * `ales` = urcarea a picat și omul a apăsat „Salvează fără bon”. `null` = cu bon, sau nu s-a ales nicio poză.
+ */
+export type FaraBon = 'offline' | 'ales' | null
+
+/** Textul de sub „Salvat”: spune limpede când rândul a rămas fără poza bonului. */
+export function textSalvat(rezumat: string, faraBon: FaraBon): string {
+  if (faraBon === 'offline') return `${rezumat} · fără bon. Poza o adaugi din „Editează”, cu internet.`
+  if (faraBon === 'ales') return `${rezumat} · fără bon. Poza o adaugi din „Editează”.`
+  return rezumat
+}
+
 export class BonImageError extends Error {
   readonly userMessage = BON_UNREADABLE_MESSAGE
 
