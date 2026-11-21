@@ -8,6 +8,10 @@ import { isSuperAdmin } from '@/lib/auth/isSuperAdmin'
 import { captureApiError } from '@/lib/monitoring/report-error'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import {
+  deleteTenantScopedData,
+  TENANT_DESTRUCTIVE_CLEANUP_SCOPES,
+} from '@/lib/tenant/destructive-cleanup'
 import { getTenantIdByUserId } from '@/lib/tenant/get-tenant'
 
 export const runtime = 'nodejs'
@@ -72,6 +76,14 @@ export async function DELETE(request: Request) {
 
     const admin = getSupabaseAdmin()
     const tenantId = tenant.id
+
+    // Întâi datele fermei, în ordinea cheilor: tratamentele și capcanele au chei `ON DELETE RESTRICT` spre
+    // `parcele` și `produse_fitosanitare`, deci ștergerea directă a rândului din `tenants` poate eșua.
+    // Orice eroare critică oprește aici, înainte să atingem contul (`TenantCleanupError`).
+    await deleteTenantScopedData(admin, tenantId, {
+      scope: TENANT_DESTRUCTIVE_CLEANUP_SCOPES.gdprFarmDelete,
+      verifyCriticalTables: true,
+    })
 
     const { error: analyticsDeleteError } = await admin
       .from('analytics_events' as unknown as 'alert_dismissals')

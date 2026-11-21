@@ -41,10 +41,14 @@ const TENANT_ID = 'f7446f76-a177-4d5f-a9cf-d19adbaed7ba'
 
 function makeAdminClient() {
   const eq = vi.fn().mockResolvedValue({ error: null })
+  const countEq = vi.fn().mockResolvedValue({ count: 0, error: null })
   return {
     from: vi.fn(() => ({
       delete: () => ({
         eq,
+      }),
+      select: () => ({
+        eq: countEq,
       }),
     })),
     auth: {
