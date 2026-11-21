@@ -39,7 +39,8 @@ export const FARM_MEMBER_MODULE_ROUTES: Record<FarmMemberModule, string[]> = {
   clienti: ['/clienti', '/clienti-magazin'],
   culegatori: ['/culegatori'],
   produse: ['/produse'],
-  activitati: ['/activitati-agricole'],
+  // Tratamentele intră la Activități: operatorul le vede; scrierea cere dreptul `tratamente` din baza de date.
+  activitati: ['/activitati-agricole', '/tratamente'],
 }
 
 export const FARM_MEMBER_MODULE_DEFAULT_ROUTE: Record<FarmMemberModule, string> = {

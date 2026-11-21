@@ -49,6 +49,10 @@ export const KIT_RULE_DIRS = [
   'src/lib/recoltari',
   'src/lib/setari',
   'src/lib/dashboard',
+  // Tratamente (stropiri, fertirigare, pauza)
+  'src/app/(dashboard)/tratamente',
+  'src/components/tratamente',
+  'src/lib/tratamente',
 ]
 
 /**

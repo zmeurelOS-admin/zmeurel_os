@@ -26,6 +26,12 @@ export const queryKeys = {
   parcelaSolarClimate: (parcelaId: string) => ['parcela', parcelaId, 'solar-climate'] as const,
   parcele: ['parcele'] as const,
   recoltari: ['recoltari'] as const,
+  /** Aplicările din modulul Tratamente (toate statusurile, cu produsele). */
+  tratamente: ['tratamente'] as const,
+  /** Catalogul `produse_fitosanitare` (globale + ale fermei). */
+  produseFitosanitare: ['produse-fitosanitare'] as const,
+  /** Volumul de soluție salvat pe parcele (după migrarea modulului Tratamente). */
+  volumeParcele: ['tratamente', 'volume-parcele'] as const,
   solarClimate: (scope: string) => ['solar-climate', scope] as const,
   solarStages: (scope: string) => ['solar-stages', scope] as const,
   stocGlobal: ['stoc-global'] as const,
