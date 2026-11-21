@@ -45,7 +45,8 @@ export function detaliuProdus(produs: Pick<Produs, 'unitate_vanzare' | 'gramaj_p
   const unitate = esteUnitate(produs.unitate_vanzare) ? ETICHETA_UNITATE[produs.unitate_vanzare] : produs.unitate_vanzare || 'kg'
   const gramaj = Number(produs.gramaj_per_unitate)
   const cuGramaj = unitate !== 'kg' && Number.isFinite(gramaj) && gramaj > 0 ? `${unitate} ${formatNumber(gramaj)} g` : unitate
-  const prima = cuGramaj.charAt(0).toLocaleUpperCase('ro-RO') + cuGramaj.slice(1)
+  // „kg” rămâne cu literă mică (unitate de măsură), ca în mockup.
+  const prima = unitate === 'kg' ? cuGramaj : cuGramaj.charAt(0).toLocaleUpperCase('ro-RO') + cuGramaj.slice(1)
   const categorie = ETICHETA_CATEGORIE[produs.categorie]?.toLocaleLowerCase('ro-RO') ?? produs.categorie
   return `${prima} · ${categorie}`
 }

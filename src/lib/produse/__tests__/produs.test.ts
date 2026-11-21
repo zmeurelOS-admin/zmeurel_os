@@ -38,7 +38,7 @@ const produs = (over: Partial<Produs>): Produs => ({
 describe('lista de produse', () => {
   it('detaliul rândului', () => {
     expect(detaliuProdus(produs({}))).toBe('Casoletă 500 g · fruct')
-    expect(detaliuProdus(produs({ unitate_vanzare: 'kg', gramaj_per_unitate: 1000 }))).toBe('Kg · fruct')
+    expect(detaliuProdus(produs({ unitate_vanzare: 'kg', gramaj_per_unitate: 1000 }))).toBe('kg · fruct')
     expect(detaliuProdus(produs({ unitate_vanzare: 'buc', gramaj_per_unitate: null, categorie: 'leguma' }))).toBe('Bucată · legumă')
   })
 

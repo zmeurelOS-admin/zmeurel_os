@@ -59,7 +59,7 @@ function GraficLuni({ luni }: { luni: LunaRaport[] }) {
             Încasat
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="size-2.5 rounded-sm bg-border-strong" />
+            <span className="size-2.5 rounded-sm bg-fg-subtle" />
             Cheltuieli
           </span>
         </span>
@@ -75,7 +75,7 @@ function GraficLuni({ luni }: { luni: LunaRaport[] }) {
               </span>
               <span className="flex h-full w-full items-end justify-center gap-0.5" aria-hidden>
                 <span className="w-1/2 max-w-5 rounded-t-md bg-primary" style={{ height: `${Math.max(luna.incasat > 0 ? 3 : 0, (luna.incasat / max) * 100)}%` }} />
-                <span className="w-1/2 max-w-5 rounded-t-md bg-border-strong" style={{ height: `${Math.max(luna.cheltuieli > 0 ? 3 : 0, (luna.cheltuieli / max) * 100)}%` }} />
+                <span className="w-1/2 max-w-5 rounded-t-md bg-fg-subtle" style={{ height: `${Math.max(luna.cheltuieli > 0 ? 3 : 0, (luna.cheltuieli / max) * 100)}%` }} />
               </span>
               <span className={cn('text-fg-muted', kitText.helper)} aria-hidden>
                 {luna.eticheta}

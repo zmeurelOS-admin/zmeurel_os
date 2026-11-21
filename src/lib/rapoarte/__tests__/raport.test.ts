@@ -161,6 +161,22 @@ describe('registrul de tratamente', () => {
   })
 })
 
+describe('registrul: substanța din catalog', () => {
+  it('când aplicarea nu are snapshot, ia substanța după produs_id', () => {
+    const fara = aplicare({})
+    fara.produse = [{ ...fara.produse[0], substanta_activa_snapshot: null }]
+    const [rand] = registruTratamente({
+      aplicari: [fara],
+      activitati: [],
+      numeParcele: new Map(),
+      substantePeProdus: new Map([['cat', 'ciprodinil']]),
+      start: '2026-01-01',
+      end: '2026-12-31',
+    })
+    expect(rand.substanta).toBe('ciprodinil')
+  })
+})
+
 describe('exportul', () => {
   it('scapă textul și numește fișierul', () => {
     expect(escapeHtml('<b>"Ion" & co</b>')).toBe('&lt;b&gt;&quot;Ion&quot; &amp; co&lt;/b&gt;')

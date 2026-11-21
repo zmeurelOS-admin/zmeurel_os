@@ -69,7 +69,7 @@ function RandDescompunere({ label, value, first = false }: { label: string; valu
 
 /** „− 1.590 kg” / „+ 4 kg”, cu semnul cerut (descompunerea se citește ca o socoteală). */
 function semnKg(semn: '+' | '−', kg: number): string {
-  return `${semn} ${formatKg(Math.abs(kg))}`
+  return kg === 0 ? formatKg(0) : `${semn} ${formatKg(Math.abs(kg))}`
 }
 
 export function StocuriPageClient() {
@@ -155,13 +155,13 @@ export function StocuriPageClient() {
               <RandDescompunere first label="Recoltat cal. I" value={formatKg(stoc.recoltat)} />
               <RandDescompunere label="Livrat" value={semnKg('−', stoc.livrat)} />
               <RandDescompunere label="În livrare" value={semnKg('−', stoc.inLivrare)} />
-              <RandDescompunere label="Ajustări" value={stoc.ajustari === 0 ? formatKg(0) : semnKg(stoc.ajustari < 0 ? '−' : '+', stoc.ajustari)} />
+              <RandDescompunere label="Ajustări" value={semnKg(stoc.ajustari < 0 ? '−' : '+', stoc.ajustari)} />
             </section>
 
             <ListRow
               avatar={false}
-              title="Cal. II"
-              detail="în sezon · informativ, nu intră în comenzi"
+              title="Cal. II în sezon"
+              detail="informativ, nu intră în comenzi"
               trailing={<span className={cn('whitespace-nowrap font-extrabold tabular-nums text-fg', kitText.base)}>{cal2 === null ? '…' : formatKg(cal2)}</span>}
             />
 

@@ -93,10 +93,14 @@ export function registruTratamente(input: {
   aplicari: readonly AplicareRow[]
   activitati: readonly ActivitateVeche[]
   numeParcele: ReadonlyMap<string, string>
+  /** Substanța activă din catalog, după `produs_id`, când rândul aplicării nu are snapshot. */
+  substantePeProdus?: ReadonlyMap<string, string>
   start: string
   end: string
 }): RandRegistru[] {
   const { start, end, numeParcele } = input
+  const substanta = (produs: AplicareProdusRow) =>
+    produs.substanta_activa_snapshot?.trim() || (produs.produs_id ? input.substantePeProdus?.get(produs.produs_id)?.trim() : '') || ''
   const parcela = (id: string | null) => (id ? (numeParcele.get(id) ?? 'Parcelă ștearsă') : 'Fără parcelă')
   const randuri: RandRegistru[] = []
 
@@ -113,7 +117,7 @@ export function registruTratamente(input: {
         parcela: parcela(aplicare.parcela_id),
         metoda,
         produs: produs ? produs.produs_nume_snapshot?.trim() || produs.produs_nume_manual?.trim() || 'Produs' : '',
-        substanta: produs?.substanta_activa_snapshot?.trim() || '',
+        substanta: produs ? substanta(produs) : '',
         doza: produs ? dozaProdus(produs) : '',
         cantitate: produs ? cantitateProdus(produs) : '',
         pauzaZile,

@@ -11,6 +11,7 @@ import { dataRo, documentHtml, documentRaport, documentRegistru, numeFisier, typ
 import { cheltuieliPeCategorii, type DateRaport, type LunaRaport, type Perioada, type RandClient, type RandCulegator, type RandParcela, type SumarRaport } from '@/lib/rapoarte/raport'
 import { registruTratamente } from '@/lib/rapoarte/registru-tratamente'
 import { getActivitatiAgricole } from '@/lib/supabase/queries/activitati-agricole'
+import { getProduseFitosanitare } from '@/lib/supabase/queries/tratamente'
 import { useAplicariTratament } from '@/lib/tratamente/hooks'
 import { toast } from '@/lib/ui/toast'
 import { cn } from '@/lib/utils'
@@ -60,7 +61,15 @@ export function ExportRaportSheet({ open, onOpenChange, azi, perioada, date, sum
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   })
-  const tratamenteGata = aplicariQuery.isSuccess && activitatiQuery.isSuccess
+  // Catalogul dă substanța activă când aplicarea nu a salvat-o; dacă nu se încarcă, coloana rămâne goală.
+  const catalogQuery = useQuery({
+    queryKey: queryKeys.produseFitosanitare,
+    queryFn: getProduseFitosanitare,
+    enabled: open,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  })
+  const tratamenteGata = aplicariQuery.isSuccess && activitatiQuery.isSuccess && !catalogQuery.isLoading
   const tratamenteEroare = aplicariQuery.isError || activitatiQuery.isError
 
   const registru = useMemo(() => {
@@ -70,10 +79,11 @@ export function ExportRaportSheet({ open, onOpenChange, azi, perioada, date, sum
       aplicari: aplicariQuery.data ?? [],
       activitati: activitatiQuery.data ?? [],
       numeParcele,
+      substantePeProdus: new Map((catalogQuery.data ?? []).map((produs) => [produs.id, produs.substanta_activa])),
       start: perioada.start,
       end: perioada.end,
     })
-  }, [tratamenteGata, aplicariQuery.data, activitatiQuery.data, date.parcele, perioada.start, perioada.end])
+  }, [tratamenteGata, aplicariQuery.data, activitatiQuery.data, catalogQuery.data, date.parcele, perioada.start, perioada.end])
 
   const docRaport = () =>
     documentRaport({
