@@ -29,6 +29,7 @@ import { calculateProfit } from '@/lib/calculations/profit'
 import { resolveCheltuialaCategorie } from '@/lib/financial/categories'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { calculatePauseStatus } from '@/lib/supabase/queries/activitati-agricole'
+import { ziuaVenitului } from '@/lib/vanzari/incasari'
 
 type PeriodType = 'sapt' | 'luna' | 'sezon' | 'an'
 type ReportType =
@@ -61,6 +62,8 @@ interface VanzareLite {
   client_id: string | null
   cantitate_kg: number
   pret_lei_kg: number
+  status_plata?: string | null
+  data_incasare?: string | null
 }
 
 interface CheltuialaLite {
@@ -235,11 +238,13 @@ export function RapoartePageClient({
     })
   }, [initialRecoltari, parcelaMap, range.end, range.start, selectedCultura, selectedParcelaId])
 
+  // Venitul: doar vânzările încasate integral, la ziua încasării (aceeași regulă ca Acasă, Vânzări, Clienți).
   const filteredVanzari = useMemo(() => {
-    return initialVanzari.filter((v) => {
-      const date = new Date(v.data)
-      return date >= range.start && date <= range.end
-    })
+    const startDay = toIsoDay(range.start)
+    const endDay = toIsoDay(range.end)
+    return initialVanzari
+      .map((v) => ({ ...v, ziVenit: ziuaVenitului({ status_plata: v.status_plata ?? '', data_incasare: v.data_incasare ?? null, data: v.data }) }))
+      .filter((v): v is VanzareLite & { ziVenit: string } => v.ziVenit !== null && v.ziVenit >= startDay && v.ziVenit <= endDay)
   }, [initialVanzari, range.end, range.start])
 
   const filteredCheltuieli = useMemo(() => {
@@ -265,8 +270,7 @@ export function RapoartePageClient({
   const monthlyFinancialRows = useMemo(() => {
     const grouped = new Map<string, { venit: number; cheltuieli: number }>()
     filteredVanzari.forEach((row) => {
-      const date = new Date(row.data)
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      const key = row.ziVenit.slice(0, 7)
       const current = grouped.get(key) ?? { venit: 0, cheltuieli: 0 }
       current.venit += Number(row.cantitate_kg || 0) * Number(row.pret_lei_kg || 0)
       grouped.set(key, current)

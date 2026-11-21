@@ -63,14 +63,26 @@ export function restDeIncasat(vanzari: readonly MoneyVanzare[]): RestDeIncasat {
 }
 
 /**
+ * Ziua în care vânzarea devine venit (`YYYY-MM-DD`): `data_incasare` (dacă lipsește, data vânzării), doar
+ * pentru vânzările încasate integral. Neîncasată sau parțial încasată: `null` (nu e venit încă).
+ * Singura regulă de venit: o folosesc Acasă, Vânzări, Clienți și Rapoarte.
+ */
+export function ziuaVenitului(
+  vanzare: Pick<Vanzare, 'status_plata'> & Partial<Pick<Vanzare, 'data_incasare' | 'data'>>,
+): string | null {
+  if (!isVanzareIncasata(vanzare.status_plata)) return null
+  const day = String(vanzare.data_incasare ?? vanzare.data ?? '').slice(0, 10)
+  return day || null
+}
+
+/**
  * Venitul încasat într-un interval de zile (`2026-11-01` … `2026-11-30`, capetele incluse):
  * suma întreagă a vânzărilor încasate, după `data_incasare` (dacă lipsește, după data vânzării).
  */
 export function venitIncasat(vanzari: readonly MoneyVanzare[], startIso: string, endIso: string): number {
   let total = 0
   for (const vanzare of vanzari) {
-    if (!isVanzareIncasata(vanzare.status_plata)) continue
-    const day = String(vanzare.data_incasare ?? vanzare.data ?? '').slice(0, 10)
+    const day = ziuaVenitului(vanzare)
     if (!day || day < startIso || day > endIso) continue
     total += vanzareTotal(vanzare)
   }

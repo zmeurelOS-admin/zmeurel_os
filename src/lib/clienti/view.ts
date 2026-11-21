@@ -6,7 +6,7 @@ import { formatLeiKg, phoneDigits, round2, searchKey } from '@/lib/format-ro'
 import type { Client } from '@/lib/supabase/queries/clienti'
 import type { Comanda } from '@/lib/supabase/queries/comenzi'
 import type { Vanzare } from '@/lib/supabase/queries/vanzari'
-import { isVanzareIncasata, vanzareRest, vanzareTotal } from '@/lib/vanzari/incasari'
+import { vanzareRest, vanzareTotal, ziuaVenitului } from '@/lib/vanzari/incasari'
 
 export type ClientFilter = 'toti' | 'persoane' | 'patiserii' | 'magazine' | 'neincasat'
 
@@ -42,7 +42,7 @@ export function buildClientMetrics(
     if (dayOf(vanzare.data).startsWith(yearPrefix)) {
       entry.kgAn = round2(entry.kgAn + (Number(vanzare.cantitate_kg) || 0))
     }
-    if (isVanzareIncasata(vanzare.status_plata) && dayOf(vanzare.data_incasare ?? vanzare.data).startsWith(yearPrefix)) {
+    if ((ziuaVenitului(vanzare) ?? '').startsWith(yearPrefix)) {
       entry.incasatAn = round2(entry.incasatAn + vanzareTotal(vanzare))
     }
   }

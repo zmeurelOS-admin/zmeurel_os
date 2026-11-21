@@ -5,6 +5,7 @@
 import { relativeDayRo, shortDateRo } from '@/lib/format-ro'
 import type { Client } from '@/lib/supabase/queries/clienti'
 import type { Comanda } from '@/lib/supabase/queries/comenzi'
+import { isVanzareIncasata, vanzareRest } from '@/lib/vanzari/incasari'
 
 import { getDisplayOrderObservatii } from './shop-observations'
 import { isShopOrderOrigin } from './unified-orders'
@@ -48,12 +49,36 @@ export function comandaStatus(
   return { label: 'Programată', tone: 'neutral' }
 }
 
+/**
+ * Cât mai e de încasat dintr-o comandă livrată, după vânzarea ei (aceeași regulă ca în Vânzări, Clienți și
+ * Acasă: `vanzareRest`). Fără vânzare sau nelivrată: 0. Dacă vânzarea a venit fără sume (citire veche),
+ * totalul comenzii.
+ */
+export function comandaRestDeIncasat(comanda: Pick<Comanda, 'status' | 'linked_vanzare' | 'total'>): number {
+  const vanzare = comanda.linked_vanzare
+  if (comanda.status !== 'livrata' || !vanzare) return 0
+  if (isVanzareIncasata(vanzare.status_plata)) return 0
+  if (vanzare.cantitate_kg == null || vanzare.pret_lei_kg == null) return Number(comanda.total) || 0
+  return vanzareRest({
+    cantitate_kg: Number(vanzare.cantitate_kg),
+    pret_lei_kg: Number(vanzare.pret_lei_kg),
+    status_plata: vanzare.status_plata ?? 'neplatit',
+    suma_incasata_partial_lei: vanzare.suma_incasata_partial_lei ?? null,
+  })
+}
+
+/** Comanda livrată are încă bani de primit. */
+export function comandaNeincasata(comanda: Pick<Comanda, 'status' | 'linked_vanzare' | 'total'>): boolean {
+  return comandaRestDeIncasat(comanda) > 0
+}
+
 /** Plata, doar pentru comenzile livrate (vânzarea se creează la livrare). */
 export function comandaPlata(
   comanda: Pick<Comanda, 'status' | 'linked_vanzare'>,
 ): { label: string; tone: ComandaTone; incasata: boolean } | null {
   if (comanda.status !== 'livrata' || !comanda.linked_vanzare) return null
-  const incasata = comanda.linked_vanzare.status_plata !== 'neplatit'
+  // „avans” și „restanță” nu sunt încasate: potrivire exactă pe statusurile de încasat, ca în Vânzări.
+  const incasata = isVanzareIncasata(comanda.linked_vanzare.status_plata)
   return incasata
     ? { label: 'Încasat', tone: 'success', incasata }
     : { label: 'Neîncasat', tone: 'warning', incasata }

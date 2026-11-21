@@ -41,7 +41,7 @@ import { AranjeazaTraseu } from '@/components/livrari/AranjeazaTraseu'
 import { StopSheet, type RouteStop, type StopSheetEntry } from '@/components/livrari/StopSheet'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { bucketOfComanda } from '@/lib/comenzi/day-view'
-import { comandaClientName, comandaNota, comandaTelefon, phoneForLinks } from '@/lib/comenzi/display'
+import { comandaClientName, comandaNeincasata, comandaNota, comandaTelefon, phoneForLinks } from '@/lib/comenzi/display'
 import { capitalizeRo, formatKg, formatLei, formatNumber } from '@/lib/format-ro'
 import { OptimizeRouteError, getDevicePosition, requestOptimizedRoute } from '@/lib/livrari/device'
 import { readNavApp, readNoAnswerTime, writeNavApp, writeNoAnswerTime } from '@/lib/livrari/prefs'
@@ -559,7 +559,7 @@ export function LivrariPageClient() {
                     </span>
                     <span className={cn('shrink-0 text-fg-muted', kitText.secondary)}>
                       {formatKg(comanda.cantitate_kg)}
-                      {comanda.linked_vanzare?.status_plata === 'neplatit' ? ' · neîncasat' : ''}
+                      {comandaNeincasata(comanda) ? ' · neîncasat' : ''}
                     </span>
                   </li>
                 ))}

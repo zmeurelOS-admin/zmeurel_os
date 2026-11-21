@@ -12,7 +12,7 @@ export default async function RapoartePage() {
         .order('data', { ascending: false }),
       supabase
         .from('vanzari')
-        .select('id,id_vanzare,data,client_id,cantitate_kg,pret_lei_kg')
+        .select('id,id_vanzare,data,client_id,cantitate_kg,pret_lei_kg,status_plata,data_incasare')
         .order('data', { ascending: false }),
       supabase
         .from('cheltuieli_diverse')

@@ -35,7 +35,7 @@ import {
   summarizeComenzi,
   type ComenziBucket,
 } from '@/lib/comenzi/day-view'
-import { comandaClientName } from '@/lib/comenzi/display'
+import { comandaClientName, comandaNeincasata, comandaRestDeIncasat } from '@/lib/comenzi/display'
 import {
   capitalizeRo,
   formatKg,
@@ -311,7 +311,7 @@ export function ComenziPageClient() {
 
   // ─── Arhiva (toate comenzile, cu căutare) ───
   const neincasate = useMemo(
-    () => comenzi.filter((comanda) => comanda.status === 'livrata' && comanda.linked_vanzare?.status_plata === 'neplatit'),
+    () => comenzi.filter((comanda) => comandaNeincasata(comanda)),
     [comenzi],
   )
   const archiveCounts = useMemo(
@@ -336,7 +336,7 @@ export function ComenziPageClient() {
         if (archiveFilter === 'anulate' && comanda.status !== 'anulata') return false
         if (
           archiveFilter === 'neincasate' &&
-          !(comanda.status === 'livrata' && comanda.linked_vanzare?.status_plata === 'neplatit')
+          !comandaNeincasata(comanda)
         ) {
           return false
         }
@@ -441,7 +441,7 @@ export function ComenziPageClient() {
           ]}
         />
         {archiveFilter === 'neincasate' && neincasate.length > 0 ? (
-          <Notice tone="warning" title={`De încasat: ${formatLei(neincasate.reduce((sum, comanda) => sum + comanda.total, 0))}`}>
+          <Notice tone="warning" title={`De încasat: ${formatLei(neincasate.reduce((sum, comanda) => sum + comandaRestDeIncasat(comanda), 0))}`}>
             Din {neincasate.length} {neincasate.length === 1 ? 'comandă livrată' : 'comenzi livrate'}.
           </Notice>
         ) : null}
@@ -664,7 +664,7 @@ export function ComenziPageClient() {
               title="Neîncasate"
               detail={
                 neincasate.length > 0
-                  ? `${neincasate.length} · ${formatLei(neincasate.reduce((sum, comanda) => sum + comanda.total, 0))}`
+                  ? `${neincasate.length} · ${formatLei(neincasate.reduce((sum, comanda) => sum + comandaRestDeIncasat(comanda), 0))}`
                   : 'Nimic de încasat'
               }
               onClick={() => openArchive('neincasate')}

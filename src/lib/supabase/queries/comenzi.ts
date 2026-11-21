@@ -23,6 +23,10 @@ export type ComandaOrderKind = (typeof COMANDA_ORDER_KINDS)[number]
 export interface ComandaLinkedVanzare {
   status_plata: string | null
   data_incasare: string | null
+  /** Banii vânzării (cât s-a livrat de fapt, nu cât s-a comandat), pentru „de încasat”. */
+  cantitate_kg?: number | null
+  pret_lei_kg?: number | null
+  suma_incasata_partial_lei?: number | null
 }
 
 export interface Comanda {
@@ -144,6 +148,9 @@ type ComandaQueryRow = ComandaRow & {
   vanzare?: {
     status_plata?: string | null
     data_incasare?: string | null
+    cantitate_kg?: number | null
+    pret_lei_kg?: number | null
+    suma_incasata_partial_lei?: number | null
   } | null
   shop_order_link?: {
     shop_order_id?: string | null
@@ -188,7 +195,10 @@ const COMANDA_BASE_SELECT_FIELDS: string = `
   ),
   vanzare:vanzari!comenzi_linked_vanzare_id_fkey (
     status_plata,
-    data_incasare
+    data_incasare,
+    cantitate_kg,
+    pret_lei_kg,
+    suma_incasata_partial_lei
   ),
   shop_order_link:shop_order_erp_links!shop_order_erp_links_comanda_id_fkey (
     shop_order_id
@@ -336,6 +346,9 @@ function mapComanda(row: ComandaQueryRow): Comanda {
       ? {
           status_plata: row.vanzare.status_plata ?? null,
           data_incasare: row.vanzare.data_incasare ?? null,
+          cantitate_kg: row.vanzare.cantitate_kg ?? null,
+          pret_lei_kg: row.vanzare.pret_lei_kg ?? null,
+          suma_incasata_partial_lei: row.vanzare.suma_incasata_partial_lei ?? null,
         }
       : null,
     shop_order_id: row.shop_order_link?.shop_order_id ?? null,

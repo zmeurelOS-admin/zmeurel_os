@@ -13,7 +13,15 @@ import {
   splitComenziByBucket,
   summarizeComenzi,
 } from '@/lib/comenzi/day-view'
-import { comandaClientName, comandaNota, comandaPlata, comandaStatus, phoneForLinks } from '@/lib/comenzi/display'
+import {
+  comandaClientName,
+  comandaNeincasata,
+  comandaNota,
+  comandaPlata,
+  comandaRestDeIncasat,
+  comandaStatus,
+  phoneForLinks,
+} from '@/lib/comenzi/display'
 import type { Comanda } from '@/lib/supabase/queries/comenzi'
 
 const TODAY = '2026-11-19'
@@ -194,6 +202,26 @@ describe('comenzi — afișare', () => {
     expect(
       comandaPlata(makeComanda({ status: 'livrata', linked_vanzare: { status_plata: 'platit', data_incasare: TODAY } })),
     ).toMatchObject({ label: 'Încasat', incasata: true })
+    // avansul și restanța nu sunt încasate
+    for (const status_plata of ['avans', 'restanta']) {
+      expect(
+        comandaPlata(makeComanda({ status: 'livrata', linked_vanzare: { status_plata, data_incasare: null } })),
+      ).toMatchObject({ label: 'Neîncasat', incasata: false })
+    }
+  })
+
+  it('de încasat dintr-o comandă livrată = restul vânzării (livrat, nu comandat; minus partea primită)', () => {
+    const livrata = (linked_vanzare: Parameters<typeof makeComanda>[0]['linked_vanzare']) =>
+      makeComanda({ status: 'livrata', total: 300, linked_vanzare })
+    // 8 kg livrate din 10 comandate, 30 lei/kg, 100 lei primiți
+    const partial = livrata({ status_plata: 'avans', data_incasare: null, cantitate_kg: 8, pret_lei_kg: 30, suma_incasata_partial_lei: 100 })
+    expect(comandaRestDeIncasat(partial)).toBe(140)
+    expect(comandaNeincasata(partial)).toBe(true)
+    expect(comandaRestDeIncasat(livrata({ status_plata: 'restanta', data_incasare: null, cantitate_kg: 8, pret_lei_kg: 30 }))).toBe(240)
+    expect(comandaRestDeIncasat(livrata({ status_plata: 'platit', data_incasare: TODAY, cantitate_kg: 8, pret_lei_kg: 30 }))).toBe(0)
+    // vânzare citită fără sume: totalul comenzii
+    expect(comandaRestDeIncasat(livrata({ status_plata: 'neplatit', data_incasare: null }))).toBe(300)
+    expect(comandaRestDeIncasat(makeComanda({ status: 'confirmata', total: 300 }))).toBe(0)
   })
 
   it('scoate metadatele magazinului din notă', () => {

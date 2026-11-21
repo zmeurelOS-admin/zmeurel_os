@@ -96,6 +96,7 @@ import {
 } from '@/lib/supabase/queries/profile-dashboard'
 import { getRecoltari, getRecoltareTotalKg } from '@/lib/supabase/queries/recoltari'
 import { getVanzari } from '@/lib/supabase/queries/vanzari'
+import { venitIncasat } from '@/lib/vanzari/incasari'
 import { getVanzariButasi } from '@/lib/supabase/queries/vanzari-butasi'
 import { butasiRevenueBetween } from '@/lib/vanzari-butasi/revenue'
 import { getTenantId } from '@/lib/tenant/get-tenant'
@@ -660,21 +661,13 @@ export default function DashboardPage() {
   const activitatiAziCount = activitatiDashboard.filter((row) => toDateOnly(row.data_aplicare) === todayIso)
     .length
 
-  const venitSezon = vanzari
-    .filter((row) => {
-      const date = toDateOnly(row.data)
-      return date >= seasonStartIso && date <= todayIso
-    })
-    .reduce((sum, row) => sum + asNumber(row.cantitate_kg) * asNumber(row.pret_lei_kg), 0)
-    + butasiRevenueBetween(vanzariButasi, seasonStartIso, todayIso)
+  // Venitul din fructe: doar vânzările încasate integral, la ziua încasării (regula din `lib/vanzari/incasari`).
+  const venitSezon =
+    venitIncasat(vanzari, seasonStartIso, todayIso) + butasiRevenueBetween(vanzariButasi, seasonStartIso, todayIso)
 
-  const venitSezonAnterior = vanzari
-    .filter((row) => {
-      const date = toDateOnly(row.data)
-      return date >= previousSeasonStartIso && date <= previousSeasonEndIso
-    })
-    .reduce((sum, row) => sum + asNumber(row.cantitate_kg) * asNumber(row.pret_lei_kg), 0)
-    + butasiRevenueBetween(vanzariButasi, previousSeasonStartIso, previousSeasonEndIso)
+  const venitSezonAnterior =
+    venitIncasat(vanzari, previousSeasonStartIso, previousSeasonEndIso) +
+    butasiRevenueBetween(vanzariButasi, previousSeasonStartIso, previousSeasonEndIso)
 
   const costSezon = cheltuieli
     .filter((row) => {
@@ -816,11 +809,7 @@ export default function DashboardPage() {
       const startIso = toIsoDate(start)
       const endIso = toIsoDate(end)
 
-      const bucketValue = vanzari.reduce((sum, row) => {
-        const date = toDateOnly(row.data)
-        if (!date || date < startIso || date > endIso) return sum
-        return sum + asNumber(row.cantitate_kg) * asNumber(row.pret_lei_kg)
-      }, 0) + butasiRevenueBetween(vanzariButasi, startIso, endIso)
+      const bucketValue = venitIncasat(vanzari, startIso, endIso) + butasiRevenueBetween(vanzariButasi, startIso, endIso)
 
       buckets.push(Math.round(bucketValue))
     }

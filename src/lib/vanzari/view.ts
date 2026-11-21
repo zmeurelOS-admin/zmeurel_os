@@ -7,7 +7,7 @@ import { round2, searchKey } from '@/lib/format-ro'
 import type { Comanda } from '@/lib/supabase/queries/comenzi'
 import type { Vanzare } from '@/lib/supabase/queries/vanzari'
 
-import { isVanzareIncasata, vanzarePrimit, vanzareRest, vanzareTotal } from './incasari'
+import { isVanzareIncasata, vanzarePrimit, vanzareRest, vanzareTotal, ziuaVenitului } from './incasari'
 
 /** Nota pusă pe comanda din spatele unei vânzări rapide: după ea se recunoaște în registru. */
 export const VANZARE_RAPIDA_NOTA = 'Vânzare rapidă'
@@ -102,8 +102,7 @@ export function incasatInLuna(
   let kg = 0
   let count = 0
   for (const row of rows) {
-    if (!isVanzareIncasata(row.status_plata)) continue
-    if (!dayOf(row.data_incasare ?? row.data).startsWith(prefix)) continue
+    if (!(ziuaVenitului(row) ?? '').startsWith(prefix)) continue
     lei += vanzareTotal(row)
     kg += Number(row.cantitate_kg) || 0
     count += 1
