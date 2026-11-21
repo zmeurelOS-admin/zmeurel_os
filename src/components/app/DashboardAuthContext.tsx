@@ -1,9 +1,10 @@
 'use client'
 
-import { createContext, useContext } from 'react'
+import { usePathname } from 'next/navigation'
+import { createContext, useContext, useMemo } from 'react'
 
 import type { AssociationRole } from '@/lib/association/auth'
-import type { FarmMemberModuleAccess } from '@/lib/farm-members/access'
+import { getAccessForPath, type FarmMemberModuleAccess } from '@/lib/farm-members/access'
 
 export interface DashboardAuthValue {
   userId: string | null
@@ -54,7 +55,15 @@ export function DashboardAuthProvider({
   value: DashboardAuthValue
   children: React.ReactNode
 }) {
-  return <DashboardAuthContext.Provider value={value}>{children}</DashboardAuthContext.Provider>
+  // Layout-ul nu se redesenează la navigarea între pagini, deci modulul și nivelul primite de la server ar rămâne
+  // cele ale primei pagini. Pentru operator le calculăm din drepturi și ruta curentă (aceeași regulă ca în proxy).
+  const pathname = usePathname()
+  const resolved = useMemo<DashboardAuthValue>(() => {
+    if (value.memberRole !== 'operator' || !pathname) return value
+    const access = getAccessForPath(pathname, value.memberAccess ?? [])
+    return { ...value, accessModule: access?.module ?? null, accessLevel: access?.level ?? null }
+  }, [value, pathname])
+  return <DashboardAuthContext.Provider value={resolved}>{children}</DashboardAuthContext.Provider>
 }
 
 export function useDashboardAuth() {

@@ -28,6 +28,18 @@ describe('modulul tratamente', () => {
   })
 })
 
+describe('paginile oricărui operator', () => {
+  it('Mai mult și Notificări sunt permise, fără să dea nivel de acces; restul rămân după drepturi', () => {
+    const access = normalizeFarmMemberAccess([{ module: 'recoltari', level: 'write' }])
+    expect(isPathAllowedForAccess('/mai-mult', access)).toBe(true)
+    expect(isPathAllowedForAccess('/notificari', access)).toBe(true)
+    expect(isPathAllowedForAccess('/notificari/setari', access)).toBe(true)
+    expect(getAccessForPath('/mai-mult', access)).toBeNull()
+    expect(isPathAllowedForAccess('/mai-multe', access)).toBe(false)
+    expect(isPathAllowedForAccess('/clienti', access)).toBe(false)
+  })
+})
+
 describe('compatibilitatea activitati → tratamente: read', () => {
   it('un rând vechi cu Lucrări și fără Tratamente primește citire pe Tratamente', () => {
     const access = resolveFarmMemberAccess([

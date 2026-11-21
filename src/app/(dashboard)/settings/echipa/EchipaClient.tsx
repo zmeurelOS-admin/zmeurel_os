@@ -132,7 +132,7 @@ export function EchipaClient() {
           <p className={cn('px-1 text-fg-muted', kitText.helper)}>
             {lista.length > 0
               ? 'Atingi un om ca să-i schimbi accesul, să-i retrimiți linkul sau să-l dezactivezi.'
-              : 'Încă nu ai invitat pe nimeni. Operatorul își face cont și vede doar ce-i dai; livratorul primește un link pentru Livrări.'}
+              : 'Încă nu ai invitat pe nimeni. Operatorul intră din link, fără parolă, și vede doar ce-i dai; livratorul primește un link pentru Livrări.'}
           </p>
         ) : null}
       </ScreenBody>

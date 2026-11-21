@@ -17,6 +17,7 @@ import {
   type OperatorLinkState,
 } from '@/lib/farm-members/operator-link'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { farmDisplayName } from '@/lib/tenant/farm-display-name'
 import type { Database } from '@/types/supabase'
 
 type Admin = ReturnType<typeof getSupabaseAdmin>
@@ -284,7 +285,7 @@ export async function createReconnectLink(params: {
 export async function loadFarmName(tenantId: string): Promise<string> {
   const admin = getSupabaseAdmin()
   const { data } = await admin.from('tenants').select('nume_ferma').eq('id', tenantId).maybeSingle()
-  return data?.nume_ferma?.trim() || 'Ferma'
+  return farmDisplayName(data?.nume_ferma) || 'Ferma'
 }
 
 /** Numele proprietarului fermei (din contul lui), pentru textele operatorului. */

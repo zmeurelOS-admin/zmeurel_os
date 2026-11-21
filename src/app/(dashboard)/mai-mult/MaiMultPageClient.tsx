@@ -40,7 +40,7 @@ import { usePushSubscription } from '@/components/notifications/usePushSubscript
 import { IconBadge, NavRow, RowGroup, ScreenBody, ScreenHeader, type IconTone } from '@/components/setari/SetariUi'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { prepareClientBeforeServerSignOut } from '@/lib/auth/server-sign-out-form'
-import type { FarmMemberModuleAccess } from '@/lib/farm-members/access'
+import { isPathAllowedForAccess, type FarmMemberModuleAccess } from '@/lib/farm-members/access'
 import { isHiddenOperatorEmail, mesajIesireOperatorLink } from '@/lib/farm-members/operator-link'
 import { useUnreadNotificationsCount } from '@/lib/notifications/useUnreadCount'
 import { queryKeys } from '@/lib/query-keys'
@@ -201,9 +201,15 @@ export function MaiMultPageClient({ farmName, localitate }: { farmName: string |
     () =>
       FARM_GROUPS.map((group) => ({
         ...group,
-        items: group.items.filter((item) => !MOBILE_NAV_PRIMARY.has(item.href) && (item.href !== '/parcele' || canSeeParcele)),
+        items: group.items.filter(
+          (item) =>
+            !MOBILE_NAV_PRIMARY.has(item.href) &&
+            (item.href !== '/parcele' || canSeeParcele) &&
+            // Operatorul vede doar modulele date (celelalte l-ar întoarce la primul modul permis).
+            (!isOperator || isPathAllowedForAccess(item.href, memberAccess ?? [])),
+        ),
       })).filter((group) => group.items.length > 0),
-    [canSeeParcele],
+    [canSeeParcele, isOperator, memberAccess],
   )
 
   const name = farmName ?? contextFarmName ?? 'Ferma ta'

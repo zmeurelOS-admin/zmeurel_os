@@ -73,6 +73,12 @@ export const OPERATOR_HARD_BLOCKED_ROUTE_PREFIXES = [
   '/planuri',
 ]
 
+/**
+ * Pagini ale oricărui operator, indiferent de drepturi: „Mai mult” (de acolo iese din cont pe telefon) și
+ * notificările lui. Nu dau acces la date: fiecare modul din ele se verifică separat.
+ */
+export const OPERATOR_ALWAYS_ALLOWED_ROUTE_PREFIXES = ['/mai-mult', '/notificari']
+
 const MODULE_SET = new Set<string>(FARM_MEMBER_MODULES)
 const LEVEL_SET = new Set<string>(FARM_MEMBER_ACCESS_LEVELS)
 
@@ -214,5 +220,8 @@ export function getAccessForPath(
 }
 
 export function isPathAllowedForAccess(pathname: string, access: FarmMemberModuleAccess[]): boolean {
+  if (OPERATOR_ALWAYS_ALLOWED_ROUTE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+    return true
+  }
   return Boolean(getAccessForPath(pathname, access))
 }
