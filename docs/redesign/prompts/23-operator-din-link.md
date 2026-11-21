@@ -13,6 +13,32 @@ Acum operatorul invitat trebuie să-și facă cont cu email + parolă (sau Googl
 - **Formularul cu email + parolă dispare din pagina de invitație.** Operatorii existenți cu email + parolă intră în continuare din `/login`, neschimbat.
 - Livratorul rămâne exact cum e.
 
+## 0. Întâi: antetele din `proxy.ts` (raportul 22, §3.4)
+
+Două probleme în `src/proxy.ts`:
+
+- **Antetele nu ajung la layout.** Răspunsul (`NextResponse.next({ request: { headers } })`) se creează înainte ca `x-zmeurel-*` să fie puse, iar Next copiază antetele la creare. Layout-ul primește `tenantId`, `farmName`, `memberRole`, `memberAccess` și `accessLevel` goale. Urmări: operatorul vede meniul și butoanele proprietarului, bannerul cu actele lipsă nu apare niciodată, iar layout-ul cheamă `getUser()` a doua oară.
+- **Antetele trimise de browser nu se șterg.** Un client poate trimite singur `x-zmeurel-user-id` / `-tenant-id` / `-member-role`, iar azi ele trec spre layout și spre `settings/echipa/page.tsx`. Datele sunt apărate de RLS, dar layout-ul nu trebuie să creadă nimic venit din afară.
+
+**Ce faci:**
+
+1. La începutul lui `proxy()`, imediat după `new Headers(request.headers)`, ștergi **toate** antetele care încep cu `x-zmeurel-`, cu excepția celor trimise intenționat de client: `x-zmeurel-step-up-token` (`DESTRUCTIVE_STEP_UP_HEADER`) și ce mai găsești la `git grep "x-zmeurel"`. Fă lista explicită, cu un comentariu.
+2. La sfârșitul lui `proxy()`, pe drumul autentificat, întorci un răspuns nou cu antetele finale și copiezi cookie-urile sesiunii, cum propune raportul 22:
+   ```ts
+   const response = NextResponse.next({ request: { headers: requestHeaders } })
+   supabaseResponse.cookies.getAll().forEach((cookie) => response.cookies.set(cookie))
+   return response
+   ```
+   Verifică toate ieșirile din `proxy()` (redirecturi, rewrite pentru magazin, rute publice): fiecare păstrează cookie-urile reîmprospătate de Supabase.
+3. Test unitar pentru `proxy`: un `x-zmeurel-tenant-id` trimis de client nu ajunge la pagină; cele puse de proxy ajung; cookie-urile de sesiune sunt pe răspuns.
+4. **Ce pornește acum pentru prima oară în producție** (verifici fiecare pe ecran, cont demo):
+   - meniul și butoanele operatorului după drepturi (testul din §5);
+   - bannerul cu actele lipsă: în demo, acte complete → fără banner; dacă golești actele demo-ului din aplicație → banner;
+   - `associationShopApproved` și `farmName`;
+   - Admin (`isSuperAdmin`) și meniul asociației nu se schimbă pentru un utilizator obișnuit.
+
+   Ce nu poți testa (fermă de asociație aprobată, superadmin) treci în raport, cu riscul pe scurt.
+
 ## 1. Contul ascuns
 
 - La „Intră în fermă”, serverul creează un utilizator Supabase prin `getSupabaseAdmin().auth.admin.createUser`:
