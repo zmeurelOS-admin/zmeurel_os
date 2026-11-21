@@ -1,15 +1,13 @@
 'use client'
 
 import { FormEvent, useState } from 'react'
-import { Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { BigInput, Button, kitText } from '@/components/kit'
 import { buildAuthCallbackUrl } from '@/lib/auth/redirects'
 import { getSupabase } from '@/lib/supabase/client'
 import { toast } from '@/lib/ui/toast'
+import { cn } from '@/lib/utils'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -108,68 +106,38 @@ export function InviteSignupClient({ token }: { token: string }) {
 
   return (
     <div className="space-y-4">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="invite-name">Nume</Label>
-          <Input
-            id="invite-name"
-            autoComplete="name"
-            className="h-11"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="invite-email">Email</Label>
-          <Input
-            id="invite-email"
-            type="email"
-            autoComplete="email"
-            className="h-11"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="invite-password">Parolă</Label>
-          <Input
-            id="invite-password"
-            type="password"
-            autoComplete="new-password"
-            className="h-11"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="invite-password-confirm">Confirmă parola</Label>
-          <Input
-            id="invite-password-confirm"
-            type="password"
-            autoComplete="new-password"
-            className="h-11"
-            value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
-            required
-          />
-        </div>
-        <Button type="submit" className="h-11 w-full" disabled={loading || googleLoading}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+        <BigInput label="Nume" autoComplete="name" autoCapitalize="words" value={name} onChange={(event) => setName(event.target.value)} required />
+        <BigInput label="Email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+        <BigInput
+          label="Parolă"
+          type="password"
+          autoComplete="new-password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          hint="Minimum 8 caractere."
+          required
+        />
+        <BigInput
+          label="Confirmă parola"
+          type="password"
+          autoComplete="new-password"
+          value={confirmPassword}
+          onChange={(event) => setConfirmPassword(event.target.value)}
+          required
+        />
+        <Button type="submit" variant="primary" size="touch-lg" className="w-full" loading={loading} disabled={googleLoading}>
           Creează cont
         </Button>
       </form>
 
-      <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-[var(--agri-border)]" />
-        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">sau</span>
-        <div className="h-px flex-1 bg-[var(--agri-border)]" />
+      <div className="flex items-center gap-3" aria-hidden>
+        <div className="h-px flex-1 bg-border" />
+        <span className={cn('font-semibold uppercase tracking-wide text-fg-muted', kitText.helper)}>sau</span>
+        <div className="h-px flex-1 bg-border" />
       </div>
 
-      <Button type="button" variant="outline" className="h-11 w-full" onClick={handleGoogle} disabled={loading || googleLoading}>
-        {googleLoading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+      <Button type="button" variant="neutral" size="touch-lg" className="w-full" onClick={handleGoogle} loading={googleLoading} disabled={loading}>
         Continuă cu Google
       </Button>
     </div>

@@ -75,6 +75,8 @@ export const KIT_RULE_DIRS = [
   'src/lib/echipa',
   'src/components/acte',
   'src/lib/acte',
+  // Acceptarea invitației de operator
+  'src/app/invite',
 ]
 
 /**
