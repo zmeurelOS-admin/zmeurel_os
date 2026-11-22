@@ -53,7 +53,8 @@ export interface RaportAnaliza {
   ferma: { nume: string; localitate: string | null }
   atestat: { serie: string; valabilPana: string | null } | null
   parcele: Array<{ nume: string; soi: string | null }>
-  cultura: string | null
+  /** Cultura și soiul, câte o etichetă, fiecare o singură dată („Zmeure Delniwa”, „Zmeură Maravilla”). */
+  soiuri: string[]
   prelevare: { data: string; pv: string | null; cine: string | null }
   laborator: string | null
   buletin: { numar: string | null; data: string | null }
@@ -68,6 +69,38 @@ export interface RaportAnaliza {
 
 const curat = (valoare: string | null | undefined): string | null => valoare?.trim() || null
 
+const fold = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toLowerCase()
+
+/**
+ * Eticheta unei parcele din cultură și soi, fără repetiții: în demo (și la multe ferme) cultura și soiul au același
+ * text („Zmeure Maravilla”), iar uneori unul îl conține pe celălalt („Zmeură” + „Zmeură Maravilla”).
+ */
+function etichetaParcela(cultura: string | null, soi: string | null): string | null {
+  if (cultura && soi) {
+    const c = fold(cultura)
+    const s = fold(soi)
+    if (s.includes(c)) return soi
+    if (c.includes(s)) return cultura
+    return `${cultura} ${soi}`
+  }
+  return cultura ?? soi
+}
+
+/** Etichetele cultură + soi ale parcelelor, fiecare o singură dată (fără diacritice/majuscule la comparare), în ordinea parcelelor. */
+export function soiuriRaport(parcele: ReadonlyArray<{ soi: string | null; cultura: string | null }>): string[] {
+  const vazute = new Set<string>()
+  const rezultat: string[] = []
+  for (const parcela of parcele) {
+    const eticheta = etichetaParcela(curat(parcela.cultura), curat(parcela.soi))
+    if (!eticheta) continue
+    const cheie = fold(eticheta)
+    if (vazute.has(cheie)) continue
+    vazute.add(cheie)
+    rezultat.push(eticheta)
+  }
+  return rezultat
+}
+
 /**
  * Raportul, cu doar câmpurile permise de opțiuni. `null` dacă analiza nu e conformă sau (public) linkul e oprit.
  * `previzualizare` = raportul din aplicație: arată și când linkul public e oprit (dar tot doar pentru conform).
@@ -78,14 +111,13 @@ export function construiesteRaport(intrare: IntrareRaport, options: { previzuali
   if (!options.previzualizare && !analiza.public_activ) return null
 
   const optiuni = optiuniEfective(intrare.optiuniFerma, analiza.public_optiuni)
-  const culturi = [...new Set(intrare.parcele.map((parcela) => curat(parcela.cultura)).filter((c): c is string => Boolean(c)))]
   const serie = curat(intrare.atestat?.serie)
 
   return {
     ferma: { nume: curat(intrare.ferma.nume) ?? 'Ferma', localitate: curat(intrare.ferma.localitate) },
     atestat: serie ? { serie, valabilPana: curat(intrare.atestat?.valabilPana) } : null,
     parcele: intrare.parcele.map((parcela) => ({ nume: parcela.nume, soi: curat(parcela.soi) })),
-    cultura: culturi.length ? culturi.join(', ') : null,
+    soiuri: soiuriRaport(intrare.parcele),
     prelevare: {
       data: analiza.data_prelevare,
       pv: optiuni.numere ? curat(analiza.pv_numar) : null,
@@ -130,12 +162,11 @@ export function textAtestat(raport: Pick<RaportAnaliza, 'atestat'>): string | nu
   return `Atestat de producător seria ${raport.atestat.serie}${raport.atestat.valabilPana ? ` · valabil până la ${dataPunct(raport.atestat.valabilPana)}` : ''}`
 }
 
-export function textParceleRaport(raport: Pick<RaportAnaliza, 'parcele' | 'cultura'>): string {
-  const soiuri = [...new Set(raport.parcele.map((p) => p.soi).filter((s): s is string => Boolean(s)))]
+export function textParceleRaport(raport: Pick<RaportAnaliza, 'parcele' | 'soiuri'>): string {
   const nume = raport.parcele.map((p) => p.nume)
-  const parcele = nume.length === 1 ? `parcela ${nume[0]}` : `parcelele ${nume.slice(0, -1).join(', ')} și ${nume[nume.length - 1]}`
-  const cultura = [raport.cultura, soiuri.join(', ')].filter(Boolean).join(' ')
-  return cultura ? `${cultura} · ${parcele}` : parcele
+  const parcele =
+    nume.length === 0 ? '' : nume.length === 1 ? `parcela ${nume[0]}` : `parcelele ${nume.slice(0, -1).join(', ')} și ${nume[nume.length - 1]}`
+  return [raport.soiuri.join(', '), parcele].filter(Boolean).join(' · ')
 }
 
 export function textPrelevare(raport: Pick<RaportAnaliza, 'prelevare' | 'laborator' | 'buletin'>): string {

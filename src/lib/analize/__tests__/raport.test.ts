@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
-import { construiesteRaport, htmlAfisA4, htmlRaportPdf, numarMgKg, textAtestat, textPrelevare, type IntrareRaport } from '@/lib/analize/raport'
+import {
+  construiesteRaport,
+  htmlAfisA4,
+  htmlRaportPdf,
+  numarMgKg,
+  soiuriRaport,
+  textAtestat,
+  textParceleRaport,
+  textPrelevare,
+  type IntrareRaport,
+} from '@/lib/analize/raport'
 import { laboratoareFolosite, optiuniEfective, type AnalizaRow } from '@/lib/analize/model'
 import { ordoneazaAnalize, stareAnalizaParcela, textParceleAnaliza, ultimaCuRezultat } from '@/lib/analize/lista'
 import { tratamenteInaintePrelevare } from '@/lib/analize/tratamente-inainte'
@@ -114,7 +124,8 @@ describe('conținutul raportului', () => {
     expect(textPrelevare(r)).toBe('Prelevată 3 iulie 2026 (PV nr. 1180, DSVSA) · predată la LSVSA Suceava · buletin nr. 4415 din 12 iulie 2026')
     expect(r.substante?.map((s) => s.substanta)).toEqual(['Ciprodinil', 'Fludioxonil'])
     expect(r.restNedetectate).toBe(true)
-    expect(r.cultura).toBe('Zmeură')
+    expect(r.soiuri).toEqual(['Zmeură Maravilla'])
+    expect(textParceleRaport(r)).toBe('Zmeură Maravilla · parcelele Maravilla 1 și Maravilla 2')
     expect(r.tratamente?.[0]).toEqual({ zi: '2026-06-24', nume: 'Switch 62.5 WG', pauza: 'pauza de 7 zile respectată', respectata: true })
   })
   it('fără atestat (PFA): rândul lipsește', () => {
@@ -128,6 +139,40 @@ describe('conținutul raportului', () => {
     expect(numarMgKg(0.08)).toBe('0,08')
     expect(numarMgKg(10)).toBe('10')
     expect(numarMgKg(null)).toBe('—')
+  })
+})
+
+describe('soiurile din raport: fiecare o singură dată, cu virgulă', () => {
+  // Demo-ul din producție: cultura și soiul au același text pe fiecare parcelă.
+  const demo = [
+    { nume: 'Delniwa Nord', soi: 'Zmeure Delniwa', cultura: 'Zmeure Delniwa' },
+    { nume: 'Maravilla', soi: 'Zmeure Maravilla', cultura: 'Zmeure Maravilla' },
+  ]
+  it('cultura egală cu soiul nu se repetă', () => {
+    expect(soiuriRaport(demo)).toEqual(['Zmeure Delniwa', 'Zmeure Maravilla'])
+    const r = construiesteRaport(intrare({}, { parcele: demo }))!
+    expect(textParceleRaport(r)).toBe('Zmeure Delniwa, Zmeure Maravilla · parcelele Delniwa Nord și Maravilla')
+  })
+  it('același soi pe mai multe parcele, majuscule și diacritice diferite: o dată', () => {
+    expect(
+      soiuriRaport([
+        { soi: 'Maravilla', cultura: 'Zmeură' },
+        { soi: 'maravilla', cultura: 'zmeura' },
+        { soi: 'Zmeură Maravilla', cultura: 'Zmeură' },
+      ]),
+    ).toEqual(['Zmeură Maravilla'])
+  })
+  it('doar cultura sau doar soiul; nimic → doar parcelele', () => {
+    expect(soiuriRaport([{ soi: null, cultura: 'Mure' }, { soi: 'Delniwa', cultura: null }])).toEqual(['Mure', 'Delniwa'])
+    const r = construiesteRaport(intrare({}, { parcele: [{ nume: 'P1', soi: null, cultura: null }] }))!
+    expect(textParceleRaport(r)).toBe('parcela P1')
+  })
+  it('PDF-ul și afișul au același rând, fără dublură', () => {
+    const r = construiesteRaport(intrare({}, { parcele: demo }))!
+    for (const html of [htmlRaportPdf(r, ''), htmlAfisA4(r, '')]) {
+      expect(html).toContain('Zmeure Delniwa, Zmeure Maravilla · parcelele Delniwa Nord și Maravilla')
+      expect(html.match(/Zmeure Delniwa/g)).toHaveLength(1)
+    }
   })
 })
 
