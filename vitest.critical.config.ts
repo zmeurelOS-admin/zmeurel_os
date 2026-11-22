@@ -65,6 +65,7 @@ export default defineConfig(({ mode }) => {
         'supabase/functions/_shared/__tests__/*.test.ts',
         'src/lib/recoltari/__tests__/*.test.ts',
         'src/lib/tratamente/__tests__/*.test.ts',
+        'src/lib/magazie/__tests__/*.test.ts',
         'src/lib/analize/__tests__/*.test.ts',
         'src/lib/lucrari/__tests__/*.test.ts',
         'src/lib/echipa/__tests__/*.test.ts',
