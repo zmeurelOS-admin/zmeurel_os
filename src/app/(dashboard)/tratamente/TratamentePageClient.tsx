@@ -27,7 +27,7 @@ import { AnalizaNouaStepForm } from '@/components/analize/AnalizaNouaStepForm'
 import { AnalizeTab } from '@/components/analize/AnalizeTab'
 import { RezultatStepForm } from '@/components/analize/RezultatStepForm'
 import { esteParcelaDeVanzare, laboratoareFolosite, type AnalizaRow } from '@/lib/analize/model'
-import { getAnalize } from '@/lib/supabase/queries/analize'
+import { AnalizeIndisponibileError, getAnalize } from '@/lib/supabase/queries/analize'
 import { PauzeNotice } from '@/components/tratamente/PauzeNotice'
 import { TratamentStepForm, type ParcelaTratament } from '@/components/tratamente/TratamentStepForm'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
@@ -168,6 +168,8 @@ export function TratamentePageClient() {
     [parcele],
   )
   const laboratoare = useMemo(() => laboratoareFolosite(analizeQuery.data ?? []), [analizeQuery.data])
+  // Fără migrarea analizelor nu se poate salva nimic: fără „Analiză nouă”.
+  const analizeIndisponibile = analizeQuery.error instanceof AnalizeIndisponibileError
 
   const deschideAnalizaNoua = (parceleAlese: string[] = []) => {
     setAnalizaEditata(null)
@@ -312,7 +314,7 @@ export function TratamentePageClient() {
       header={<ScreenHeader title="Tratamente" backHref="/mai-mult" />}
       bottomBarFixed
       bottomBar={
-        !loadingAll && poateScrie ? (
+        !loadingAll && poateScrie && !(tab === 'analize' && analizeIndisponibile) ? (
           <div className="mx-auto w-full max-w-md pl-18 pr-4">
             <div className="rounded-box shadow-2">{addButton}</div>
           </div>
@@ -332,7 +334,7 @@ export function TratamentePageClient() {
 
         {tab === 'analize' && azi ? (
           <>
-            <div className="hidden md:block">{poateScrie ? addButton : null}</div>
+            <div className="hidden md:block">{poateScrie && !analizeIndisponibile ? addButton : null}</div>
             <AnalizeTab
               azi={azi}
               parcele={parceleDeVanzare}

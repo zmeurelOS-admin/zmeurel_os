@@ -46,8 +46,9 @@ type Db = ReturnType<typeof getSupabase>
 const table = (db: Db, name: string) => (db as unknown as { from: (name: string) => LooseTable }).from(name)
 
 const lipsa = (error: DbError) => isMissingTableError(error) || isMissingColumnError(error)
-const eroare = (error: NonNullable<DbError>, implicit: string) =>
-  Object.assign(new Error(/row-level security|42501/i.test(error.message ?? '') ? 'Nu ai drept de scriere pe tratamente.' : error.message || implicit), {
+/** Mesajul pe înțeles: tabelul lipsă (migrarea neaplicată) devine „după actualizarea bazei de date”. */
+const eroare = (error: NonNullable<DbError>, implicit: string): Error =>
+  lipsa(error) ? new AnalizeIndisponibileError() : Object.assign(new Error(/row-level security|42501/i.test(error.message ?? '') ? 'Nu ai drept de scriere pe tratamente.' : error.message || implicit), {
     code: error.code,
   })
 

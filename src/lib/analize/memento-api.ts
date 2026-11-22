@@ -13,7 +13,7 @@ import { isFarmOwner } from '@/lib/tenant/account-deletion'
 import { getTenantIdOrNull } from '@/lib/tenant/get-tenant'
 import { aziRo } from '@/lib/tratamente/zile'
 
-export const MEMENTO_INDISPONIBIL = 'Mementoul se poate amâna după actualizarea bazei de date.'
+export const MEMENTO_INDISPONIBIL = 'Mementoul se poate salva după actualizarea bazei de date.'
 
 type Scriere = { amanat_pana?: string | null; dezactivat?: boolean }
 

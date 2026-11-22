@@ -68,10 +68,10 @@ export function MementoSetari({
       ) : null}
       <ToggleRow
         title="Anul acesta nu fac analize"
-        subtitle={`oprește doar sezonul ${an}`}
+        subtitle={stareQuery.data && !stareQuery.data.disponibil ? 'se poate alege după actualizarea bazei de date' : `oprește doar sezonul ${an}`}
         checked={stareQuery.data?.dezactivat ?? false}
         onCheckedChange={(checked) => void nuAnulAcesta(checked)}
-        disabled={disabled || !stareQuery.isSuccess}
+        disabled={disabled || !stareQuery.data?.disponibil}
       />
       <p className={cn('px-1 text-fg-muted', kitText.helper)}>Liniștea de noapte (22–6) rămâne valabilă și aici.</p>
     </section>
