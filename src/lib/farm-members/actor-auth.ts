@@ -4,7 +4,6 @@ import {
   type FarmMemberModuleAccess,
 } from '@/lib/farm-members/access'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
 
 /**
  * Cine face cererea, pentru rutele server care scriu cu service role (RLS nu le mai oprește):
@@ -67,17 +66,6 @@ export async function resolveFarmActor(
   if (!owned?.id) return null
 
   return { userId: user.id, email: user.email ?? null, tenantId: owned.id, isOwner: true, access: [] }
-}
-
-/** Actorul cererii curente (sesiunea din cookie-uri). `null` = nelogat sau fără fermă. */
-export async function getFarmActor(): Promise<FarmActor | null> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
-  if (error || !user?.id) return null
-  return resolveFarmActor(getSupabaseAdmin(), user)
 }
 
 /** Proprietarul are voie tot; operatorul doar cu „Scrie” pe cel puțin unul dintre module. */

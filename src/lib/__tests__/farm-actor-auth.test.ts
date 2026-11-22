@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }))
 vi.mock('@/lib/supabase/admin', () => ({ getSupabaseAdmin: vi.fn() }))
 
 import { actorCanWrite, resolveFarmActor, type FarmActor } from '@/lib/farm-members/actor-auth'
