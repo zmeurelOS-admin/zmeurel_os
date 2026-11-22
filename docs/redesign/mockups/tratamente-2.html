@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tratamente, partea a doua — mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: mockup de aplicație pentru fermierul care l-a cerut; practic, citit pe telefon.
+   IDEA: dosarul de analize al fermei, de la prelevare la afișul de la piață.
+   PICTURE: telefoanele cu ecranele reale, care merg la atingere.
+   COLOUR and TYPE: verdele Zmeurel pe alb (noaptea aproape-negru); chihlimbar doar pentru avertizări; Inter.
+   LAYOUT: unde și cum (propunere + întrebări), ecranele, raportul. */
+:root{color-scheme:light dark;--bg:light-dark(#f4f6f3,#0b0e13);--ink:light-dark(#102015,#f5f6f7);--muted:light-dark(#3d4a41,#a3aab3);--line:light-dark(#d7e2d9,#232a33);--card:light-dark(#ffffff,#12161d);--acc:light-dark(#3d7a5f,#5ca882);--gb:light-dark(#e6f3ea,#0f2218);--ob:light-dark(#fff4e5,#1d1812);--ot:light-dark(#8a4b00,#d9b26a)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+.band{padding:clamp(20px,4vw,44px) max(4vw,14px)}
+.wrap{max-width:1240px;margin:0 auto}
+h1{font-size:clamp(28px,6vw,44px);line-height:1.05;margin:0 0 6px;font-weight:800;letter-spacing:-.02em;text-wrap:balance}
+h2{font-size:clamp(24px,4vw,32px);line-height:1.1;margin:0 0 14px;font-weight:800}
+.lead{color:var(--muted);margin:0 0 12px;max-width:70ch}
+.small{font-size:13px;color:var(--muted)}
+.bar{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:10px max(4vw,14px);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.bar button,.bar a{height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:600 15px Inter,sans-serif;cursor:pointer;display:inline-flex;align-items:center;text-decoration:none}
+.bar button[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#fff}
+.bar .msg{font-size:13px;color:var(--muted)}
+body.editing [data-zone]{outline:2px dashed var(--acc);outline-offset:4px;border-radius:8px}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px;margin-bottom:24px}
+.note-g,.note-o{border-radius:16px;padding:14px 16px;font-size:15px}
+.note-g{background:var(--gb)}.note-o{background:var(--ob)}
+.note-g b,.note-o b{display:block;font-size:16px;margin-bottom:6px}
+.note-o b{color:var(--ot)}
+.notes ul,.notes ol{margin:0;padding-left:20px}.notes li{margin:5px 0}
+.rec{display:block;color:var(--muted);font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,370px),1fr));gap:28px 24px;align-items:start}
+figure{margin:0}figcaption{font-weight:800;font-size:17px;margin:0 0 8px}
+.fnote{font-size:15px;color:var(--muted);margin:10px 2px 0}
+.chap{border-top:1px solid var(--line)}
+/* telefonul */
+.phone{--p:#fff;--s:#fff;--s2:#f3f4f1;--f:#102015;--fm:#3d4a41;--fs:#64748b;--b:#d7e2d9;--in:#c8d4cb;--pr:#3d7a5f;--op:#fff;--ps:#e6f3ea;--pt:#1f5a42;--ib:#eff6ff;--it:#1d4ed8;--nb:#f1f5f9;--nt:#334155;--wb:#fffbeb;--wt:#92400e;--wl:#f3d7a1;--db:#fef2f2;--dt:#991b1b;
+ width:100%;max-width:390px;border-radius:30px;border:8px solid #1b1f24;background:var(--p);color:var(--f);overflow:hidden;box-shadow:0 18px 40px -24px rgba(0,0,0,.45)}
+body.night .phone{--p:#0b0e13;--s:#12161d;--s2:#171b22;--f:#f5f6f7;--fm:#949ba4;--fs:#8a919b;--b:#20262f;--in:#2a313b;--pr:#5ca882;--op:#08140e;--ps:#0f2218;--pt:#8fd0ae;--ib:#131a26;--it:#8ab6ea;--nb:#171b22;--nt:#c5cad1;--wb:#1d1812;--wt:#d9b26a;--wl:#3a2e1c;--db:#211314;--dt:#f0a3a3}
+.scr{min-height:720px;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:4px;padding:10px 10px 0}
+.ico{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;border:0;background:none;color:inherit;font-size:20px}
+.ttl{flex:1;font-weight:700;font-size:17px}.step{font-size:15px;color:var(--fm);padding-right:10px}
+.prog{height:6px;border-radius:9px;background:var(--s2);margin:8px 18px 0;overflow:hidden}.prog i{display:block;height:100%;background:var(--pr)}
+.body{flex:1;padding:14px 18px 8px;display:flex;flex-direction:column;gap:12px}
+.h1{font-size:26px;line-height:32px;font-weight:800;margin:0}.h2{font-size:22px;line-height:28px;font-weight:800;margin:0}
+.lbl{font-size:15px;font-weight:700}.sub{font-size:15px;color:var(--fm)}.sm{font-size:13px;color:var(--fm)}
+.row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;border:1px solid var(--b);background:var(--s);color:var(--f);font:inherit;text-align:left;width:100%}
+.row .tx{flex:1;display:flex;flex-direction:column;gap:2px}.row .tx b{font-size:17px;line-height:22px}
+.num{font-weight:800;font-size:17px;text-align:right;white-space:nowrap}
+.badge{width:40px;height:40px;flex:none;border-radius:12px;display:grid;place-items:center;font-weight:800}
+.g{background:var(--ps);color:var(--pt)}.bl{background:var(--ib);color:var(--it)}.n{background:var(--nb);color:var(--nt)}.w{background:var(--wb);color:var(--wt)}.d{background:var(--db);color:var(--dt)}
+.tag{height:26px;padding:0 9px;border-radius:99px;display:inline-flex;align-items:center;font-size:13px;font-weight:700;white-space:nowrap}
+.tags{display:flex;flex-wrap:wrap;gap:6px;padding-top:2px}
+.warn{border:1px solid var(--wl);background:var(--wb);color:var(--wt);border-radius:16px;padding:12px 14px}
+.warn b{display:block;font-size:17px;line-height:22px}.warn span{font-size:15px;font-weight:600}
+.info{border-radius:16px;background:var(--ib);color:var(--it);padding:10px 14px;font-size:15px;font-weight:600}
+.seg{height:48px;border-radius:16px;background:var(--s2);padding:4px;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px}
+.seg button{border:0;border-radius:12px;background:transparent;color:var(--fm);font:600 15px Inter,sans-serif;cursor:pointer}
+.seg button[aria-selected=true]{background:var(--s);color:var(--f);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{height:44px;padding:0 14px;border-radius:99px;border:1px solid var(--in);background:var(--s);color:var(--f);font:700 15px Inter,sans-serif;cursor:pointer}
+.chip[aria-pressed=true]{border:2px solid var(--pr);background:var(--ps);color:var(--pt)}
+.btn{height:56px;border-radius:16px;border:0;background:var(--pr);color:var(--op);font:700 17px Inter,sans-serif;width:100%;cursor:pointer}
+.btn2{height:48px;border-radius:16px;border:1px solid var(--in);background:transparent;color:var(--f);font:700 15px Inter,sans-serif;width:100%;cursor:pointer}
+.foot{padding:12px 18px 18px;border-top:1px solid var(--b);display:flex;flex-direction:column;gap:10px}
+.hero{border-radius:20px;background:var(--ps);color:var(--pt);padding:16px}
+.hero .big{font-size:44px;line-height:1;font-weight:800;letter-spacing:-.02em}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{padding:12px 14px;border-radius:16px;border:1px solid var(--b);background:var(--s);display:flex;flex-direction:column;gap:2px}.tile b{font-size:22px;line-height:28px}
+.ptile{min-height:96px;padding:12px;border-radius:16px;border:1px solid var(--b);background:var(--s);display:flex;flex-direction:column;justify-content:space-between;font:700 15px Inter,sans-serif;color:var(--f);text-align:left;cursor:pointer}
+.ptile[aria-pressed=true]{border:2px solid var(--pr);background:var(--ps);color:var(--pt)}
+.field{display:flex;flex-direction:column;gap:6px}.field span{font-size:15px;font-weight:700}
+.input{height:52px;border-radius:14px;border:1px solid var(--in);background:var(--s);padding:0 14px;display:flex;align-items:center;font-size:17px;color:var(--f)}
+.input.ph{color:var(--fs)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.bars{display:flex;align-items:flex-end;gap:8px;height:110px;padding:0 4px}.bars div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;color:var(--fm)}.bars i{display:block;width:100%;border-radius:6px 6px 2px 2px}
+.toggle{width:52px;height:32px;border-radius:99px;background:var(--in);position:relative;flex:none;border:0;cursor:pointer}.toggle::after{content:"";position:absolute;top:4px;left:4px;width:24px;height:24px;border-radius:99px;background:#fff;transition:left .15s}
+.toggle[aria-checked=true]{background:var(--pr)}.toggle[aria-checked=true]::after{left:24px}
+.mini{height:36px;border-radius:10px;background:var(--s2);padding:3px;display:grid;grid-auto-flow:column;gap:3px}.mini button{border:0;border-radius:8px;background:transparent;font:600 13px Inter;color:var(--fm);padding:0 8px;cursor:pointer}.mini button[aria-selected=true]{background:var(--s);color:var(--f);font-weight:700}
+.nav{height:62px;display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--b);background:var(--s);font-size:13px;color:var(--fs);text-align:center;align-items:center}.nav .on{color:var(--pr);font-weight:700}
+.day{font-size:13px;font-weight:700;color:var(--fs);padding-top:4px;letter-spacing:.02em}
+.hide{display:none!important}
+@media (prefers-reduced-motion:reduce){.toggle::after{transition:none}}
+</style>
+</head><body>
+<style>
+.tl{display:flex;flex-direction:column;gap:0;border:1px solid var(--b);border-radius:16px;overflow:hidden}
+.tl .st{display:flex;gap:12px;padding:12px 14px;align-items:flex-start}
+.tl .st+.st{border-top:1px solid var(--b)}
+.dot{width:28px;height:28px;border-radius:99px;flex:none;display:grid;place-items:center;font-weight:800;font-size:14px}
+.rep{background:#fff;color:#102015;border-radius:14px;border:1px solid #d7e2d9;padding:14px;font-size:13px;line-height:1.45}
+.rep h4{margin:0;font-size:17px;line-height:22px}
+.rep .ok{background:#e6f3ea;color:#1f5a42;border-radius:12px;padding:10px 12px;font-weight:700;font-size:15px;margin:10px 0}
+.rep table{width:100%;border-collapse:collapse;margin:6px 0}
+.rep td,.rep th{text-align:left;padding:5px 4px;border-bottom:1px solid #e3e9e4;font-size:13px}
+.rep th{color:#3d4a41;font-weight:700}
+.rep .qr{width:64px;height:64px;flex:none;background:
+ conic-gradient(from 90deg at 25% 25%,#102015 25%,#fff 0) 0 0/16px 16px,#fff;border:3px solid #102015;border-radius:4px}
+.rep .hd{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+.rep .k{color:#3d4a41}
+.lock{background:linear-gradient(160deg,#1d3b2c,#0b0e13);color:#fff;min-height:720px;display:flex;flex-direction:column;padding:18px 14px;gap:12px}
+.lock .clock{font-size:64px;font-weight:300;text-align:center;line-height:1;margin-top:30px}
+.lock .date{text-align:center;font-size:15px;opacity:.85;margin-bottom:18px}
+.notif{background:rgba(255,255,255,.94);color:#102015;border-radius:20px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.notif .app{font-size:13px;color:#3d4a41;display:flex;gap:6px;align-items:center}
+.notif b{font-size:16px;line-height:21px}.notif p{margin:0;font-size:14px;line-height:19px}
+.notif .acts{display:flex;gap:8px;margin-top:4px}
+.notif .acts button{flex:1;height:44px;border-radius:12px;border:0;background:#e6f3ea;color:#1f5a42;font:700 14px Inter,sans-serif}
+</style>
+<style>
+.bars{display:flex;align-items:flex-end;gap:6px;height:110px;padding:8px 4px 0;border-bottom:1px solid var(--b)}
+.bars i{flex:1;background:var(--pr);border-radius:6px 6px 0 0;min-height:3px;position:relative}
+.bars i.hi{background:#c2410c}
+.bars i b{position:absolute;top:-18px;left:0;right:0;text-align:center;font-size:13px;color:var(--f);font-weight:700}
+.blab{display:flex;gap:6px;font-size:13px;color:var(--fs);padding:4px 4px 0}.blab span{flex:1;text-align:center}
+.thr{position:absolute;left:0;right:0;border-top:2px dashed #c2410c}
+.meter{height:8px;border-radius:99px;background:var(--b);overflow:hidden}.meter i{display:block;height:100%;background:var(--pr)}
+.meter.low i{background:#c2410c}
+</style>
+<div class="bar" role="toolbar" aria-label="Instrumente">
+  <button id="bEdit" aria-pressed="false">Editează textele</button>
+  <button id="bNight" aria-pressed="false">Ecranele noaptea</button>
+  <button id="bCopy">Copiază tot textul</button>
+  <button id="bReset">Revino la original</button>
+  <a href="#unde">Unde</a><a href="#magazie">Magazia</a><a href="#capcane">Capcanele</a><a href="#plan">Planul</a>
+  <span class="msg" id="msg" role="status"></span>
+</div>
+
+<header class="band"><div class="wrap" data-zone="z-head">
+  <h1>Tratamente, partea a doua</h1>
+  <p class="lead">Trei lucruri care leagă tratamentele de restul fermei. <b style="display:inline">Magazia</b> ține ce produse ai și scade singură ce aplici. <b style="display:inline">Capcanele</b> îți arată, săptămână de săptămână, când apare Drosophila. <b style="display:inline">Planul pe stadii</b> îți spune ce urmează pe fiecare parcelă și îl completează cu un atins.</p>
+  <p class="small" style="margin:0">Produsele de pe ecrane sunt cele din ferma ta, iar fungicidele și insecticidele sunt exemple. Cifrele de capturi și pragurile sunt și ele doar exemple.</p>
+</div></header>
+
+<section class="band chap" id="unde"><div class="wrap">
+<h2>Unde stau</h2>
+<div class="notes" data-zone="n0">
+  <div class="note-g"><b>Ce propun</b><ul>
+    <li>Tratamente primește patru taburi: <b style="display:inline;font-size:15px">Aplicări · Plan · Capcane · Analize</b>.</li>
+    <li><b style="display:inline;font-size:15px">Magazia</b> e un rând sus în Aplicări („Magazia: 15 produse · 2 pe terminate”) și apare și în Mai mult. Nu e tab, ca să nu fie cinci.</li>
+    <li>Toate țin de dreptul „Tratamente” din Echipa. Doar prețurile din Magazie le vede numai proprietarul, ca banii.</li>
+  </ul></div>
+  <div class="note-o"><b>De hotărât</b><ol>
+    <li>Patru taburi sau Magazia ca tab separat? <span class="rec">Recomand: patru taburi, cu Magazia ca rând sus și în Mai mult.</span></li>
+  </ol></div>
+</div>
+<div class="grid">
+<figure><figcaption>Tratamente · Aplicări, cu Magazia sus</figcaption><div class="phone"><div class="scr" data-zone="s-home">
+  <div class="top"><span class="ttl" style="padding-left:8px">Tratamente</span></div>
+  <div class="body">
+    <div class="seg" role="tablist" aria-label="Tratamente"><button role="tab" data-act="seg" aria-selected="true">Aplicări</button><button role="tab" data-act="seg" aria-selected="false">Plan</button><button role="tab" data-act="seg" aria-selected="false">Capcane</button><button role="tab" data-act="seg" aria-selected="false">Analize</button></div>
+    <div class="row" data-go="f-mag"><span class="badge n">📦</span><span class="tx"><b>Magazia</b><span class="sm">15 produse · 2 pe terminate</span></span><span class="tag w">2</span></div>
+    <div class="info">Plan: <b style="display:inline">la Maravilla urmează „Înflorire”</b>, cu 2 intervenții. <a href="#f-plan" style="color:inherit">Vezi</a></div>
+    <span class="day">ASTĂ-VARĂ</span>
+    <div class="row"><span class="badge g">💧</span><span class="tx"><b>Fertirigare A/B · Kristalon Galben</b><span class="sm">12 iun. · Maravilla 1 + 2 · −1,2 kg din magazie</span></span></div>
+    <div class="row"><span class="badge g">🍃</span><span class="tx"><b>Foliar · Borofol + Atonik</b><span class="sm">5 iun. · toate parcelele · −0,6 l și −0,15 l</span></span></div>
+  </div>
+  <div class="foot"><button class="btn">+ Tratament</button></div>
+  <div class="nav"><span>Acasă</span><span>Livrări</span><span>Recoltări</span><span>Comenzi</span><span class="on">Mai mult</span></div>
+</div></div><p class="fnote">Fiecare aplicare arată cât a scos din magazie.</p></figure>
+</div>
+</div></section>
+
+<section class="band chap" id="magazie"><div class="wrap">
+<h2>1. Magazia: stocul produselor</h2>
+<div class="notes" data-zone="n1">
+  <div class="note-g"><b>Ce propun</b><ul>
+    <li><b style="display:inline;font-size:15px">Intrare:</b> „+ Am cumpărat”, cu produsul, cantitatea (kg / l / bucăți), prețul total și data. Opțional, furnizorul și poza bonului. Se poate trece direct și ca cheltuială.</li>
+    <li><b style="display:inline;font-size:15px">Ieșire automată:</b> când salvezi un tratament <i>făcut</i>, cantitatea totală a fiecărui produs se scade din magazie. Cel planificat nu scade nimic. Dacă ștergi sau editezi tratamentul, stocul se corectează.</li>
+    <li><b style="display:inline;font-size:15px">Corecție:</b> „Am numărat”: pui cât ai de fapt, iar diferența apare ca rând „corecție”.</li>
+    <li><b style="display:inline;font-size:15px">Pe terminate:</b> sub pragul pus de tine pe produs (implicit, cât pentru încă o aplicare). Apare în Magazie și, o dată pe săptămână, în notificări.</li>
+    <li><b style="display:inline;font-size:15px">Costul tratamentelor:</b> din prețul de cumpărare se calculează cât a costat fiecare aplicare. În Rapoarte apare „Tratamente: X lei în sezon”, doar pentru proprietar.</li>
+    <li>Stocul de fructe (Stocuri) nu se atinge. E separat.</li>
+  </ul></div>
+  <div class="note-o"><b>De hotărât (cu recomandarea mea)</b><ol>
+    <li>Intrarea în magazie face și cheltuială? <span class="rec">Recomand: da, cu comutatorul „Trece și la cheltuieli” pornit, ca să nu scrii de două ori.</span></li>
+    <li>Ce faci dacă tratamentul cere mai mult decât ai? <span class="rec">Recomand: avertizare, dar salvezi oricum; stocul apare negativ, cu roșu, până treci intrarea.</span></li>
+    <li>Prețul unei aplicări? <span class="rec">Recomand: media prețurilor de cumpărare ale produsului (simplu și suficient).</span></li>
+    <li>Operatorul vede magazia? <span class="rec">Recomand: vede cantitățile, nu și prețurile. Intrări poate face doar cu „Scrie” pe Tratamente.</span></li>
+    <li>Tratamentele vechi, de dinainte de magazie? <span class="rec">Recomand: nu scad nimic. Stocul pornește de la prima intrare sau numărătoare.</span></li>
+  </ol></div>
+</div>
+<div class="grid">
+
+<figure id="f-mag"><figcaption>Magazia</figcaption><div class="phone"><div class="scr" data-zone="s-mag">
+  <div class="top"><span class="ico" aria-hidden="true">‹</span><span class="ttl">Magazia</span></div>
+  <div class="body">
+    <div class="tiles"><div class="tile"><span class="sm">Produse</span><b>15</b></div><div class="tile"><span class="sm">Valoare în magazie</span><b>1.840 lei</b></div></div>
+    <div class="chips"><button class="chip" aria-pressed="true" data-act="one">Toate</button><button class="chip" aria-pressed="false" data-act="one">Pe terminate</button><button class="chip" aria-pressed="false" data-act="one">Fertilizanți</button><button class="chip" aria-pressed="false" data-act="one">Protecție</button></div>
+    <div class="row" data-go="f-prod"><span class="tx"><b>Kristalon Galben 13-40-13</b><span class="sm">0,8 kg · ajunge pentru ~1 aplicare</span><span class="meter low" style="margin-top:6px"><i style="width:12%"></i></span></span><span class="tag w">pe terminate</span></div>
+    <div class="row"><span class="tx"><b>Borofol</b><span class="sm">0,4 l · ~1 aplicare</span><span class="meter low" style="margin-top:6px"><i style="width:15%"></i></span></span><span class="tag w">pe terminate</span></div>
+    <div class="row"><span class="tx"><b>Azotat de Calciu Haifa</b><span class="sm">18 kg · ~9 aplicări</span><span class="meter" style="margin-top:6px"><i style="width:70%"></i></span></span></div>
+    <div class="row"><span class="tx"><b>Fungicid X (exemplu)</b><span class="sm">1,5 l · ~3 aplicări</span><span class="meter" style="margin-top:6px"><i style="width:45%"></i></span></span></div>
+  </div>
+  <div class="foot"><div class="two"><button class="btn" data-go="f-intrare">+ Am cumpărat</button><button class="btn2">Am numărat</button></div></div>
+</div></div><p class="fnote">„Ajunge pentru” se calculează din doza ultimei aplicări a produsului.</p></figure>
+
+<figure id="f-intrare"><figcaption>+ Am cumpărat</figcaption><div class="phone"><div class="scr" data-zone="s-intrare">
+  <div class="top"><span class="ico" aria-hidden="true">✕</span><span class="ttl">Am cumpărat</span></div>
+  <div class="body">
+    <div class="field"><span>Produs</span><div class="input">Kristalon Galben 13-40-13</div></div>
+    <div class="two"><div class="field"><span>Cantitate</span><div class="input">25</div></div><div class="field"><span>Unitate</span><div class="chips" role="radiogroup" style="margin-top:6px"><button class="chip" aria-pressed="true" data-act="one">kg</button><button class="chip" aria-pressed="false" data-act="one">l</button><button class="chip" aria-pressed="false" data-act="one">buc</button></div></div></div>
+    <div class="two"><div class="field"><span>Preț total</span><div class="input">412 lei</div></div><div class="field"><span>Data</span><div class="input">Azi</div></div></div>
+    <div class="field"><span>Furnizor (opțional)</span><div class="input ph">ex. Agrosem Suceava</div></div>
+    <button class="btn2">📷 Poza bonului</button>
+    <div class="row"><span class="tx"><b>Trece și la cheltuieli</b><span class="sm">categoria „Tratamente”</span></span><button class="toggle" role="switch" aria-checked="true" aria-label="Trece și la cheltuieli" data-act="sw"></button></div>
+  </div>
+  <div class="foot"><button class="btn">Salvează · 16,48 lei/kg</button></div>
+</div></div><p class="fnote">Un produs nou se poate adăuga direct de aici, cu pauza (PHI) lui.</p></figure>
+
+<figure id="f-prod"><figcaption>Fișa produsului</figcaption><div class="phone"><div class="scr" data-zone="s-prod">
+  <div class="top"><span class="ico" aria-hidden="true">‹</span><span class="ttl">Kristalon Galben</span></div>
+  <div class="body">
+    <div class="hero"><span class="lbl">În magazie</span><div class="big" style="font-size:40px">0,8 kg</div><span class="sm" style="color:inherit">prag „pe terminate”: 2 kg · Schimbă</span></div>
+    <span class="day">MIȘCĂRI</span>
+    <div class="row"><span class="badge w">−</span><span class="tx"><b>−1,2 kg · fertirigare</b><span class="sm">12 iun. · Maravilla 1 + 2</span></span></div>
+    <div class="row"><span class="badge w">−</span><span class="tx"><b>−1,0 kg · fertirigare</b><span class="sm">2 iun. · DELNIWA</span></span></div>
+    <div class="row"><span class="badge g">+</span><span class="tx"><b>+5 kg · cumpărat</b><span class="sm">20 mai · 16,48 lei/kg</span></span></div>
+    <div class="row"><span class="badge n">=</span><span class="tx"><b>corecție −2,0 kg</b><span class="sm">„Am numărat” · 1 mai</span></span></div>
+  </div>
+</div></div><p class="fnote">Fiecare ieșire duce la tratamentul ei. Prețurile le vede doar proprietarul.</p></figure>
+
+<figure><figcaption>Tratament nou · cât e în magazie</figcaption><div class="phone"><div class="scr" data-zone="s-tratmag">
+  <div class="top"><span class="ico" aria-hidden="true">‹</span><span class="ttl">Tratament nou</span><span class="step">Pas 3 din 3</span></div>
+  <div class="prog"><i style="width:100%"></i></div>
+  <div class="body">
+    <p class="h2">Verifică și salvează</p>
+    <div class="row"><span class="tx"><b>Kristalon Galben · 1,2 kg</b><span class="sm">în magazie 0,8 kg</span></span><span class="tag w">lipsesc 0,4</span></div>
+    <div class="row"><span class="tx"><b>Azotat de Calciu · 2 kg</b><span class="sm">în magazie 18 kg · rămân 16</span></span><span class="tag g">OK</span></div>
+    <div class="warn"><b>Nu ajunge Kristalon Galben</b><span>Poți salva. Stocul apare negativ până treci intrarea.</span></div>
+    <div class="row"><span class="tx"><b>Cost estimat</b><span class="sm">doar tu vezi</span></span><b>28 lei</b></div>
+  </div>
+  <div class="foot"><button class="btn">Salvează · făcut</button><button class="btn2">Salvează ca planificat (nu scade)</button></div>
+</div></div><p class="fnote">Abia „făcut” scade din magazie.</p></figure>
+
+</div></div></section>
+
+<section class="band chap" id="capcane"><div class="wrap">
+<h2>2. Capcanele (Drosophila și altele)</h2>
+<div class="notes" data-zone="n2">
+  <div class="note-g"><b>Ce propun</b><ul>
+    <li><b style="display:inline;font-size:15px">Montare:</b> parcela, tipul (Drosophila cu atractant, lipicioasă galbenă, cu feromoni, altă capcană), numărul de bucăți, data și, opțional, o poză. Aplicația ține minte când trebuie verificate și când se schimbă atractantul.</li>
+    <li><b style="display:inline;font-size:15px">Verificare:</b> un ecran rapid. Pentru fiecare capcană pui câte insecte ai prins (cu tastatura mare) și apeși „Salvează”. Opțional bifezi „am schimbat atractantul” și pui o poză.</li>
+    <li><b style="display:inline;font-size:15px">Graficul</b> pe parcelă, săptămână de săptămână, cu linia pragului.</li>
+    <li><b style="display:inline;font-size:15px">Pragul</b> îl pui tu pe tip de capcană, de exemplu „prima captură când fructele se coc”. Peste prag: alertă push și „Fă un tratament” cu parcela deja aleasă.</li>
+    <li><b style="display:inline;font-size:15px">Memento:</b> „Verifică capcanele” în ziua stabilită (implicit o dată la 7 zile), pe telefon și în Acasă, până le verifici.</li>
+    <li>Capcanele și capturile intră în raportul analizei și în registrul de tratamente (Rapoarte → Exportă), ca dovadă de monitorizare.</li>
+  </ul></div>
+  <div class="note-o"><b>De hotărât (cu recomandarea mea)</b><ol>
+    <li>Cât de des se verifică? <span class="rec">Recomand: implicit la 7 zile, schimbabil pe capcană (în plin sezon, de două ori pe săptămână).</span></li>
+    <li>Capturile pe sexe (masculi / femele)? <span class="rec">Recomand: nu, doar totalul pe capcană. Opțional o notă.</span></li>
+    <li>Pragul implicit? <span class="rec">Recomand: îl pui tu; aplicația propune „prima captură după începutul coacerii” pentru Drosophila și nimic pentru restul.</span></li>
+    <li>Schimbarea atractantului? <span class="rec">Recomand: memento la 7 zile, schimbabil.</span></li>
+    <li>Cine verifică? <span class="rec">Recomand: oricine are „Scrie” pe Tratamente. E o treabă bună pentru operator.</span></li>
+  </ol></div>
+</div>
+<div class="grid">
+
+<figure id="f-capcane"><figcaption>Tratamente · Capcane</figcaption><div class="phone"><div class="scr" data-zone="s-capcane">
+  <div class="top"><span class="ttl" style="padding-left:8px">Tratamente</span></div>
+  <div class="body">
+    <div class="seg" role="tablist" aria-label="Tratamente"><button role="tab" data-act="seg" aria-selected="false">Aplicări</button><button role="tab" data-act="seg" aria-selected="false">Plan</button><button role="tab" data-act="seg" aria-selected="true">Capcane</button><button role="tab" data-act="seg" aria-selected="false">Analize</button></div>
+    <div class="warn"><b>Verificare azi · 6 capcane</b><span>Ultima: acum 7 zile. Atractantul se schimbă azi la 2.</span></div>
+    <div class="row" data-go="f-graf"><span class="badge w">🪰</span><span class="tx"><b>Maravilla 1 · 3 Drosophila</b><span class="sm">săptămâna trecută: 4 capturi, peste prag</span></span><span class="tag w">peste prag</span></div>
+    <div class="row"><span class="badge g">🪰</span><span class="tx"><b>DELNIWA · 3 Drosophila</b><span class="sm">0 capturi</span></span><span aria-hidden="true">›</span></div>
+    <div class="row"><span class="badge n">🟨</span><span class="tx"><b>Maravilla 2 · 2 lipicioase galbene</b><span class="sm">ultima: 11 capturi</span></span><span aria-hidden="true">›</span></div>
+  </div>
+  <div class="foot"><div class="two"><button class="btn" data-go="f-verif">Verifică acum</button><button class="btn2">+ Montează</button></div></div>
+  <div class="nav"><span>Acasă</span><span>Livrări</span><span>Recoltări</span><span>Comenzi</span><span class="on">Mai mult</span></div>
+</div></div><p class="fnote">Mementoul „Verifică capcanele” apare și în Acasă, în ziua stabilită.</p></figure>
+
+<figure id="f-verif"><figcaption>Verificarea rapidă</figcaption><div class="phone"><div class="scr" data-zone="s-verif">
+  <div class="top"><span class="ico" aria-hidden="true">✕</span><span class="ttl">Verificare · 2 din 6</span></div>
+  <div class="prog"><i style="width:33%"></i></div>
+  <div class="body">
+    <p class="h2">Maravilla 1 · capcana 2</p>
+    <span class="sm">Drosophila · atractant schimbat acum 7 zile</span>
+    <div class="field"><span>Câte ai prins?</span><div class="input" style="font-size:40px;height:72px;text-align:center">5</div></div>
+    <div class="row"><span class="tx"><b>Am schimbat atractantul</b></span><button class="toggle" role="switch" aria-checked="true" aria-label="Atractant schimbat" data-act="sw"></button></div>
+    <div class="two"><button class="btn2">📷 Poză</button><button class="btn2">Notă</button></div>
+    <div class="warn"><b>Peste prag la Maravilla 1</b><span>Total 9 în 3 capcane. Fructele sunt în coacere.</span></div>
+  </div>
+  <div class="foot"><button class="btn">Următoarea capcană</button></div>
+</div></div><p class="fnote">Tastatura mare a aplicației (ca la kg). La final: „Fă un tratament” dacă a trecut de prag.</p></figure>
+
+<figure id="f-graf"><figcaption>Graficul pe parcelă</figcaption><div class="phone"><div class="scr" data-zone="s-graf">
+  <div class="top"><span class="ico" aria-hidden="true">‹</span><span class="ttl">Maravilla 1 · capturi</span></div>
+  <div class="body">
+    <span class="lbl">Drosophila · total pe săptămână (exemplu)</span>
+    <div style="position:relative">
+      <div class="thr" style="bottom:22px" aria-hidden="true"></div>
+      <div class="bars"><i style="height:3px"><b>0</b></i><i style="height:3px"><b>0</b></i><i style="height:12px"><b>1</b></i><i class="hi" style="height:30px"><b>3</b></i><i class="hi" style="height:44px"><b>4</b></i><i class="hi" style="height:90px"><b>9</b></i></div>
+      <div class="blab"><span>27 mai</span><span>3 iun</span><span>10</span><span>17</span><span>24</span><span>1 iul</span></div>
+    </div>
+    <p class="sm">Linia punctată = pragul tău (1 captură / capcană / săptămână, în coacere).</p>
+    <div class="row"><span class="badge g">💧</span><span class="tx"><b>Tratament · 19 iun.</b><span class="sm">Insecticid Y (exemplu) · pauză 7 zile</span></span></div>
+  </div>
+  <div class="foot"><button class="btn">Fă un tratament pe Maravilla 1</button></div>
+</div></div><p class="fnote">Tratamentele apar pe același grafic, ca să vezi dacă au avut efect.</p></figure>
+
+<figure><figcaption>Montează capcane</figcaption><div class="phone"><div class="scr" data-zone="s-mont">
+  <div class="top"><span class="ico" aria-hidden="true">✕</span><span class="ttl">Montează capcane</span></div>
+  <div class="body">
+    <span class="lbl">Tip</span>
+    <div class="tiles" role="radiogroup"><button class="ptile" aria-pressed="true" data-act="one">🪰<span>Drosophila (atractant)</span></button><button class="ptile" aria-pressed="false" data-act="one">🟨<span>Lipicioasă galbenă</span></button><button class="ptile" aria-pressed="false" data-act="one">🦋<span>Feromoni</span></button><button class="ptile" aria-pressed="false" data-act="one">…<span>Altă capcană</span></button></div>
+    <span class="lbl">Parcela</span>
+    <div class="chips"><button class="chip" aria-pressed="true" data-act="sw2">Maravilla 1</button><button class="chip" aria-pressed="false" data-act="sw2">Maravilla 2</button><button class="chip" aria-pressed="false" data-act="sw2">DELNIWA</button></div>
+    <div class="two"><div class="field"><span>Bucăți</span><div class="input">3</div></div><div class="field"><span>Verific la</span><div class="input">7 zile</div></div></div>
+  </div>
+  <div class="foot"><button class="btn">Montează</button></div>
+</div></div><p class="fnote">Mai multe parcele deodată: aplicația face câte un grup pe fiecare.</p></figure>
+
+</div></div></section>
+
+<section class="band chap" id="plan"><div class="wrap">
+<h2>3. Planul pe stadii</h2>
+<div class="notes" data-zone="n3">
+  <div class="note-g"><b>Ce propun</b><ul>
+    <li><b style="display:inline;font-size:15px">Un plan pe cultură</b> (de ex. „Zmeură 2027”), pus pe parcelele alese. Liniile planului sunt pe stadii: repaus, umflarea mugurilor, lăstari, buton floral, înflorire, fruct verde, coacere, după recoltare.</li>
+    <li><b style="display:inline;font-size:15px">Fiecare linie:</b> produsul (din magazie), doza, scopul (de ex. „botritis”, „bor la înflorire”), metoda (foliar sau fertirigare) și, opțional, „repetă la N zile, de M ori”.</li>
+    <li><b style="display:inline;font-size:15px">Cum se face:</b>
+      <ul>
+        <li>„Din ce am aplicat anul trecut”: aplicația îți grupează tratamentele din 2026 pe stadii și tu păstrezi ce vrei;</li>
+        <li>sau de la zero.</li>
+      </ul>
+      Aplicația nu vine cu planuri gata făcute.</li>
+    <li><b style="display:inline;font-size:15px">Ce urmează:</b> când treci stadiul unei parcele (pe fișa ei), apare „E timpul pentru…”, cu intervențiile acelui stadiu. Un atins deschide „Tratament nou” completat. Notificarea pleacă dimineața.</li>
+    <li><b style="display:inline;font-size:15px">Verificări la completare:</b>
+      <ul>
+        <li>pauza față de culesul estimat (din partea întâi);</li>
+        <li>numărul maxim de aplicări pe sezon al produsului;</li>
+        <li>dacă e în magazie.</li>
+      </ul></li>
+    <li>Planurile vechi din aplicație (4 planuri) se păstrează și se pot deschide în noul ecran.</li>
+  </ul></div>
+  <div class="note-o"><b>De hotărât (cu recomandarea mea)</b><ol>
+    <li>Cine schimbă stadiul parcelei? <span class="rec">Recomand: tu sau operatorul, pe fișa parcelei (există deja). Aplicația doar întreabă „A început înflorirea?” când se apropie data de anul trecut.</span></li>
+    <li>Plan pe parcelă sau pe cultură? <span class="rec">Recomand: pe cultură, aplicat pe mai multe parcele, cu excepții pe parcelă.</span></li>
+    <li>Ce face linia „repetă la 7 zile”? <span class="rec">Recomand: după ce o faci, apare din nou peste 7 zile, cât timp parcela e în același stadiu.</span></li>
+    <li>Plan-model de la Zmeurel? <span class="rec">Recomand: nu acum. Doar din anul tău sau de la zero (răspunderea agronomică e a ta).</span></li>
+    <li>Linia sărită? <span class="rec">Recomand: „Sar peste”, cu motiv opțional; apare tăiată, nu dispare.</span></li>
+  </ol></div>
+</div>
+<div class="grid">
+
+<figure id="f-plan"><figcaption>Tratamente · Plan</figcaption><div class="phone"><div class="scr" data-zone="s-plan">
+  <div class="top"><span class="ttl" style="padding-left:8px">Tratamente</span></div>
+  <div class="body">
+    <div class="seg" role="tablist" aria-label="Tratamente"><button role="tab" data-act="seg" aria-selected="false">Aplicări</button><button role="tab" data-act="seg" aria-selected="true">Plan</button><button role="tab" data-act="seg" aria-selected="false">Capcane</button><button role="tab" data-act="seg" aria-selected="false">Analize</button></div>
+    <div class="hero"><span class="lbl">E timpul pentru</span><div class="big" style="font-size:26px;line-height:1.2">Înflorire · Maravilla 1 + 2</div><span class="sm" style="color:inherit">2 intervenții din „Zmeură 2027”</span></div>
+    <div class="row" data-go="f-pref"><span class="badge g">🍃</span><span class="tx"><b>Borofol · bor la înflorire</b><span class="sm">foliar · 1,5 l/ha · în magazie 0,4 l</span></span><span class="tag w">puțin</span></div>
+    <div class="row"><span class="badge g">🛡</span><span class="tx"><b>Fungicid X (exemplu) · botritis</b><span class="sm">pauză 7 zile · culesul în ~25 de zile · OK</span></span><span aria-hidden="true">›</span></div>
+    <span class="day">URMEAZĂ</span>
+    <div class="row"><span class="badge n">2</span><span class="tx"><b>Fruct verde</b><span class="sm">3 intervenții · DELNIWA e încă la buton floral</span></span></div>
+    <div class="row"><span class="badge n">3</span><span class="tx"><b>Coacere</b><span class="sm">1 intervenție · repetă la 7 zile, de 3 ori</span></span></div>
+  </div>
+  <div class="foot"><button class="btn2">Vezi planul întreg</button></div>
+  <div class="nav"><span>Acasă</span><span>Livrări</span><span>Recoltări</span><span>Comenzi</span><span class="on">Mai mult</span></div>
+</div></div><p class="fnote">Sus apare doar ce e de făcut acum, pe parcelele care au ajuns în stadiu.</p></figure>
+
+<figure id="f-pref"><figcaption>Un atins · tratament completat</figcaption><div class="phone"><div class="scr" data-zone="s-pref">
+  <div class="top"><span class="ico" aria-hidden="true">✕</span><span class="ttl">Tratament nou</span><span class="step">Din plan</span></div>
+  <div class="body">
+    <div class="info">Completat din „Zmeură 2027 · Înflorire”. Schimbă ce vrei.</div>
+    <div class="row"><span class="tx"><b>Maravilla 1 + 2</b><span class="sm">1.260 m² · 900 de plante</span></span><span class="sm">Schimbă</span></div>
+    <div class="row"><span class="tx"><b>Borofol · 1,5 l/ha</b><span class="sm">total 0,19 l · în magazie 0,4 l</span></span><span class="tag g">OK</span></div>
+    <div class="row"><span class="tx"><b>Fungicid X (exemplu)</b><span class="sm">a 2-a aplicare din maxim 3 pe sezon</span></span><span class="tag g">OK</span></div>
+    <div class="row"><span class="tx"><b>Pauza</b><span class="sm">7 zile · culesul estimat pe 22 iun.</span></span><span class="tag g">OK</span></div>
+  </div>
+  <div class="foot"><button class="btn">Salvează · făcut</button><button class="btn2" style="border:0;color:var(--fm)">Sar peste</button></div>
+</div></div><p class="fnote">Verificările vin singure: magazia, numărul de aplicări pe sezon, pauza față de cules.</p></figure>
+
+<figure><figcaption>Plan nou · din anul trecut</figcaption><div class="phone"><div class="scr" data-zone="s-nou">
+  <div class="top"><span class="ico" aria-hidden="true">✕</span><span class="ttl">Plan nou</span></div>
+  <div class="body">
+    <div class="tiles" role="radiogroup"><button class="ptile" aria-pressed="true" data-act="one">🔁<span>Din ce am aplicat în 2026</span></button><button class="ptile" aria-pressed="false" data-act="one">✎<span>De la zero</span></button></div>
+    <span class="lbl">Am găsit 9 aplicări, grupate pe stadii. Păstrează ce vrei:</span>
+    <div class="row"><span class="tx"><b>Înflorire · Borofol + Atonik</b><span class="sm">aplicat 5 iun. 2026</span></span><button class="toggle" role="switch" aria-checked="true" aria-label="Păstrează" data-act="sw"></button></div>
+    <div class="row"><span class="tx"><b>Fruct verde · Kristalon Galben (fertirigare)</b><span class="sm">aplicat de 3 ori, la ~10 zile</span></span><button class="toggle" role="switch" aria-checked="true" aria-label="Păstrează" data-act="sw"></button></div>
+    <div class="row"><span class="tx"><b>Coacere · Azotat de Calciu</b><span class="sm">aplicat 2 iul. 2026</span></span><button class="toggle" role="switch" aria-checked="false" aria-label="Păstrează" data-act="sw"></button></div>
+  </div>
+  <div class="foot"><button class="btn">Fă planul „Zmeură 2027”</button></div>
+</div></div><p class="fnote">Stadiul fiecărei aplicări vine din stadiul parcelei la data aplicării. Dacă lipsește, îl alegi tu.</p></figure>
+
+<figure><figcaption>Planul întreg</figcaption><div class="phone"><div class="scr" data-zone="s-intreg">
+  <div class="top"><span class="ico" aria-hidden="true">‹</span><span class="ttl">Zmeură 2027</span></div>
+  <div class="body">
+    <span class="sm">Pe Maravilla 1, Maravilla 2, DELNIWA</span>
+    <span class="day">UMFLAREA MUGURILOR</span>
+    <div class="row"><span class="tx"><b>Cupru (exemplu) · preventiv</b><span class="sm">foliar</span></span><span class="tag g">făcut</span></div>
+    <span class="day">ÎNFLORIRE</span>
+    <div class="row"><span class="tx"><b>Borofol · bor</b><span class="sm">foliar · 1,5 l/ha</span></span><span class="tag w">acum</span></div>
+    <div class="row"><span class="tx"><b>Fungicid X (exemplu) · botritis</b><span class="sm">repetă la 10 zile, de 2 ori</span></span><span class="tag w">acum</span></div>
+    <span class="day">FRUCT VERDE</span>
+    <div class="row"><span class="tx"><b>Kristalon Galben · fertirigare</b><span class="sm">2 kg/1000 m² · la 10 zile</span></span></div>
+  </div>
+  <div class="foot"><button class="btn2">+ Linie</button></div>
+</div></div><p class="fnote">Liniile se mută între stadii prin ținere apăsat; pe desktop, prin tragere.</p></figure>
+
+</div></div></section>
+
+<section class="band chap"><div class="wrap" data-zone="z-plan">
+  <h2>După ce aprobi</h2>
+  <p class="lead">Recomand trei prompturi, în ordinea asta:</p>
+  <ol class="lead">
+    <li><b style="display:inline">Magazia</b>, pentru că planul și capcanele se sprijină pe ea;</li>
+    <li><b style="display:inline">Capcanele</b>, cu mementoul lor;</li>
+    <li><b style="display:inline">Planul pe stadii</b>, care refolosește tabelele de plan existente (4 planuri, 13 linii) și leagă totul.</li>
+  </ol>
+  <p class="lead">Fiecare are verificarea lui în demo.</p>
+</div></section>
+<script>
+{
+const KEY='mockup-tratamente2-v1';
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const say=t=>{const m=$('#msg');m.textContent=t;clearTimeout(say.t);say.t=setTimeout(()=>m.textContent='',2500)};
+document.addEventListener('click',e=>{
+ if(document.body.classList.contains('editing'))return;
+ const go=e.target.closest('[data-go]');if(go){document.getElementById(go.dataset.go)?.scrollIntoView({behavior:'smooth',block:'start'});return}
+ const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,p=b.parentNode;
+ if(a==='seg')p.querySelectorAll(':scope>button').forEach(x=>x.setAttribute('aria-selected',x===b));
+ if(a==='one')p.querySelectorAll(':scope>button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+ if(a==='sw2')b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')!=='true');
+ if(a==='sw')b.setAttribute('aria-checked',b.getAttribute('aria-checked')!=='true');
+ if(a==='tab'){p.querySelectorAll(':scope>button').forEach(x=>x.setAttribute('aria-selected',x===b));$$(`[data-panel^="${b.dataset.g}:"]`).forEach(x=>x.classList.toggle('hide',x.dataset.panel!==b.dataset.g+':'+b.dataset.p))}
+});
+$$('figcaption,.fnote').forEach((n,i)=>{if(!n.dataset.zone)n.dataset.zone='c'+i});
+
+const zones=()=>$$('[data-zone]');const orig={};zones().forEach(z=>orig[z.dataset.zone]=z.innerHTML);
+function store(){try{const o={};zones().forEach(z=>o[z.dataset.zone]=z.innerHTML);localStorage.setItem(KEY,JSON.stringify(o))}catch(_){}}
+try{const o=JSON.parse(localStorage.getItem(KEY)||'null');if(o)zones().forEach(z=>{if(o[z.dataset.zone]!=null)z.innerHTML=o[z.dataset.zone]})}catch(_){}
+$('#bEdit').addEventListener('click',e=>{const on=!document.body.classList.contains('editing');document.body.classList.toggle('editing',on);e.currentTarget.setAttribute('aria-pressed',on);e.currentTarget.textContent=on?'Gata cu editarea':'Editează textele';zones().forEach(z=>z.contentEditable=on?'true':'false');if(!on){store();say('Salvat în acest browser.')}});
+document.addEventListener('input',()=>{if(document.body.classList.contains('editing'))store()});
+$('#bNight').addEventListener('click',e=>{const on=!document.body.classList.contains('night');document.body.classList.toggle('night',on);e.currentTarget.setAttribute('aria-pressed',on)});
+$('#bCopy').addEventListener('click',async()=>{const t=zones().map(z=>z.innerText.replace(/\n{3,}/g,'\n\n').trim()).join('\n\n———\n\n');try{await navigator.clipboard.writeText(t);say('Copiat. Lipește-l în chat.')}catch(_){say('Nu am putut copia; selectează textul manual.')}});
+$('#bReset').addEventListener('click',()=>{try{localStorage.removeItem(KEY)}catch(_){}zones().forEach(z=>z.innerHTML=orig[z.dataset.zone]);say('Revenit la textul original.')});
+}
+</script>
+</body>
+</html>
