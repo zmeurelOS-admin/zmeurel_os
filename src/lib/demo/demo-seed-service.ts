@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 import type { Database, TablesInsert } from '@/types/supabase'
 import { DEMO_DATA_ORIGIN } from '@/lib/demo/demo-constants'
+import { seedDemoAnalize } from '@/lib/demo/demo-analize'
 import { seedDemoStadii } from '@/lib/demo/demo-stadii'
 import { seedDemoTratamente } from '@/lib/demo/demo-tratamente'
 import { LEGAL_DOCS_BUCKET } from '@/lib/legal-docs/shared'
@@ -1307,6 +1308,9 @@ export async function seedDemoDataForTenant(
     // Stadiile (Maravilla remontantă, cu cohorte). Nu oprește demo-ul dacă dă greș.
     const stadii = await seedDemoStadii(supabaseAdmin, tenantId, insertedParcele, day(0).slice(0, 10))
     if (stadii.error) console.warn('[demo-seed] stadii', stadii.error)
+    // Analizele la fructe: o analiză conformă cu link public și data culesului pe parcele. Nu oprește demo-ul.
+    const analize = await seedDemoAnalize(supabaseAdmin, tenantId, insertedParcele, Number(day(0).slice(0, 4)))
+    if (analize.error) console.warn('[demo-seed] analize', analize.error)
   }
 
   if (demoType === 'solar') {
