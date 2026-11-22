@@ -12,6 +12,7 @@ npm run build        # next build --webpack (runs check-env.js first)
 npm run check        # lint + typecheck + build (full CI gate)
 npm run check:kit    # regulile kitului de componente (tokeni canonici, text ≥ 13 px, straturi)
 npm run test:critical:unit  # testele unitare (vitest, `vitest.critical.config.ts`; fișierele noi de test se adaugă în `include`; un folder cu paranteze se scrie `[(]dashboard[)]`)
+npm run test:e2e:smoke  # setul smoke (e2e/smoke, playwright.smoke.config.ts): după `npm run build`, pe `next start`; creează singur un demo nou din /start, scrie doar în el, iese din cont; nu rulează în CI
 npm run test:e2e     # Playwright e2e tests (`e2e/admin-access.spec.ts`: acces admin; dacă DB-ul blochează `is_superadmin` via service role, setează E2E_SUPERADMIN_EMAIL/PASSWORD în `.env.local`)
 ```
 
