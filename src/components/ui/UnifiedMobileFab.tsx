@@ -4,7 +4,9 @@ import { usePathname } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
+import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { useAddAction } from '@/contexts/AddActionContext'
+import { poateAdaugaPeRuta } from '@/lib/farm-members/nav'
 
 /** Rute unde nu afișăm FAB mobil, chiar dacă există alte acțiuni în context. */
 function isFabSuppressedPath(pathname: string): boolean {
@@ -21,6 +23,7 @@ function isFabSuppressedPath(pathname: string): boolean {
 export default function UnifiedMobileFab() {
   const pathname = usePathname()
   const { triggerAddAction, hasAction, currentLabel } = useAddAction()
+  const { memberRole, accessLevel } = useDashboardAuth()
   const [isMountedVisible, setIsMountedVisible] = useState(false)
 
   useEffect(() => {
@@ -28,7 +31,8 @@ export default function UnifiedMobileFab() {
     return () => window.clearTimeout(timeout)
   }, [])
 
-  const visible = hasAction && !isFabSuppressedPath(pathname)
+  // Operatorul doar-citire pe modulul curent nu primește „+” (pagina poate înregistra acțiunea oricum).
+  const visible = hasAction && !isFabSuppressedPath(pathname) && poateAdaugaPeRuta(memberRole, accessLevel)
   const contextualTitle = useMemo(() => {
     if (pathname.startsWith('/activitati')) return 'Adaugă activitate'
     if (pathname.startsWith('/recoltari')) return 'Adaugă recoltare'

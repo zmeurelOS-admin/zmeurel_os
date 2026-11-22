@@ -12,7 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { AssociationContextSwitcher } from "@/components/association/AssociationContextSwitcher"
 import { AssociationSidebar } from "@/components/association/AssociationSidebar"
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
-import { type FarmMemberModuleAccess } from '@/lib/farm-members/access'
+import { operatorSeesHref } from '@/lib/farm-members/nav'
 import { useDemoBannerVisible } from "@/hooks/useDemoBannerVisible"
 import { useShopOrdersInLivrareCount, ShopOrdersInLivrareNavBadge } from "@/lib/shop/useShopOrdersInLivrareCount"
 import { cn } from "@/lib/utils"
@@ -34,6 +34,8 @@ export type SidebarNavItem = {
   exact?: boolean
   /** Prefixe suplimentare care marchează itemul ca activ. */
   activePrefixes?: string[]
+  /** Doar pentru operator (proprietarul vede bara laterală de azi, fără acest rând). */
+  operatorOnly?: boolean
 }
 
 type NavItem = SidebarNavItem
@@ -54,6 +56,7 @@ const GROUPS: Group[] = [
       { href: "/parcele", label: "Parcele", emoji: "🌿" },
       { href: "/recoltari", label: "Recoltări", emoji: "🧺" },
       { href: "/lucrari", label: "Lucrări", emoji: "🌱" },
+      { href: "/tratamente", label: "Tratamente", emoji: "🧪", operatorOnly: true },
       { href: "/culegatori", label: "Culegători", emoji: "👷" },
     ],
   },
@@ -88,6 +91,8 @@ const GROUPS: Group[] = [
 ]
 
 const FOOTER_ITEMS: NavItem[] = [{ href: "/settings", label: "Setări", emoji: "⚙️" }]
+/** Operatorul nu are Setări (rută blocată); de pe „Mai mult” iese din cont și vede notificările. */
+const OPERATOR_FOOTER_ITEMS: NavItem[] = [{ href: "/mai-mult", label: "Mai mult", emoji: "•••" }]
 
 /** Zonă superadmin — același guard ca `admin/layout.tsx` (`useDashboardAuth().isSuperAdmin`). */
 const ADMIN_DESKTOP_NAV: NavItem[] = [
@@ -124,6 +129,7 @@ function getGroupForPath(pathname: string): GroupKey | null {
     pathname.startsWith("/recoltari") ||
     pathname.startsWith("/activitati-agricole") ||
     pathname.startsWith("/lucrari") ||
+    pathname.startsWith("/tratamente") ||
     pathname.startsWith("/culegatori")
   ) {
     return "ferma"
@@ -148,11 +154,6 @@ function getGroupForPath(pathname: string): GroupKey | null {
     return "administrare"
   }
   return null
-}
-
-function canOperatorSeeParceleNav(memberRole: 'operator' | null | undefined, access: FarmMemberModuleAccess[] | undefined) {
-  if (memberRole !== 'operator') return true
-  return (access ?? []).some((item) => item.module === 'parcele')
 }
 
 type SidebarLinkProps = {
@@ -436,18 +437,19 @@ export function Sidebar() {
         : undefined,
     [shopInLivrareCount],
   )
-  const canSeeParceleNav = useMemo(
-    () => canOperatorSeeParceleNav(memberRole, memberAccess),
-    [memberAccess, memberRole],
-  )
+  const isOperator = memberRole === 'operator'
+  // Operatorul vede doar modulele lui (Citește / Scrie) și „Mai mult”; proprietarul, bara de azi.
   const visibleGroups = useMemo(
     () =>
       GROUPS.map((group) => ({
         ...group,
-        items: group.items.filter((item) => item.href !== '/parcele' || canSeeParceleNav),
+        items: group.items.filter((item) =>
+          isOperator ? operatorSeesHref(item.href, memberAccess) : !item.operatorOnly,
+        ),
       })).filter((group) => group.items.length > 0),
-    [canSeeParceleNav],
+    [isOperator, memberAccess],
   )
+  const footerItems = isOperator ? OPERATOR_FOOTER_ITEMS : FOOTER_ITEMS
 
   useEffect(() => {
     const syncTimer = window.setTimeout(() => {
@@ -559,13 +561,15 @@ export function Sidebar() {
                 />
               ) : (
                 <>
-                  <SidebarLink
-                    href={TOP_ITEM.href}
-                    label={TOP_ITEM.label}
-                    emoji={TOP_ITEM.emoji}
-                    collapsed={collapsed}
-                    active={isNavItemActive(TOP_ITEM, pathname, searchString, hash)}
-                  />
+                  {isOperator ? null : (
+                    <SidebarLink
+                      href={TOP_ITEM.href}
+                      label={TOP_ITEM.label}
+                      emoji={TOP_ITEM.emoji}
+                      collapsed={collapsed}
+                      active={isNavItemActive(TOP_ITEM, pathname, searchString, hash)}
+                    />
+                  )}
 
                   <div className="space-y-2 pt-1">
                     {visibleGroups.map((group) => (
@@ -629,7 +633,7 @@ export function Sidebar() {
               </div>
 
               <div className="space-y-2 pt-2">
-                {FOOTER_ITEMS.map((item) => (
+                {footerItems.map((item) => (
                   <SidebarLink
                     key={item.href}
                     href={item.href}

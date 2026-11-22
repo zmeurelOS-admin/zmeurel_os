@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo } from 'react'
 
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
+import { operatorTabs } from '@/lib/farm-members/nav'
 
 type TabDef = {
   label: string
@@ -31,16 +32,28 @@ export function BottomTabBar() {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { associationRole } = useDashboardAuth()
+  const { associationRole, memberRole, memberAccess } = useDashboardAuth()
+  const isOperator = memberRole === 'operator'
 
   // „Mai mult” e o pagină (/mai-mult). Deschisă din bara asociației, păstrează bara asociației.
   const onMoreAssociation = pathname === '/mai-mult' && searchParams.get('spatiu') === 'asociatie'
   const inAssociationWorkspace = pathname.startsWith('/asociatie') || onMoreAssociation
   const showAssociationTabs = Boolean(associationRole) && inAssociationWorkspace
-  const tabs = useMemo(() => (showAssociationTabs ? ASOCIATIE_TABS : TABS), [showAssociationTabs])
+  // Operatorul: doar modulele lui (Citește / Scrie), cel mult 4, plus „Mai mult”. Proprietarul: bara de azi.
+  const tabs = useMemo<TabDef[]>(() => {
+    if (showAssociationTabs) return ASOCIATIE_TABS
+    if (isOperator) return operatorTabs(memberAccess)
+    return TABS
+  }, [isOperator, memberAccess, showAssociationTabs])
   const moreHref = showAssociationTabs ? '/mai-mult?spatiu=asociatie' : '/mai-mult'
 
   useEffect(() => {
+    if (isOperator) {
+      // Rutele altor module l-ar trimite înapoi la primul modul permis: le încărcăm doar pe ale lui.
+      for (const tab of tabs) router.prefetch(tab.href)
+      router.prefetch('/mai-mult')
+      return
+    }
     router.prefetch('/dashboard')
     router.prefetch('/livrari')
     router.prefetch('/recoltari')
@@ -53,7 +66,7 @@ export function BottomTabBar() {
     router.prefetch('/asociatie/livrari')
     router.prefetch('/asociatie/producatori')
     router.prefetch('/asociatie/setari')
-  }, [router])
+  }, [isOperator, router, tabs])
 
   const isTabActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
   // Tab-ul rămâne aprins pe Mai mult și pe paginile deschise de acolo care nu au tab propriu.
