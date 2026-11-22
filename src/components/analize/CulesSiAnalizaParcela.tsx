@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, CircleAlert, FlaskConical } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import { BottomSheet, Button, CalendarPanel, ListRow, Notice, kitText, longDayRo } from '@/components/kit'
+import { MESAJ_FARA_DATA_CULES, nicioParcelaCuDataCules } from '@/lib/analize/cules'
 import { dataScurtaAnaliza, neconformeInSezon, stareAnalizaParcela } from '@/lib/analize/lista'
 import { dataLungaRo } from '@/lib/analize/memento'
 import { useMementoAnalize } from '@/lib/analize/useMementoAnalize'
@@ -36,9 +37,13 @@ function Insigna({ tone, children }: { tone: 'success' | 'warning' | 'danger' | 
  * Pe fișa unei parcele de vânzare: „Culesul începe pe ~… · Schimbă” (data pe sezon; altfel din prima recoltare
  * de anul trecut; altfel „Pune data culesului”) și rândul analizei („Ultima analiză: conform · vezi raportul” /
  * „Analiza sezonului: netrimisă”), plus avertizarea roșie pentru o analiză neconformă.
+ * Dacă nicio parcelă de vânzare nu are dată (proprietarul): „Pune data culesului pe parcele ca să primești mementoul.”
+ * `?cules=1` (eticheta „fără dată de cules” din lista de parcele) deschide direct foaia „Schimbă”.
  */
 export function CulesSiAnalizaParcela({ parcelaId, azi, poateScrie, proprietar }: { parcelaId: string; azi: string; poateScrie: boolean; proprietar: boolean }) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const memento = useMementoAnalize(azi, { proprietar })
   const [foaie, setFoaie] = useState(false)
@@ -65,7 +70,22 @@ export function CulesSiAnalizaParcela({ parcelaId, azi, poateScrie, proprietar }
     }
   }
 
+  // Din lista de parcele („fără dată de cules”): foaia se deschide o dată, apoi parametrul pleacă din adresă.
+  const dinLista = searchParams.get('cules') === '1'
+  useEffect(() => {
+    if (!dinLista || !memento.gata) return
+    queueMicrotask(() => {
+      if (poateScrie) {
+        setZi(memento.estimari.get(parcelaId)?.data ?? null)
+        setFoaie(true)
+      }
+      router.replace(pathname, { scroll: false })
+    })
+  }, [dinLista, memento.gata, memento.estimari, parcelaId, pathname, poateScrie, router])
+
   if (!memento.gata) return null
+
+  const faraNicioData = proprietar && nicioParcelaCuDataCules(memento.estimari)
 
   const detaliuCules =
     estimare?.sursa === 'manual'
@@ -80,6 +100,10 @@ export function CulesSiAnalizaParcela({ parcelaId, azi, poateScrie, proprietar }
         <Notice tone="danger" icon={<CircleAlert aria-hidden />} title="Analiza din sezon e neconformă">
           Nu culege și nu vinde din parcelă până nu vorbești cu laboratorul. Fără raport public pentru această analiză.
         </Notice>
+      ) : null}
+
+      {faraNicioData ? (
+        <Notice tone="info" icon={<CalendarDays aria-hidden />} title={MESAJ_FARA_DATA_CULES} />
       ) : null}
 
       <ListRow

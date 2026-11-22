@@ -1,26 +1,31 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Map as MapIcon, Plus } from 'lucide-react'
+import { CalendarDays, Map as MapIcon, Plus } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 import { AppShell } from '@/components/app/AppShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
-import { Button, EmptyState, FilterPills, ListRow, Notice, StatusPill } from '@/components/kit'
+import { Button, EmptyState, FilterPills, ListRow, Notice, StatusPill, kitFocus, kitText } from '@/components/kit'
 import { ParcelaStepForm } from '@/components/parcele/ParcelaStepForm'
 import { useParceleStare } from '@/components/parcele/useParceleStare'
 import { ScreenBody, ScreenHeader } from '@/components/setari/SetariUi'
 import { useAziRo } from '@/hooks/useAziRo'
+import { ETICHETA_FARA_DATA_CULES, faraDataCules } from '@/lib/analize/cules'
+import { useEstimariCules } from '@/lib/analize/useEstimariCules'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { formatNumber } from '@/lib/format-ro'
 import { ETICHETA_TIP_UNITATE, ORDINE_TIP_UNITATE, esteParcelaPersonala, liniaParcelei } from '@/lib/parcele/card'
 import { normalizeUnitateTip, type UnitateTip } from '@/lib/parcele/unitate'
+import { cn } from '@/lib/utils'
 
 type FiltruTip = 'toate' | UnitateTip
 
 /**
  * Lista de parcele: un card pe parcelă (cultură + soi, plante, suprafață, kg în sezon, un singur semnal).
  * Parcelele personale: eticheta „Personal”, fără kg. Filtrul pe tip apare doar la mai multe tipuri.
+ * O parcelă de vânzare fără dată de cules (nici pusă de mână, nici din anul trecut) are eticheta „fără dată de
+ * cules”; atinsă, deschide pe fișă foaia „Când începe culesul?” (`/parcele/<id>?cules=1`).
  */
 export function ParceleListClient() {
   useTrackModuleView('parcele')
@@ -31,6 +36,7 @@ export function ParceleListClient() {
   const poateScrie = memberRole !== 'operator' || accessLevel === 'write'
 
   const stare = useParceleStare(azi)
+  const cules = useEstimariCules(azi)
   const [filtru, setFiltru] = useState<FiltruTip>('toate')
   const [formOpen, setFormOpen] = useState(false)
 
@@ -114,10 +120,14 @@ export function ParceleListClient() {
               const personala = esteParcelaPersonala(parcela)
               const semnal = stare.semnale.get(parcela.id) ?? null
               const kg = stare.kg.get(parcela.id) ?? 0
+              const estimare = cules.estimari.get(parcela.id)
+              const faraCules = cules.gata && Boolean(estimare) && faraDataCules(estimare)
+              const etichetaApasabila = faraCules && poateScrie
               return (
-                <li key={parcela.id}>
+                <li key={parcela.id} className="relative">
                   <ListRow
                     avatar={false}
+                    className={etichetaApasabila ? 'pb-[60px]' : undefined}
                     title={parcela.nume_parcela?.trim() || 'Parcelă fără nume'}
                     detail={
                       <span className="flex flex-col gap-1.5">
@@ -129,11 +139,31 @@ export function ParceleListClient() {
                             <StatusPill tone="neutral">{`${formatNumber(kg, 0)} kg în ${an}`}</StatusPill>
                           )}
                           {semnal ? <StatusPill tone={semnal.ton}>{semnal.text}</StatusPill> : null}
+                          {faraCules && !poateScrie ? <StatusPill tone="warning">{ETICHETA_FARA_DATA_CULES}</StatusPill> : null}
                         </span>
                       </span>
                     }
                     onClick={() => router.push(`/parcele/${parcela.id}`)}
                   />
+                  {etichetaApasabila ? (
+                    // Alt buton decât rândul (nu în el): ținta are 48 px, eticheta arată mică.
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/parcele/${parcela.id}?cules=1`)}
+                      aria-label={`${parcela.nume_parcela?.trim() || 'Parcelă'}: fără dată de cules, pune data`}
+                      className={cn('absolute bottom-1.5 left-3 flex h-touch items-center rounded-full px-1', kitFocus)}
+                    >
+                      <span
+                        className={cn(
+                          'inline-flex h-8 items-center gap-1.5 rounded-full border border-warning-border bg-warning-bg px-3 font-bold text-warning-text [&_svg]:size-4',
+                          kitText.secondary,
+                        )}
+                      >
+                        <CalendarDays aria-hidden />
+                        {ETICHETA_FARA_DATA_CULES}
+                      </span>
+                    </button>
+                  ) : null}
                 </li>
               )
             })}

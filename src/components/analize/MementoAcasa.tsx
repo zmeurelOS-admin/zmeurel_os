@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { CircleAlert } from 'lucide-react'
+import { CalendarDays, CircleAlert } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 import { BottomSheet, Button, FilterPills, ListRow, Notice, kitText } from '@/components/kit'
+import { MESAJ_FARA_DATA_CULES, nicioParcelaCuDataCules } from '@/lib/analize/cules'
 import { textParceleAnaliza } from '@/lib/analize/lista'
 import { neconformeInSezon } from '@/lib/analize/lista'
 import {
@@ -28,7 +29,8 @@ import { cn } from '@/lib/utils'
 /**
  * Acasă: cardul „Analiza la fructe · culesul în N zile” (primul, doar pentru proprietar, până la trimitere, amânare
  * sau dezactivare), foaia „Analiza dinainte de cules” (din card sau din notificare: `/dashboard?memento=analize`)
- * și avertizarea roșie pentru o analiză neconformă.
+ * și avertizarea roșie pentru o analiză neconformă. Dacă nicio parcelă de vânzare nu are dată de cules, foaia
+ * (deschisă din notificare) spune „Pune data culesului pe parcele ca să primești mementoul.” Fără card nou în Acasă.
  */
 export function MementoAcasa({ azi, proprietar }: { azi: string | null; proprietar: boolean }) {
   const router = useRouter()
@@ -41,13 +43,14 @@ export function MementoAcasa({ azi, proprietar }: { azi: string | null; propriet
 
   // Atinsă, notificarea deschide foaia (`?memento=analize`).
   const dinNotificare = searchParams.get('memento') === 'analize'
+  const faraNicioData = proprietar && memento.gata && memento.calcul?.motiv === 'fara_data' && nicioParcelaCuDataCules(memento.estimari)
   useEffect(() => {
     if (!dinNotificare || !memento.calcul) return
     queueMicrotask(() => {
-      if (memento.calcul?.activ) setFoaie(true)
+      if (memento.calcul?.activ || faraNicioData) setFoaie(true)
       router.replace('/dashboard', { scroll: false })
     })
-  }, [dinNotificare, memento.calcul, router])
+  }, [dinNotificare, faraNicioData, memento.calcul, router])
 
   const calcul = memento.calcul
   const an = azi?.slice(0, 4) ?? ''
@@ -115,10 +118,24 @@ export function MementoAcasa({ azi, proprietar }: { azi: string | null; propriet
       ) : null}
 
       <BottomSheet
-        open={foaie && Boolean(calcul?.activ)}
+        open={foaie && (Boolean(calcul?.activ) || faraNicioData)}
         onOpenChange={setFoaie}
         title="Analiza dinainte de cules"
         footer={
+          faraNicioData && !calcul?.activ ? (
+            <Button
+              type="button"
+              variant="primary"
+              size="touch-lg"
+              className="w-full"
+              onClick={() => {
+                setFoaie(false)
+                window.setTimeout(() => router.push('/parcele'), 180)
+              }}
+            >
+              Mergi la parcele
+            </Button>
+          ) : (
           <div className="flex flex-col gap-2.5">
             <Button type="button" variant="primary" size="touch-lg" className="w-full" onClick={amTrimis}>
               Am trimis la analize
@@ -130,8 +147,10 @@ export function MementoAcasa({ azi, proprietar }: { azi: string | null; propriet
               Nu fac analize anul acesta
             </Button>
           </div>
+          )
         }
       >
+        {faraNicioData && !calcul?.activ ? <Notice tone="info" icon={<CalendarDays aria-hidden />} title={MESAJ_FARA_DATA_CULES} /> : null}
         {calcul && calcul.zileRamase !== null && calcul.dataCules ? (
           <div className="space-y-3">
             <Notice tone="warning" title={titluFoaieMemento(calcul.zileRamase)}>

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { estimeazaCules, estimeazaCulesParcele, mutaInAnul, primaRecoltareInAn } from '@/lib/analize/cules'
+import {
+  estimeazaCules,
+  estimeazaCulesParcele,
+  faraDataCules,
+  mutaInAnul,
+  nicioParcelaCuDataCules,
+  primaRecoltareInAn,
+} from '@/lib/analize/cules'
 
 const recoltari = [
   { parcela_id: 'm1', data: '2025-06-28' },
@@ -49,5 +56,25 @@ describe('estimarea culesului (cele 3 surse)', () => {
     const m = estimeazaCulesParcele({ parcelaIds: ['m1', 'm2'], an: 2026, manuale: new Map([['m2', '2026-07-10']]), recoltari })
     expect(m.get('m1')?.data).toBe('2026-06-24')
     expect(m.get('m2')?.sursa).toBe('manual')
+  })
+})
+
+describe('parcelele fără dată de cules (eticheta din listă, mesajul de pe fișă și din foaie)', () => {
+  const estimari = (manuale: Record<string, string | null>) =>
+    estimeazaCulesParcele({ parcelaIds: ['m1', 'm2', 'd'], an: 2026, manuale: new Map(Object.entries(manuale)), recoltari })
+
+  it('fără dată = nici pusă de mână, nici din anul trecut', () => {
+    const e = estimari({})
+    expect(faraDataCules(e.get('m1'))).toBe(false) // din prima recoltare din 2025
+    expect(faraDataCules(e.get('m2'))).toBe(true) // recoltare doar în 2024
+    expect(faraDataCules(e.get('d'))).toBe(true)
+    expect(faraDataCules(estimari({ d: '2026-07-01' }).get('d'))).toBe(false)
+  })
+
+  it('mesajul apare doar când nicio parcelă de vânzare nu are dată', () => {
+    expect(nicioParcelaCuDataCules(estimari({}))).toBe(false)
+    const fara = estimeazaCulesParcele({ parcelaIds: ['m2', 'd'], an: 2026, manuale: new Map(), recoltari })
+    expect(nicioParcelaCuDataCules(fara)).toBe(true)
+    expect(nicioParcelaCuDataCules(new Map())).toBe(false)
   })
 })

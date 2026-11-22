@@ -75,3 +75,21 @@ export function estimeazaCulesParcele(input: {
   }
   return rezultat
 }
+
+/** Mesajul de pe fișă și din foaia „Analiza dinainte de cules” când nicio parcelă de vânzare nu are dată. */
+export const MESAJ_FARA_DATA_CULES = 'Pune data culesului pe parcele ca să primești mementoul.'
+
+/** Eticheta de pe lista de parcele pentru o parcelă de vânzare fără dată (nici pusă de mână, nici din anul trecut). */
+export const ETICHETA_FARA_DATA_CULES = 'fără dată de cules'
+
+/** Parcela nu are nicio dată de cules (nici pusă de mână, nici din prima recoltare de anul trecut). */
+export function faraDataCules(estimare: EstimareCules | null | undefined): boolean {
+  return !estimare?.data
+}
+
+/** Există parcele de vânzare și niciuna nu are dată: atunci mementoul n-are după ce porni. */
+export function nicioParcelaCuDataCules(estimari: ReadonlyMap<string, EstimareCules>): boolean {
+  if (estimari.size === 0) return false
+  for (const estimare of estimari.values()) if (estimare.data) return false
+  return true
+}
