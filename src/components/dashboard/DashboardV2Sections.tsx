@@ -728,8 +728,9 @@ export function DashboardUnifiedFinancialCard({
         <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {kpiItems.map((item) => (
-              <div key={item.id} className="space-y-1 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-3 py-2.5">
-                <div className="flex items-baseline justify-between gap-2">
+              <div key={item.id} className="min-w-0 space-y-1 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-3 py-2.5">
+                {/* `flex-wrap`: la 1024 px coloana are ~250 px, iar suma nu mai iese din pagină, trece sub etichetă. */}
+                <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                   <span className="text-[12px] leading-5 text-[var(--text-secondary)]">{item.label}</span>
                   <span
                     className={cn(

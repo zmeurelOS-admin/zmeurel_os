@@ -149,7 +149,8 @@ export default function BetaWidget() {
 
         @media (min-width: 768px) {
           .beta-widget {
-            left: 1.5rem !important;
+            /* Lângă bara laterală, nu peste ea (acoperea legăturile din josul ei). */
+            left: calc(var(--sidebar-width, 240px) + 1.5rem) !important;
             bottom: 1.5rem !important;
           }
         }
