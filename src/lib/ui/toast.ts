@@ -33,7 +33,8 @@ function isUpdateIntent(message: string): boolean {
 function normalizeSuccessMessage(message: string): string {
   const key = normalize(message)
 
-  if (key.includes('export') || key.includes('ascuns') || key.includes('multum') || key.includes('cont creat')) {
+  // `dezactiv`: «<nume> a fost dezactivat» (Echipa); un nume ca «Ion Recoltări» nu devine «Recoltare salvată».
+  if (key.includes('export') || key.includes('ascuns') || key.includes('multum') || key.includes('cont creat') || key.includes('dezactiv')) {
     return message
   }
 
