@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Droplets, FlaskConical, Mountain, Plus, SprayCan } from 'lucide-react'
+import { Droplets, FlaskConical, Mountain, Package, Plus, SprayCan } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 import { AppShell } from '@/components/app/AppShell'
@@ -34,6 +34,9 @@ import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { useMeteo } from '@/hooks/useMeteo'
 import { queryKeys } from '@/lib/query-keys'
 import { getParcele } from '@/lib/supabase/queries/parcele'
+import { getIesiriAplicari, getMagazieStocSauNimic } from '@/lib/supabase/queries/magazie'
+import { iesiriPeLot, textIesiri } from '@/lib/magazie/formular'
+import { rezumatMagazie } from '@/lib/magazie/stoc'
 import { anuleazaPlanificare, getProduseFitosanitare, getVolumeParcele, marcheazaFacut } from '@/lib/supabase/queries/tratamente'
 import { ciornaDinTratament, type CiornaTratament } from '@/lib/tratamente/formular'
 import { usePauzeActive } from '@/lib/tratamente/hooks'
@@ -139,6 +142,10 @@ export function TratamentePageClient() {
   const catalogQuery = useQuery({ queryKey: queryKeys.produseFitosanitare, queryFn: getProduseFitosanitare, staleTime: 5 * 60_000, refetchOnWindowFocus: false })
   const volumeQuery = useQuery({ queryKey: queryKeys.volumeParcele, queryFn: getVolumeParcele, staleTime: 60_000, refetchOnWindowFocus: false })
   const meteo = useMeteo()
+  // Magazia (promptul 28): rândul de sus și „−1,2 kg din magazie” pe aplicări. Fără migrare: `null` / listă goală.
+  const magazieQuery = useQuery({ queryKey: queryKeys.magazieStoc, queryFn: getMagazieStocSauNimic, staleTime: 30_000, enabled: tab === 'aplicari' })
+  const iesiriQuery = useQuery({ queryKey: queryKeys.magazieIesiri, queryFn: getIesiriAplicari, staleTime: 30_000, enabled: tab === 'aplicari' })
+  const rezumatMag = magazieQuery.data ? rezumatMagazie(magazieQuery.data) : null
 
   const parcele: ParcelaTratament[] = useMemo(
     () =>
@@ -232,6 +239,22 @@ export function TratamentePageClient() {
     })
   }, [azi, parcelaDinUrl, parceleQuery.data, parceleQuery.isLoading, poateScrie, router])
 
+  // Din fișa unui produs din Magazie: `/tratamente?aplicare=<id>` deschide tratamentul acelei aplicări.
+  const aplicareDinUrl = searchParams.get('aplicare')?.trim() ?? ''
+  useEffect(() => {
+    if (!aplicareDinUrl || loading) return
+    const rand = [...jurnal.facute, ...jurnal.planificate].find((item) => item.aplicari.some((aplicare) => aplicare.id === aplicareDinUrl))
+    queueMicrotask(() => {
+      if (rand) {
+        setTab('aplicari')
+        setFila(rand.stare === 'planificat' ? 'planificate' : 'facute')
+        setDeschis(rand)
+        setSheetOpen(true)
+      }
+      router.replace('/tratamente', { scroll: false })
+    })
+  }, [aplicareDinUrl, jurnal, loading, router])
+
   const repeta = (rand: RandJurnal) => {
     const ciorna = ciornaDinTratament(rand.aplicari, new Set(parcele.map((parcela) => parcela.id)), catalogPeId)
     setSheetOpen(false)
@@ -269,6 +292,10 @@ export function TratamentePageClient() {
     const antet = rand.zi !== ziAnterioara ? (rand.zi ? ziRelativaRo(rand.zi, azi ?? rand.zi) : 'Fără dată') : null
     ziAnterioara = rand.zi
     const stare = azi ? stareRand(rand, azi) : null
+    const dinMagazie =
+      rand.stare !== 'planificat' && !rand.importat
+        ? textIesiri(iesiriPeLot(rand.aplicari.map((aplicare) => aplicare.id), iesiriQuery.data ?? []))
+        : null
     return (
       <li key={rand.key} className="space-y-2">
         {antet ? <h3 className={cn('px-1 pt-1 font-bold uppercase tracking-wide text-fg-subtle', kitText.helper)}>{antet}</h3> : null}
@@ -279,6 +306,7 @@ export function TratamentePageClient() {
           detail={
             <span className="flex flex-col gap-1.5">
               <span>{textProduse(rand.produse) || '—'}</span>
+              {dinMagazie ? <span className="font-semibold text-fg">{dinMagazie}</span> : null}
               <span className="flex flex-wrap gap-1.5">
                 <StatusPill tone="neutral">{textParcele(rand.parcelaIds, numeParcele, parcele.length)}</StatusPill>
                 {stare ? <StatusPill tone={stare.tone}>{stare.text}</StatusPill> : null}
@@ -362,6 +390,27 @@ export function TratamentePageClient() {
         {tab === 'aplicari' ? (
           <>
         {subtitlu && !loadingAll ? <p className={cn('-mt-2 text-fg-muted', kitText.secondary)}>{subtitlu}</p> : null}
+
+        <ListRow
+          avatar={false}
+          leading={
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary [&_svg]:size-5" aria-hidden>
+              <Package />
+            </span>
+          }
+          title="Magazia"
+          detail={
+            magazieQuery.isLoading
+              ? 'Se încarcă…'
+              : rezumatMag
+                ? rezumatMag.produse > 0
+                  ? rezumatMag.text
+                  : 'Notează ce ai cumpărat; tratamentele făcute scad singure'
+                : 'Va merge după actualizarea bazei de date'
+          }
+          trailing={rezumatMag && rezumatMag.peTerminate > 0 ? <StatusPill tone="warning">{rezumatMag.peTerminate}</StatusPill> : undefined}
+          onClick={() => router.push('/tratamente/magazie')}
+        />
 
         {azi ? (
           <PauzeNotice pauze={pauzeLista.map((pauza) => ({ ...pauza, nume: numeParcele.get(pauza.parcelaId) ?? 'Parcelă' }))} azi={azi} />
@@ -461,6 +510,12 @@ export function TratamentePageClient() {
               {deschis.produse.map((produs, index) => (
                 <SummaryRow key={`${produs.nume}-${index}`} label={index === 0 ? 'Produse' : ''} value={produs.cantitate ? `${produs.nume} · ${produs.cantitate}` : produs.nume} />
               ))}
+              {(() => {
+                const text = deschis.stare !== 'planificat' && !deschis.importat
+                  ? textIesiri(iesiriPeLot(deschis.aplicari.map((aplicare) => aplicare.id), iesiriQuery.data ?? []))
+                  : null
+                return text ? <SummaryRow label="Magazia" value={text} /> : null
+              })()}
               <SummaryRow
                 label="Pauză"
                 value={

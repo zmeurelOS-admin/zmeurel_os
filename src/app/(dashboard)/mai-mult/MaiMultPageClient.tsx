@@ -21,6 +21,7 @@ import {
   Mail,
   Map,
   MessageCircle,
+  Package,
   Receipt,
   Settings,
   ShieldCheck,
@@ -45,6 +46,8 @@ import { isHiddenOperatorEmail, mesajIesireOperatorLink } from '@/lib/farm-membe
 import { useUnreadNotificationsCount } from '@/lib/notifications/useUnreadCount'
 import { queryKeys } from '@/lib/query-keys'
 import { getParcele } from '@/lib/supabase/queries/parcele'
+import { getMagazieStocSauNimic } from '@/lib/supabase/queries/magazie'
+import { rezumatMagazie } from '@/lib/magazie/stoc'
 import { useShopOrdersInLivrareCount } from '@/lib/shop/useShopOrdersInLivrareCount'
 import { usePauzeActive } from '@/lib/tratamente/hooks'
 import { pauzeOrdonate } from '@/lib/tratamente/pauza'
@@ -194,6 +197,9 @@ export function MaiMultPageClient({ farmName, localitate }: { farmName: string |
   const { pauze } = usePauzeActive(azi, { enabled: canSeeTratamente })
   const numeParcelePauza = useParcelNames(pauzeOrdonate(pauze).map((pauza) => pauza.parcelaId), canSeeTratamente)
   const pastila = pastilaPauza(numeParcelePauza)
+  // Magazia (promptul 28): „15 produse · 2 pe terminate”. Fără migrare: rândul spune „după actualizarea bazei de date”.
+  const magazieQuery = useQuery({ queryKey: queryKeys.magazieStoc, queryFn: getMagazieStocSauNimic, enabled: canSeeTratamente, staleTime: 60_000 })
+  const rezumatMag = magazieQuery.data ? rezumatMagazie(magazieQuery.data) : null
   // Deschisă din bara asociației (`/mai-mult?spatiu=asociatie`): aceeași listă ca foaia de dinainte.
   const inAssociationWorkspace = searchParams.get('spatiu') === 'asociatie' && Boolean(associationRole)
 
@@ -303,6 +309,24 @@ export function MaiMultPageClient({ farmName, localitate }: { farmName: string |
                       iconTone="primary"
                       trailing={pastila ? <StatusPill tone="warning">{pastila}</StatusPill> : undefined}
                     />
+                    <div className="border-t border-border">
+                      <NavRow
+                        href="/tratamente/magazie"
+                        label="Magazia"
+                        sub={
+                          rezumatMag
+                            ? rezumatMag.produse > 0
+                              ? rezumatMag.text
+                              : 'Produsele de tratament și cât mai ai'
+                            : magazieQuery.isLoading
+                              ? 'Produsele de tratament și cât mai ai'
+                              : 'După actualizarea bazei de date'
+                        }
+                        icon={<Package />}
+                        iconTone="primary"
+                        trailing={rezumatMag && rezumatMag.peTerminate > 0 ? <StatusPill tone="warning">{`${rezumatMag.peTerminate} pe terminate`}</StatusPill> : undefined}
+                      />
+                    </div>
                   </div>
                 ) : null}
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
