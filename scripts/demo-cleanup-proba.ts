@@ -9,7 +9,8 @@
  * mascat și starea), ca să se vadă dacă semnul e real sau fals.
  *
  * Rulare (cu `SUPABASE_SERVICE_ROLE_KEY` și `NEXT_PUBLIC_SUPABASE_URL` în `.env.local`):
- *   node --env-file=.env.local node_modules/jiti/lib/jiti-cli.mjs scripts/demo-cleanup-proba.ts [--tot]
+ *   JITI_ALIAS='{"@":"<calea repo-ului>/src"}' node --env-file=.env.local node_modules/jiti/lib/jiti-cli.mjs scripts/demo-cleanup-proba.ts [--tot]
+ *   (`JITI_ALIAS` e necesar: jiti nu citește aliasul `@/` din tsconfig)
  *   (`--tot` reverifică toți candidații, nu doar primul lot de 50)
  */
 import { isProtectedDemoCleanupOwnerUserId } from '../src/lib/auth/protected-account'
