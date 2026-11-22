@@ -8,7 +8,7 @@
  */
 import { zileIntre, ziRelativaRo } from './zile'
 
-export type AvertismentTip = 'frac' | 'max_sezon' | 'interval' | 'meteo'
+export type AvertismentTip = 'frac' | 'max_sezon' | 'interval' | 'meteo' | 'cules'
 
 export interface Avertisment {
   tip: AvertismentTip

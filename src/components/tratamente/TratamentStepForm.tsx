@@ -6,7 +6,9 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Button, CalendarPanel, Notice, StepForm, StepFormTitle, SuccessScreen, addDaysIso, kitText, useStepForm } from '@/components/kit'
 import { queryKeys } from '@/lib/query-keys'
 import { creeazaProdusFerma, salveazaTratament, salveazaVolumeParcele, type TipProdusNou } from '@/lib/supabase/queries/tratamente'
-import { avertismentMeteo, avertismenteStropire, type AplicareIstoric } from '@/lib/tratamente/avertismente'
+import { avertizareCulesLaTratament } from '@/lib/analize/memento'
+import { useMementoAnalize } from '@/lib/analize/useMementoAnalize'
+import { avertismentMeteo, avertismenteStropire, type AplicareIstoric, type Avertisment } from '@/lib/tratamente/avertismente'
 import {
   cantitateStropire,
   dozaDinCatalog,
@@ -166,7 +168,25 @@ export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplica
   const istoric = useMemo(() => istoricDin(aplicari), [aplicari])
   const ziTratament = cand === 'acum' ? todayIso : (zi ?? todayIso)
 
-  const avertismente = useMemo(
+  // Culesul estimat pe parcele (data pusă de mână sau prima recoltare de anul trecut), pentru avertizarea
+  // „Pauza trece de începutul culesului”. Doar avertizează, nu blochează (ca la recoltarea în pauză).
+  const cules = useMementoAnalize(todayIso, { proprietar: false, enabled: open })
+  const pauzaProduse = pauzaCiorna(ciorna.produse).zile
+  const avertizareCules: Avertisment | null = useMemo(() => {
+    if (cand === 'planifica' && !zi) return null
+    const a = avertizareCulesLaTratament({
+      pauzaZile: pauzaProduse,
+      ziAplicare: ziTratament,
+      parcele: alese.map((parcela) => ({
+        parcelaId: parcela.id,
+        nume: numeParcele.get(parcela.id) ?? 'Parcelă',
+        dataCules: cules.estimari.get(parcela.id)?.data ?? null,
+      })),
+    })
+    return a ? { tip: 'cules', titlu: a.titlu, detaliu: a.text } : null
+  }, [alese, cand, cules.estimari, numeParcele, pauzaProduse, zi, ziTratament])
+
+  const avertismenteBaza = useMemo(
     () =>
       ciorna.metoda === 'stropire'
         ? avertismenteStropire({
@@ -185,6 +205,7 @@ export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplica
         : [],
     [alese, ciorna.metoda, ciorna.produse, istoric, numeParcele, todayIso, ziTratament],
   )
+  const avertismente = useMemo(() => (avertizareCules ? [avertizareCules, ...avertismenteBaza] : avertismenteBaza), [avertismenteBaza, avertizareCules])
   const meteoAvertisment = ciorna.metoda === 'stropire' ? avertismentMeteo(meteo?.spray) : null
 
   // „Repetă”: ultimul tratament făcut, pe fiecare metodă.
