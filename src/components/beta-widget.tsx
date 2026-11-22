@@ -1,160 +1,86 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { MessageCircle, X } from 'lucide-react'
 
 import { SUPPORT_WHATSAPP_URL } from '@/lib/support'
+import { cn } from '@/lib/utils'
 
-const SESSION_KEY = 'zmeurel_beta_sessions'
-const LAST_SESSION_KEY = 'zmeurel_beta_last_session'
-const DISMISSED_KEY = 'zmeurel_beta_dismissed'
-const SESSION_GAP_MS = 30 * 60 * 1000
-const WHATSAPP_URL = SUPPORT_WHATSAPP_URL
-
-function readNumber(value: string | null) {
-  const parsed = Number.parseInt(value ?? '', 10)
-  return Number.isFinite(parsed) ? parsed : 0
-}
-
-function readBoolean(value: string | null) {
-  return value === 'true' || value === '1'
-}
-
+/**
+ * „Ești în beta”: un punct mic în colțul de sus al carcasei. Conținutul (WhatsApp) se deschide doar la atingere,
+ * niciodată singur, ca să nu acopere butonul principal al paginii sau conținutul.
+ *
+ * Stratul e `z-fab` (sub `z-overlay` / `z-modal`): foile (`BottomSheet`) și formularele pe pași (`StepForm`) stau
+ * deasupra lui. Stă sus, deci nu atinge bara de jos și butoanele fixate jos.
+ */
 export default function BetaWidget() {
-  const [isExpanded, setIsExpanded] = useState(true)
-  const [isMountedVisible, setIsMountedVisible] = useState(false)
-  const [pulseRing, setPulseRing] = useState(false)
+  const [deschis, setDeschis] = useState(false)
+  const radacina = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      const now = Date.now()
-      const lastSession = readNumber(window.localStorage.getItem(LAST_SESSION_KEY))
-      const storedSessions = readNumber(window.localStorage.getItem(SESSION_KEY))
-      const dismissed = readBoolean(window.localStorage.getItem(DISMISSED_KEY))
-      const isNewSession = !lastSession || now - lastSession >= SESSION_GAP_MS
-      const nextSessions = isNewSession ? storedSessions + 1 : Math.max(storedSessions, 1)
-      const sessions = Math.max(nextSessions, 1)
-
-      if (isNewSession) {
-        window.localStorage.setItem(SESSION_KEY, String(sessions))
-        window.localStorage.setItem(LAST_SESSION_KEY, String(now))
-        window.localStorage.removeItem(DISMISSED_KEY)
-      } else {
-        window.localStorage.setItem(SESSION_KEY, String(sessions))
-      }
-
-      const shouldStartExpanded = sessions <= 5 && !dismissed
-      setIsExpanded(shouldStartExpanded)
-      setIsMountedVisible(true)
-
-      if (!shouldStartExpanded) {
-        setPulseRing(true)
-        window.setTimeout(() => setPulseRing(false), 700)
-      }
-    }, 300)
-
-    return () => window.clearTimeout(timeout)
-  }, [])
-
-  const showExpanded = isExpanded
+    if (!deschis) return
+    const laAtingere = (event: PointerEvent) => {
+      if (radacina.current && !radacina.current.contains(event.target as Node)) setDeschis(false)
+    }
+    const laTasta = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setDeschis(false)
+    }
+    document.addEventListener('pointerdown', laAtingere)
+    document.addEventListener('keydown', laTasta)
+    return () => {
+      document.removeEventListener('pointerdown', laAtingere)
+      document.removeEventListener('keydown', laTasta)
+    }
+  }, [deschis])
 
   return (
-    <>
-      <div
-        className="beta-widget print:hidden"
-        aria-live="polite"
-        style={{
-          position: 'fixed',
-          left: '1rem',
-          bottom: 'calc(var(--tabbar-h) + var(--safe-b) + 8px)',
-          zIndex: 40,
-        }}
+    <div
+      ref={radacina}
+      className="beta-widget fixed right-1 top-[calc(var(--safe-t)+4px)] z-fab print:hidden"
+    >
+      <button
+        type="button"
+        aria-expanded={deschis}
+        aria-controls="beta-widget-continut"
+        aria-label="Ești în beta: scrie-mi o problemă sau o sugestie"
+        title="Ești în beta"
+        onClick={() => setDeschis((value) => !value)}
+        className="flex size-7 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
+        <span aria-hidden className={cn('block size-2.5 rounded-full bg-primary ring-2 ring-surface', deschis && 'bg-fg-muted')} />
+      </button>
+
+      {deschis ? (
         <div
-          className="transition-all duration-300 ease-out"
-          style={{
-            opacity: isMountedVisible ? 1 : 0,
-            transform: isMountedVisible
-              ? 'translateY(0) scale(1)'
-              : 'translateY(8px) scale(0.98)',
-          }}
+          id="beta-widget-continut"
+          role="dialog"
+          aria-label="Ești în beta"
+          className="absolute right-0 top-8 w-[min(280px,calc(100vw-24px))] rounded-card border border-border bg-surface-raised p-4 shadow-2"
         >
-          {showExpanded ? (
-            <div className="relative w-[min(260px,calc(100vw-104px))] rounded-2xl border border-slate-200 bg-white p-4 shadow-lg dark:border-slate-700 dark:bg-slate-800 md:w-[260px] md:shadow-xl">
-              <button
-                type="button"
-                className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3D7A5F] focus-visible:ring-offset-2 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                onClick={() => {
-                  window.localStorage.setItem(DISMISSED_KEY, 'true')
-                  setIsExpanded(false)
-                }}
-                aria-label="Ascunde widgetul beta"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-[#E8F5EE] px-2.5 py-1 text-xs font-semibold text-[#3D7A5F] dark:bg-[#3D7A5F]/20 dark:text-emerald-400">
-                <span>🧪</span>
-                <span>Ești în beta</span>
-              </div>
-
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Ai o problemă sau o sugestie?</p>
-
-              <a
-                href={WHATSAPP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#1ebc5a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3D7A5F] focus-visible:ring-offset-2"
-              >
-                <MessageCircle className="h-4 w-4" />
-                Scrie-mi pe WhatsApp
-              </a>
-            </div>
-          ) : (
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-[15px] font-bold text-fg">Ești în beta</p>
             <button
               type="button"
-              title="Beta — scrie-mi pe WhatsApp"
-              aria-label="Beta — scrie-mi pe WhatsApp"
-              onClick={() => {
-                setIsExpanded(true)
-              }}
-              className={[
-                'relative flex h-10 w-10 items-center justify-center rounded-full bg-[#3D7A5F] text-white shadow-md transition-all duration-150 hover:bg-[#1f4a37] hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3D7A5F] focus-visible:ring-offset-2',
-                pulseRing ? 'animate-[pulse-ring_700ms_ease-out_1]' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
+              onClick={() => setDeschis(false)}
+              aria-label="Închide"
+              className="-mr-2 -mt-2 flex size-10 items-center justify-center rounded-full text-fg-muted hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
-              <MessageCircle className="h-[18px] w-[18px]" />
+              <X className="size-4" aria-hidden />
             </button>
-          )}
+          </div>
+          <p className="mt-1 text-[15px] text-fg-muted">Ai o problemă sau o sugestie?</p>
+          <a
+            href={SUPPORT_WHATSAPP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setDeschis(false)}
+            className="mt-3 inline-flex h-touch w-full items-center justify-center gap-2 rounded-control bg-primary px-4 text-[15px] font-semibold text-primary-contrast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          >
+            <MessageCircle className="size-4" aria-hidden />
+            Scrie-mi pe WhatsApp
+          </a>
         </div>
-      </div>
-
-      <style jsx global>{`
-        @keyframes pulse-ring {
-          0% {
-            box-shadow: 0 0 0 0 rgba(61, 122, 95, 0.4);
-          }
-          100% {
-            box-shadow: 0 0 0 12px rgba(61, 122, 95, 0);
-          }
-        }
-
-        @media print {
-          .beta-widget {
-            display: none !important;
-          }
-        }
-
-        @media (min-width: 768px) {
-          .beta-widget {
-            /* Lângă bara laterală, nu peste ea (acoperea legăturile din josul ei). */
-            left: calc(var(--sidebar-width, 240px) + 1.5rem) !important;
-            bottom: 1.5rem !important;
-          }
-        }
-      `}</style>
-    </>
+      ) : null}
+    </div>
   )
 }
