@@ -24,6 +24,7 @@
     "check:critical": "npm run check:sensitive-hardcoding && npm run check:server-supabase-boundaries && npm run lint && npm run typecheck && npm run test:critical",
     "predeploy:ai-chat": "npm run check:ai-chat",
     "test:e2e": "playwright test",
+    "test:e2e:smoke": "playwright test --config=playwright.smoke.config.ts",
     "test:pwa": "playwright test tests-e2e/pwa/service-worker.spec.ts --config=playwright.config.ts --project=chromium --reporter=line",
     "test:pwa:full": "npm run build && npm run test:pwa",
     "test:pwa:headed": "playwright test tests-e2e/pwa/service-worker.spec.ts --config=playwright.config.ts --project=chromium --headed --reporter=line",

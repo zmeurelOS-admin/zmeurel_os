@@ -1,0 +1,188 @@
+import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test'
+
+import { ascultaErori, iesiDinCont, pornesteDemoNou } from './demo'
+
+/**
+ * Setul smoke (promptul 27, D): un singur demo nou „Fructe de pădure”, pașii principali în ordine, apoi
+ * ieșirea din cont. Pașii depind unul de altul (aceeași pagină, același demo), deci rulează în serie.
+ *
+ *   1. Acasă se încarcă fără erori de consolă din aplicație;
+ *   2. o recoltare (culegător, kg) → apare în listă;
+ *   3. o comandă → „Pune în livrare” → livrată cu plată → stocul scade;
+ *   4. o vânzare rapidă;
+ *   5. o cheltuială fără bon;
+ *   6. Tratamente → Analize: analiza din demo și raportul public deschis fără cont;
+ *   7. pe mobil (375 px), bara de jos are 5 taburi.
+ */
+
+test.describe.configure({ mode: 'serial' })
+
+let context: BrowserContext
+let page: Page
+let erori: string[] = []
+
+/** „În stoc, calitatea 1: 1.234,5 kg …” → 1234.5 */
+function kgDinText(text: string): number {
+  const potrivire = text.match(/:\s*([\d.]+(?:,\d+)?)\s*kg/)
+  if (!potrivire) throw new Error(`Nu găsesc kilogramele în „${text}”`)
+  return Number(potrivire[1].replace(/\./g, '').replace(',', '.'))
+}
+
+async function stocCal1PeComenzi(p: Page): Promise<number> {
+  await p.goto('/comenzi', { waitUntil: 'load' })
+  const rand = p.getByText(/^În stoc, calitatea 1:/)
+  await expect(rand).toBeVisible()
+  return kgDinText((await rand.textContent()) ?? '')
+}
+
+async function apasaTaste(p: Page, tastatura: string, cifre: string) {
+  const grup = p.getByRole('group', { name: tastatura })
+  for (const cifra of cifre) await grup.getByRole('button', { name: cifra, exact: true }).click()
+}
+
+test.beforeAll(async ({ browser }: { browser: Browser }) => {
+  context = await browser.newContext()
+  page = await context.newPage()
+  erori = ascultaErori(page)
+  await pornesteDemoNou(page)
+})
+
+test.afterAll(async ({ baseURL }) => {
+  if (page) await iesiDinCont(page, baseURL ?? 'http://localhost:3000')
+  await context?.close()
+})
+
+test('1. Acasă se încarcă fără erori de consolă din aplicație', async () => {
+  erori.length = 0
+  await page.goto('/dashboard', { waitUntil: 'load' })
+  await expect(page.getByRole('heading', { name: 'Acasă', level: 1 })).toBeVisible()
+  await expect(page.getByRole('link', { name: /^În stoc, calitatea 1:/ })).toBeVisible()
+  await page.waitForLoadState('networkidle').catch(() => undefined)
+  expect(erori, `Erori de consolă pe Acasă:\n${erori.join('\n')}`).toEqual([])
+})
+
+test('2. o recoltare (culegător, kg) apare în listă', async () => {
+  await page.goto('/recoltari', { waitUntil: 'load' })
+  await page.getByRole('button', { name: 'Adaugă kg' }).first().click()
+  const foaie = page.getByRole('dialog', { name: 'Adaugă kilograme' })
+  await foaie.getByRole('radio').first().click()
+
+  // O parcelă fără pauză de tratament (altfel apare avertizarea înainte de salvare).
+  await foaie.getByRole('button', { name: /^Parcela: .* — schimbă$/ }).click()
+  await foaie.getByRole('radio').filter({ hasNotText: /Pauză/ }).first().click()
+
+  await apasaTaste(page, 'Tastatură numerică', '7')
+  await foaie.getByRole('button', { name: 'Salvează', exact: true }).click()
+  await expect(foaie.getByRole('heading', { name: 'Salvat' })).toBeVisible()
+  // „Elena Rusu · 7 kg · 17,50 lei”: numele culegătorului, ca să-l găsim în listă.
+  const rezumat = (await foaie.getByText(/ · 7 kg · /).textContent()) ?? ''
+  const nume = rezumat.split(' · ')[0].trim()
+  expect(nume).not.toBe('')
+  await foaie.getByRole('button', { name: 'Gata' }).click()
+
+  await expect(page.getByRole('button', { name: `${nume}, 7 kg`, exact: false })).toBeVisible()
+})
+
+test('3. o comandă → „Pune în livrare” → livrată cu plată → stocul scade', async () => {
+  const stocInainte = await stocCal1PeComenzi(page)
+
+  await page.getByRole('button', { name: 'Comandă nouă' }).click()
+  const foaie = page.getByRole('dialog', { name: 'Comandă nouă' })
+  const client = foaie.getByRole('button', { name: /^Alege clientul / }).first()
+  const numeClient = ((await client.getAttribute('aria-label')) ?? '').replace(/^Alege clientul /, '').trim()
+  expect(numeClient).not.toBe('')
+  await client.click()
+  await foaie.getByRole('radio', { name: '5 kg' }).click()
+  await foaie.getByRole('radio', { name: 'Azi', exact: true }).click()
+  await foaie.getByRole('button', { name: 'Salvează comanda' }).click()
+  await expect(foaie.getByRole('heading', { name: 'Comandă salvată' })).toBeVisible()
+  await foaie.getByRole('button', { name: 'Gata' }).click()
+
+  // „Pune în livrare azi”: bifăm doar comanda nouă (clientul ales, 5 kg).
+  await page.getByRole('button', { name: /^Pune în livrare azi/ }).click()
+  const livrare = page.getByRole('dialog', { name: 'Pune în livrare azi' })
+  const escapat = numeClient.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  await livrare.getByRole('checkbox', { name: new RegExp(`^${escapat} .* 5 kg$`) }).click()
+  await livrare.getByRole('button', { name: /^Trimite în Livrări \(1\)/ }).click()
+  await expect(livrare).toBeHidden()
+
+  // Livrări: oprirea comenzii noi → „Livrat” → plătit cash → „Da, livrat”.
+  await page.goto('/livrari', { waitUntil: 'load' })
+  const oprire = page.getByRole('region', { name: 'Următoarea oprire' })
+  await expect(oprire).toContainText(numeClient)
+  await expect(oprire).toContainText('5 kg')
+  await oprire.getByRole('button', { name: 'Livrat', exact: true }).click()
+  const confirmare = page.getByRole('dialog', { name: 'Confirmi livrarea?' })
+  await expect(confirmare.getByRole('tab', { name: 'Cash' })).toHaveAttribute('aria-selected', 'true')
+  await confirmare.getByRole('button', { name: 'Da, livrat' }).click()
+  await expect(confirmare).toBeHidden()
+
+  const stocDupa = await stocCal1PeComenzi(page)
+  expect(stocDupa).toBeCloseTo(stocInainte - 5, 3)
+})
+
+test('4. o vânzare rapidă', async () => {
+  await page.goto('/vanzari', { waitUntil: 'load' })
+  await page.getByRole('button', { name: 'Vânzare rapidă' }).click()
+  const foaie = page.getByRole('dialog', { name: 'Vânzare rapidă' })
+  await apasaTaste(page, 'Tastatură pentru cantitate', '3')
+  await foaie.getByRole('button', { name: /Salvează$/ }).click()
+  await expect(foaie.getByRole('heading', { name: 'Vândut și încasat' })).toBeVisible()
+  await expect(foaie).toContainText('3 kg')
+  await foaie.getByRole('button', { name: 'Gata' }).click()
+  await expect(foaie).toBeHidden()
+})
+
+test('5. o cheltuială fără bon', async () => {
+  await page.goto('/cheltuieli', { waitUntil: 'load' })
+  await page.getByRole('button', { name: 'Adaugă cheltuială' }).click()
+  const foaie = page.getByRole('dialog', { name: 'Cheltuială nouă' })
+  await foaie.getByRole('radio', { name: 'Ambalaje' }).click()
+  await apasaTaste(page, 'Tastatură pentru sumă', '42')
+  await foaie.getByRole('button', { name: /^Salvează( 42 lei)?$/ }).click()
+  await expect(foaie.getByRole('heading', { name: 'Salvat' })).toBeVisible()
+  await expect(foaie).toContainText('Ambalaje · 42 lei')
+  await foaie.getByRole('button', { name: 'Gata' }).click()
+  await expect(page.getByRole('button', { name: /^Ambalaje, 42 lei/ })).toBeVisible()
+})
+
+test('6. Tratamente → Analize: analiza din demo și raportul public, fără cont', async ({ browser }) => {
+  await page.goto('/tratamente?tab=analize', { waitUntil: 'load' })
+  await expect(page.getByRole('button', { name: /^Ultima analiză Conform/ })).toBeVisible()
+  await page.getByRole('button', { name: /· prelevată .*Conform/ }).first().click()
+  await page.getByRole('button', { name: 'Vezi raportul' }).click()
+  const raport = page.getByRole('dialog', { name: 'Raportul analizei' })
+  const link = raport.getByText(/\/a\/[A-Za-z0-9_-]{10,64}$/)
+  await expect(link).toBeVisible()
+  const url = ((await link.textContent()) ?? '').trim()
+  const cale = new URL(url).pathname
+
+  // Fără cont: context nou, fără cookie-uri.
+  const anonim = await browser.newContext()
+  try {
+    const p = await anonim.newPage()
+    const raspuns = await p.goto(cale, { waitUntil: 'load' })
+    expect(raspuns?.status()).toBe(200)
+    await expect(p.getByText('Conform: nicio limită depășită')).toBeVisible()
+    await expect(p.getByRole('heading', { level: 1 })).toHaveText(/^Ferma demo/)
+    const text = await p.locator('main').innerText()
+    expect(text).not.toMatch(/tenant_/i)
+    // Fiecare soi o singură dată (raportul promptului 26 le dubla).
+    const rand = text.split('\n').find((linie) => linie.includes('· parcelele')) ?? ''
+    const soiuri = rand.split(' · ')[0].split(', ')
+    expect(new Set(soiuri).size).toBe(soiuri.length)
+    expect(p.url()).not.toContain('/login')
+  } finally {
+    await anonim.close()
+  }
+})
+
+test('7. pe mobil (375 px), bara de jos are 5 taburi', async () => {
+  await page.setViewportSize({ width: 375, height: 812 })
+  await page.goto('/dashboard', { waitUntil: 'load' })
+  const bara = page.getByRole('navigation', { name: 'Navigare principală' })
+  await expect(bara).toBeVisible()
+  await expect(bara.getByRole('link')).toHaveCount(5)
+  await expect(bara.getByRole('link', { name: /Acasă/ })).toBeVisible()
+  await expect(bara.getByRole('link', { name: 'Mai mult' })).toBeVisible()
+})

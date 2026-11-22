@@ -9,6 +9,8 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './e2e',
+  // Setul smoke are configurația lui (`playwright.smoke.config.ts`, `npm run test:e2e:smoke`).
+  testIgnore: ['smoke/**'],
   
   /* Run tests in files in parallel */
   fullyParallel: false, // Important: Security tests must run sequentially to avoid conflicts
