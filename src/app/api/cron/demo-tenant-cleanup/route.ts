@@ -59,6 +59,8 @@ async function reverifica(
 /**
  * Curățarea nocturnă a demo-urilor (04:00 UTC).
  * Implicit doar numără (`mod: "proba"`); șterge efectiv numai cu `DEMO_CLEANUP_MODE=sterge`.
+ * O fermă cu semn de fermă reală nu se atinge: e sărită și apare în `sariteFermaReala` (și în Sentry); celelalte
+ * din lot se șterg. În probă, aceleași ferme apar la `semneFermaReala`.
  */
 export async function GET(request: Request) {
   if (!hasValidCronSecret(request)) {
@@ -114,41 +116,24 @@ export async function GET(request: Request) {
       return NextResponse.json(payload)
     }
 
-    // Mod `sterge`. Întâi reverificăm tot lotul: un singur semn de fermă reală oprește rularea înainte de orice ștergere.
-    for (const candidat of lot) {
-      const verificare = await reverifica(admin, candidat)
-      if (verificare && verificare.semne.length > 0) {
-        throw new FermaRealaError({ tenantId: candidat.tenantId, email: candidat.email, semne: verificare.semne })
-      }
-    }
-
+    // Mod `sterge`. Fiecare fermă se reverifică chiar înainte de ștergere (emailul proprietarului, membrii,
+    // magazinul…). Una cu semn de fermă reală se sare (nu se atinge nimic din ea) și se raportează; restul lotului
+    // se șterge.
     let fermeSterse = 0
     let utilizatoriStersi = 0
     let operatoriStersi = 0
     let fisiereSterse = 0
     const erori: string[] = []
+    const sariteFermaReala: SemnGasit[] = []
 
     for (const candidat of lot) {
-      // Reverificăm chiar înainte de ștergere (emailul proprietarului, membrii, magazinul…).
       const verificare = await reverifica(admin, candidat)
       if (verificare === null) continue
-      const { semne } = verificare
-      if (semne.length > 0) {
-        const error = new FermaRealaError({ tenantId: candidat.tenantId, email: candidat.email, semne })
-        captureApiError(error, { route: ROUTE, tenantId: candidat.tenantId, tags: { mod } })
-        return NextResponse.json(
-          {
-            ok: false,
-            mod,
-            oprit: true,
-            error: error.message,
-            fermeSterse,
-            utilizatoriStersi,
-            fisiereSterse,
-            ...(erori.length > 0 ? { erori } : {}),
-          },
-          { status: 500 },
-        )
+      if (verificare.semne.length > 0) {
+        const semn = { tenantId: candidat.tenantId, email: candidat.email, semne: verificare.semne }
+        sariteFermaReala.push(semn)
+        captureApiError(new FermaRealaError(semn), { route: ROUTE, tenantId: candidat.tenantId, tags: { mod } })
+        continue
       }
 
       try {
@@ -178,18 +163,13 @@ export async function GET(request: Request) {
       operatoriStersi,
       fisiereSterse,
       ramasePentruUrmatoareaRulare: Math.max(0, selectie.deSters.length - lot.length),
+      sariteFermaReala,
       ...(erori.length > 0 ? { erori } : {}),
     }
     console.info('[demo-tenant-cleanup] sterge', JSON.stringify(payload))
     return NextResponse.json(payload)
   } catch (error) {
     captureApiError(error, { route: ROUTE, tags: { mod } })
-    if (error instanceof FermaRealaError) {
-      return NextResponse.json(
-        { ok: false, mod, oprit: true, error: error.message, fermeSterse: 0 },
-        { status: 500 },
-      )
-    }
     return NextResponse.json(
       { ok: false, mod, error: error instanceof Error ? error.message : 'Cleanup failed' },
       { status: 500 },

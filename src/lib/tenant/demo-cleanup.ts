@@ -173,7 +173,8 @@ export type StareFermaDemo = {
 }
 
 /**
- * Semnele că ferma NU e un demo de aruncat. Oricare dintre ele oprește toată rularea, fără alte ștergeri:
+ * Semnele că ferma NU e un demo de aruncat. Oricare dintre ele face ca ferma să fie sărită (nu se atinge nimic din
+ * ea) și raportată în `sariteFermaReala`; celelalte ferme din lot se șterg:
  * - proprietarul s-a schimbat, emailul lui nu mai e demo (sau lipsește), e superadmin, e protejat, e în asociație;
  * - ferma e aprobată în asociație, e mai nouă de 24 h, proprietarul mai deține altă fermă;
  * - în `profiles` mai e cineva cu `tenant_id` = ferma, în afară de proprietar (indiferent de email);

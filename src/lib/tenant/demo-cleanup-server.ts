@@ -200,7 +200,7 @@ export async function citesteStareaFermei(
     numara(admin.from('association_members').select('user_id').eq('user_id', ownerUserId).limit(1), 'association_members'),
     numara(admin.from('tenants').select('id').eq('owner_user_id', ownerUserId), 'tenants'),
     numara(admin.from('shop_orders').select('id').eq('tenant_id', tenantId).limit(1), 'shop_orders'),
-    numara(admin.from('shop_order_erp_links').select('id').eq('tenant_id', tenantId).limit(1), 'shop_order_erp_links'),
+    numara(admin.from('shop_order_erp_links').select('shop_order_id').eq('tenant_id', tenantId).limit(1), 'shop_order_erp_links'),
     numara(
       admin.from('association_product_offers').select('id').eq('tenant_id', tenantId).limit(1),
       'association_product_offers',
