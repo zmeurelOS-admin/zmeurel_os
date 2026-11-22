@@ -103,7 +103,7 @@ export function CulesSiAnalizaParcela({ parcelaId, azi, poateScrie, proprietar }
         aria-label={poateScrie ? 'Schimbă data culesului' : undefined}
       />
 
-      {stare.tip === 'rezultat' ? (
+      {!memento.analizeDisponibile ? null : stare.tip === 'rezultat' ? (
         <ListRow
           avatar={false}
           leading={

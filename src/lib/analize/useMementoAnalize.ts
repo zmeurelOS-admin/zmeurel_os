@@ -17,8 +17,10 @@ import { calculeazaMemento, produseDeEvitat, type CalculMemento, type ProdusDeEv
 import { esteParcelaDeVanzare, type AnalizaRow } from './model'
 
 export interface MementoAnalize {
-  /** Datele sunt încărcate și analizele există în baza de date. */
+  /** Parcelele și recoltările sunt încărcate (estimarea culesului merge și fără tabelele analizelor). */
   gata: boolean
+  /** Tabelele analizelor există (migrarea 20261122110000). Fără ele: fără card, fără rândul analizei. */
+  analizeDisponibile: boolean
   calcul: CalculMemento | null
   produse: ProdusDeEvitat[]
   analize: AnalizaRow[]
@@ -67,10 +69,11 @@ export function useMementoAnalize(azi: string | null, options: { proprietar: boo
       estimari.set(parcela.id, estimeazaCules({ parcelaId: parcela.id, an, manual: manuale[parcela.id] ?? null, recoltari }))
     }
     const culesDisponibil = culesQuery.data?.disponibil ?? false
-    const gata = Boolean(azi) && parceleQuery.isSuccess && recoltariQuery.isSuccess && analizeQuery.isSuccess
+    const analizeDisponibile = analizeQuery.isSuccess
+    const gata = Boolean(azi) && parceleQuery.isSuccess && recoltariQuery.isSuccess && (analizeDisponibile || analizeQuery.isError)
 
-    if (!memento || !gata || !azi || !stareQuery.isSuccess) {
-      return { gata, calcul: null, produse: [], analize, estimari, culesDisponibil, numeParcele }
+    if (!memento || !gata || !analizeDisponibile || !azi || !stareQuery.isSuccess) {
+      return { gata, analizeDisponibile, calcul: null, produse: [], analize, estimari, culesDisponibil, numeParcele }
     }
     const calcul = calculeazaMemento({
       azi,
@@ -85,6 +88,7 @@ export function useMementoAnalize(azi: string | null, options: { proprietar: boo
     ]
     return {
       gata,
+      analizeDisponibile,
       calcul,
       produse: calcul.zileRamase === null ? [] : produseDeEvitat(produseFerma, calcul.zileRamase),
       analize,
@@ -95,6 +99,7 @@ export function useMementoAnalize(azi: string | null, options: { proprietar: boo
   }, [
     an,
     analize,
+    analizeQuery.isError,
     analizeQuery.isSuccess,
     aplicariQuery.data,
     azi,
