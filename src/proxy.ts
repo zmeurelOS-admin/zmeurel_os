@@ -66,7 +66,9 @@ function isPurePublicNoAuthBypassRoute(pathname: string, request: NextRequest): 
   return (
     pathname === '/' ||
     pathname === '/comanda' ||
-    pathname.startsWith('/comanda/')
+    pathname.startsWith('/comanda/') ||
+    // Raportul public al unei analize la fructe: fără sesiune și fără cookie-uri de autentificare.
+    pathname.startsWith('/a/')
   )
 }
 
@@ -91,6 +93,8 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isPurePublicNoAuthBypassRoute(pathname, request)) {
+    // Raportul public nu primește cookie-urile sesiunii (pagina nu știe cine o deschide).
+    if (pathname.startsWith('/a/')) requestHeaders.delete('cookie')
     return NextResponse.next({
       request: {
         headers: requestHeaders,
@@ -170,6 +174,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/update-password') ||
     pathname === '/comanda' ||
     pathname.startsWith('/comanda/') ||
+    pathname.startsWith('/a/') ||
     pathname.startsWith('/livrator/') ||
     pathname.startsWith('/magazin') ||
     pathname.startsWith('/api/shop') ||
