@@ -5,7 +5,7 @@ import { getTenantId } from '@/lib/tenant/get-tenant'
  * Poza bonului la Cheltuieli și Investiții.
  *
  * Bucket privat `bonuri` (migrarea `20261120120000_bonuri_storage.sql`). Calea unui fișier:
- * `{tenant_id}/{cheltuieli|investitii}/{client_sync_id}.jpg`. În `document_url` se salvează calea din bucket;
+ * `{tenant_id}/{cheltuieli|investitii|magazie}/{client_sync_id}.jpg` (Magazia: „+ Am cumpărat”, promptul 28). În `document_url` se salvează calea din bucket;
  * o valoare veche care începe cu `http` se deschide direct.
  */
 export const BONURI_BUCKET = 'bonuri'
@@ -14,7 +14,7 @@ export const BON_JPEG_QUALITY = 0.8
 export const BON_SIGNED_URL_SECONDS = 60 * 60
 export const BON_UNREADABLE_MESSAGE = 'Poza nu s-a putut citi. Încearcă alta.'
 
-export type BonTable = 'cheltuieli' | 'investitii'
+export type BonTable = 'cheltuieli' | 'investitii' | 'magazie'
 
 /**
  * De ce s-a salvat rândul fără poza aleasă: `offline` = nu era internet (poza nu pleacă și nu intră în coadă);

@@ -68,3 +68,12 @@ export function costTratamentePerioada(input: {
 
 /** Textul liniei din Rapoarte. */
 export const TEXT_INCLUS_IN_CHELTUIELI = 'inclus în cheltuieli: nu scade încă o dată din profit'
+
+/**
+ * A doua cheie de idempotență (cheltuiala creată odată cu intrarea), din cheia formularului: aceeași la reîncercare,
+ * alta la un formular nou. Fiecare cifră hexazecimală din ultimele 12 devine 15 − cifra (mereu alta); forma UUID rămâne.
+ */
+export function cheieDerivata(key: string): string {
+  const coada = key.slice(-12).replace(/[0-9a-f]/gi, (cifra) => (15 - parseInt(cifra, 16)).toString(16))
+  return `${key.slice(0, -12)}${coada}`
+}

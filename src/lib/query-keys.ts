@@ -45,6 +45,16 @@ export const queryKeys = {
   produseFitosanitare: ['produse-fitosanitare'] as const,
   /** Volumul de soluție salvat pe parcele (după migrarea modulului Tratamente). */
   volumeParcele: ['tratamente', 'volume-parcele'] as const,
+  /**
+   * Magazia (promptul 28), sub `tratamente`: un tratament salvat schimbă stocul (triggerul de ieșire), deci
+   * invalidarea lui `tratamente` reîncarcă și magazia.
+   */
+  magazie: ['tratamente', 'magazie'] as const,
+  magazieStoc: ['tratamente', 'magazie', 'stoc'] as const,
+  magazieIesiri: ['tratamente', 'magazie', 'iesiri'] as const,
+  magazieProdus: (produsId: string) => ['tratamente', 'magazie', 'produs', produsId] as const,
+  /** Toate mișcările (doar proprietarul): Rapoarte și exportul „Magazia”. */
+  magazieMiscari: ['tratamente', 'magazie', 'miscari'] as const,
   solarClimate: (scope: string) => ['solar-climate', scope] as const,
   solarStages: (scope: string) => ['solar-stages', scope] as const,
   stocGlobal: ['stoc-global'] as const,

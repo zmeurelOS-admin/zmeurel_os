@@ -4,6 +4,7 @@ import {
   aplicariRamase,
   calculeazaStoc,
   categorieCheltuiala,
+  cheieDerivata,
   convertesteInStoc,
   costEstimat,
   costTratamentePerioada,
@@ -255,6 +256,14 @@ describe('banii: prețul pe unitate, categoria, Rapoartele', () => {
     expect(textPretPeUnitate(16.48, 'kg')).toBe('16,48 lei/kg')
     expect(pretPeUnitate(null, 25)).toBeNull()
     expect(pretPeUnitate(412, 0)).toBeNull()
+  })
+
+  it('cheia cheltuielii: alta decât a mișcării, aceeași la reîncercare, tot UUID', () => {
+    const key = '3f2a9c10-1b2c-4d5e-8f90-a1b2c3d4e5f6'
+    expect(cheieDerivata(key)).toBe('3f2a9c10-1b2c-4d5e-8f90-5e4d3c2b1a09')
+    expect(cheieDerivata(key)).toBe(cheieDerivata(key))
+    expect(cheieDerivata(key)).not.toBe(key)
+    expect(cheieDerivata(key)).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
   })
 
   it('categoria cheltuielii', () => {
