@@ -5429,10 +5429,8 @@ export type Database = {
         Args: { p_tenant_id: string }
         Returns: {
           farm_name: string
-          full_name: string
           legal_badge: string
           locality: string
-          logo_url: string
           tenant_id: string
         }[]
       }
