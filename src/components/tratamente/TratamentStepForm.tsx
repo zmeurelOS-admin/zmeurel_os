@@ -1,10 +1,13 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { Button, CalendarPanel, Notice, StepForm, StepFormTitle, SuccessScreen, addDaysIso, kitText, useStepForm } from '@/components/kit'
+import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { queryKeys } from '@/lib/query-keys'
+import { getMagazieStocSauNimic } from '@/lib/supabase/queries/magazie'
+import { costEstimat, verificaMagazie } from '@/lib/magazie/formular'
 import { creeazaProdusFerma, salveazaTratament, salveazaVolumeParcele, type TipProdusNou } from '@/lib/supabase/queries/tratamente'
 import { avertizareCulesLaTratament } from '@/lib/analize/memento'
 import { useMementoAnalize } from '@/lib/analize/useMementoAnalize'
@@ -43,7 +46,7 @@ import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
 import { cn } from '@/lib/utils'
 
 import { AlegeProdus, ProdusNou, type ProdusRecent } from './AlegeProdus'
-import { PasCand, type CandTip, type RezumatTratament } from './PasCand'
+import { PasCand, type CandTip, type MagazieTratament, type RezumatTratament } from './PasCand'
 import { PasDetalii } from './PasDetalii'
 import { PasMetoda, type RepetaOptiune } from './PasMetoda'
 
@@ -115,6 +118,10 @@ function istoricDin(aplicari: readonly AplicareRow[]): AplicareIstoric[] {
  */
 export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplicari, todayIso, initial, parcelaInitiala = null, meteo }: TratamentStepFormProps) {
   const queryClient = useQueryClient()
+  const { memberRole } = useDashboardAuth()
+  const esteProprietar = memberRole !== 'operator'
+  // Magazia (promptul 28): stocul, pentru „în magazie X · rămân Y”. Fără migrare: `null`, formularul merge ca azi.
+  const magazieQuery = useQuery({ queryKey: queryKeys.magazieStoc, queryFn: getMagazieStocSauNimic, enabled: open, staleTime: 30_000, retry: false })
   const form = useStepForm({
     steps: STEPS,
     open,
@@ -374,6 +381,35 @@ export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplica
     cand === 'acum' ? { tip: 'acum' } : zi ? (cand === 'alta_zi' ? { tip: 'alta_zi', zi } : { tip: 'planifica', zi }) : null
   const canSave = lipsa === null && candObj !== null && !saving
 
+  // ─── Magazia: cât cere tratamentul din fiecare produs, pe toate parcelele ───
+  const magazie: MagazieTratament | null = useMemo(() => {
+    const stoc = magazieQuery.data
+    if (!stoc || stoc.length === 0 || lipsa !== null) return null
+    const rows = aplicariDeSalvat({ ciorna: ciornaEfectiva, parcele: parceleSortate, cand: candObj ?? { tip: 'acum' }, meteo: null })
+    const necesar = ciornaEfectiva.produse.map((produs, index) => {
+      let total = 0
+      let unitate: string | null = null
+      let are = false
+      for (const row of rows) {
+        const rand = row.produse[index]
+        if (rand && rand.cantitate_totala !== null) {
+          total += Number(rand.cantitate_totala) || 0
+          unitate = rand.unitate_cantitate
+          are = true
+        }
+      }
+      return { produsId: produs.produsId, nume: produs.nume, cantitate: are ? total : null, unitate }
+    })
+    const verificari = verificaMagazie({
+      produse: necesar,
+      stoc: stoc.map((rand) => ({ produs_id: rand.produs_id, unitate: rand.unitate, stoc: rand.stoc, pret_mediu: esteProprietar ? rand.pret_mediu : null, start: rand.inceput })),
+      facut: cand !== 'planifica',
+      zi: ziTratament,
+    })
+    if (verificari.every((verificare) => verificare.tip === 'neurmarit')) return null
+    return { verificari, cost: esteProprietar ? costEstimat(verificari) : null }
+  }, [cand, candObj, ciornaEfectiva, esteProprietar, lipsa, magazieQuery.data, parceleSortate, ziTratament])
+
   const save = async () => {
     if (!canSave || !candObj) return
     const key = form.clientSyncId
@@ -552,6 +588,7 @@ export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplica
           meteo={meteoRezumat}
           avertismentMeteo={meteoAvertisment}
           rezumat={rezumat}
+          magazie={magazie}
         />
       </div>
     )
