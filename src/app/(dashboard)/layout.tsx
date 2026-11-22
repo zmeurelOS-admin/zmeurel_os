@@ -7,7 +7,7 @@ import {
   DashboardShellTopSlot,
 } from '@/components/layout/DashboardShellSlots'
 import { LegalDocsPersistentBanner } from '@/components/legal-docs/LegalDocsPersistentBanner'
-import { acteDinDocument, stareActe, textBannerActe } from '@/lib/acte/stare'
+import { bannerActeDinLayout } from '@/lib/acte/stare'
 import UnifiedMobileFab from '@/components/ui/UnifiedMobileFab'
 import { AiPanelProvider } from '@/contexts/AiPanelContext'
 import { isSuperAdmin } from '@/lib/auth/isSuperAdmin'
@@ -63,10 +63,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
     associationShopApproved = tenantRow?.is_association_approved === true
     farmName = farmDisplayName(tenantRow?.nume_ferma)
     // Operatorul nu poate deschide Actele fermei (Setări sunt blocate pentru el), deci nu vede bannerul.
-    legalDocsBannerText =
-      memberRoleFromProxy === 'operator' || legalDocs.status.complete
-        ? null
-        : textBannerActe(stareActe(acteDinDocument(legalDocs.doc)))
+    legalDocsBannerText = bannerActeDinLayout({
+      memberRole: memberRoleFromProxy,
+      complete: legalDocs.status.complete,
+      doc: legalDocs.doc,
+    })
   }
 
   const linkOnly = memberRoleFromProxy === 'operator' && isHiddenOperatorEmail(user.email)

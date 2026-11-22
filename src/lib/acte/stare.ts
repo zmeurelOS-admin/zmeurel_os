@@ -172,6 +172,21 @@ export function acteDinDocument(
   }
 }
 
+/**
+ * Ce banner arată layout-ul (`src/app/(dashboard)/layout.tsx`): textul, sau `null` pentru niciun banner.
+ * - operatorul nu-l vede: Actele fermei stau în Setări, blocate pentru el;
+ * - actele validate (`farmer_legal_docs.legal_docs_complete`) nu dau banner;
+ * - altfel textul vine din aceeași stare ca ecranul (`stareActe`).
+ */
+export function bannerActeDinLayout(input: {
+  memberRole: string | null | undefined
+  complete: boolean
+  doc: Parameters<typeof acteDinDocument>[0]
+}): string | null {
+  if (input.memberRole === 'operator' || input.complete) return null
+  return textBannerActe(stareActe(acteDinDocument(input.doc)))
+}
+
 /** Textul bannerului din aplicație: același lucru ca sus, pe ecranul Actele fermei. */
 export function textBannerActe(stare: StareActe): string {
   if (stare.complete) return 'Actele fermei nu sunt încă validate. Verifică-le.'
