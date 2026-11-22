@@ -20,6 +20,8 @@ import {
   type LunaRaport,
   type TipPerioada,
 } from '@/lib/rapoarte/raport'
+import { costTratamentePerioada, TEXT_INCLUS_IN_CHELTUIELI } from '@/lib/magazie/bani'
+import type { MiscareStoc } from '@/lib/magazie/stoc'
 import { aziRo } from '@/lib/tratamente/zile'
 import { cn } from '@/lib/utils'
 
@@ -90,7 +92,7 @@ function GraficLuni({ luni }: { luni: LunaRaport[] }) {
 
 const cifra = (text: string) => <span className={cn('whitespace-nowrap font-extrabold tabular-nums text-fg', kitText.base)}>{text}</span>
 
-export function RapoartePageClient({ date }: { date: DateRaport }) {
+export function RapoartePageClient({ date, magazieMiscari = [] }: { date: DateRaport; magazieMiscari?: readonly MiscareStoc[] }) {
   useTrackModuleView('rapoarte')
   const azi = useSyncExternalStore(subscribeToDayChange, readToday, noServerDay)
   const [tip, setTip] = useState<TipPerioada>('sezon')
@@ -103,6 +105,12 @@ export function RapoartePageClient({ date }: { date: DateRaport }) {
   const parcele = useMemo(() => (perioada ? peParcele(date, perioada) : []), [date, perioada])
   const culegatori = useMemo(() => (perioada ? peCulegatori(date, perioada) : []), [date, perioada])
   const clienti = useMemo(() => (perioada ? peClienti(date, perioada) : []), [date, perioada])
+  // Informativ: cât au costat produsele scăzute de tratamente (preț mediu × cantitate). Cumpărăturile sunt deja la
+  // cheltuieli, deci NU scade din profit încă o dată.
+  const costTratamente = useMemo(
+    () => (perioada && magazieMiscari.length > 0 ? costTratamentePerioada({ miscari: magazieMiscari, start: perioada.start, end: perioada.end }) : null),
+    [magazieMiscari, perioada],
+  )
 
   let randuri: React.ReactNode
   if (lista === 'parcele') {
@@ -182,6 +190,15 @@ export function RapoartePageClient({ date }: { date: DateRaport }) {
               <p className={cn('-mt-1 px-1 text-fg-muted', kitText.helper)}>
                 {sumar.investitii.count === 1 ? 'O investiție' : `${sumar.investitii.count} investiții`} {perioada.eticheta}:{' '}
                 {sumar.investitii.peCategorii.map((item) => `${item.categorie} ${lei(item.lei)}`).join(', ')}. Nu scad din profit.
+              </p>
+            ) : null}
+
+            {costTratamente && costTratamente.lei > 0 ? (
+              <p className={cn('-mt-1 px-1 text-fg-muted', kitText.helper)}>
+                <span className="font-bold text-fg">
+                  Tratamente: {lei(costTratamente.lei)} {perioada.eticheta}
+                </span>
+                {' '}({TEXT_INCLUS_IN_CHELTUIELI}). Din prețul mediu al produselor din Magazie × cât au scăzut tratamentele.
               </p>
             ) : null}
 

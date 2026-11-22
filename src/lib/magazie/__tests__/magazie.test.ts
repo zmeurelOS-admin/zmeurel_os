@@ -309,3 +309,22 @@ describe('banii: prețul pe unitate, categoria, Rapoartele', () => {
     expect(sumar.profit).toBe(sumar.incasat - 412)
   })
 })
+
+describe('exportul „Magazia”', () => {
+  it('stocul de azi și doar mișcările din perioadă', async () => {
+    const { documentMagazie } = await import('@/lib/magazie/export')
+    const doc = documentMagazie({
+      stoc: [
+        { produs_id: 'p1', nume: 'Kristalon', tip: 'ingrasamant', unitate: 'kg', stoc: 0.8, prag: 2, doza_ultima: 1.2, aplicari_ramase: 0.67, pe_terminate: true, pret_mediu: 16.48, valoare: 13.184, ultima_miscare: '2026-06-12' },
+      ],
+      miscari: [
+        { data: '2026-06-12', nume: 'Kristalon', tip: 'iesire_tratament', cantitate: -1.2, unitate: 'kg' },
+        { data: '2025-06-12', nume: 'Kristalon', tip: 'intrare', cantitate: 5, unitate: 'kg', pret_total_lei: 80 },
+      ],
+      start: '2026-01-01',
+      end: '2026-12-31',
+    })
+    expect(doc.tabele[0].randuri[0]).toEqual(['Kristalon', 'ingrasamant', 0.8, 'kg', 2, 1, 'da', 16.48, 13.18])
+    expect(doc.tabele[1].randuri).toEqual([['12.06.2026', 'Kristalon', 'Tratament', -1.2, 'kg', '', '', '']])
+  })
+})

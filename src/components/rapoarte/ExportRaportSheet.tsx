@@ -2,13 +2,15 @@
 
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileSpreadsheet, FileText, FlaskConical, SprayCan } from 'lucide-react'
+import { FileSpreadsheet, FileText, FlaskConical, Package, SprayCan } from 'lucide-react'
 
 import { BottomSheet, Button, Notice, kitText } from '@/components/kit'
 import { analizeInPerioada, documentAnalize } from '@/lib/analize/export'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { AnalizeIndisponibileError, getAnalize } from '@/lib/supabase/queries/analize'
+import { documentMagazie } from '@/lib/magazie/export'
 import { queryKeys } from '@/lib/query-keys'
+import { getMagazieStocSauNimic, getMiscariMagazie } from '@/lib/supabase/queries/magazie'
 import { dataRo, documentHtml, documentRaport, documentRegistru, numeFisier, type DocumentExport } from '@/lib/rapoarte/export'
 import { cheltuieliPeCategorii, type DateRaport, type LunaRaport, type Perioada, type RandClient, type RandCulegator, type RandParcela, type SumarRaport } from '@/lib/rapoarte/raport'
 import { registruTratamente } from '@/lib/rapoarte/registru-tratamente'
@@ -85,6 +87,12 @@ export function ExportRaportSheet({ open, onOpenChange, azi, perioada, date, sum
   )
   const analizeGata = analizeQuery.isSuccess || analizeQuery.error instanceof AnalizeIndisponibileError
 
+  // „Magazia” (promptul 28): stocul de azi + mișcările perioadei. Fără migrare: `null` (butonul spune de ce).
+  const magazieStocQuery = useQuery({ queryKey: queryKeys.magazieStoc, queryFn: getMagazieStocSauNimic, enabled: open, staleTime: 30_000, retry: false })
+  const magazieMiscariQuery = useQuery({ queryKey: queryKeys.magazieMiscari, queryFn: getMiscariMagazie, enabled: open, staleTime: 30_000, retry: false })
+  const magazieGata = magazieStocQuery.isSuccess && magazieMiscariQuery.isSuccess
+  const magazieLipsa = magazieStocQuery.isSuccess && magazieStocQuery.data === null
+
   const tratamenteGata = aplicariQuery.isSuccess && activitatiQuery.isSuccess && !catalogQuery.isLoading
   const tratamenteEroare = aplicariQuery.isError || activitatiQuery.isError
 
@@ -118,6 +126,13 @@ export function ExportRaportSheet({ open, onOpenChange, azi, perioada, date, sum
       cheltuieliPeCategorii: cheltuieliPeCategorii(date.cheltuieli, perioada),
       investitiiPeCategorii: sumar.investitii.peCategorii,
     })
+
+  const exportaMagazia = () => {
+    if (!magazieGata || !magazieStocQuery.data) return
+    const doc = documentMagazie({ stoc: magazieStocQuery.data, miscari: magazieMiscariQuery.data ?? [], start: perioada.start, end: perioada.end })
+    descarcaExcel(numeFisier('magazia', azi, 'xls'), doc)
+    trackEvent('export_raport', { format: 'excel', reportType: 'magazie', rows: magazieStocQuery.data.length })
+  }
 
   const exporta = (ce: 'raport' | 'registru' | 'analize', format: 'excel' | 'pdf') => {
     const doc =
@@ -208,6 +223,24 @@ export function ExportRaportSheet({ open, onOpenChange, azi, perioada, date, sum
               PDF
             </Button>
           </div>
+        </section>
+
+        <section className="space-y-2.5 border-t border-border pt-4" aria-labelledby="export-magazie">
+          <h3 id="export-magazie" className={cn('flex items-center gap-2 font-bold text-fg', kitText.base)}>
+            <Package aria-hidden className="size-5" />
+            Magazia
+          </h3>
+          <p className={cn('text-fg-muted', kitText.secondary)}>
+            {magazieLipsa
+              ? 'Magazia va merge după actualizarea bazei de date.'
+              : magazieGata
+                ? `Stocul de azi (${magazieStocQuery.data?.length ?? 0} produse, cu prețul mediu și valoarea) și mișcările din perioada aleasă.`
+                : 'Se încarcă magazia…'}
+          </p>
+          <Button type="button" variant="neutral" size="touch" className="w-full" disabled={!magazieGata || magazieLipsa} loading={!magazieGata && !magazieStocQuery.isError} onClick={exportaMagazia}>
+            <FileSpreadsheet aria-hidden />
+            Excel
+          </Button>
         </section>
       </div>
     </BottomSheet>
