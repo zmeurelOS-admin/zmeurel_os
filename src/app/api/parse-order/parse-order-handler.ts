@@ -11,8 +11,6 @@ import { normalizeRomanianMobilePhone } from '@/lib/shop/phone'
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const MAX_MESSAGE_CHARS = 4_000
-const PARSE_ORDER_USER_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 } as const
-const PARSE_ORDER_TENANT_RATE_LIMIT = { limit: 100, windowMs: 60 * 60_000 } as const
 
 type AiUsageRpcRow = {
   allowed: boolean

@@ -37,7 +37,7 @@ function createSupabaseMock(insertedRow: Record<string, unknown>) {
   const updateSelect = vi.fn(() => ({ single: updateSingle }))
   const updateEqTenant = vi.fn(() => ({ select: updateSelect }))
   const updateEqId = vi.fn(() => ({ eq: updateEqTenant }))
-  const updateFn = vi.fn((_payload: Record<string, unknown>) => ({ eq: updateEqId }))
+  const updateFn = vi.fn<(payload: Record<string, unknown>) => { eq: typeof updateEqId }>(() => ({ eq: updateEqId }))
 
   const from = vi.fn((table: string) => {
     if (table !== 'clienti') throw new Error(`Unexpected table: ${table}`)

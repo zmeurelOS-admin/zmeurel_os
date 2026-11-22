@@ -13,7 +13,7 @@ vi.mock('@/lib/association/resolve-association-role-server', () => ({
 }))
 
 const navMocks = vi.hoisted(() => ({
-  getNotificationHref: vi.fn((_notification: unknown, _associationRole: unknown) => '/test-url'),
+  getNotificationHref: vi.fn<(notification: unknown, associationRole: unknown) => string>(() => '/test-url'),
 }))
 vi.mock('@/lib/notifications/navigation', () => ({
   getNotificationHref: navMocks.getNotificationHref,
