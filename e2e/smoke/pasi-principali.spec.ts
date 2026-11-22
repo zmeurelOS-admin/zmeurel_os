@@ -217,6 +217,9 @@ test('7. Magazia: „+ Am cumpărat” → tratament făcut cu produsul → stoc
   await page.getByRole('button', { name: /Stropire.*Kelpak/ }).first().click()
   await page.getByRole('button', { name: 'Repetă tratamentul' }).click()
   const formular = page.getByRole('dialog', { name: 'Stropire' })
+  // Parcela demo n-are volumul de soluție salvat: îl scriem, altfel „Continuă” rămâne dezactivat.
+  const solutie = formular.getByRole('textbox', { name: 'Soluție, l' })
+  if ((await solutie.inputValue()) === '') await solutie.fill('60')
   await formular.getByRole('button', { name: 'Continuă' }).click()
   await expect(formular.getByText('Din magazie')).toBeVisible()
   await formular.getByRole('button', { name: 'Salvează tratamentul' }).click()
