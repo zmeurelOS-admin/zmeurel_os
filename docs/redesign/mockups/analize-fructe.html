@@ -125,8 +125,8 @@ body.night .phone{--p:#0b0e13;--s:#12161d;--s2:#171b22;--f:#f5f6f7;--fm:#949ba4;
 <div class="notes" data-zone="n1">
   <div class="note-g"><b>Ce propun</b><ul>
     <li><b style="display:inline;font-size:15px">Locul:</b> în <b style="display:inline;font-size:15px">Tratamente</b>, un al doilea tab, „Analize”. Analiza de reziduuri e verificarea tratamentelor, iar raportul le poate arăta împreună. Merge și dreptul „Tratamente” din Echipa.</li>
-    <li><b style="display:inline;font-size:15px">Pașii:</b> „Analiză nouă” (ce, din ce parcele, când s-a prelevat, PV, unde s-a predat). Analiza stă „La laborator” până treci rezultatul.</li>
-    <li><b style="display:inline;font-size:15px">Rezultatul:</b> Conform / Neconform, numărul buletinului și poza sau PDF-ul lui. Opțional, substanțele găsite, cu valoarea și limita.</li>
+    <li><b style="display:inline;font-size:15px">Pașii:</b> „Analiză nouă” (din ce parcele, când s-a prelevat, PV, unde s-a predat). Tipul analizei nu se alege: reiese din buletin. Analiza stă „La laborator” până treci rezultatul.</li>
+    <li><b style="display:inline;font-size:15px">Rezultatul:</b> Conform / Neconform, numărul buletinului, poza sau PDF-ul lui și „Ce s-a analizat”, scris cum apare în buletin (oricât de complex). Opțional, substanțele găsite, cu valoarea și limita.</li>
     <li><b style="display:inline;font-size:15px">Raportul:</b> o pagină curată, cu ferma, atestatul (seria și valabilitatea), parcela, laboratorul, rezultatul și tratamentele din ultimele 30 de zile dinainte de prelevare, cu pauza respectată. Îl ai ca PDF, ca link de distribuit și ca afiș A4 cu QR.</li>
     <li><b style="display:inline;font-size:15px">Pe fișa parcelei</b> apare „Ultima analiză: conform, 12 iul.”; în Rapoarte → Exportă, „Analizele sezonului”.</li>
   </ul></div>
@@ -137,7 +137,8 @@ body.night .phone{--p:#0b0e13;--s:#12161d;--s2:#171b22;--f:#f5f6f7;--fm:#949ba4;
     <li>Ce apare public implicit? <span class="rec">Recomand: ferma, localitatea, seria și valabilitatea atestatului, parcela și soiul, data prelevării, laboratorul, rezultatul și substanțele. Nu apar: numărul atestatului, poza buletinului (opțională, oprită implicit) și numele inspectorului.</span></li>
     <li>Tratamentele din ultimele 30 de zile în raport? <span class="rec">Recomand: da, cu „pauză respectată ✓”, ca să se vadă transparența. Le poți ascunde.</span></li>
     <li>Rezultat neconform? <span class="rec">Recomand: avertizare roșie în Acasă și pe parcelă, fără raport public pentru acea analiză.</span></li>
-    <li>Și pentru sol, apă, frunze? <span class="rec">Recomand: mai târziu. Acum doar fructe, cu tipul analizei la alegere.</span></li>
+    <li>„Ce s-a analizat” scris de mână sau citit automat din buletin? <span class="rec">Recomand: întâi scris de tine (sau lipit din buletin); citirea automată a buletinului cu AI, mai târziu.</span></li>
+    <li>Și pentru sol, apă, frunze? <span class="rec">Recomand: mai târziu. Acum doar fructe.</span></li>
     <li>Memento „fă o analiză în sezon”? <span class="rec">Recomand: mai târziu.</span></li>
   </ol></div>
 </div>
@@ -152,31 +153,24 @@ body.night .phone{--p:#0b0e13;--s:#12161d;--s2:#171b22;--f:#f5f6f7;--fm:#949ba4;
   <div class="body">
     <div class="seg" role="tablist" aria-label="Tratamente"><button role="tab" data-act="seg" aria-selected="false">Aplicări</button><button role="tab" data-act="seg" aria-selected="true">Analize</button></div>
     <div class="hero"><span class="lbl">Ultima analiză</span><div class="big" style="font-size:30px;line-height:1.15">Conform</div><span class="sm" style="color:inherit">Maravilla 1 + 2 · buletin din 12 iul. · nicio limită depășită</span></div>
-    <div class="row" data-go="f-fisa"><span class="badge bl">⏳</span><span class="tx"><b>DELNIWA · reziduuri</b><span class="sm">La laborator din 18 iul. · LSVSA Suceava</span></span><span aria-hidden="true">›</span></div>
-    <div class="row" data-go="f-raport"><span class="badge g">✓</span><span class="tx"><b>Maravilla 1 + 2 · reziduuri</b><span class="sm">Conform · prelevat 3 iul. · rezultat 12 iul.</span></span><span aria-hidden="true">›</span></div>
-    <div class="row"><span class="badge g">✓</span><span class="tx"><b>DELNIWA · reziduuri</b><span class="sm">Conform · sezonul 2025</span></span><span aria-hidden="true">›</span></div>
+    <div class="row" data-go="f-fisa"><span class="badge bl">⏳</span><span class="tx"><b>DELNIWA · prelevată 18 iul.</b><span class="sm">La laborator din 18 iul. · LSVSA Suceava</span></span><span aria-hidden="true">›</span></div>
+    <div class="row" data-go="f-raport"><span class="badge g">✓</span><span class="tx"><b>Maravilla 1 + 2 · prelevată 3 iul.</b><span class="sm">Conform · multireziduu pesticide · rezultat 12 iul.</span></span><span aria-hidden="true">›</span></div>
+    <div class="row"><span class="badge g">✓</span><span class="tx"><b>DELNIWA · prelevată 14 iul. 2025</b><span class="sm">Conform · multireziduu + metale grele</span></span><span aria-hidden="true">›</span></div>
   </div>
   <div class="foot"><button class="btn" data-go="f-n1">+ Analiză nouă</button></div>
   <div class="nav"><span>Acasă</span><span>Livrări</span><span>Recoltări</span><span>Comenzi</span><span class="on">Mai mult</span></div>
 </div></div><p class="fnote">Ce e la laborator stă sus, cu albastru. Atingi o analiză conformă și ajungi la raport.</p></figure>
 
-<figure id="f-n1"><figcaption>Analiză nouă · ce și de unde</figcaption><div class="phone"><div class="scr" data-zone="s-n1">
+<figure id="f-n1"><figcaption>Analiză nouă · de unde și când</figcaption><div class="phone"><div class="scr" data-zone="s-n1">
   <div class="top"><span class="ico" aria-hidden="true">✕</span><span class="ttl">Analiză nouă</span><span class="step">Pas 1 din 2</span></div>
   <div class="prog"><i style="width:50%"></i></div>
   <div class="body">
-    <p class="h2">Ce analiză?</p>
-    <div class="tiles" role="radiogroup" aria-label="Tipul">
-      <button class="ptile" aria-pressed="true" data-act="one">🧪<span>Reziduuri de pesticide</span></button>
-      <button class="ptile" aria-pressed="false" data-act="one">⚙<span>Metale grele</span></button>
-      <button class="ptile" aria-pressed="false" data-act="one">🦠<span>Microbiologic</span></button>
-      <button class="ptile" aria-pressed="false" data-act="one">…<span>Altă analiză</span></button>
-    </div>
-    <span class="lbl">Din ce parcele?</span>
+    <p class="h2">Din ce parcele?</p>
     <div class="chips"><button class="chip" aria-pressed="true" data-act="sw2">DELNIWA</button><button class="chip" aria-pressed="false" data-act="sw2">Maravilla 1</button><button class="chip" aria-pressed="false" data-act="sw2">Maravilla 2</button></div>
     <div class="field"><span>Data prelevării</span><div class="input">Sâmbătă, 18 iulie</div></div>
   </div>
   <div class="foot"><button class="btn" data-go="f-n2">Continuă</button></div>
-</div></div><p class="fnote">Parcelele personale (Solar, Livadă) nu apar aici: nu vinzi din ele.</p></figure>
+</div></div><p class="fnote">Fără „tip de analiză”: ce s-a analizat treci la rezultat, din buletin. Parcelele personale (Solar, Livadă) nu apar.</p></figure>
 
 <figure id="f-n2"><figcaption>Analiză nouă · prelevarea</figcaption><div class="phone"><div class="scr" data-zone="s-n2">
   <div class="top"><span class="ico" aria-hidden="true">‹</span><span class="ttl">Analiză nouă</span><span class="step">Pas 2 din 2</span></div>
@@ -194,7 +188,7 @@ body.night .phone{--p:#0b0e13;--s:#12161d;--s2:#171b22;--f:#f5f6f7;--fm:#949ba4;
 </div></div><p class="fnote">Poza PV-ului stă privat, ca bonurile. Dacă n-o ai acum, o pui mai târziu.</p></figure>
 
 <figure id="f-fisa"><figcaption>Fișa analizei · la laborator</figcaption><div class="phone"><div class="scr" data-zone="s-fisa">
-  <div class="top"><span class="ico" aria-hidden="true">‹</span><span class="ttl">DELNIWA · reziduuri</span></div>
+  <div class="top"><span class="ico" aria-hidden="true">‹</span><span class="ttl">DELNIWA · 18 iul.</span></div>
   <div class="body">
     <div class="info">La laborator de 3 zile. Când vine buletinul, treci rezultatul.</div>
     <div class="tl">
@@ -215,6 +209,7 @@ body.night .phone{--p:#0b0e13;--s:#12161d;--s2:#171b22;--f:#f5f6f7;--fm:#949ba4;
     <div class="seg" role="tablist" aria-label="Verdict"><button role="tab" data-act="seg" aria-selected="true">Conform</button><button role="tab" data-act="seg" aria-selected="false">Neconform</button></div>
     <div class="two"><div class="field"><span>Buletin nr.</span><div class="input">4415</div></div><div class="field"><span>Din data</span><div class="input">27 iul.</div></div></div>
     <button class="btn2">📎 Buletinul (poză sau PDF)</button>
+    <div class="field"><span>Ce s-a analizat (din buletin)</span><div class="input" style="height:auto;min-height:52px;padding:10px 14px;font-size:15px">Multireziduu pesticide (520 de substanțe), metale grele: Pb, Cd</div></div>
     <span class="lbl">Substanțe găsite (opțional)</span>
     <div class="row"><span class="tx"><b>Ciprodinil</b><span class="sm">0,08 mg/kg · limita 10 (exemplu)</span></span><span class="tag g">sub limită</span></div>
     <div class="row"><span class="tx"><b>Fludioxonil</b><span class="sm">0,05 mg/kg · limita 5 (exemplu)</span></span><span class="tag g">sub limită</span></div>
@@ -237,6 +232,7 @@ body.night .phone{--p:#0b0e13;--s:#12161d;--s2:#171b22;--f:#f5f6f7;--fm:#949ba4;
       <div class="hd"><div><h4>Ferma Zmeurel · Văratec, SV</h4><span class="k">Atestat de producător seria SV · valabil până la 15.07.2031</span></div><span class="qr" aria-label="cod QR"></span></div>
       <div class="ok">✓ Conform: nicio limită depășită</div>
       <span class="k">Zmeură Maravilla · parcelele Maravilla 1 și 2</span><br>
+      <span class="k">Analiza: multireziduu pesticide (520 de substanțe), cum scrie în buletin</span><br>
       <span class="k">Prelevată 3 iul. 2026 (PV nr. 1180, DSVSA) · predată la LSVSA Suceava · buletin nr. 4415 din 12 iul. 2026</span>
       <table><tr><th>Substanță</th><th>Găsit</th><th>Limita</th></tr><tr><td>Ciprodinil</td><td>0,08</td><td>10</td></tr><tr><td>Fludioxonil</td><td>0,05</td><td>5</td></tr><tr><td colspan="3">Restul substanțelor analizate: nedetectate</td></tr></table>
       <span class="k">Tratamente în cele 30 de zile dinainte: Switch 62.5 WG (24 iun., pauza respectată ✓)</span>
@@ -273,7 +269,7 @@ body.night .phone{--p:#0b0e13;--s:#12161d;--s2:#171b22;--f:#f5f6f7;--fm:#949ba4;
   <h2>După ce aprobi</h2>
   <p class="lead">Un prompt după 25 (și după cel mic cu „Atestat de producător”):</p>
   <ul class="lead">
-    <li>tabelele noi (analiza, prelevarea, rezultatul, substanțele) și linkul public;</li>
+    <li>tabelele noi (analiza, prelevarea, rezultatul cu „ce s-a analizat”, substanțele) și linkul public;</li>
     <li>PDF-ul și afișul cu QR;</li>
     <li>tab-ul în Tratamente și rândul pe fișa parcelei;</li>
     <li>verificarea în demo, apoi merge.</li>
@@ -282,7 +278,7 @@ body.night .phone{--p:#0b0e13;--s:#12161d;--s2:#171b22;--f:#f5f6f7;--fm:#949ba4;
 </div></section>
 <script>
 {
-const KEY='mockup-analize-v1';
+const KEY='mockup-analize-v2';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const say=t=>{const m=$('#msg');m.textContent=t;clearTimeout(say.t);say.t=setTimeout(()=>m.textContent='',2500)};
 document.addEventListener('click',e=>{
