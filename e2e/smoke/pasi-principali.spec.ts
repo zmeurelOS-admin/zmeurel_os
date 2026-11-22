@@ -12,7 +12,9 @@ import { ascultaErori, iesiDinCont, pornesteDemoNou } from './demo'
  *   4. o vânzare rapidă;
  *   5. o cheltuială fără bon;
  *   6. Tratamente → Analize: analiza din demo și raportul public deschis fără cont;
- *   7. pe mobil (375 px), bara de jos are 5 taburi.
+ *   7. Magazia (promptul 28): „+ Am cumpărat” Kelpak → un tratament făcut cu Kelpak („Repetă” stropirea demo) →
+ *      stocul scade. Se sare, cu motivul scris, cât migrarea `20261122130000_magazia.sql` nu e aplicată;
+ *   8. pe mobil (375 px), bara de jos are 5 taburi.
  */
 
 test.describe.configure({ mode: 'serial' })
@@ -177,7 +179,55 @@ test('6. Tratamente → Analize: analiza din demo și raportul public, fără co
   }
 })
 
-test('7. pe mobil (375 px), bara de jos are 5 taburi', async () => {
+/** „Kelpak: 2,85 l, ajunge pentru ~19 aplicări” (eticheta rândului din Magazie) → 2.85 */
+async function stocInMagazie(p: Page, produs: string): Promise<number> {
+  await p.goto('/tratamente/magazie', { waitUntil: 'load' })
+  const rand = p.getByRole('button', { name: new RegExp(`^${produs}: `) })
+  await expect(rand).toBeVisible()
+  const eticheta = (await rand.getAttribute('aria-label')) ?? ''
+  const potrivire = eticheta.match(/: (−?[\d.]+(?:,\d+)?) (kg|l|buc)/)
+  if (!potrivire) throw new Error(`Nu găsesc cantitatea în „${eticheta}”`)
+  return Number(potrivire[1].replace('−', '-').replace(/\./g, '').replace(',', '.'))
+}
+
+test('7. Magazia: „+ Am cumpărat” → tratament făcut cu produsul → stocul scade', async () => {
+  await page.goto('/tratamente/magazie', { waitUntil: 'load' })
+  const faraMigrare = await page
+    .getByText(/Magazia va merge după actualizarea bazei de date/)
+    .first()
+    .isVisible({ timeout: 8_000 })
+    .catch(() => false)
+  test.skip(faraMigrare, 'Migrarea 20261122130000_magazia.sql nu e aplicată: Magazia arată „după actualizarea bazei de date”.')
+
+  // „+ Am cumpărat” 2 l de Kelpak (în demo e deja în magazie, cu unitatea l).
+  const stocInitial = await stocInMagazie(page, 'Kelpak')
+  await page.getByRole('button', { name: 'Am cumpărat', exact: true }).click()
+  const foaie = page.getByRole('dialog', { name: 'Am cumpărat' })
+  await foaie.getByLabel('Caută produsul').fill('Kelpak')
+  await foaie.getByRole('button', { name: /^Kelpak/ }).first().click()
+  await apasaTaste(page, 'Tastatură pentru cantitate și preț', '2')
+  await foaie.getByRole('button', { name: /^Salvează/ }).click()
+  await expect(foaie.getByRole('heading', { name: 'Intrat în magazie' })).toBeVisible()
+  await foaie.getByRole('button', { name: 'Gata' }).click()
+  const stocDupaCumparare = await stocInMagazie(page, 'Kelpak')
+  expect(stocDupaCumparare).toBeCloseTo(stocInitial + 2, 3)
+
+  // Un tratament făcut cu Kelpak: „Repetă” stropirea din demo (Switch 62.5 WG + Kelpak), „Făcut acum”.
+  await page.goto('/tratamente', { waitUntil: 'load' })
+  await page.getByRole('button', { name: /Stropire.*Kelpak/ }).first().click()
+  await page.getByRole('button', { name: 'Repetă tratamentul' }).click()
+  const formular = page.getByRole('dialog', { name: 'Stropire' })
+  await formular.getByRole('button', { name: 'Continuă' }).click()
+  await expect(formular.getByText('Din magazie')).toBeVisible()
+  await formular.getByRole('button', { name: 'Salvează tratamentul' }).click()
+  await expect(formular.getByRole('heading', { name: 'Salvat' })).toBeVisible()
+  await formular.getByRole('button', { name: 'Gata' }).click()
+
+  const stocDupaTratament = await stocInMagazie(page, 'Kelpak')
+  expect(stocDupaTratament).toBeLessThan(stocDupaCumparare)
+})
+
+test('8. pe mobil (375 px), bara de jos are 5 taburi', async () => {
   await page.setViewportSize({ width: 375, height: 812 })
   await page.goto('/dashboard', { waitUntil: 'load' })
   const bara = page.getByRole('navigation', { name: 'Navigare principală' })
