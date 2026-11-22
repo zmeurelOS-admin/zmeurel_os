@@ -121,6 +121,16 @@ export const NOTIFICATION_CONFIG = {
     playSound: false,
     pushEnabled: true,
   },
+  magazie_pe_terminate: {
+    icon: '📦',
+    color: '#e6a817',
+    /** Avertizare: produsele din Magazie pe terminate (luni, cronul `notificari-dimineata`, doar proprietarul). */
+    ton: 'avertizare',
+    toastDuration: 6000,
+    showToast: true,
+    playSound: false,
+    pushEnabled: true,
+  },
   analize_memento: {
     icon: '🧪',
     color: '#e6a817',

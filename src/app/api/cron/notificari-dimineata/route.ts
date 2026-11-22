@@ -6,6 +6,8 @@ import {
   TIPURI_ZILNICE,
   alertaMeteo,
   baniDeIncasat,
+  esteLuni,
+  produsePeTerminate,
   prognozaDinFetchMeteo,
   tratamentePlanificateAzi,
   ziuaInBucuresti,
@@ -21,6 +23,8 @@ import {
   numara,
   trimiteNotificareZilnica,
 } from '@/lib/notifications/zilnice/server'
+import type { MiscareStoc, ProdusMagazie } from '@/lib/magazie/stoc'
+import { esteUnitateStoc } from '@/lib/magazie/unitati'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 
 export const runtime = 'nodejs'
@@ -89,6 +93,68 @@ async function planificateAzi(admin: Admin, tenantId: string, azi: string): Prom
   return (faraLot.data ?? []) as AplicarePlanificata[]
 }
 
+/** Tabelul lipsește (migrarea Magaziei încă neaplicată): Postgres 42P01, PostgREST PGRST205. */
+function isMissingTableError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false
+  if (error.code === '42P01' || error.code === 'PGRST205') return true
+  return /relation .* does not exist|could not find the table/i.test(error.message ?? '')
+}
+
+type MiscareRow = {
+  produs_id: string
+  tip: MiscareStoc['tip']
+  cantitate: number | string
+  data: string
+  created_at: string | null
+  aplicare: { aplicare_id: string; aplicare: { lot_id: string | null } | null } | null
+}
+
+/**
+ * Magazia fermei (doar citire): produsele urmărite și mișcările lor, cu lotul tratamentului la ieșiri (pentru doza
+ * ultimei aplicări). `null` = migrarea `20261122130000_magazia.sql` nu e aplicată (nimic de trimis).
+ */
+async function magazieFerma(admin: Admin, tenantId: string): Promise<{ produse: ProdusMagazie[]; miscari: MiscareStoc[] } | null> {
+  const produseRes = await admin
+    .from('magazie_produse' as never)
+    .select('produs_id, unitate_stoc, prag_pe_terminate, produs:produse_fitosanitare(nume_comercial, tip)')
+    .eq('tenant_id', tenantId)
+  if (produseRes.error) {
+    if (isMissingTableError(produseRes.error) || isMissingColumnError(produseRes.error)) return null
+    throw produseRes.error
+  }
+  const produse: ProdusMagazie[] = ((produseRes.data ?? []) as unknown as Array<{
+    produs_id: string
+    unitate_stoc: string
+    prag_pe_terminate: number | string | null
+    produs: { nume_comercial: string | null; tip: string | null } | null
+  }>).map((row) => ({
+    produs_id: row.produs_id,
+    nume: row.produs?.nume_comercial?.trim() || 'Produs',
+    tip: row.produs?.tip ?? null,
+    unitate: esteUnitateStoc(row.unitate_stoc) ? row.unitate_stoc : 'buc',
+    prag: row.prag_pe_terminate === null ? null : Number(row.prag_pe_terminate),
+  }))
+  if (produse.length === 0) return { produse, miscari: [] }
+
+  const rows = await citesteTot<MiscareRow>((de, pana) =>
+    admin
+      .from('magazie_miscari' as never)
+      .select('produs_id, tip, cantitate, data, created_at, aplicare:aplicari_tratament_produse(aplicare_id, aplicare:aplicari_tratament(lot_id))')
+      .eq('tenant_id', tenantId)
+      .order('id', { ascending: true })
+      .range(de, pana) as unknown as PromiseLike<{ data: MiscareRow[] | null; error: unknown }>,
+  )
+  const miscari: MiscareStoc[] = rows.map((row) => ({
+    produs_id: row.produs_id,
+    tip: row.tip,
+    cantitate: Number(row.cantitate) || 0,
+    data: String(row.data).slice(0, 10),
+    created_at: row.created_at,
+    grup: row.aplicare ? (row.aplicare.aplicare?.lot_id ?? row.aplicare.aplicare_id) : null,
+  }))
+  return { produse, miscari }
+}
+
 /**
  * Prognoza prin Edge Function-ul `fetch-meteo` (cu cache pe fermă), apelat cu service role.
  * Ca `useMeteo`, dacă `fetch-meteo` nu răspunde, încearcă `get-meteo` (același cod, fără verificarea JWT
@@ -109,6 +175,7 @@ async function prognozaFerma(admin: Admin, tenantId: string): Promise<RaspunsFet
  * - „Îngheț și grindină”, doar dacă ferma are locul salvat (Setări › Ferma);
  * - „Bani de încasat”, clienții cu bani de dat de 7, 14 sau 30 de zile;
  * - „Tratamente planificate”, o notificare pe fermă în ziua lor (cheia `tratament:<fermă>:<zi>`);
+ * - „Produse pe terminate”, doar lunea, doar proprietarului (cheia `magazie:<fermă>:<zi>`; fără migrarea Magaziei, nimic);
  * - „Analiza dinainte de cules”, doar proprietarului, la 21 / 14 / 7 / 3 zile înainte și zilnic din ziua culesului
  *   (cheia `analize:<fermă>:<zi>`; `src/lib/analize/memento-cron.ts`).
  * Citește și inserează în `notifications`; pentru memento notează și ziua trimiterii (`memento_analize_sezon`).
@@ -129,7 +196,9 @@ export async function GET(request: Request) {
       TIPURI_ZILNICE.incasari_restante,
       TIPURI_ZILNICE.tratament_planificat,
       TIPURI_ZILNICE.analize_memento,
+      TIPURI_ZILNICE.magazie_pe_terminate,
     ])
+    const luni = esteLuni(azi)
 
     // Fermele cu locul salvat. Fără loc nu cerem prognoza și nu ghicim.
     const cuLoc = new Set<string>()
@@ -182,6 +251,18 @@ export async function GET(request: Request) {
         verificata = false
         contor.erori += 1
         captureApiError(error, { route: ROUTE, tenantId: ferma.id, tags: { pas: 'tratamente' } })
+      }
+
+      if (luni) {
+        try {
+          const magazie = await magazieFerma(admin, ferma.id)
+          const notificare = magazie ? produsePeTerminate({ tenantId: ferma.id, azi, ...magazie }) : null
+          if (notificare) numara(contor, notificare.type, await trimiteNotificareZilnica(admin, notificare))
+        } catch (error) {
+          verificata = false
+          contor.erori += 1
+          captureApiError(error, { route: ROUTE, tenantId: ferma.id, tags: { pas: 'magazie' } })
+        }
       }
 
       try {

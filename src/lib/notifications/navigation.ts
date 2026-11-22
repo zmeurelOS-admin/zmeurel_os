@@ -62,6 +62,8 @@ export function getNotificationHref(
       return '/comenzi'
     case 'tratament_planificat':
       return '/tratamente?fila=planificate'
+    case 'magazie_pe_terminate':
+      return '/tratamente/magazie'
     case 'analize_memento':
       // Foaia „Analiza dinainte de cules”, în Acasă.
       return '/dashboard?memento=analize'

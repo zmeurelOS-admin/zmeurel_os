@@ -145,9 +145,9 @@ describe('normalizeazaPreferinte', () => {
     expect(normalizeazaPreferinte({ tipuri: [1, 2], liniste_noaptea: 'da' })).toEqual({ tipuri: {}, linisteNoaptea: true })
   })
 
-  it('cateSuntPornite numără cele 9', () => {
-    expect(cateSuntPornite(NOTIFICARI_PREFERINTE_IMPLICITE)).toBe(9)
-    expect(cateSuntPornite({ tipuri: { noi: false, sapt: false }, linisteNoaptea: true })).toBe(7)
+  it('cateSuntPornite numără cele 10', () => {
+    expect(cateSuntPornite(NOTIFICARI_PREFERINTE_IMPLICITE)).toBe(10)
+    expect(cateSuntPornite({ tipuri: { noi: false, sapt: false }, linisteNoaptea: true })).toBe(8)
   })
 
   it('tratamentele planificate au comutatorul lor, `tratamente`', () => {
