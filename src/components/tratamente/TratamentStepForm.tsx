@@ -385,7 +385,8 @@ export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplica
   const magazie: MagazieTratament | null = useMemo(() => {
     const stoc = magazieQuery.data
     if (!stoc || stoc.length === 0 || lipsa !== null) return null
-    const rows = aplicariDeSalvat({ ciorna: ciornaEfectiva, parcele: parceleSortate, cand: candObj ?? { tip: 'acum' }, meteo: null })
+    // Cantitățile nu depind de „când”; starea (făcut / planificat) se judecă mai jos.
+    const rows = aplicariDeSalvat({ ciorna: ciornaEfectiva, parcele: parceleSortate, cand: { tip: 'acum' }, meteo: null })
     const necesar = ciornaEfectiva.produse.map((produs, index) => {
       let total = 0
       let unitate: string | null = null
@@ -408,7 +409,7 @@ export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplica
     })
     if (verificari.every((verificare) => verificare.tip === 'neurmarit')) return null
     return { verificari, cost: esteProprietar ? costEstimat(verificari) : null }
-  }, [cand, candObj, ciornaEfectiva, esteProprietar, lipsa, magazieQuery.data, parceleSortate, ziTratament])
+  }, [cand, ciornaEfectiva, esteProprietar, lipsa, magazieQuery.data, parceleSortate, ziTratament])
 
   const save = async () => {
     if (!canSave || !candObj) return
