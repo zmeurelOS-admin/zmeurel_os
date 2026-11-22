@@ -192,11 +192,10 @@ async function stocInMagazie(p: Page, produs: string): Promise<number> {
 
 test('7. Magazia: „+ Am cumpărat” → tratament făcut cu produsul → stocul scade', async () => {
   await page.goto('/tratamente/magazie', { waitUntil: 'load' })
-  const faraMigrare = await page
-    .getByText(/Magazia va merge după actualizarea bazei de date/)
-    .first()
-    .isVisible({ timeout: 8_000 })
-    .catch(() => false)
+  // Așteptăm pagina gata: fie mesajul „după actualizarea bazei de date”, fie butonul „Am cumpărat”.
+  const mesaj = page.getByText(/Magazia va merge după actualizarea bazei de date/).first()
+  await expect(mesaj.or(page.getByRole('button', { name: 'Am cumpărat', exact: true }))).toBeVisible()
+  const faraMigrare = await mesaj.isVisible()
   test.skip(faraMigrare, 'Migrarea 20261122130000_magazia.sql nu e aplicată: Magazia arată „după actualizarea bazei de date”.')
 
   // „+ Am cumpărat” 2 l de Kelpak (în demo e deja în magazie, cu unitatea l).
