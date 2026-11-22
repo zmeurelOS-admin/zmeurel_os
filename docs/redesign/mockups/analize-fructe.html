@@ -104,13 +104,21 @@ body.night .phone{--p:#0b0e13;--s:#12161d;--s2:#171b22;--f:#f5f6f7;--fm:#949ba4;
  conic-gradient(from 90deg at 25% 25%,#102015 25%,#fff 0) 0 0/16px 16px,#fff;border:3px solid #102015;border-radius:4px}
 .rep .hd{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
 .rep .k{color:#3d4a41}
+.lock{background:linear-gradient(160deg,#1d3b2c,#0b0e13);color:#fff;min-height:720px;display:flex;flex-direction:column;padding:18px 14px;gap:12px}
+.lock .clock{font-size:64px;font-weight:300;text-align:center;line-height:1;margin-top:30px}
+.lock .date{text-align:center;font-size:15px;opacity:.85;margin-bottom:18px}
+.notif{background:rgba(255,255,255,.94);color:#102015;border-radius:20px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.notif .app{font-size:13px;color:#3d4a41;display:flex;gap:6px;align-items:center}
+.notif b{font-size:16px;line-height:21px}.notif p{margin:0;font-size:14px;line-height:19px}
+.notif .acts{display:flex;gap:8px;margin-top:4px}
+.notif .acts button{flex:1;height:44px;border-radius:12px;border:0;background:#e6f3ea;color:#1f5a42;font:700 14px Inter,sans-serif}
 </style>
 <div class="bar" role="toolbar" aria-label="Instrumente">
   <button id="bEdit" aria-pressed="false">Editează textele</button>
   <button id="bNight" aria-pressed="false">Ecranele noaptea</button>
   <button id="bCopy">Copiază tot textul</button>
   <button id="bReset">Revino la original</button>
-  <a href="#unde">Unde</a><a href="#ecrane">Ecranele</a><a href="#raport">Raportul</a>
+  <a href="#unde">Unde</a><a href="#ecrane">Ecranele</a><a href="#raport">Raportul</a><a href="#memento">Mementoul</a>
   <span class="msg" id="msg" role="status"></span>
 </div>
 
@@ -166,7 +174,9 @@ body.night .phone{--p:#0b0e13;--s:#12161d;--s2:#171b22;--f:#f5f6f7;--fm:#949ba4;
   <div class="prog"><i style="width:50%"></i></div>
   <div class="body">
     <p class="h2">Din ce parcele?</p>
-    <div class="chips"><button class="chip" aria-pressed="true" data-act="sw2">DELNIWA</button><button class="chip" aria-pressed="false" data-act="sw2">Maravilla 1</button><button class="chip" aria-pressed="false" data-act="sw2">Maravilla 2</button></div>
+    <p class="sm" style="margin:-6px 0 0">Poți alege mai multe: o probă comună sau toate parcelele din același PV.</p>
+    <div class="chips"><button class="chip" aria-pressed="true" data-act="sw2">✓ Maravilla 1</button><button class="chip" aria-pressed="true" data-act="sw2">✓ Maravilla 2</button><button class="chip" aria-pressed="false" data-act="sw2">DELNIWA</button></div>
+    <button class="btn2" style="height:44px" data-act="none">Toate parcelele de vânzare</button>
     <div class="field"><span>Data prelevării</span><div class="input">Sâmbătă, 18 iulie</div></div>
   </div>
   <div class="foot"><button class="btn" data-go="f-n2">Continuă</button></div>
@@ -265,6 +275,107 @@ body.night .phone{--p:#0b0e13;--s:#12161d;--s2:#171b22;--f:#f5f6f7;--fm:#949ba4;
 
 </div></div></section>
 
+<section class="band chap" id="memento"><div class="wrap">
+<h2>Mementoul dinainte de cules</h2>
+<div class="notes" data-zone="n4">
+  <div class="note-g"><b>Ce propun</b><ul>
+    <li><b style="display:inline;font-size:15px">Când începe culesul:</b> aplicația îl estimează pe fiecare parcelă, din prima recoltare de anul trecut, ajustată după stadiul de acum. Data se poate corecta pe fișa parcelei.</li>
+    <li><b style="display:inline;font-size:15px">Notificare pe telefon</b> (push, ca gerul), nu doar în aplicație: cu <b style="display:inline;font-size:15px">21, 14, 7 și 3 zile</b> înainte, apoi <b style="display:inline;font-size:15px">în fiecare dimineață</b> din ziua culesului, până spui că ai trimis la analize.</li>
+    <li>Fiecare notificare are două butoane, <b style="display:inline;font-size:15px">„Am trimis”</b> și <b style="display:inline;font-size:15px">„Amână”</b>. Atinsă, deschide aplicația cu toate opțiunile: amână 1, 3 sau 7 zile, „Am trimis” (deschide „Analiză nouă” cu parcelele deja alese) sau „Nu fac analize anul acesta”.</li>
+    <li><b style="display:inline;font-size:15px">Produsele cu remanență mare:</b>
+      <ul>
+        <li>în memento, lista produselor tale a căror pauză e mai lungă decât zilele rămase până la cules;</li>
+        <li>la un tratament nou, o avertizare dacă pauza produsului trece de începutul culesului.</li>
+      </ul></li>
+    <li>Pe <b style="display:inline;font-size:15px">Acasă</b>, un card care stă acolo până trimiți sau dezactivezi.</li>
+    <li>În <b style="display:inline;font-size:15px">Setări → Notificări</b>: comutatorul și zilele.</li>
+  </ul></div>
+  <div class="note-o"><b>De hotărât (cu recomandarea mea)</b><ol>
+    <li>De unde știe când începe culesul? <span class="rec">Recomand: din prima recoltare de anul trecut, pe parcelă, ajustată după stadiu; o corectezi tu pe fișă. În primul an o pui tu.</span></li>
+    <li>Când anunță? <span class="rec">Recomand: cu 21, 14, 7 și 3 zile înainte, apoi zilnic din ziua culesului. Zilele se schimbă din Setări.</span></li>
+    <li>La ce oră? <span class="rec">Recomand: dimineața la 8:00. Liniștea 22–6 rămâne.</span></li>
+    <li>Amânarea? <span class="rec">Recomand: 1, 3 sau 7 zile. Din butonul notificării, implicit 3 zile.</span></li>
+    <li>Când se oprește? <span class="rec">Recomand: când salvezi prelevarea (analiza nouă), la „Nu fac analize anul acesta” (doar pentru sezonul ăsta) sau din comutatorul general.</span></li>
+    <li>O notificare pe parcelă sau una pentru toate? <span class="rec">Recomand: una, cu parcelele care intră pe cules în aceeași săptămână.</span></li>
+    <li>Cine primește? <span class="rec">Recomand: doar proprietarul, nu și operatorii.</span></li>
+    <li>Avertizarea la tratament: oprește salvarea? <span class="rec">Recomand: nu, doar avertizează, ca la recoltarea în pauză.</span></li>
+  </ol></div>
+</div>
+<div class="grid">
+
+<figure><figcaption>Notificarea pe telefon</figcaption><div class="phone"><div class="lock" data-zone="s-lock">
+  <div class="clock">8:00</div><div class="date">Luni, 1 iunie</div>
+  <div class="notif">
+    <span class="app">🌱 Zmeurel · acum</span>
+    <b>Peste 21 de zile începe culesul</b>
+    <p>Maravilla 1 și 2. Programează analiza la fructe și evită acum produsele cu pauză lungă (2 în fermă).</p>
+    <div class="acts"><button data-act="none">Am trimis</button><button data-act="none">Amână 3 zile</button></div>
+  </div>
+  <div class="notif" style="opacity:.75">
+    <span class="app">🌱 Zmeurel · 14 iun.</span>
+    <b>Culesul începe azi. Analiza nu e trimisă</b>
+    <p>Îți amintesc în fiecare dimineață, până o trimiți.</p>
+  </div>
+</div></div><p class="fnote">Pe Android, notificarea are cel mult două butoane. Restul opțiunilor apar când o atingi.</p></figure>
+
+<figure id="f-amana"><figcaption>Atingi notificarea · ce faci</figcaption><div class="phone"><div class="scr" data-zone="s-amana">
+  <div class="top"><span class="ico" aria-hidden="true">✕</span><span class="ttl">Analiza dinainte de cules</span></div>
+  <div class="body">
+    <div class="warn"><b>Culesul începe în ~21 de zile</b><span>Maravilla 1 și 2 · estimat pe 22 iunie</span></div>
+    <span class="lbl">Produse de evitat acum</span>
+    <div class="row"><span class="badge w">!</span><span class="tx"><b>Fungicid X (exemplu)</b><span class="sm">pauză 28 de zile: mai lungă decât zilele rămase</span></span></div>
+    <div class="row"><span class="badge w">!</span><span class="tx"><b>Insecticid Y (exemplu)</b><span class="sm">pauză 21 de zile: la limită</span></span></div>
+    <span class="lbl">Amână</span>
+    <div class="chips" role="radiogroup"><button class="chip" aria-pressed="false" data-act="one">1 zi</button><button class="chip" aria-pressed="true" data-act="one">3 zile</button><button class="chip" aria-pressed="false" data-act="one">7 zile</button></div>
+  </div>
+  <div class="foot"><button class="btn" data-go="f-n1">Am trimis la analize</button><button class="btn2">Amână 3 zile</button><button class="btn2" style="border:0;color:var(--fm)">Nu fac analize anul acesta</button></div>
+</div></div><p class="fnote">„Am trimis” deschide „Analiză nouă” cu parcelele deja alese. Prelevarea salvată oprește mementoul.</p></figure>
+
+<figure><figcaption>Pe Acasă, până trimiți</figcaption><div class="phone"><div class="scr" data-zone="s-acasa">
+  <div class="top"><span class="ttl" style="padding-left:8px">Acasă</span></div>
+  <div class="body">
+    <div class="warn"><b>Analiza la fructe · culesul în 7 zile</b><span>Maravilla 1 și 2. Nu e trimisă încă.</span>
+      <div class="two" style="margin-top:10px"><button class="btn2" style="background:var(--s);color:var(--f)" data-go="f-n1">Am trimis</button><button class="btn2" style="background:var(--s);color:var(--f)" data-go="f-amana">Amână</button></div></div>
+    <div class="tiles"><div class="tile"><span class="sm">De livrat azi</span><b>6 comenzi</b></div><div class="tile"><span class="sm">În stoc</span><b>0 kg</b></div></div>
+    <div class="row"><span class="badge n">☁</span><span class="tx"><b>18°</b><span class="sm">mâine ploaie 40%</span></span></div>
+  </div>
+  <div class="nav"><span class="on">Acasă</span><span>Livrări</span><span>Recoltări</span><span>Comenzi</span><span>Mai mult</span></div>
+</div></div><p class="fnote">Cardul stă primul până trimiți, amâni sau dezactivezi.</p></figure>
+
+<figure><figcaption>Tratament nou · avertizarea</figcaption><div class="phone"><div class="scr" data-zone="s-trat">
+  <div class="top"><span class="ico" aria-hidden="true">✕</span><span class="ttl">Tratament nou</span><span class="step">Pas 2 din 3</span></div>
+  <div class="prog"><i style="width:66%"></i></div>
+  <div class="body">
+    <p class="h2">Ce produs?</p>
+    <div class="row" style="border:2px solid var(--pr);background:var(--ps)"><span class="tx"><b>Fungicid X (exemplu)</b><span class="sm">pauză 28 de zile</span></span><span>✓</span></div>
+    <div class="warn"><b>Pauza trece de începutul culesului</b><span>Culesul la Maravilla 1 e estimat peste 21 de zile; pauza ține 28. Poți salva, dar fructele n-ar trebui culese și analizate înainte de 29 iunie.</span></div>
+    <div class="row"><span class="tx"><b>Produs Z (exemplu)</b><span class="sm">pauză 3 zile · fără probleme</span></span></div>
+  </div>
+  <div class="foot"><button class="btn">Continuă oricum</button><button class="btn2">Alege alt produs</button></div>
+</div></div><p class="fnote">Doar avertizează, ca la recoltarea în pauză. Ia pauza din produs și culesul estimat al parcelei.</p></figure>
+
+<figure><figcaption>Fișa parcelei · culesul estimat</figcaption><div class="phone"><div class="scr" data-zone="s-est">
+  <div class="top"><span class="ico" aria-hidden="true">‹</span><span class="ttl">Maravilla 1</span></div>
+  <div class="body">
+    <div class="row"><span class="badge g">📅</span><span class="tx"><b>Culesul începe pe ~22 iunie</b><span class="sm">din prima recoltare din 2025 (24 iun.) și stadiul „fruct verde”</span></span><span class="sm">Schimbă</span></div>
+    <div class="row"><span class="badge w">🧪</span><span class="tx"><b>Analiza sezonului: netrimisă</b><span class="sm">memento pornit · următorul pe 8 iun.</span></span><span aria-hidden="true">›</span></div>
+    <div class="tiles"><div class="tile"><span class="sm">Stadiu</span><b>Fruct verde</b></div><div class="tile"><span class="sm">Ultimul tratament</span><b>28 mai</b></div></div>
+  </div>
+</div></div><p class="fnote">Data culesului o corectezi aici. După ea se calculează și mementoul, și avertizările.</p></figure>
+
+<figure><figcaption>Setări → Notificări</figcaption><div class="phone"><div class="scr" data-zone="s-setn">
+  <div class="top"><span class="ico" aria-hidden="true">‹</span><span class="ttl">Notificări</span></div>
+  <div class="body">
+    <div class="row"><span class="tx"><b>Analiza dinainte de cules</b><span class="sm">pe telefon, la 8:00</span></span><button class="toggle" role="switch" aria-checked="true" aria-label="Analiza dinainte de cules" data-act="sw"></button></div>
+    <span class="lbl">Cu câte zile înainte</span>
+    <div class="chips"><button class="chip" aria-pressed="true" data-act="sw2">21</button><button class="chip" aria-pressed="true" data-act="sw2">14</button><button class="chip" aria-pressed="true" data-act="sw2">7</button><button class="chip" aria-pressed="true" data-act="sw2">3</button><button class="chip" aria-pressed="false" data-act="sw2">1</button></div>
+    <div class="row"><span class="tx"><b>Zilnic din ziua culesului</b><span class="sm">până trimiți la analize</span></span><button class="toggle" role="switch" aria-checked="true" aria-label="Zilnic" data-act="sw"></button></div>
+    <div class="row"><span class="tx"><b>Anul acesta nu fac analize</b><span class="sm">oprește doar sezonul 2026</span></span><button class="toggle" role="switch" aria-checked="false" aria-label="Fără analize anul acesta" data-act="sw"></button></div>
+  </div>
+</div></div><p class="fnote">Liniștea de noapte (22–6) rămâne valabilă și aici.</p></figure>
+
+</div></div></section>
+
 <section class="band chap"><div class="wrap" data-zone="z-plan">
   <h2>După ce aprobi</h2>
   <p class="lead">Un prompt după 25 (și după cel mic cu „Atestat de producător”):</p>
@@ -272,13 +383,14 @@ body.night .phone{--p:#0b0e13;--s:#12161d;--s2:#171b22;--f:#f5f6f7;--fm:#949ba4;
     <li>tabelele noi (analiza, prelevarea, rezultatul cu „ce s-a analizat”, substanțele) și linkul public;</li>
     <li>PDF-ul și afișul cu QR;</li>
     <li>tab-ul în Tratamente și rândul pe fișa parcelei;</li>
+    <li>mementoul dinainte de cules: culesul estimat pe parcelă, notificările cu „Am trimis” și „Amână”, cardul din Acasă și avertizarea la tratament;</li>
     <li>verificarea în demo, apoi merge.</li>
   </ul>
   <p class="lead">Datele de exemplu din demo vor include o analiză conformă.</p>
 </div></section>
 <script>
 {
-const KEY='mockup-analize-v2';
+const KEY='mockup-analize-v3';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const say=t=>{const m=$('#msg');m.textContent=t;clearTimeout(say.t);say.t=setTimeout(()=>m.textContent='',2500)};
 document.addEventListener('click',e=>{
