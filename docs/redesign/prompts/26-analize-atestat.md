@@ -28,6 +28,10 @@ Din 2014 actul se numește **atestat de producător**, valabil 7 ani.
 - **Confirmarea din Actele fermei** spune exact ce se va afișa public: „Confirm că datele sunt corecte. Când magazinul și asociația revin, public apar doar numele fermei, localitatea, seria și valabilitatea atestatului și telefonul de contact. Numărul și poza atestatului nu se afișează.”
 - Nicio pagină publică nu arată numărul sau poza atestatului. Verifică și notează.
 
+### A2. Widgetul „Ești în beta” (mic)
+
+Raportul 25: deschis, widgetul acoperă butonul principal al paginii pe telefon (de ex. „Invită pe cineva”) și o parte din conținut pe desktop. Îl faci un punct mic în colțul de sus al carcasei, care deschide conținutul de acum doar la atingere. Nu se deschide singur și nu stă peste butoanele de jos sau peste `StepForm` / `BottomSheet`. Folosești clasele de strat ale kitului.
+
 ## B. Analizele la fructe (Tratamente → tab „Analize”)
 
 ### Datele (migrare aditivă, NEAPLICATĂ)
