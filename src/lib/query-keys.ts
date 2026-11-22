@@ -2,6 +2,13 @@ import type { QueryClient } from '@tanstack/react-query'
 
 export const queryKeys = {
   activitati: ['activitati'] as const,
+  /** Analizele la fructe (Tratamente → Analize); raportul unei analize stă sub `['analize', 'raport', id]`. */
+  analize: ['analize'] as const,
+  analizeOptiuniFerma: ['analize', 'optiuni-ferma'] as const,
+  /** Data culesului pusă de mână pe parcele, pe sezon. */
+  culesSezon: (an: number) => ['cules-sezon', an] as const,
+  /** Starea mementoului „analiza dinainte de cules” (doar proprietarul). */
+  mementoAnalize: (an: number) => ['memento-analize', an] as const,
   ajustariStoc: ['ajustari-stoc'] as const,
   culturi: (solarId: string) => ['culturi', solarId] as const,
   culturiCounts: (scope: string) => ['culturi-counts', scope] as const,

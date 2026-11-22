@@ -23,6 +23,11 @@ import {
   type StatusTone,
 } from '@/components/kit'
 import { ScreenBody, ScreenHeader } from '@/components/setari/SetariUi'
+import { AnalizaNouaStepForm } from '@/components/analize/AnalizaNouaStepForm'
+import { AnalizeTab } from '@/components/analize/AnalizeTab'
+import { RezultatStepForm } from '@/components/analize/RezultatStepForm'
+import { esteParcelaDeVanzare, laboratoareFolosite, type AnalizaRow } from '@/lib/analize/model'
+import { getAnalize } from '@/lib/supabase/queries/analize'
 import { PauzeNotice } from '@/components/tratamente/PauzeNotice'
 import { TratamentStepForm, type ParcelaTratament } from '@/components/tratamente/TratamentStepForm'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
@@ -104,6 +109,7 @@ export function TratamentePageClient() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { memberRole, memberAccess } = useDashboardAuth()
+  const esteProprietar = memberRole !== 'operator'
   // Operatorul cu `tratamente: read` doar vede jurnalul; baza de date refuză oricum scrierea (`operator_can_write('tratamente')`).
   const isOperator = memberRole === 'operator'
   const poateScrie = !isOperator || accessLevelForModule(memberAccess, 'tratamente') === 'write'
@@ -117,6 +123,16 @@ export function TratamentePageClient() {
   const [initial, setInitial] = useState<CiornaTratament | null>(null)
   const [busy, setBusy] = useState<'facut' | 'anulat' | null>(null)
   const [parcelaInitiala, setParcelaInitiala] = useState<string | null>(null)
+
+  // ─── Tab-ul „Analize” (`?tab=analize`; `&noua=1&parcele=<id,id>` deschide „Analiză nouă”, din memento) ───
+  const [tab, setTab] = useState<'aplicari' | 'analize'>(() => (searchParams.get('tab') === 'analize' ? 'analize' : 'aplicari'))
+  const [analizaNouaOpen, setAnalizaNouaOpen] = useState(false)
+  const [analizaEditata, setAnalizaEditata] = useState<AnalizaRow | null>(null)
+  const [parceleAnalizaInitiale, setParceleAnalizaInitiale] = useState<string[]>([])
+  const [rezultatOpen, setRezultatOpen] = useState(false)
+  const [analizaRezultat, setAnalizaRezultat] = useState<AnalizaRow | null>(null)
+  const [raportDeschis, setRaportDeschis] = useState<string | null>(null)
+  const analizeQuery = useQuery({ queryKey: queryKeys.analize, queryFn: getAnalize, staleTime: 30_000, enabled: tab === 'analize', retry: false })
 
   const { pauze, aplicari, activitati, loading } = usePauzeActive(azi)
   const parceleQuery = useQuery({ queryKey: queryKeys.parcele, queryFn: getParcele, staleTime: 30_000, refetchOnWindowFocus: false })
@@ -146,6 +162,41 @@ export function TratamentePageClient() {
     const facuteLuna = jurnal.facute.filter((rand) => rand.zi?.startsWith(luna)).length
     return `${LUNI[Number(azi.slice(5, 7)) - 1]} · ${facuteLuna} ${facuteLuna === 1 ? 'făcut' : 'făcute'} · ${jurnal.planificate.length} ${jurnal.planificate.length === 1 ? 'planificat' : 'planificate'}`
   }, [azi, jurnal])
+
+  const parceleDeVanzare = useMemo(
+    () => parcele.filter(esteParcelaDeVanzare).map((parcela) => ({ id: parcela.id, nume: parcela.nume_parcela?.trim() || 'Parcelă' })),
+    [parcele],
+  )
+  const laboratoare = useMemo(() => laboratoareFolosite(analizeQuery.data ?? []), [analizeQuery.data])
+
+  const deschideAnalizaNoua = (parceleAlese: string[] = []) => {
+    setAnalizaEditata(null)
+    setParceleAnalizaInitiale(parceleAlese)
+    setAnalizaNouaOpen(true)
+  }
+
+  // Deep link-ul „Am trimis” din memento: `/tratamente?tab=analize&noua=1&parcele=a,b`.
+  const nouaDinUrl = searchParams.get('noua') === '1'
+  const parceleDinUrl = searchParams.get('parcele') ?? ''
+  useEffect(() => {
+    if (!nouaDinUrl || !azi || parceleQuery.isLoading) return
+    queueMicrotask(() => {
+      setTab('analize')
+      if (poateScrie) deschideAnalizaNoua(parceleDinUrl.split(',').map((id) => id.trim()).filter(Boolean))
+      router.replace('/tratamente?tab=analize', { scroll: false })
+    })
+  }, [azi, nouaDinUrl, parceleDinUrl, parceleQuery.isLoading, poateScrie, router])
+
+  const schimbaTab = (next: 'aplicari' | 'analize') => {
+    setTab(next)
+    router.replace(next === 'analize' ? '/tratamente?tab=analize' : '/tratamente', { scroll: false })
+  }
+
+  const dupaAnaliza = (analiza: AnalizaRow) => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.analize })
+    void queryClient.invalidateQueries({ queryKey: ['memento-analize'] })
+    return analiza
+  }
 
   const deschideFormular = (ciorna: CiornaTratament | null) => {
     setInitial(ciorna)
@@ -230,12 +281,18 @@ export function TratamentePageClient() {
     )
   })
 
-  const addButton = (
-    <Button type="button" variant="primary" size="touch-lg" className="w-full" onClick={() => deschideFormular(null)}>
-      <Plus aria-hidden />
-      Tratament nou
-    </Button>
-  )
+  const addButton =
+    tab === 'analize' ? (
+      <Button type="button" variant="primary" size="touch-lg" className="w-full" onClick={() => deschideAnalizaNoua()}>
+        <Plus aria-hidden />
+        Analiză nouă
+      </Button>
+    ) : (
+      <Button type="button" variant="primary" size="touch-lg" className="w-full" onClick={() => deschideFormular(null)}>
+        <Plus aria-hidden />
+        Tratament nou
+      </Button>
+    )
   const eroare = parceleQuery.isError
   const loadingAll = loading || parceleQuery.isLoading
 
@@ -252,6 +309,45 @@ export function TratamentePageClient() {
       }
     >
       <ScreenBody className="space-y-3.5 pb-28">
+        <Segments
+          aria-label="Tratamente"
+          options={[
+            { value: 'aplicari', label: 'Aplicări' },
+            { value: 'analize', label: 'Analize' },
+          ]}
+          value={tab}
+          onValueChange={schimbaTab}
+        />
+
+        {tab === 'analize' && azi ? (
+          <>
+            <div className="hidden md:block">{poateScrie ? addButton : null}</div>
+            <AnalizeTab
+              azi={azi}
+              parcele={parceleDeVanzare}
+              numeParcele={numeParcele}
+              aplicari={aplicari}
+              activitati={activitati}
+              poateScrie={poateScrie}
+              esteProprietar={esteProprietar}
+              onAnalizaNoua={() => deschideAnalizaNoua()}
+              onEditeazaPrelevarea={(analiza) => {
+                setAnalizaEditata(analiza)
+                setParceleAnalizaInitiale([])
+                setAnalizaNouaOpen(true)
+              }}
+              onAdaugaRezultat={(analiza) => {
+                setAnalizaRezultat(analiza)
+                setRezultatOpen(true)
+              }}
+              raportDeschis={raportDeschis}
+              onRaportDeschisChange={setRaportDeschis}
+            />
+          </>
+        ) : null}
+
+        {tab === 'aplicari' ? (
+          <>
         {subtitlu && !loadingAll ? <p className={cn('-mt-2 text-fg-muted', kitText.secondary)}>{subtitlu}</p> : null}
 
         {azi ? (
@@ -309,6 +405,8 @@ export function TratamentePageClient() {
             }
           />
         )}
+          </>
+        ) : null}
       </ScreenBody>
 
       <BottomSheet
@@ -365,6 +463,32 @@ export function TratamentePageClient() {
           </div>
         ) : null}
       </BottomSheet>
+
+      {azi ? (
+        <AnalizaNouaStepForm
+          open={analizaNouaOpen}
+          onOpenChange={setAnalizaNouaOpen}
+          parcele={parceleDeVanzare}
+          laboratoare={laboratoare}
+          todayIso={azi}
+          analiza={analizaEditata}
+          parceleInitiale={parceleAnalizaInitiale}
+          onSaved={dupaAnaliza}
+        />
+      ) : null}
+      {azi ? (
+        <RezultatStepForm
+          open={rezultatOpen}
+          onOpenChange={setRezultatOpen}
+          analiza={analizaRezultat}
+          todayIso={azi}
+          onSaved={(analiza) => {
+            dupaAnaliza(analiza)
+            // „Salvează și fă raportul”: raportul se deschide după ce formularul s-a închis.
+            if (analiza.status === 'conform') window.setTimeout(() => setRaportDeschis(analiza.id), 220)
+          }}
+        />
+      ) : null}
 
       {azi ? (
         <TratamentStepForm

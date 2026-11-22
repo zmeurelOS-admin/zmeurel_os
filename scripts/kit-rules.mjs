@@ -53,6 +53,10 @@ export const KIT_RULE_DIRS = [
   'src/app/(dashboard)/tratamente',
   'src/components/tratamente',
   'src/lib/tratamente',
+  // Analizele la fructe (promptul 26): tab-ul din Tratamente, raportul public `/a/[token]`, logica.
+  'src/components/analize',
+  'src/lib/analize',
+  'src/app/a',
   // Stocuri, Produse, Rapoarte (prompt 19)
   'src/app/(dashboard)/stocuri',
   'src/components/stocuri',
