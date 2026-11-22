@@ -7,6 +7,7 @@ import { Camera, Check, CircleAlert } from 'lucide-react'
 
 import { AppShell } from '@/components/app/AppShell'
 import { ActeFoaie, TITLU_RAND } from '@/components/acte/ActeFoaie'
+import { CONFIRMARE_ATESTAT_DETALIU } from '@/lib/acte/atestat'
 import { Button, CheckRow, ListRow, Notice, kitText } from '@/components/kit'
 import { ScreenBody, ScreenHeader } from '@/components/setari/SetariUi'
 import {
@@ -230,12 +231,12 @@ export function ActeFermeiClient({ initialDocument, initialSignedPhotoUrl }: Act
         </Notice>
 
         {expirare?.isExpired && expirare.expiryDate ? (
-          <Notice tone="danger" title="Certificatul a expirat">
-            Viza a expirat pe {dataLunga(expirare.expiryDate)}. Actualizează data ca să poți vinde în continuare.
+          <Notice tone="danger" title="Atestatul a expirat">
+            A fost valabil până la {dataLunga(expirare.expiryDate)}. Reînnoiește-l și schimbă data aici ca să poți vinde în continuare.
           </Notice>
         ) : expirare?.isExpiringSoon && expirare.expiryDate ? (
-          <Notice tone="warning" title="Certificatul expiră curând">
-            Viza expiră pe {dataLunga(expirare.expiryDate)}. Reînnoiește-o și schimbă data aici.
+          <Notice tone="warning" title="Atestatul expiră curând">
+            Valabil până la {dataLunga(expirare.expiryDate)}. Reînnoiește-l și schimbă data aici.
           </Notice>
         ) : null}
 
@@ -252,7 +253,7 @@ export function ActeFermeiClient({ initialDocument, initialSignedPhotoUrl }: Act
               parti(
                 values.certificate_number && `Nr. ${values.certificate_number.trim()}`,
                 values.certificate_series && `seria ${values.certificate_series.trim()}`,
-                dataScurta(values.certificate_expiry) && `viza până la ${dataScurta(values.certificate_expiry)}`,
+                dataScurta(values.certificate_expiry) && `valabil până la ${dataScurta(values.certificate_expiry)}`,
               ),
             )
           : null}
@@ -262,7 +263,7 @@ export function ActeFermeiClient({ initialDocument, initialSignedPhotoUrl }: Act
         <div className="space-y-2 pt-1">
           <CheckRow
             title="Confirm că datele sunt corecte"
-            detail="Și accept să fie afișate public pe Zmeurel OS, conform legii."
+            detail={CONFIRMARE_ATESTAT_DETALIU}
             checked={values.accepted}
             onCheckedChange={(checked) => schimba('accepted', checked)}
           />

@@ -4,15 +4,16 @@ import { useRef } from 'react'
 import { FileText, UploadCloud } from 'lucide-react'
 
 import { BigInput, BottomSheet, Button, CalendarPanel, Notice, Tile, TileGroup, kitText } from '@/components/kit'
+import { ATESTAT_LABEL } from '@/lib/acte/atestat'
 import { esteCertificat, type CampActe, type RandActe } from '@/lib/acte/stare'
 import { LEGAL_TYPE_OPTIONS, type LegalDocsFormValues } from '@/lib/legal-docs/shared'
 import { cn } from '@/lib/utils'
 
 export const TITLU_RAND: Record<RandActe, string> = {
   ferma: 'Ferma',
-  certificat: 'Certificat de producător',
+  certificat: ATESTAT_LABEL,
   contact: 'Contact afișat',
-  poza: 'Poza certificatului',
+  poza: 'Poza atestatului',
   confirmare: 'Confirmarea',
 }
 
@@ -108,7 +109,7 @@ export function ActeFoaie({ rand, onClose, values, formaAleasa, errors, onChange
           />
         </div>
         <div className="space-y-2">
-          <p className={cn('font-semibold text-fg', kitText.secondary)}>Data expirării vizei</p>
+          <p className={cn('font-semibold text-fg', kitText.secondary)}>Valabil până la</p>
           <CalendarPanel
             value={values.certificate_expiry?.trim() || null}
             onChange={(iso) => onChange('certificate_expiry', iso)}

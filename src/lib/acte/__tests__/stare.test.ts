@@ -24,7 +24,7 @@ describe('starea actelor', () => {
   it('mockup: lipsesc seria și viza', () => {
     const stare = stareActe({ ...CERTIFICAT_COMPLET, certificate_series: '', certificate_expiry: null })
     expect(stare.titlu).toBe('Lipsesc 2 date')
-    expect(stare.detaliu).toBe('Seria certificatului și data vizei.')
+    expect(stare.detaliu).toBe('Seria atestatului și valabilitatea.')
     expect(lipsuriPeRand(stare.lipsuri, 'certificat')).toHaveLength(2)
     expect(lipsuriPeRand(stare.lipsuri, 'ferma')).toHaveLength(0)
   })
@@ -79,7 +79,7 @@ describe('aceeași regulă peste tot', () => {
 
   it('bannerul numără și numește aceleași lipsuri', () => {
     expect(textBannerActe(stareActe(acteDinDocument(doc)))).toBe(
-      'Actele fermei: lipsesc 2 date (seria certificatului și data vizei).',
+      'Actele fermei: lipsesc 2 date (seria atestatului și valabilitatea).',
     )
   })
 })

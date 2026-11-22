@@ -5,6 +5,11 @@ import {
   createNotificationsForAssociationAdmins,
   NOTIFICATION_TYPES,
 } from '@/lib/notifications/create'
+import {
+  notificareAsociatieAtestatExpirat,
+  notificareAtestatExpirat,
+  notificareAtestatExpiraCurand,
+} from '@/lib/acte/atestat'
 import { captureApiError } from '@/lib/monitoring/report-error'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 
@@ -67,10 +72,8 @@ export async function GET(request: Request) {
         createNotificationForTenantOwner(
           item.tenantId,
           NOTIFICATION_TYPES.legal_docs_expiring,
-          'Certificatul tău expiră curând',
-          `Certificatul tău de producător expiră pe ${new Date(`${item.expiryDate}T00:00:00`).toLocaleDateString('ro-RO', {
-            dateStyle: 'long',
-          })}. Actualizează-l pentru a continua să vinzi.`,
+          notificareAtestatExpiraCurand(item.expiryDate).title,
+          notificareAtestatExpiraCurand(item.expiryDate).body,
           { tenantId: item.tenantId, expiryDate: item.expiryDate },
           'farmer_legal_docs',
           item.tenantId,
@@ -99,10 +102,8 @@ export async function GET(request: Request) {
       await createNotificationForTenantOwner(
         item.tenantId,
         NOTIFICATION_TYPES.legal_docs_expired,
-        'Certificatul tău a expirat',
-        `Certificatul tău de producător a expirat pe ${new Date(`${item.expiryDate}T00:00:00`).toLocaleDateString('ro-RO', {
-          dateStyle: 'long',
-        })}. Actualizează-l pentru a continua să vinzi.`,
+        notificareAtestatExpirat(item.expiryDate).title,
+        notificareAtestatExpirat(item.expiryDate).body,
         { tenantId: item.tenantId, expiryDate: item.expiryDate },
         'farmer_legal_docs',
         item.tenantId,
@@ -110,10 +111,8 @@ export async function GET(request: Request) {
 
       await createNotificationsForAssociationAdmins(
         NOTIFICATION_TYPES.legal_docs_expired,
-        'Certificat expirat la producător',
-        `${item.farmName} are certificatul expirat din ${new Date(`${item.expiryDate}T00:00:00`).toLocaleDateString('ro-RO', {
-          dateStyle: 'long',
-        })}. Produsele au fost retrase automat din listarea asociației.`,
+        notificareAsociatieAtestatExpirat(item.farmName, item.expiryDate).title,
+        notificareAsociatieAtestatExpirat(item.farmName, item.expiryDate).body,
         { tenantId: item.tenantId, expiryDate: item.expiryDate, farmName: item.farmName },
         'farmer_legal_docs',
         item.tenantId,

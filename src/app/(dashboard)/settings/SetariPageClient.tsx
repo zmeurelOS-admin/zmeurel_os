@@ -36,8 +36,8 @@ function formatDayMonth(iso: string): string {
 /** Textul de sub „Actele fermei”: complete / ce lipsește / când expiră (aceleași lipsuri ca pe ecranul actelor). */
 function legalDocsSub(legal: LegalDocsSummary | null): { text: string; tone: 'muted' | 'warning' | 'danger' | 'success' } {
   if (!legal) return { text: 'Formularul pentru vânzarea prin asociație', tone: 'muted' }
-  if (legal.isExpired && legal.expiryDate) return { text: `Certificatul a expirat pe ${formatDayMonth(legal.expiryDate)}`, tone: 'danger' }
-  if (legal.isExpiringSoon && legal.expiryDate) return { text: `Certificatul expiră pe ${formatDayMonth(legal.expiryDate)}`, tone: 'warning' }
+  if (legal.isExpired && legal.expiryDate) return { text: `Atestatul a expirat pe ${formatDayMonth(legal.expiryDate)}`, tone: 'danger' }
+  if (legal.isExpiringSoon && legal.expiryDate) return { text: `Atestatul expiră pe ${formatDayMonth(legal.expiryDate)}`, tone: 'warning' }
   if (legal.complete) return { text: 'Complete', tone: 'success' }
   if (legal.missingFields.length > 0) {
     const first = legal.missingFields.slice(0, 2).join(', ')

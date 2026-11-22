@@ -193,7 +193,7 @@ export function FermaPageClient({
         </section>
 
         <RowGroup title="Acte">
-          <NavRow href="/settings/ferma/acte" label="Actele fermei" sub="Formă juridică, certificat de producător, contact" icon={<FileText />} iconTone="neutral" />
+          <NavRow href="/settings/ferma/acte" label="Actele fermei" sub="Formă juridică, atestat de producător, contact" icon={<FileText />} iconTone="neutral" />
         </RowGroup>
 
         <Button

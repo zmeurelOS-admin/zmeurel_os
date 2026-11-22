@@ -31,7 +31,7 @@ describe('bannerul cu actele lipsă (layout)', () => {
   it('lipsesc seria și viza: textul spune ce lipsește și bannerul se vede, cu linkul spre acte', () => {
     const doc = { ...DOC_COMPLET, certificate_series: '', certificate_expiry: null }
     expect(bannerActeDinLayout({ memberRole: null, complete: false, doc })).toBe(
-      'Actele fermei: lipsesc 2 date (seria certificatului și data vizei).',
+      'Actele fermei: lipsesc 2 date (seria atestatului și valabilitatea).',
     )
 
     render(<Layout memberRole={null} complete={false} doc={doc} />)

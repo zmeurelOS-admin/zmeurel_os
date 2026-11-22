@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import type { Database } from '@/types/supabase'
+import { ATESTAT_LABEL } from '@/lib/acte/atestat'
 import { acteDinDocument, lipsuriActe } from '@/lib/acte/stare'
 import { normalizePhone } from '@/lib/utils/phone'
 import { ziuaInRomania, zileCalendaristiceIntre } from '@/lib/utils/bucharest-date'
@@ -13,7 +14,7 @@ export const LEGAL_TERMS_HREF = '/termeni'
 export const LEGAL_PRIVACY_HREF = '/confidentialitate'
 
 export const LEGAL_TYPE_OPTIONS: Array<{ value: FarmerLegalType; label: string }> = [
-  { value: 'certificat_producator', label: 'Certificat de producător' },
+  { value: 'certificat_producator', label: ATESTAT_LABEL },
   { value: 'pfa', label: 'PFA' },
   { value: 'ii', label: 'Întreprindere Individuală' },
   { value: 'srl', label: 'SRL' },
@@ -54,21 +55,21 @@ export const legalDocsFormSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['certificate_series'],
-          message: 'Seria certificatului este obligatorie.',
+          message: 'Seria atestatului este obligatorie.',
         })
       }
       if (!value.certificate_number?.trim()) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['certificate_number'],
-          message: 'Numărul certificatului este obligatoriu.',
+          message: 'Numărul atestatului este obligatoriu.',
         })
       }
       if (!value.certificate_expiry?.trim()) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['certificate_expiry'],
-          message: 'Data expirării este obligatorie.',
+          message: 'Data „valabil până la” este obligatorie.',
         })
       }
       return

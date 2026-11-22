@@ -39,7 +39,7 @@ export interface ActeDate {
 export interface LipsaActe {
   camp: CampActe
   rand: RandActe
-  /** Cu literă mică, pentru liste: „seria certificatului”. */
+  /** Cu literă mică, pentru liste: „seria atestatului”. */
   eticheta: string
 }
 
@@ -67,7 +67,7 @@ export function esteCertificat(forma: FormaJuridica | null | undefined): forma i
 }
 
 export function etichetaPoza(forma: FormaJuridica | null | undefined): string {
-  return esteCertificat(forma) || !forma ? 'poza certificatului' : 'poza documentului'
+  return esteCertificat(forma) || !forma ? 'poza atestatului' : 'poza documentului'
 }
 
 function gol(value: string | null | undefined): boolean {
@@ -86,9 +86,9 @@ export function lipsuriActe(date: ActeDate | null | undefined): LipsaActe[] {
   if (gol(d.locality)) lista.push(lipsa('locality', 'localitatea'))
 
   if (esteCertificat(forma)) {
-    if (gol(d.certificate_number)) lista.push(lipsa('certificate_number', 'numărul certificatului'))
-    if (gol(d.certificate_series)) lista.push(lipsa('certificate_series', 'seria certificatului'))
-    if (gol(d.certificate_expiry)) lista.push(lipsa('certificate_expiry', 'data vizei'))
+    if (gol(d.certificate_number)) lista.push(lipsa('certificate_number', 'numărul atestatului'))
+    if (gol(d.certificate_series)) lista.push(lipsa('certificate_series', 'seria atestatului'))
+    if (gol(d.certificate_expiry)) lista.push(lipsa('certificate_expiry', 'valabilitatea'))
   }
 
   if (gol(d.full_name)) lista.push(lipsa('full_name', 'numele'))
@@ -121,7 +121,7 @@ export interface StareActe {
   lipsuri: LipsaActe[]
   /** „Complete” sau „Lipsesc 2 date”. */
   titlu: string
-  /** „Seria certificatului și data vizei.” (`null` când e complet). */
+  /** „Seria atestatului și valabilitatea.” (`null` când e complet). */
   detaliu: string | null
 }
 
