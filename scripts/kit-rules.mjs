@@ -78,6 +78,8 @@ export const KIT_RULE_DIRS = [
   // Acceptarea invitației de operator și pagina operatorului din link dezactivat (prompt 23)
   'src/app/invite',
   'src/app/acces-oprit',
+  // Bannerul cu actele lipsă (Actele fermei, prompt 21).
+  'src/components/legal-docs',
 ]
 
 /**
