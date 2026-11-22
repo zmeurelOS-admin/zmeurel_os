@@ -5,6 +5,7 @@ import type { Database, TablesInsert } from '@/types/supabase'
 import { DEMO_DATA_ORIGIN } from '@/lib/demo/demo-constants'
 import { deleteDemoAnalize, seedDemoAnalize } from '@/lib/demo/demo-analize'
 import { seedDemoStadii } from '@/lib/demo/demo-stadii'
+import { deleteDemoMagazie, seedDemoMagazie } from '@/lib/demo/demo-magazie'
 import { seedDemoTratamente } from '@/lib/demo/demo-tratamente'
 import { LEGAL_DOCS_BUCKET } from '@/lib/legal-docs/shared'
 import { getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
@@ -616,6 +617,10 @@ async function deleteDemoRows(params: {
     }
     if (table === 'parcele' && ids.length > 0) {
       await deleteTreatmentsOnParcels(supabaseAdmin, tenantId, ids)
+    }
+    if (table === 'parcele') {
+      // Mișcările de magazie puse de seed (nota „Demo · …”); ieșirile au plecat deja cu tratamentele demo.
+      deletedRows += await deleteDemoMagazie(supabaseAdmin, tenantId)
     }
 
     await deleteRowsByIds({
@@ -1307,8 +1312,12 @@ export async function seedDemoDataForTenant(
   }
 
   if (demoType === 'berries' && insertedParcele.length > 0) {
+    // Magazia (promptul 28), ÎNAINTEA tratamentelor: ieșirile apar singure din tratamentele făcute după prima intrare.
+    // Nu oprește demo-ul dacă dă greș; fără migrare nu pune nimic în magazie.
+    const magazie = await seedDemoMagazie(supabaseAdmin, tenantId, day)
+    if (magazie.error) console.warn('[demo-seed] magazie', magazie.error)
     // Modulul Tratamente plin într-un demo nou. Nu oprește demo-ul dacă dă greș.
-    const tratamente = await seedDemoTratamente(supabaseAdmin, tenantId, insertedParcele, day)
+    const tratamente = await seedDemoTratamente(supabaseAdmin, tenantId, insertedParcele, day, magazie.produse)
     if (tratamente.error) console.warn('[demo-seed] tratamente', tratamente.error)
     // Stadiile (Maravilla remontantă, cu cohorte). Nu oprește demo-ul dacă dă greș.
     const stadii = await seedDemoStadii(supabaseAdmin, tenantId, insertedParcele, day(0).slice(0, 10))

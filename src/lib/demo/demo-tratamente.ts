@@ -35,7 +35,10 @@ const isMissingColumn = (error: { code?: string; message?: string } | null) =>
 
 type ProdusDemo = {
   nume: string
-  /** Numele din catalogul global (`produse_fitosanitare`, `tenant_id is null`); lipsă = scris de mână. */
+  /**
+   * Numele din catalogul global (`produse_fitosanitare`, `tenant_id is null`) sau al produsului fermei pus de
+   * `seedDemoMagazie`; negăsit = scris de mână.
+   */
   catalog?: string
   tip: string
   frac: string | null
@@ -53,6 +56,11 @@ export async function seedDemoTratamente(
   tenantId: string,
   parcele: readonly DemoParcela[],
   day: (offset: number) => string,
+  /**
+   * Produsele fermei din Magazie (nume → id, din `seedDemoMagazie`): fertirigarea le folosește, ca tratamentul
+   * făcut să scadă din magazie. Lipsă = produse scrise de mână, ca înainte.
+   */
+  produseFerma: ReadonlyMap<string, string> = new Map(),
 ): Promise<DemoTratamenteResult> {
   const db = supabaseAdmin as unknown as Loose
   const byName = (fragment: string) => parcele.find((parcela) => (parcela.nume_parcela ?? '').includes(fragment))
@@ -72,6 +80,7 @@ export async function seedDemoTratamente(
     .is('tenant_id', null)
     .in('nume_comercial', ['Switch 62.5 WG', 'Kelpak'])
   const catalog = new Map(((catalogRes.data ?? []) as Array<{ id: string; nume_comercial: string }>).map((row) => [row.nume_comercial, row.id]))
+  for (const [nume, id] of produseFerma) if (!catalog.has(nume)) catalog.set(nume, id)
 
   const loturi: Array<{
     parcele: DemoParcela[]
@@ -99,8 +108,8 @@ export async function seedDemoTratamente(
       tip: 'nutritie',
       zi: day(-3),
       produse: [
-        { nume: 'Ferti 15-5-30', tip: 'ingrasamant', frac: null, phi: null, unitate: 'kg', gPePlanta: 2, rezervor: 'A' },
-        { nume: 'Calcinit', tip: 'ingrasamant', frac: null, phi: null, unitate: 'kg', gPePlanta: 2, rezervor: 'B' },
+        { nume: 'Ferti 15-5-30', catalog: 'Ferti 15-5-30', tip: 'ingrasamant', frac: null, phi: null, unitate: 'kg', gPePlanta: 2, rezervor: 'A' },
+        { nume: 'Calcinit', catalog: 'Calcinit', tip: 'ingrasamant', frac: null, phi: null, unitate: 'kg', gPePlanta: 2, rezervor: 'B' },
       ],
     },
     {
