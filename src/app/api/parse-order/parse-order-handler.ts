@@ -12,12 +12,6 @@ import { normalizeRomanianMobilePhone } from '@/lib/shop/phone'
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const MAX_MESSAGE_CHARS = 4_000
 
-type AiUsageRpcRow = {
-  allowed: boolean
-  reason?: string
-  retry_after_seconds?: number
-}
-
 const PARSE_ORDER_MISSING_FIELDS = [
   'nume_client',
   'telefon',
@@ -229,9 +223,9 @@ export function createParseOrderHandler(depsOverride: Partial<ParseOrderRouteDep
       buildSystemPrompt: buildParseOrderSystemPrompt,
       buildUserMessage: buildParseOrderUserMessage,
       normalize: normalizeParseOrderModelOutput,
-      // Rate limiting persistent (Supabase RPC) se face în ensureTenantAllowed.
-      // Setăm limite in-memory la valori mari pentru a dezactiva efectiv
-      // limiterul bazat pe Map (care nu funcționează pe Vercel serverless).
+      aiUsageFeature: 'parse_order',
+      // Limita persistentă (Supabase RPC) o face fabrica. Limitele in-memory sunt mari: limiterul bazat pe
+      // Map nu funcționează pe Vercel serverless.
       userRateLimit: { limit: 1_000_000, windowMs: 60_000 },
       tenantRateLimit: { limit: 1_000_000, windowMs: 60_000 },
       maxMessageChars: MAX_MESSAGE_CHARS,
@@ -239,8 +233,8 @@ export function createParseOrderHandler(depsOverride: Partial<ParseOrderRouteDep
       logNamespace: 'parse-order',
       requestFailedCode: 'PARSE_ORDER_FAILED',
       requestFailedMessage: 'Nu am putut extrage datele din mesaj.',
-      async ensureTenantAllowed({ admin, tenantId, userId }) {
-        // 1. Verificare email owner (allowlist opțional)
+      async ensureTenantAllowed({ admin, tenantId }) {
+        // Verificare email owner (allowlist opțional)
         const allowedOwnerEmail = normalizeEmail(process.env.AI_PARSE_ORDER_ALLOWED_OWNER_EMAIL)
         const aiAllowedForTenant = await tenantAllowedForParseOrderAi({
           admin: admin as ParseOrderAdminClient,
@@ -257,36 +251,8 @@ export function createParseOrderHandler(depsOverride: Partial<ParseOrderRouteDep
           }
         }
 
-        // 2. Rate limiting persistent via Supabase RPC (înlocuiește Map in-memory)
-        try {
-          // Limitele sunt hardcodate în RPC (20 user/10min, 100 tenant/60min) — parametrii eliminați.
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { data, error } = await (admin as any).rpc('check_and_log_ai_usage', {
-            p_user_id: userId,
-            p_tenant_id: tenantId,
-            p_feature: 'parse_order',
-          })
-
-          if (error) {
-            console.error('[parse-order] check_and_log_ai_usage RPC error', error)
-            // Failopen: erori la RPC nu blochează utilizatorul.
-            return { allowed: true }
-          }
-
-          const row = data as AiUsageRpcRow | null
-          if (!row?.allowed) {
-            return {
-              allowed: false,
-              code: 'RATE_LIMITED',
-              message: 'Ai făcut prea multe încercări. Așteaptă puțin și încearcă din nou.',
-              status: 429,
-            }
-          }
-        } catch (err) {
-          console.error('[parse-order] Eroare la apelul RPC rate limit', err)
-          // Failopen: nu blocăm utilizatorul dacă RPC-ul pică.
-        }
-
+        // Limita persistentă (`check_and_log_ai_usage`, feature `parse_order`) o aplică fabrica, cu sesiunea
+        // utilizatorului, după validarea mesajului.
         return { allowed: true }
       },
     },

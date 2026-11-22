@@ -65,6 +65,10 @@ function createSupabaseMock(
       },
     },
     async rpc(fn: string) {
+      // Limita persistentă a „Din mesaj”, chemată cu sesiunea utilizatorului.
+      if (fn === 'check_and_log_ai_usage') {
+        return { data: { allowed: true }, error: null }
+      }
       if (fn === 'generate_business_id') {
         return {
           data: businessId,

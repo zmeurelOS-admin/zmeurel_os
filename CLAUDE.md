@@ -196,6 +196,7 @@ Baza modulelor refăcute (Recoltări, apoi Comenzi + Livrări). Totul se import�
 - **Files**: `src/app/api/chat/route.ts`, `src/components/ai/AiBottomSheet.tsx`
 - **New table**: `ai_conversations` — columns: `id uuid PK`, `tenant_id uuid`, `user_id uuid`, `mesaj_user text`, `raspuns_ai text`, `pathname text`, `created_at timestamptz`
 - **Rate limit**: 20 msg/zi pentru utilizatori normali, 60 msg/zi pentru superadmin și contul de test `zmeurel.app@gmail.com`. Configurabil via `AI_CHAT_DAILY_LIMIT`. Contorizarea folosește `profiles.ai_messages_count` + `profiles.last_ai_usage_date` și se resetează zilnic în timezone `Europe/Bucharest`.
+- **„Din mesaj” (`/api/parse-order`, `/api/paste-to-*`, prin `src/lib/ai/paste-to-x-handler-factory.ts`)**: limită separată de chat, `check_and_log_ai_usage` (20 cereri / 10 min pe utilizator, 100 / oră pe fermă, fixate în funcție; `feature` = `parse_order` sau `paste_to_<modul>`). Se cheamă cu sesiunea utilizatorului (`createClient()`), nu cu service role; dacă limita nu se poate verifica, cererea e refuzată (503, `AI_LIMIT_UNAVAILABLE`).
 - **Profiles columns required**: `ai_messages_count integer DEFAULT 0`, `last_ai_usage_date date`
 - **Max input**: last 4 messages kept; last user message truncated to 500 chars; system prompt ~300 tokens
 - **Keyword detection**: active — queries `activitati_agricole`, `clienti`, `cheltuieli_diverse`, `recoltari`, `comenzi`, `miscari_stoc` only when message matches relevant keywords

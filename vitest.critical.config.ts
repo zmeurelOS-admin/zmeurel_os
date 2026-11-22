@@ -25,6 +25,8 @@ export default defineConfig(({ mode }) => {
       include: [
         'src/app/api/paste-to-cheltuieli/__tests__/*.test.ts',
         'src/app/api/paste-to-investitii/__tests__/*.test.ts',
+        'src/app/api/paste-to-recoltari/__tests__/*.test.ts',
+        'src/app/api/parse-order/__tests__/*.test.ts',
         'src/app/api/shop/__tests__/*.test.ts',
         // Parantezele drepte din `[id]` se scriu ca `[[]id[]]`, altfel modelul le ia drept clasă de caractere.
         'src/app/api/shop/b2c/orders/[[]id[]]/__tests__/*.test.ts',

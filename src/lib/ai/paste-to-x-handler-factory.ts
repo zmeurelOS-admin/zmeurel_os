@@ -82,6 +82,11 @@ export type PasteToXHandlerConfig<TParsed> = {
   ensureTenantAllowed?: (
     params: PasteToXTenantGateParams<TParsed>,
   ) => Promise<PasteToXTenantGateResult>
+  /**
+   * Numele funcției în `ai_usage_log` pentru limita persistentă (`check_and_log_ai_usage`).
+   * Implicit `paste_to_<modul>`; „Din mesaj” la Comenzi folosește `parse_order`.
+   */
+  aiUsageFeature?: string
 }
 
 const DEFAULT_PASTE_TO_X_ROUTE_DEPS: PasteToXRouteDeps = {
@@ -241,6 +246,57 @@ export async function resolvePasteToXWriteAccess(
   }
 }
 
+type AiUsageRpcRow = {
+  allowed?: boolean
+  reason?: string
+  retry_after_seconds?: number
+}
+
+type AiUsageRpcClient = {
+  rpc: (
+    fn: 'check_and_log_ai_usage',
+    args: { p_user_id: string; p_tenant_id: string; p_feature: string },
+  ) => PromiseLike<{ data: unknown; error: unknown }>
+}
+
+export type PersistentAiLimitResult =
+  | { status: 'allowed' }
+  | { status: 'limited'; retryAfterSeconds: number }
+  | { status: 'unavailable' }
+
+/**
+ * Limita persistentă a „Din mesaj” (`check_and_log_ai_usage`: 20 de cereri / 10 minute pe utilizator,
+ * 100 / oră pe fermă, fixate în funcție). Se cheamă cu **sesiunea utilizatorului** (`createClient()`):
+ * funcția cere `auth.uid() = p_user_id`, iar cu service role `auth.uid()` e `null` și apelul era refuzat
+ * (`UNAUTHORIZED`), deci limita nu se aplica. Orice eroare înseamnă `unavailable`: ruta refuză cererea.
+ */
+export async function checkPersistentAiLimit(
+  client: unknown,
+  params: { userId: string; tenantId: string; feature: string },
+): Promise<PersistentAiLimitResult> {
+  try {
+    const { data, error } = await (client as AiUsageRpcClient).rpc('check_and_log_ai_usage', {
+      p_user_id: params.userId,
+      p_tenant_id: params.tenantId,
+      p_feature: params.feature,
+    })
+    if (error) {
+      console.error('[paste-to-x] check_and_log_ai_usage', sanitizeForLog({ error: toSafeErrorContext(error) }))
+      return { status: 'unavailable' }
+    }
+    const row = data as AiUsageRpcRow | null
+    if (row?.allowed === true) return { status: 'allowed' }
+    if (row?.allowed === false) {
+      const retry = Number(row.retry_after_seconds)
+      return { status: 'limited', retryAfterSeconds: Number.isFinite(retry) && retry > 0 ? retry : 60 }
+    }
+    return { status: 'unavailable' }
+  } catch (error) {
+    console.error('[paste-to-x] check_and_log_ai_usage', sanitizeForLog({ error: toSafeErrorContext(error) }))
+    return { status: 'unavailable' }
+  }
+}
+
 export function createPasteToXHandler<TParsed>(
   config: PasteToXHandlerConfig<TParsed>,
   depsOverride: Partial<PasteToXRouteDeps> = {},
@@ -262,6 +318,7 @@ export function createPasteToXHandler<TParsed>(
   const requestFailedCode = config.requestFailedCode ?? 'PASTE_TO_X_FAILED'
   const requestFailedMessage =
     config.requestFailedMessage ?? 'Nu am putut extrage datele din mesaj.'
+  const aiUsageFeature = config.aiUsageFeature ?? `paste_to_${config.module}`
   const buildUserRateLimitKey =
     config.buildUserRateLimitKey ??
     (({ userId, module }: { userId: string; module: PasteToXModule }) =>
@@ -352,6 +409,24 @@ export function createPasteToXHandler<TParsed>(
       const apiKey = process.env.ANTHROPIC_API_KEY
       if (!apiKey) {
         return apiError(500, 'MISSING_ANTHROPIC_API_KEY', missingApiKeyMessage)
+      }
+
+      // Limita persistentă, chiar înainte de model: cu sesiunea utilizatorului, iar dacă nu se poate verifica,
+      // cererea se refuză (nu „lăsăm să treacă”).
+      const persistentLimit = await checkPersistentAiLimit(supabase, {
+        userId: user.id,
+        tenantId: access.tenantId,
+        feature: aiUsageFeature,
+      })
+      if (persistentLimit.status === 'limited') {
+        return rateLimitedResponse(persistentLimit.retryAfterSeconds)
+      }
+      if (persistentLimit.status === 'unavailable') {
+        return apiError(
+          503,
+          'AI_LIMIT_UNAVAILABLE',
+          'Nu am putut verifica limita de folosire a AI. Încearcă din nou peste puțin.',
+        )
       }
 
       const nowContext = deps.getNowContext()

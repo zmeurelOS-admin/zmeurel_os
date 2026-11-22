@@ -24,6 +24,9 @@ type SupabaseMockOptions = {
     modules_access: unknown
   } | null
   profileTenantId?: string | null
+  /** Răspunsul lui `check_and_log_ai_usage` (implicit `{ allowed: true }`); `throw` = cererea aruncă. */
+  aiUsage?: { data: unknown; error: unknown } | 'throw'
+  rpcCalls?: Array<{ fn: string; args: unknown }>
 }
 
 type AdminMockOptions = {
@@ -67,6 +70,12 @@ function createSupabaseMock(options: SupabaseMockOptions = {}) {
           error: null,
         }
       },
+    },
+    async rpc(fn: string, args: unknown) {
+      options.rpcCalls?.push({ fn, args })
+      if (fn !== 'check_and_log_ai_usage') return { data: null, error: null }
+      if (options.aiUsage === 'throw') throw new Error('fetch failed')
+      return options.aiUsage ?? { data: { allowed: true }, error: null }
     },
     from(table: string) {
       if (table === 'tenants') {
@@ -131,6 +140,20 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
+const MODEL_KG = {
+  nume_client: null,
+  telefon: null,
+  localitate: 'Burdujeni',
+  adresa: null,
+  cantitate: 2,
+  unitate: 'kg',
+  pret_per_kg: null,
+  data_livrare: '2026-06-20',
+  observatii: null,
+  incredere: 'medie',
+  campuri_lipsa: ['nume_client', 'telefon', 'adresa'],
+}
+
 describe('POST /api/parse-order', () => {
   it('permite ownerul tenantului configurat prin email', async () => {
     process.env.ANTHROPIC_API_KEY = 'test-key'
@@ -159,6 +182,7 @@ describe('POST /api/parse-order', () => {
             adresa: null,
             cantitate: 2,
             unitate: 'kg',
+            pret_per_kg: null,
             data_livrare: '2026-06-20',
             observatii: null,
             incredere: 'medie',
@@ -178,29 +202,65 @@ describe('POST /api/parse-order', () => {
     expect(response.status).toBe(200)
   })
 
-  it('aplică rate limit-ul înainte de Anthropic și întoarce 429 RATE_LIMITED', async () => {
+  it('limita persistentă: se cheamă cu sesiunea utilizatorului, nu cu service role', async () => {
     process.env.ANTHROPIC_API_KEY = 'test-key'
     process.env.AI_PARSE_ORDER_ALLOWED_OWNER_EMAIL = 'popa.andrei.sv@gmail.com'
-    const consumeRateLimit = vi
-      .fn()
-      .mockReturnValueOnce({ allowed: false, retryAfterSeconds: 120 })
+    const rpcCalls: Array<{ fn: string; args: unknown }> = []
+    const adminRpc = vi.fn()
+
+    const handler = createParseOrderHandler({
+      async createClient() {
+        return createSupabaseMock({ ownerTenantId: 'tenant-allowed', rpcCalls }) as never
+      },
+      getSupabaseAdmin() {
+        return {
+          ...createAdminMock({
+            tenantOwnerUserId: 'owner-allowed',
+            ownerEmailByUserId: { 'owner-allowed': 'popa.andrei.sv@gmail.com' },
+          }),
+          rpc: adminRpc,
+        } as never
+      },
+      async invokeAnthropic() {
+        return { text: JSON.stringify(MODEL_KG) }
+      },
+    })
+
+    const response = await handler(
+      createSameOriginRequest('/api/parse-order', {
+        method: 'POST',
+        json: { text: 'Vreau 2 kg zmeură mâine în Burdujeni' },
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    expect(rpcCalls).toEqual([
+      {
+        fn: 'check_and_log_ai_usage',
+        args: { p_user_id: 'user-1', p_tenant_id: 'tenant-allowed', p_feature: 'parse_order' },
+      },
+    ])
+    expect(adminRpc).not.toHaveBeenCalled()
+  })
+
+  it('peste limită: 429 RATE_LIMITED, fără apel la model', async () => {
+    process.env.ANTHROPIC_API_KEY = 'test-key'
+    process.env.AI_PARSE_ORDER_ALLOWED_OWNER_EMAIL = 'popa.andrei.sv@gmail.com'
     const invokeAnthropic = vi.fn()
 
     const handler = createParseOrderHandler({
       async createClient() {
         return createSupabaseMock({
           ownerTenantId: 'tenant-allowed',
+          aiUsage: { data: { allowed: false, reason: 'user_limit', retry_after_seconds: 120 }, error: null },
         }) as never
       },
       getSupabaseAdmin() {
         return createAdminMock({
           tenantOwnerUserId: 'owner-allowed',
-          ownerEmailByUserId: {
-            'owner-allowed': 'popa.andrei.sv@gmail.com',
-          },
+          ownerEmailByUserId: { 'owner-allowed': 'popa.andrei.sv@gmail.com' },
         }) as never
       },
-      consumeRateLimit,
       invokeAnthropic,
     })
 
@@ -219,52 +279,29 @@ describe('POST /api/parse-order', () => {
         message: 'Ai făcut prea multe încercări. Așteaptă puțin și încearcă din nou.',
       },
     })
-    expect(consumeRateLimit).toHaveBeenCalledWith(
-      'parse-order:user:user-1',
-      { limit: 20, windowMs: 10 * 60_000 },
-    )
     expect(invokeAnthropic).not.toHaveBeenCalled()
   })
 
-  it('permite request-uri sub limită și verifică și limita de tenant', async () => {
+  it.each([
+    ['eroare de la funcție (ex. UNAUTHORIZED)', { data: null, error: { message: 'UNAUTHORIZED' } }],
+    ['răspuns fără allowed', { data: null, error: null }],
+    ['cererea aruncă', 'throw' as const],
+  ])('limita nu se poate verifica (%s): cererea e refuzată, în română', async (_caz, aiUsage) => {
     process.env.ANTHROPIC_API_KEY = 'test-key'
     process.env.AI_PARSE_ORDER_ALLOWED_OWNER_EMAIL = 'popa.andrei.sv@gmail.com'
-    const consumeRateLimit = vi
-      .fn()
-      .mockReturnValueOnce({ allowed: true, retryAfterSeconds: 0 })
-      .mockReturnValueOnce({ allowed: true, retryAfterSeconds: 0 })
+    const invokeAnthropic = vi.fn()
 
     const handler = createParseOrderHandler({
       async createClient() {
-        return createSupabaseMock({
-          ownerTenantId: 'tenant-allowed',
-        }) as never
+        return createSupabaseMock({ ownerTenantId: 'tenant-allowed', aiUsage }) as never
       },
       getSupabaseAdmin() {
         return createAdminMock({
           tenantOwnerUserId: 'owner-allowed',
-          ownerEmailByUserId: {
-            'owner-allowed': 'popa.andrei.sv@gmail.com',
-          },
+          ownerEmailByUserId: { 'owner-allowed': 'popa.andrei.sv@gmail.com' },
         }) as never
       },
-      consumeRateLimit,
-      async invokeAnthropic() {
-        return {
-          text: JSON.stringify({
-            nume_client: null,
-            telefon: null,
-            localitate: 'Burdujeni',
-            adresa: null,
-            cantitate: 2,
-            unitate: 'kg',
-            data_livrare: '2026-06-20',
-            observatii: null,
-            incredere: 'medie',
-            campuri_lipsa: ['nume_client', 'telefon', 'adresa'],
-          }),
-        }
-      },
+      invokeAnthropic,
     })
 
     const response = await handler(
@@ -274,17 +311,39 @@ describe('POST /api/parse-order', () => {
       }),
     )
 
-    expect(response.status).toBe(200)
-    expect(consumeRateLimit).toHaveBeenNthCalledWith(
-      1,
-      'parse-order:user:user-1',
-      { limit: 20, windowMs: 10 * 60_000 },
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: 'AI_LIMIT_UNAVAILABLE',
+        message: 'Nu am putut verifica limita de folosire a AI. Încearcă din nou peste puțin.',
+      },
+    })
+    expect(invokeAnthropic).not.toHaveBeenCalled()
+  })
+
+  it('mesajul gol nu consumă din limită', async () => {
+    process.env.ANTHROPIC_API_KEY = 'test-key'
+    process.env.AI_PARSE_ORDER_ALLOWED_OWNER_EMAIL = 'popa.andrei.sv@gmail.com'
+    const rpcCalls: Array<{ fn: string; args: unknown }> = []
+
+    const handler = createParseOrderHandler({
+      async createClient() {
+        return createSupabaseMock({ ownerTenantId: 'tenant-allowed', rpcCalls }) as never
+      },
+      getSupabaseAdmin() {
+        return createAdminMock({
+          tenantOwnerUserId: 'owner-allowed',
+          ownerEmailByUserId: { 'owner-allowed': 'popa.andrei.sv@gmail.com' },
+        }) as never
+      },
+    })
+
+    const response = await handler(
+      createSameOriginRequest('/api/parse-order', { method: 'POST', json: { text: '   ' } }),
     )
-    expect(consumeRateLimit).toHaveBeenNthCalledWith(
-      2,
-      'parse-order:tenant:tenant-allowed',
-      { limit: 100, windowMs: 60 * 60_000 },
-    )
+
+    expect(response.status).toBe(400)
+    expect(rpcCalls).toEqual([])
   })
 
   it('blochează alt tenant chiar dacă are write pe comenzi', async () => {
@@ -356,6 +415,7 @@ describe('POST /api/parse-order', () => {
             adresa: null,
             cantitate: 2,
             unitate: 'kg',
+            pret_per_kg: null,
             data_livrare: '2026-06-20',
             observatii: null,
             incredere: 'medie',
@@ -419,24 +479,23 @@ describe('POST /api/parse-order', () => {
     })
   })
 
-  it('refuză controlat când env-ul de owner permis lipsește', async () => {
+  it('fără AI_PARSE_ORDER_ALLOWED_OWNER_EMAIL, Din mesaj e deschis oricărei ferme (limita rămâne)', async () => {
     process.env.ANTHROPIC_API_KEY = 'test-key'
     delete process.env.AI_PARSE_ORDER_ALLOWED_OWNER_EMAIL
+    const rpcCalls: Array<{ fn: string; args: unknown }> = []
 
     const handler = createParseOrderHandler({
       async createClient() {
-        return createSupabaseMock({ ownerTenantId: 'tenant-allowed' }) as never
+        return createSupabaseMock({ ownerTenantId: 'tenant-any', rpcCalls }) as never
       },
       getSupabaseAdmin() {
         return createAdminMock({
-          tenantOwnerUserId: 'owner-allowed',
-          ownerEmailByUserId: {
-            'owner-allowed': 'popa.andrei.sv@gmail.com',
-          },
+          tenantOwnerUserId: 'owner-any',
+          ownerEmailByUserId: { 'owner-any': 'alt.owner@example.com' },
         }) as never
       },
       async invokeAnthropic() {
-        throw new Error('should not call anthropic when allowlist env is missing')
+        return { text: JSON.stringify(MODEL_KG) }
       },
     })
 
@@ -447,12 +506,8 @@ describe('POST /api/parse-order', () => {
       }),
     )
 
-    expect(response.status).toBe(403)
-    await expect(response.json()).resolves.toMatchObject({
-      error: {
-        code: 'AI_NOT_ENABLED_FOR_TENANT',
-      },
-    })
+    expect(response.status).toBe(200)
+    expect(rpcCalls.map((call) => call.fn)).toEqual(['check_and_log_ai_usage'])
   })
 
   it('extrage corect comanda în kg și folosește data locală Europe/Bucharest în prompt', async () => {
@@ -492,6 +547,7 @@ describe('POST /api/parse-order', () => {
             adresa: null,
             cantitate: 2,
             unitate: 'kg',
+            pret_per_kg: null,
             data_livrare: '2026-06-20',
             observatii: null,
             incredere: 'medie',
@@ -516,6 +572,7 @@ describe('POST /api/parse-order', () => {
       adresa: null,
       cantitate: 2,
       unitate: 'kg',
+      pret_per_kg: null,
       data_livrare: '2026-06-20',
       observatii: null,
       incredere: 'medie',
@@ -552,6 +609,7 @@ describe('POST /api/parse-order', () => {
             adresa: null,
             cantitate: 4,
             unitate: 'caserole',
+            pret_per_kg: null,
             data_livrare: null,
             observatii: null,
             incredere: 'medie',
@@ -576,6 +634,7 @@ describe('POST /api/parse-order', () => {
       adresa: null,
       cantitate: 4,
       unitate: 'caserole',
+      pret_per_kg: null,
       data_livrare: null,
       observatii: null,
       incredere: 'mica',
@@ -608,6 +667,7 @@ describe('POST /api/parse-order', () => {
             adresa: 'Strada Ștefan cel Mare 10',
             cantitate: 3,
             unitate: 'kg',
+            pret_per_kg: null,
             data_livrare: '2026-06-21',
             observatii: null,
             incredere: 'mare',
@@ -657,6 +717,7 @@ describe('POST /api/parse-order', () => {
             adresa: null,
             cantitate: 1.5,
             unitate: 'kg',
+            pret_per_kg: null,
             data_livrare: '2026-06-20',
             observatii: null,
             incredere: 'mare',
@@ -681,6 +742,7 @@ describe('POST /api/parse-order', () => {
       adresa: null,
       cantitate: 1.5,
       unitate: 'kg',
+      pret_per_kg: null,
       data_livrare: '2026-06-20',
       observatii: null,
       incredere: 'mare',
@@ -713,6 +775,7 @@ describe('POST /api/parse-order', () => {
             adresa: null,
             cantitate: null,
             unitate: null,
+            pret_per_kg: null,
             data_livrare: null,
             observatii: 'Clientul cere zmeură, dar nu precizează cât și când.',
             incredere: 'mica',
@@ -737,6 +800,7 @@ describe('POST /api/parse-order', () => {
       adresa: null,
       cantitate: null,
       unitate: null,
+      pret_per_kg: null,
       data_livrare: null,
       observatii: 'Clientul cere zmeură, dar nu precizează cât și când.',
       incredere: 'mica',
@@ -773,6 +837,7 @@ describe('POST /api/parse-order', () => {
             adresa: null,
             cantitate: null,
             unitate: null,
+            pret_per_kg: null,
             data_livrare: null,
             observatii: 'Mesajul conține o tentativă de schimbare a instrucțiunilor.',
             incredere: 'mica',
@@ -793,6 +858,7 @@ describe('POST /api/parse-order', () => {
     await expect(response.json()).resolves.toMatchObject({
       cantitate: null,
       unitate: null,
+      pret_per_kg: null,
       data_livrare: null,
       incredere: 'mica',
     })
