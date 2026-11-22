@@ -8,6 +8,7 @@ import {
   NOTIFICARI_PREFERINTE_IMPLICITE,
   isMissingTableError,
   normalizeazaPreferinte,
+  tipuriDeSalvat,
   type NotificariPreferinte,
 } from './preferinte'
 
@@ -65,7 +66,7 @@ export async function savePreferinteNotificari(preferinte: NotificariPreferinte)
   const { error } = await preferinteTable().upsert(
     {
       user_id: userId,
-      tipuri: preferinte.tipuri,
+      tipuri: tipuriDeSalvat(preferinte),
       liniste_noaptea: preferinte.linisteNoaptea,
       updated_at: new Date().toISOString(),
     },

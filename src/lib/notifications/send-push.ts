@@ -34,6 +34,30 @@ export type PushSendResult = {
   skippedReason: 'not_configured' | 'list_failed' | 'no_subscriptions' | 'disabled_by_policy' | null
 }
 
+/**
+ * Butoanele din notificare (Android: cel mult două). Vin din `notifications.data.push_actions`, pus doar de cod
+ * (ex. mementoul analizelor): `url` deschide aplicația acolo, `post` cheamă o rută API cu cookie-ul sesiunii
+ * (`public/push-handlers.js`). Doar căi relative din aplicație; orice altceva se ignoră.
+ */
+export type PushAction = { action: string; title: string; url?: string; post?: string }
+
+export function pushActionsDinDate(data: Record<string, unknown> | null | undefined): PushAction[] {
+  const raw = data?.push_actions
+  if (!Array.isArray(raw)) return []
+  const relativ = (value: unknown) => (typeof value === 'string' && value.startsWith('/') && !value.startsWith('//') ? value : undefined)
+  const actions: PushAction[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const { action, title, url, post } = item as Record<string, unknown>
+    if (typeof action !== 'string' || typeof title !== 'string' || !action || !title) continue
+    const entry: PushAction = { action, title, url: relativ(url), post: relativ(post) }
+    if (!entry.url && !entry.post) continue
+    actions.push(entry)
+    if (actions.length === 2) break
+  }
+  return actions
+}
+
 function buildPushPayload(input: {
   title: string
   body: string
@@ -41,6 +65,7 @@ function buildPushPayload(input: {
   url: string
   notificationId: string
   tag: string
+  actions?: PushAction[]
 }): string {
   return JSON.stringify({
     title: input.title,
@@ -49,7 +74,7 @@ function buildPushPayload(input: {
     url: input.url,
     notificationId: input.notificationId,
     tag: input.tag,
-    actions: [],
+    actions: input.actions ?? [],
   })
 }
 
@@ -120,6 +145,7 @@ export async function sendPushToUser(
       url: urlPath,
       notificationId: data?.notificationId ?? '',
       tag: data?.notificationId ?? `zmeurel-${type}`,
+      actions: pushActionsDinDate(data?.notificationData ?? null),
     })
 
     const settled = await Promise.all(

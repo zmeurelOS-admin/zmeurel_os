@@ -12,6 +12,7 @@ import {
   ClipboardList,
   CloudLightning,
   FileText,
+  FlaskConical,
   Info,
   Mail,
   RefreshCw,
@@ -57,6 +58,8 @@ function iconForType(type: string): { icon: ReactNode; tone: IconTone } {
       return { icon: <BarChart3 />, tone: 'neutral' }
     case 'tratament_reminder':
       return { icon: <Timer />, tone: 'warning' }
+    case 'analize_memento':
+      return { icon: <FlaskConical />, tone: 'warning' }
     case 'legal_docs_expiring':
     case 'legal_docs_expired':
       return { icon: <FileText />, tone: 'warning' }

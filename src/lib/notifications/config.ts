@@ -121,6 +121,16 @@ export const NOTIFICATION_CONFIG = {
     playSound: false,
     pushEnabled: true,
   },
+  analize_memento: {
+    icon: '🧪',
+    color: '#e6a817',
+    /** Avertizare: analiza la fructe dinainte de cules (cronul `notificari-dimineata`, doar proprietarul). */
+    ton: 'avertizare',
+    toastDuration: 8000,
+    showToast: true,
+    playSound: false,
+    pushEnabled: true,
+  },
   meteo_inghet: {
     icon: '❄️',
     color: '#e6a817',

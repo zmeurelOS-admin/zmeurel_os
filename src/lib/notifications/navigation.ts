@@ -62,6 +62,9 @@ export function getNotificationHref(
       return '/comenzi'
     case 'tratament_planificat':
       return '/tratamente?fila=planificate'
+    case 'analize_memento':
+      // Foaia „Analiza dinainte de cules”, în Acasă.
+      return '/dashboard?memento=analize'
     case 'incasari_restante': {
       // Un client: fișa lui. Mai mulți (varianta grupată): lista de clienți.
       const clientId = typeof d['client_id'] === 'string' && d['client_id'] ? d['client_id'] : null

@@ -9,7 +9,7 @@
  */
 
 /** Cheile din `notificari_preferinte.tipuri`, în ordinea din ecran. */
-export const NOTIFICARI_CHEI = ['noi', 'maine', 'rest', 'meteo', 'pauza', 'tratamente', 'sapt', 'acte'] as const
+export const NOTIFICARI_CHEI = ['noi', 'maine', 'rest', 'meteo', 'pauza', 'tratamente', 'analize', 'sapt', 'acte'] as const
 
 export type NotificareCheie = (typeof NOTIFICARI_CHEI)[number]
 
@@ -18,6 +18,34 @@ export type NotificariPreferinte = {
   tipuri: Partial<Record<NotificareCheie, boolean>>
   /** 22:00–6:00, ora României: fără push, în afară de ger. */
   linisteNoaptea: boolean
+  /**
+   * Mementoul „Analiza dinainte de cules” (comutatorul e `tipuri.analize`): cu câte zile înainte și dacă anunță
+   * zilnic din ziua culesului. Se salvează în același `tipuri` (`analize_zile`, `analize_zilnic`).
+   */
+  analize?: { zile: number[]; zilnic: boolean }
+}
+
+/** Cu câte zile înainte de cules, implicit (mockup-ul analizelor). */
+export const ANALIZE_ZILE_IMPLICITE: readonly number[] = [21, 14, 7, 3]
+const ANALIZE_ZILE_PERMISE = new Set([21, 14, 7, 3, 1])
+
+/** Setările mementoului, cu valorile implicite când lipsesc. */
+export function setariAnalize(preferinte: NotificariPreferinte): { pornit: boolean; zile: number[]; zilnic: boolean } {
+  return {
+    pornit: isCheiePornita(preferinte, 'analize'),
+    zile: preferinte.analize?.zile ?? [...ANALIZE_ZILE_IMPLICITE],
+    zilnic: preferinte.analize?.zilnic ?? true,
+  }
+}
+
+/** Ce se scrie în `notificari_preferinte.tipuri`: comutatoarele plus setările mementoului. */
+export function tipuriDeSalvat(preferinte: NotificariPreferinte): Record<string, unknown> {
+  const tipuri: Record<string, unknown> = { ...preferinte.tipuri }
+  if (preferinte.analize) {
+    tipuri.analize_zile = preferinte.analize.zile
+    tipuri.analize_zilnic = preferinte.analize.zilnic
+  }
+  return tipuri
 }
 
 /** Fără rând în baza de date: totul pornit, cu liniște noaptea. */
@@ -34,6 +62,7 @@ export const NOTIFICARI_TEXTE: Record<NotificareCheie, { titlu: string; detaliu:
   meteo: { titlu: 'Îngheț și grindină', detaliu: 'Dimineața, pentru {loc}' },
   pauza: { titlu: 'Pauza după tratament', detaliu: 'Când se poate culege din nou din parcelă' },
   tratamente: { titlu: 'Tratamente planificate', detaliu: 'Dimineața, în ziua lor' },
+  analize: { titlu: 'Analiza dinainte de cules', detaliu: 'Pe telefon, la 8:00' },
   sapt: { titlu: 'Săptămâna ta', detaliu: 'Duminică seara: încasat, livrat, cheltuit' },
   acte: { titlu: 'Echipa și documentele', detaliu: 'Cineva nou în echipă, un act care expiră' },
 }
@@ -54,6 +83,7 @@ export const NOTIFICARI_METEO_FARA_LOC = 'Dimineața, după ce salvezi locul fer
  *   planificate azi. E altceva decât pauza (care anunță când se poate culege din nou), deci are comutatorul lui.
  * - Perechile lui `product_listed` / `producer_approved` (`product_unlisted`, `producer_suspended`)
  *   și actele care expiră (`legal_docs_*`) intră tot la `acte`.
+ * - `analize_memento` → `analize`: mementoul „analiza dinainte de cules” (doar proprietarul îl primește).
  * - Tipurile care încep cu `meteo_` (`meteo_inghet`, `meteo_grindina`) → `meteo`.
  * - Ce nu e aici (ex. ofertele din asociație) nu are comutator: sună ca până acum,
  *   dar respectă liniștea de noapte.
@@ -66,6 +96,7 @@ const TIP_LA_CHEIE: Record<string, NotificareCheie> = {
   incasari_restante: 'rest',
   tratament_reminder: 'pauza',
   tratament_planificat: 'tratamente',
+  analize_memento: 'analize',
   weekly_sales_summary: 'sapt',
   system: 'acte',
   producer_approved: 'acte',
@@ -124,6 +155,7 @@ export function normalizeazaPreferinte(
   row: { tipuri?: unknown; liniste_noaptea?: unknown } | null | undefined,
 ): NotificariPreferinte {
   if (!row) return { tipuri: {}, linisteNoaptea: true }
+  let analize: NotificariPreferinte['analize']
   const tipuri: Partial<Record<NotificareCheie, boolean>> = {}
   const raw = row.tipuri
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
@@ -131,10 +163,21 @@ export function normalizeazaPreferinte(
       const value = (raw as Record<string, unknown>)[cheie]
       if (typeof value === 'boolean') tipuri[cheie] = value
     }
+    const zile = (raw as Record<string, unknown>).analize_zile
+    const zilnic = (raw as Record<string, unknown>).analize_zilnic
+    if (Array.isArray(zile) || typeof zilnic === 'boolean') {
+      analize = {
+        zile: Array.isArray(zile)
+          ? [...new Set(zile.map(Number).filter((n) => ANALIZE_ZILE_PERMISE.has(n)))].sort((a, b) => b - a)
+          : [...ANALIZE_ZILE_IMPLICITE],
+        zilnic: typeof zilnic === 'boolean' ? zilnic : true,
+      }
+    }
   }
   return {
     tipuri,
     linisteNoaptea: typeof row.liniste_noaptea === 'boolean' ? row.liniste_noaptea : true,
+    ...(analize ? { analize } : {}),
   }
 }
 

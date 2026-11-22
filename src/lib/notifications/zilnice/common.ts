@@ -8,6 +8,7 @@ export const TIPURI_ZILNICE = {
   meteo_inghet: 'meteo_inghet',
   meteo_grindina: 'meteo_grindina',
   tratament_planificat: 'tratament_planificat',
+  analize_memento: 'analize_memento',
 } as const
 
 export type TipZilnic = (typeof TIPURI_ZILNICE)[keyof typeof TIPURI_ZILNICE]

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { decizieMementoFerma, noteazaTrimitereMemento } from '@/lib/analize/memento-cron'
 import { captureApiError } from '@/lib/monitoring/report-error'
 import {
   TIPURI_ZILNICE,
@@ -107,8 +108,10 @@ async function prognozaFerma(admin: Admin, tenantId: string): Promise<RaspunsFet
  * Dimineața (05:00 UTC: 7:00 iarna, 8:00 vara, ora României), pentru fiecare fermă reală:
  * - „Îngheț și grindină”, doar dacă ferma are locul salvat (Setări › Ferma);
  * - „Bani de încasat”, clienții cu bani de dat de 7, 14 sau 30 de zile;
- * - „Tratamente planificate”, o notificare pe fermă în ziua lor (cheia `tratament:<fermă>:<zi>`).
- * Doar citește și inserează în `notifications`.
+ * - „Tratamente planificate”, o notificare pe fermă în ziua lor (cheia `tratament:<fermă>:<zi>`);
+ * - „Analiza dinainte de cules”, doar proprietarului, la 21 / 14 / 7 / 3 zile înainte și zilnic din ziua culesului
+ *   (cheia `analize:<fermă>:<zi>`; `src/lib/analize/memento-cron.ts`).
+ * Citește și inserează în `notifications`; pentru memento notează și ziua trimiterii (`memento_analize_sezon`).
  */
 export async function GET(request: Request) {
   if (!hasValidCronSecret(request)) {
@@ -125,6 +128,7 @@ export async function GET(request: Request) {
       TIPURI_ZILNICE.meteo_grindina,
       TIPURI_ZILNICE.incasari_restante,
       TIPURI_ZILNICE.tratament_planificat,
+      TIPURI_ZILNICE.analize_memento,
     ])
 
     // Fermele cu locul salvat. Fără loc nu cerem prognoza și nu ghicim.
@@ -178,6 +182,19 @@ export async function GET(request: Request) {
         verificata = false
         contor.erori += 1
         captureApiError(error, { route: ROUTE, tenantId: ferma.id, tags: { pas: 'tratamente' } })
+      }
+
+      try {
+        const decizie = await decizieMementoFerma(admin, ferma, azi)
+        if (decizie.trimite) {
+          const rezultat = await trimiteNotificareZilnica(admin, decizie.notificare)
+          numara(contor, decizie.notificare.type, rezultat)
+          if (rezultat === 'trimisa') await noteazaTrimitereMemento(admin, ferma.id, azi)
+        }
+      } catch (error) {
+        verificata = false
+        contor.erori += 1
+        captureApiError(error, { route: ROUTE, tenantId: ferma.id, tags: { pas: 'analize' } })
       }
 
       if (verificata) contor.fermeVerificate += 1
