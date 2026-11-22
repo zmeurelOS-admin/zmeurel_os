@@ -68,6 +68,26 @@ function query(table: string) {
       range = [from, to]
       return builder
     },
+    gte: (column: string, value: string) => {
+      filters.push((row) => String(read(row, column) ?? '') >= value)
+      return builder
+    },
+    lte: (column: string, value: string) => {
+      filters.push((row) => String(read(row, column) ?? '') <= value)
+      return builder
+    },
+    upsert: async (row: Row) => {
+      ;(mocks.db[table] ??= []).push(row)
+      return { error: null }
+    },
+    // Un singur rând (sau `null`), ca `maybeSingle()` din PostgREST.
+    maybeSingle: () =>
+      new Promise<{ data: Row | null; error: unknown }>((resolve) => {
+        builder.then(
+          ({ data, error }) => resolve({ data: data?.[0] ?? null, error }),
+          (error: unknown) => resolve({ data: null, error }),
+        )
+      }),
     then: (resolve: (value: { data: Row[] | null; error: unknown }) => unknown, reject: (e: unknown) => unknown) => {
       try {
         let rows = (mocks.db[table] ?? []).filter((row) => filters.every((f) => f(row)))
@@ -213,6 +233,46 @@ describe('cronurile verificării zilnice', () => {
     })
     expect(mocks.captureApiError).toHaveBeenCalledTimes(1)
     expect(mocks.captureApiError.mock.calls[0][1]).toMatchObject({ tenantId: 't1' })
+  })
+
+  it('dimineața: mementoul analizei pleacă proprietarului la 21 de zile, o singură dată, cu „Am trimis” și „Amână”', async () => {
+    vi.setSystemTime(new Date('2027-06-01T05:00:00Z')) // 8:00 în București
+    mocks.db.memento_analize_sezon = []
+    mocks.db.parcele = [
+      { id: 'p1', tenant_id: 't2', nume_parcela: 'Maravilla 1', rol: 'comercial' },
+      { id: 'p2', tenant_id: 't2', nume_parcela: 'Maravilla 2', rol: 'comercial' },
+      { id: 'p3', tenant_id: 't2', nume_parcela: 'Grădina', rol: 'personal' },
+    ]
+    mocks.db.configurari_parcela_sezon = [
+      { tenant_id: 't2', parcela_id: 'p1', an: 2027, data_inceput_cules: '2027-06-22' },
+      { tenant_id: 't2', parcela_id: 'p3', an: 2027, data_inceput_cules: '2027-06-22' },
+    ]
+    // p2: prima recoltare de anul trecut, 24 iunie → 24 iunie 2027 (aceeași săptămână).
+    mocks.db.recoltari = [{ tenant_id: 't2', parcela_id: 'p2', data: '2026-06-24' }]
+    mocks.db.produse_fitosanitare = [{ tenant_id: 't2', nume_comercial: 'Fungicid X', phi_zile: 28, activ: true }]
+
+    const { GET } = await import('@/app/api/cron/notificari-dimineata/route')
+    const body = await (await GET(request('/api/cron/notificari-dimineata'))).json()
+    const memento = mocks.created.filter((n) => n.type === 'analize_memento')
+    expect(memento).toHaveLength(1)
+    expect(memento[0]).toMatchObject({ tenantId: 't2', title: 'Peste 21 de zile începe culesul' })
+    expect(memento[0].data).toMatchObject({
+      reminder_key: 'analize:t2:2027-06-01',
+      parcela_ids: ['p1', 'p2'],
+      push_actions: [
+        { action: 'am-trimis', title: 'Am trimis', url: '/tratamente?tab=analize&noua=1&parcele=p1,p2' },
+        { action: 'amana', title: 'Amână 3 zile', post: '/api/analize/memento/amana' },
+      ],
+    })
+    expect(body.trimise.analize_memento).toBe(1)
+    expect(body.erori).toBe(0)
+    // Ziua trimiterii, ținută minte pe sezon.
+    expect(mocks.db.memento_analize_sezon).toMatchObject([{ tenant_id: 't2', an: 2027, ultima_trimitere: '2027-06-01' }])
+
+    // A doua rulare în aceeași zi: dublură, nu pleacă din nou.
+    const second = await (await GET(request('/api/cron/notificari-dimineata'))).json()
+    expect(second.trimise.analize_memento).toBe(0)
+    expect(mocks.created.filter((n) => n.type === 'analize_memento')).toHaveLength(1)
   })
 
   it('dimineața: dacă fetch-meteo nu răspunde, încearcă get-meteo; fără niciun răspuns, nicio alertă', async () => {
