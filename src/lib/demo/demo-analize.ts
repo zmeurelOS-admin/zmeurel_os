@@ -21,6 +21,10 @@ type Loose = {
   }
 }
 
+/** Textele puse doar de seed (după ele se recunoaște analiza demo; tabelul n-are `data_origin`). */
+export const DEMO_ANALIZA_NOTA = 'Demo: 1 kg din fiecare parcelă.'
+export const DEMO_ANALIZA_CE_S_A_ANALIZAT = 'Multireziduu pesticide (exemplu)'
+
 export type DemoParcelaAnaliza = { id: string; nume_parcela: string | null; rol?: string | null }
 
 export interface DemoAnalizeResult {
@@ -74,11 +78,11 @@ export async function seedDemoAnalize(supabaseAdmin: Admin, tenantId: string, pa
       prelevat_de: 'dsvsa',
       laborator: 'LSVSA Suceava',
       data_predare: `${an}-07-03`,
-      nota: 'Demo: 1 kg din fiecare parcelă.',
+      nota: DEMO_ANALIZA_NOTA,
       status: 'conform',
       buletin_numar: '4415',
       buletin_data: `${an}-07-12`,
-      ce_s_a_analizat: 'Multireziduu pesticide (exemplu)',
+      ce_s_a_analizat: DEMO_ANALIZA_CE_S_A_ANALIZAT,
       rest_nedetectate: true,
       public_activ: true,
     })
@@ -101,4 +105,100 @@ export async function seedDemoAnalize(supabaseAdmin: Admin, tenantId: string, pa
   if (substanteRes.error) return { analize, dateCules, error: substanteRes.error.message ?? 'analize_fructe_substante' }
 
   return { analize, dateCules, error: null }
+}
+
+// ─── Ștergerea la reîncărcarea / golirea demo-ului ────────────────────────────────────────────────
+
+export type AnalizaPentruStergereDemo = {
+  id: string
+  nota: string | null
+  ce_s_a_analizat: string | null
+  pv_poza_path: string | null
+  buletin_path: string | null
+}
+
+/**
+ * Analizele demo care pleacă odată cu parcelele demo. O analiză se șterge doar dacă:
+ *   - are textele puse de seed (`DEMO_ANALIZA_NOTA` sau `DEMO_ANALIZA_CE_S_A_ANALIZAT`), adică e marcată ca demo;
+ *   - și toate parcelele ei sunt parcele demo care se șterg acum (sau nu mai are nicio parcelă: rămasă de la o
+ *     reîncărcare veche, când legăturile au plecat în cascadă cu parcelele).
+ * O analiză a omului (alte texte) sau una legată și de o parcelă reală nu se atinge.
+ */
+export function analizeDemoDeSters(
+  analize: readonly AnalizaPentruStergereDemo[],
+  legaturi: ReadonlyArray<{ analiza_id: string; parcela_id: string }>,
+  parceleDemo: ReadonlySet<string>,
+): AnalizaPentruStergereDemo[] {
+  const parcelePeAnaliza = new Map<string, string[]>()
+  for (const legatura of legaturi) {
+    const lista = parcelePeAnaliza.get(legatura.analiza_id) ?? []
+    lista.push(legatura.parcela_id)
+    parcelePeAnaliza.set(legatura.analiza_id, lista)
+  }
+  return analize.filter((analiza) => {
+    const marcata = analiza.nota === DEMO_ANALIZA_NOTA || analiza.ce_s_a_analizat === DEMO_ANALIZA_CE_S_A_ANALIZAT
+    if (!marcata) return false
+    return (parcelePeAnaliza.get(analiza.id) ?? []).every((parcelaId) => parceleDemo.has(parcelaId))
+  })
+}
+
+type LooseDelete = {
+  from: (table: string) => {
+    select: (columns: string) => {
+      eq: (column: string, value: string) => PromiseLike<{ data: unknown; error: Err }> & {
+        in: (column: string, values: string[]) => PromiseLike<{ data: unknown; error: Err }>
+      }
+    }
+    delete: () => { eq: (column: string, value: string) => { in: (column: string, values: string[]) => PromiseLike<{ error: Err }> } }
+  }
+  storage: { from: (bucket: string) => { remove: (paths: string[]) => PromiseLike<{ error: Err }> } }
+}
+
+/**
+ * Șterge analizele demo ale fermei (cu parcelele și substanțele lor, în cascadă) înainte de parcelele demo.
+ * Doar rândurile alese de `analizeDemoDeSters`. Fără tabelele analizelor nu face nimic. Întoarce câte a șters.
+ */
+export async function deleteDemoAnalize(supabaseAdmin: Admin, tenantId: string, parceleDemo: readonly string[]): Promise<number> {
+  const db = supabaseAdmin as unknown as LooseDelete
+  const analizeRes = await db.from('analize_fructe').select('id,nota,ce_s_a_analizat,pv_poza_path,buletin_path').eq('tenant_id', tenantId)
+  if (analizeRes.error) {
+    if (lipsa(analizeRes.error)) return 0
+    throw new Error(`Read failed for analize_fructe: ${analizeRes.error.message ?? 'Unknown error'}`)
+  }
+  const analize = (analizeRes.data ?? []) as AnalizaPentruStergereDemo[]
+  const candidate = analize.filter((a) => a.nota === DEMO_ANALIZA_NOTA || a.ce_s_a_analizat === DEMO_ANALIZA_CE_S_A_ANALIZAT)
+  if (candidate.length === 0) return 0
+
+  const legaturiRes = await db
+    .from('analize_fructe_parcele')
+    .select('analiza_id,parcela_id')
+    .eq('tenant_id', tenantId)
+    .in(
+      'analiza_id',
+      candidate.map((a) => a.id),
+    )
+  if (legaturiRes.error) throw new Error(`Read failed for analize_fructe_parcele: ${legaturiRes.error.message ?? 'Unknown error'}`)
+
+  const deSters = analizeDemoDeSters(candidate, (legaturiRes.data ?? []) as Array<{ analiza_id: string; parcela_id: string }>, new Set(parceleDemo))
+  if (deSters.length === 0) return 0
+
+  const { error } = await db
+    .from('analize_fructe')
+    .delete()
+    .eq('tenant_id', tenantId)
+    .in(
+      'id',
+      deSters.map((a) => a.id),
+    )
+  if (error) throw new Error(`Delete failed for analize_fructe: ${error.message ?? 'Unknown error'}`)
+
+  // Pozele PV-ului / buletinului (dacă omul a încărcat în demo). Doar sub prefixul fermei; o eroare nu oprește.
+  const fisiere = deSters
+    .flatMap((a) => [a.pv_poza_path, a.buletin_path])
+    .filter((path): path is string => typeof path === 'string' && path.startsWith(`${tenantId}/`))
+  if (fisiere.length > 0) {
+    const { error: storageError } = await db.storage.from('analize').remove(fisiere)
+    if (storageError) console.warn('[demo-seed] analize: fișierele nu s-au șters', storageError.message)
+  }
+  return deSters.length
 }

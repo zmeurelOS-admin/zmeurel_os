@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 import type { Database, TablesInsert } from '@/types/supabase'
 import { DEMO_DATA_ORIGIN } from '@/lib/demo/demo-constants'
-import { seedDemoAnalize } from '@/lib/demo/demo-analize'
+import { deleteDemoAnalize, seedDemoAnalize } from '@/lib/demo/demo-analize'
 import { seedDemoStadii } from '@/lib/demo/demo-stadii'
 import { seedDemoTratamente } from '@/lib/demo/demo-tratamente'
 import { LEGAL_DOCS_BUCKET } from '@/lib/legal-docs/shared'
@@ -609,6 +609,11 @@ async function deleteDemoRows(params: {
       demoColumnsSupport,
     })
 
+    if (table === 'parcele') {
+      // Analizele demo (cu parcelele și substanțele lor) înaintea parcelelor; și cele rămase fără parcele de la o
+      // reîncărcare veche. Doar analizele puse de seed, legate doar de parcele demo.
+      deletedRows += await deleteDemoAnalize(supabaseAdmin, tenantId, ids)
+    }
     if (table === 'parcele' && ids.length > 0) {
       await deleteTreatmentsOnParcels(supabaseAdmin, tenantId, ids)
     }
