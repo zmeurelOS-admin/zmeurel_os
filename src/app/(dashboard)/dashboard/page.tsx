@@ -1,12 +1,13 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 import { AcasaMobile } from '@/components/acasa/AcasaMobile'
+import { MementoAcasa } from '@/components/analize/MementoAcasa'
 import { AppShell } from '@/components/app/AppShell'
 import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
@@ -1713,6 +1714,13 @@ export default function DashboardPage() {
                   </div>
                 ) : null}
               </div>
+            </div>
+
+            {/* Analiza la fructe: cardul mementoului (primul) și avertizarea pentru o analiză neconformă, pe orice ecran. */}
+            <div className="mx-auto mb-[var(--dashboard-stack-gap)] w-full max-w-xl space-y-3 empty:hidden md:max-w-none">
+              <Suspense fallback={null}>
+                <MementoAcasa azi={todayIso} proprietar={memberRole !== 'operator'} />
+              </Suspense>
             </div>
 
             {/* Telefon (sub 768 px): Acasă pe kit, „ce am de făcut azi”. Grila de pe desktop e mai jos, neschimbată. */}

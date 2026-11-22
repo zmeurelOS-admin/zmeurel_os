@@ -91,7 +91,17 @@ export function stareAnalizaParcela(analize: readonly AnalizaRow[], parcelaId: s
   return { tip: 'netrimisa' }
 }
 
-/** Analizele neconforme din sezon (avertizarea roșie din Acasă). */
+/**
+ * Analizele neconforme din sezon încă „deschise” (avertizarea roșie din Acasă și de pe fișa parcelei): una dispare
+ * când fiecare parcelă a ei are o analiză conformă prelevată după ea.
+ */
 export function neconformeInSezon(analize: readonly AnalizaRow[], an: string): AnalizaRow[] {
-  return analize.filter((analiza) => analiza.status === 'neconform' && analiza.data_prelevare.startsWith(an))
+  return analize.filter(
+    (analiza) =>
+      analiza.status === 'neconform' &&
+      analiza.data_prelevare.startsWith(an) &&
+      !analiza.parcele.every((parcelaId) =>
+        analize.some((alta) => alta.status === 'conform' && alta.parcele.includes(parcelaId) && alta.data_prelevare > analiza.data_prelevare),
+      ),
+  )
 }

@@ -175,6 +175,17 @@ export function TratamentePageClient() {
     setAnalizaNouaOpen(true)
   }
 
+  // Din fișa parcelei: `/tratamente?tab=analize&raport=<id>` deschide raportul analizei.
+  const raportDinUrl = searchParams.get('raport')?.trim() ?? ''
+  useEffect(() => {
+    if (!raportDinUrl) return
+    queueMicrotask(() => {
+      setTab('analize')
+      setRaportDeschis(raportDinUrl)
+      router.replace('/tratamente?tab=analize', { scroll: false })
+    })
+  }, [raportDinUrl, router])
+
   // Deep link-ul „Am trimis” din memento: `/tratamente?tab=analize&noua=1&parcele=a,b`.
   const nouaDinUrl = searchParams.get('noua') === '1'
   const parceleDinUrl = searchParams.get('parcele') ?? ''

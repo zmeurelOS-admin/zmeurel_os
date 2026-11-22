@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 
 import { AppShell } from '@/components/app/AppShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
+import { CulesSiAnalizaParcela } from '@/components/analize/CulesSiAnalizaParcela'
 import {
   BigInput,
   BigTextarea,
@@ -308,6 +309,8 @@ export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
                 </Button>
               ) : null}
             </div>
+
+            {!personala ? <CulesSiAnalizaParcela parcelaId={parcelaId} azi={azi} poateScrie={poateScrie} proprietar={vedeProprietarul} /> : null}
 
             {pauza ? (
               <Notice tone="warning" title={`Pauză până ${ziCuDataRo(pauza.panaLa)}`}>
