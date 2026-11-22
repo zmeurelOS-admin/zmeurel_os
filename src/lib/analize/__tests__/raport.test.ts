@@ -214,3 +214,25 @@ describe('tratamentele din cele 30 de zile dinainte de prelevare', () => {
     ])
   })
 })
+
+describe('exportul „Analizele sezonului”', () => {
+  it('doar perioada aleasă, cu rezultatul și substanțele', async () => {
+    const { documentAnalize } = await import('@/lib/analize/export')
+    const baza = {
+      tenant_id: 't', client_sync_id: null, created_at: '2026-07-01T00:00:00Z', updated_at: '2026-07-20T00:00:00Z', pv_numar: '1180', pv_poza_path: null,
+      prelevat_de: 'dsvsa' as const, laborator: 'LSVSA Suceava', data_predare: '2026-07-03', nota: 'secret', buletin_numar: '4415', buletin_path: null,
+      ce_s_a_analizat: 'Multireziduu', rest_nedetectate: true, public_token: 'x'.repeat(12), public_activ: true, public_optiuni: null,
+    }
+    const doc = documentAnalize(
+      [
+        { ...baza, id: 'a', status: 'conform', data_prelevare: '2026-07-03', buletin_data: '2026-07-12', parcele: ['m1', 'm2'], substante: [{ substanta: 'Ciprodinil', valoare_mg_kg: 0.08, lmr_mg_kg: 10, ordine: 0 }] },
+        { ...baza, id: 'b', status: 'la_laborator', data_prelevare: '2025-07-03', buletin_data: null, parcele: ['m1'], substante: [] },
+      ],
+      new Map([['m1', 'Maravilla 1'], ['m2', 'Maravilla 2']]),
+      '2026-01-01',
+      '2026-12-31',
+    )
+    expect(doc.tabele[0].randuri).toHaveLength(1)
+    expect(doc.tabele[0].randuri[0]).toEqual(['03.07.2026', 'Maravilla 1, Maravilla 2', '1180', 'DSVSA', 'LSVSA Suceava', '03.07.2026', 'Conform', '4415', '12.07.2026', 'Multireziduu', 'Ciprodinil: 0,08 / 10', 'da'])
+  })
+})

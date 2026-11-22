@@ -2,10 +2,12 @@
 
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileSpreadsheet, FileText, SprayCan } from 'lucide-react'
+import { FileSpreadsheet, FileText, FlaskConical, SprayCan } from 'lucide-react'
 
 import { BottomSheet, Button, Notice, kitText } from '@/components/kit'
+import { analizeInPerioada, documentAnalize } from '@/lib/analize/export'
 import { trackEvent } from '@/lib/analytics/trackEvent'
+import { AnalizeIndisponibileError, getAnalize } from '@/lib/supabase/queries/analize'
 import { queryKeys } from '@/lib/query-keys'
 import { dataRo, documentHtml, documentRaport, documentRegistru, numeFisier, type DocumentExport } from '@/lib/rapoarte/export'
 import { cheltuieliPeCategorii, type DateRaport, type LunaRaport, type Perioada, type RandClient, type RandCulegator, type RandParcela, type SumarRaport } from '@/lib/rapoarte/raport'
@@ -69,6 +71,20 @@ export function ExportRaportSheet({ open, onOpenChange, azi, perioada, date, sum
     staleTime: 5 * 60_000,
     refetchOnWindowFocus: false,
   })
+  // „Analizele sezonului”: fără migrarea analizelor lista e goală (nu e o eroare).
+  const analizeQuery = useQuery({
+    queryKey: queryKeys.analize,
+    queryFn: getAnalize,
+    enabled: open,
+    staleTime: 30_000,
+    retry: (n, error) => !(error instanceof AnalizeIndisponibileError) && n < 1,
+  })
+  const analizeLista = useMemo(
+    () => (analizeQuery.data ? analizeInPerioada(analizeQuery.data, perioada.start, perioada.end) : []),
+    [analizeQuery.data, perioada.end, perioada.start],
+  )
+  const analizeGata = analizeQuery.isSuccess || analizeQuery.error instanceof AnalizeIndisponibileError
+
   const tratamenteGata = aplicariQuery.isSuccess && activitatiQuery.isSuccess && !catalogQuery.isLoading
   const tratamenteEroare = aplicariQuery.isError || activitatiQuery.isError
 
@@ -103,15 +119,24 @@ export function ExportRaportSheet({ open, onOpenChange, azi, perioada, date, sum
       investitiiPeCategorii: sumar.investitii.peCategorii,
     })
 
-  const exporta = (ce: 'raport' | 'registru', format: 'excel' | 'pdf') => {
-    const doc = ce === 'raport' ? docRaport() : documentRegistru(registru, perioada.start, perioada.end)
+  const exporta = (ce: 'raport' | 'registru' | 'analize', format: 'excel' | 'pdf') => {
+    const doc =
+      ce === 'raport'
+        ? docRaport()
+        : ce === 'analize'
+          ? documentAnalize(analizeQuery.data ?? [], new Map(date.parcele.map((parcela) => [parcela.id, parcela.nume_parcela?.trim() || 'Parcelă'])), perioada.start, perioada.end)
+          : documentRegistru(registru, perioada.start, perioada.end)
     if (format === 'excel') {
-      descarcaExcel(numeFisier(ce === 'raport' ? `raport ${perioada.eticheta}` : 'registrul de tratamente', azi, 'xls'), doc)
+      descarcaExcel(numeFisier(ce === 'raport' ? `raport ${perioada.eticheta}` : ce === 'analize' ? 'analizele sezonului' : 'registrul de tratamente', azi, 'xls'), doc)
     } else if (!tiparestePdf(doc)) {
       toast.error('Browserul a blocat fereastra de tipărire. Permite ferestrele noi pentru Zmeurel și încearcă din nou.')
       return
     }
-    trackEvent('export_raport', { format, reportType: ce === 'raport' ? `raport_${perioada.tip}` : 'registru_tratamente', rows: ce === 'registru' ? registru.length : undefined })
+    trackEvent('export_raport', {
+      format,
+      reportType: ce === 'raport' ? `raport_${perioada.tip}` : ce === 'analize' ? 'analize_sezon' : 'registru_tratamente',
+      rows: ce === 'registru' ? registru.length : ce === 'analize' ? analizeLista.length : undefined,
+    })
   }
 
   return (
@@ -155,6 +180,30 @@ export function ExportRaportSheet({ open, onOpenChange, azi, perioada, date, sum
               Excel
             </Button>
             <Button type="button" variant="neutral" size="touch" disabled={!tratamenteGata} onClick={() => exporta('registru', 'pdf')}>
+              <FileText aria-hidden />
+              PDF
+            </Button>
+          </div>
+        </section>
+
+        <section className="space-y-2.5 border-t border-border pt-4" aria-labelledby="export-analize">
+          <h3 id="export-analize" className={cn('flex items-center gap-2 font-bold text-fg', kitText.base)}>
+            <FlaskConical aria-hidden className="size-5" />
+            Analizele sezonului
+          </h3>
+          <p className={cn('text-fg-muted', kitText.secondary)}>
+            {analizeGata
+              ? analizeLista.length === 0
+                ? 'Nicio analiză prelevată în perioada aleasă.'
+                : `${analizeLista.length} ${analizeLista.length === 1 ? 'analiză' : 'analize'}: prelevarea, laboratorul, rezultatul, buletinul și substanțele.`
+              : 'Se încarcă analizele…'}
+          </p>
+          <div className="grid grid-cols-2 gap-2.5">
+            <Button type="button" variant="neutral" size="touch" disabled={!analizeGata} loading={!analizeGata} onClick={() => exporta('analize', 'excel')}>
+              <FileSpreadsheet aria-hidden />
+              Excel
+            </Button>
+            <Button type="button" variant="neutral" size="touch" disabled={!analizeGata} onClick={() => exporta('analize', 'pdf')}>
               <FileText aria-hidden />
               PDF
             </Button>
