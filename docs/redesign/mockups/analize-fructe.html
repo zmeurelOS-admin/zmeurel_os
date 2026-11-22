@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analizele la fructe — mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: mockup de aplicație pentru fermierul care l-a cerut; practic, citit pe telefon.
+   IDEA: dosarul de analize al fermei, de la prelevare la afișul de la piață.
+   PICTURE: telefoanele cu ecranele reale, care merg la atingere.
+   COLOUR and TYPE: verdele Zmeurel pe alb (noaptea aproape-negru); chihlimbar doar pentru avertizări; Inter.
+   LAYOUT: unde și cum (propunere + întrebări), ecranele, raportul. */
+:root{color-scheme:light dark;--bg:light-dark(#f4f6f3,#0b0e13);--ink:light-dark(#102015,#f5f6f7);--muted:light-dark(#3d4a41,#a3aab3);--line:light-dark(#d7e2d9,#232a33);--card:light-dark(#ffffff,#12161d);--acc:light-dark(#3d7a5f,#5ca882);--gb:light-dark(#e6f3ea,#0f2218);--ob:light-dark(#fff4e5,#1d1812);--ot:light-dark(#8a4b00,#d9b26a)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+.band{padding:clamp(20px,4vw,44px) max(4vw,14px)}
+.wrap{max-width:1240px;margin:0 auto}
+h1{font-size:clamp(28px,6vw,44px);line-height:1.05;margin:0 0 6px;font-weight:800;letter-spacing:-.02em;text-wrap:balance}
+h2{font-size:clamp(24px,4vw,32px);line-height:1.1;margin:0 0 14px;font-weight:800}
+.lead{color:var(--muted);margin:0 0 12px;max-width:70ch}
+.small{font-size:13px;color:var(--muted)}
+.bar{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:10px max(4vw,14px);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.bar button,.bar a{height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:600 15px Inter,sans-serif;cursor:pointer;display:inline-flex;align-items:center;text-decoration:none}
+.bar button[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#fff}
+.bar .msg{font-size:13px;color:var(--muted)}
+body.editing [data-zone]{outline:2px dashed var(--acc);outline-offset:4px;border-radius:8px}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px;margin-bottom:24px}
+.note-g,.note-o{border-radius:16px;padding:14px 16px;font-size:15px}
+.note-g{background:var(--gb)}.note-o{background:var(--ob)}
+.note-g b,.note-o b{display:block;font-size:16px;margin-bottom:6px}
+.note-o b{color:var(--ot)}
+.notes ul,.notes ol{margin:0;padding-left:20px}.notes li{margin:5px 0}
+.rec{display:block;color:var(--muted);font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,370px),1fr));gap:28px 24px;align-items:start}
+figure{margin:0}figcaption{font-weight:800;font-size:17px;margin:0 0 8px}
+.fnote{font-size:15px;color:var(--muted);margin:10px 2px 0}
+.chap{border-top:1px solid var(--line)}
+/* telefonul */
+.phone{--p:#fff;--s:#fff;--s2:#f3f4f1;--f:#102015;--fm:#3d4a41;--fs:#64748b;--b:#d7e2d9;--in:#c8d4cb;--pr:#3d7a5f;--op:#fff;--ps:#e6f3ea;--pt:#1f5a42;--ib:#eff6ff;--it:#1d4ed8;--nb:#f1f5f9;--nt:#334155;--wb:#fffbeb;--wt:#92400e;--wl:#f3d7a1;--db:#fef2f2;--dt:#991b1b;
+ width:100%;max-width:390px;border-radius:30px;border:8px solid #1b1f24;background:var(--p);color:var(--f);overflow:hidden;box-shadow:0 18px 40px -24px rgba(0,0,0,.45)}
+body.night .phone{--p:#0b0e13;--s:#12161d;--s2:#171b22;--f:#f5f6f7;--fm:#949ba4;--fs:#8a919b;--b:#20262f;--in:#2a313b;--pr:#5ca882;--op:#08140e;--ps:#0f2218;--pt:#8fd0ae;--ib:#131a26;--it:#8ab6ea;--nb:#171b22;--nt:#c5cad1;--wb:#1d1812;--wt:#d9b26a;--wl:#3a2e1c;--db:#211314;--dt:#f0a3a3}
+.scr{min-height:720px;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:4px;padding:10px 10px 0}
+.ico{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;border:0;background:none;color:inherit;font-size:20px}
+.ttl{flex:1;font-weight:700;font-size:17px}.step{font-size:15px;color:var(--fm);padding-right:10px}
+.prog{height:6px;border-radius:9px;background:var(--s2);margin:8px 18px 0;overflow:hidden}.prog i{display:block;height:100%;background:var(--pr)}
+.body{flex:1;padding:14px 18px 8px;display:flex;flex-direction:column;gap:12px}
+.h1{font-size:26px;line-height:32px;font-weight:800;margin:0}.h2{font-size:22px;line-height:28px;font-weight:800;margin:0}
+.lbl{font-size:15px;font-weight:700}.sub{font-size:15px;color:var(--fm)}.sm{font-size:13px;color:var(--fm)}
+.row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;border:1px solid var(--b);background:var(--s);color:var(--f);font:inherit;text-align:left;width:100%}
+.row .tx{flex:1;display:flex;flex-direction:column;gap:2px}.row .tx b{font-size:17px;line-height:22px}
+.num{font-weight:800;font-size:17px;text-align:right;white-space:nowrap}
+.badge{width:40px;height:40px;flex:none;border-radius:12px;display:grid;place-items:center;font-weight:800}
+.g{background:var(--ps);color:var(--pt)}.bl{background:var(--ib);color:var(--it)}.n{background:var(--nb);color:var(--nt)}.w{background:var(--wb);color:var(--wt)}.d{background:var(--db);color:var(--dt)}
+.tag{height:26px;padding:0 9px;border-radius:99px;display:inline-flex;align-items:center;font-size:13px;font-weight:700;white-space:nowrap}
+.tags{display:flex;flex-wrap:wrap;gap:6px;padding-top:2px}
+.warn{border:1px solid var(--wl);background:var(--wb);color:var(--wt);border-radius:16px;padding:12px 14px}
+.warn b{display:block;font-size:17px;line-height:22px}.warn span{font-size:15px;font-weight:600}
+.info{border-radius:16px;background:var(--ib);color:var(--it);padding:10px 14px;font-size:15px;font-weight:600}
+.seg{height:48px;border-radius:16px;background:var(--s2);padding:4px;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px}
+.seg button{border:0;border-radius:12px;background:transparent;color:var(--fm);font:600 15px Inter,sans-serif;cursor:pointer}
+.seg button[aria-selected=true]{background:var(--s);color:var(--f);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{height:44px;padding:0 14px;border-radius:99px;border:1px solid var(--in);background:var(--s);color:var(--f);font:700 15px Inter,sans-serif;cursor:pointer}
+.chip[aria-pressed=true]{border:2px solid var(--pr);background:var(--ps);color:var(--pt)}
+.btn{height:56px;border-radius:16px;border:0;background:var(--pr);color:var(--op);font:700 17px Inter,sans-serif;width:100%;cursor:pointer}
+.btn2{height:48px;border-radius:16px;border:1px solid var(--in);background:transparent;color:var(--f);font:700 15px Inter,sans-serif;width:100%;cursor:pointer}
+.foot{padding:12px 18px 18px;border-top:1px solid var(--b);display:flex;flex-direction:column;gap:10px}
+.hero{border-radius:20px;background:var(--ps);color:var(--pt);padding:16px}
+.hero .big{font-size:44px;line-height:1;font-weight:800;letter-spacing:-.02em}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{padding:12px 14px;border-radius:16px;border:1px solid var(--b);background:var(--s);display:flex;flex-direction:column;gap:2px}.tile b{font-size:22px;line-height:28px}
+.ptile{min-height:96px;padding:12px;border-radius:16px;border:1px solid var(--b);background:var(--s);display:flex;flex-direction:column;justify-content:space-between;font:700 15px Inter,sans-serif;color:var(--f);text-align:left;cursor:pointer}
+.ptile[aria-pressed=true]{border:2px solid var(--pr);background:var(--ps);color:var(--pt)}
+.field{display:flex;flex-direction:column;gap:6px}.field span{font-size:15px;font-weight:700}
+.input{height:52px;border-radius:14px;border:1px solid var(--in);background:var(--s);padding:0 14px;display:flex;align-items:center;font-size:17px;color:var(--f)}
+.input.ph{color:var(--fs)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.bars{display:flex;align-items:flex-end;gap:8px;height:110px;padding:0 4px}.bars div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;color:var(--fm)}.bars i{display:block;width:100%;border-radius:6px 6px 2px 2px}
+.toggle{width:52px;height:32px;border-radius:99px;background:var(--in);position:relative;flex:none;border:0;cursor:pointer}.toggle::after{content:"";position:absolute;top:4px;left:4px;width:24px;height:24px;border-radius:99px;background:#fff;transition:left .15s}
+.toggle[aria-checked=true]{background:var(--pr)}.toggle[aria-checked=true]::after{left:24px}
+.mini{height:36px;border-radius:10px;background:var(--s2);padding:3px;display:grid;grid-auto-flow:column;gap:3px}.mini button{border:0;border-radius:8px;background:transparent;font:600 13px Inter;color:var(--fm);padding:0 8px;cursor:pointer}.mini button[aria-selected=true]{background:var(--s);color:var(--f);font-weight:700}
+.nav{height:62px;display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--b);background:var(--s);font-size:13px;color:var(--fs);text-align:center;align-items:center}.nav .on{color:var(--pr);font-weight:700}
+.day{font-size:13px;font-weight:700;color:var(--fs);padding-top:4px;letter-spacing:.02em}
+.hide{display:none!important}
+@media (prefers-reduced-motion:reduce){.toggle::after{transition:none}}
+</style>
+</head><body>
+<style>
+.tl{display:flex;flex-direction:column;gap:0;border:1px solid var(--b);border-radius:16px;overflow:hidden}
+.tl .st{display:flex;gap:12px;padding:12px 14px;align-items:flex-start}
+.tl .st+.st{border-top:1px solid var(--b)}
+.dot{width:28px;height:28px;border-radius:99px;flex:none;display:grid;place-items:center;font-weight:800;font-size:14px}
+.rep{background:#fff;color:#102015;border-radius:14px;border:1px solid #d7e2d9;padding:14px;font-size:13px;line-height:1.45}
+.rep h4{margin:0;font-size:17px;line-height:22px}
+.rep .ok{background:#e6f3ea;color:#1f5a42;border-radius:12px;padding:10px 12px;font-weight:700;font-size:15px;margin:10px 0}
+.rep table{width:100%;border-collapse:collapse;margin:6px 0}
+.rep td,.rep th{text-align:left;padding:5px 4px;border-bottom:1px solid #e3e9e4;font-size:13px}
+.rep th{color:#3d4a41;font-weight:700}
+.rep .qr{width:64px;height:64px;flex:none;background:
+ conic-gradient(from 90deg at 25% 25%,#102015 25%,#fff 0) 0 0/16px 16px,#fff;border:3px solid #102015;border-radius:4px}
+.rep .hd{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+.rep .k{color:#3d4a41}
+</style>
+<div class="bar" role="toolbar" aria-label="Instrumente">
+  <button id="bEdit" aria-pressed="false">Editează textele</button>
+  <button id="bNight" aria-pressed="false">Ecranele noaptea</button>
+  <button id="bCopy">Copiază tot textul</button>
+  <button id="bReset">Revino la original</button>
+  <a href="#unde">Unde</a><a href="#ecrane">Ecranele</a><a href="#raport">Raportul</a>
+  <span class="msg" id="msg" role="status"></span>
+</div>
+
+<header class="band"><div class="wrap" data-zone="z-head">
+  <h1>Analizele la fructe</h1>
+  <p class="lead">Treci fiecare analiză de la prelevare până la rezultat: data, procesul-verbal, unde s-au predat probele, buletinul. Din rezultat, aplicația face un raport pe care îl pui pe internet (link și PDF) și îl tipărești ca afiș la piață, cu cod QR.</p>
+  <p class="small" style="margin:0">Substanțele, valorile și limitele sunt doar exemple, nu date reale. Parcelele sunt cele din ferma ta.</p>
+</div></header>
+
+<section class="band chap" id="unde"><div class="wrap">
+<h2>Unde și cum</h2>
+<div class="notes" data-zone="n1">
+  <div class="note-g"><b>Ce propun</b><ul>
+    <li><b style="display:inline;font-size:15px">Locul:</b> în <b style="display:inline;font-size:15px">Tratamente</b>, un al doilea tab, „Analize”. Analiza de reziduuri e verificarea tratamentelor, iar raportul le poate arăta împreună. Merge și dreptul „Tratamente” din Echipa.</li>
+    <li><b style="display:inline;font-size:15px">Pașii:</b> „Analiză nouă” (ce, din ce parcele, când s-a prelevat, PV, unde s-a predat). Analiza stă „La laborator” până treci rezultatul.</li>
+    <li><b style="display:inline;font-size:15px">Rezultatul:</b> Conform / Neconform, numărul buletinului și poza sau PDF-ul lui. Opțional, substanțele găsite, cu valoarea și limita.</li>
+    <li><b style="display:inline;font-size:15px">Raportul:</b> o pagină curată, cu ferma, atestatul (seria și valabilitatea), parcela, laboratorul, rezultatul și tratamentele din ultimele 30 de zile dinainte de prelevare, cu pauza respectată. Îl ai ca PDF, ca link de distribuit și ca afiș A4 cu QR.</li>
+    <li><b style="display:inline;font-size:15px">Pe fișa parcelei</b> apare „Ultima analiză: conform, 12 iul.”; în Rapoarte → Exportă, „Analizele sezonului”.</li>
+  </ul></div>
+  <div class="note-o"><b>De hotărât (cu recomandarea mea)</b><ol>
+    <li>Unde stă? <span class="rec">Recomand: tab „Analize” în Tratamente. Alternativa e un modul separat în Mai mult.</span></li>
+    <li>Rezultatul: doar „conform” sau și substanțele? <span class="rec">Recomand: verdictul și buletinul obligatorii; substanțele opționale, iar dacă le treci, apar în raport.</span></li>
+    <li>Raportul: PDF, link public cu QR sau ambele? <span class="rec">Recomand: ambele. Linkul îl poți opri oricând.</span></li>
+    <li>Ce apare public implicit? <span class="rec">Recomand: ferma, localitatea, seria și valabilitatea atestatului, parcela și soiul, data prelevării, laboratorul, rezultatul și substanțele. Nu apar: numărul atestatului, poza buletinului (opțională, oprită implicit) și numele inspectorului.</span></li>
+    <li>Tratamentele din ultimele 30 de zile în raport? <span class="rec">Recomand: da, cu „pauză respectată ✓”, ca să se vadă transparența. Le poți ascunde.</span></li>
+    <li>Rezultat neconform? <span class="rec">Recomand: avertizare roșie în Acasă și pe parcelă, fără raport public pentru acea analiză.</span></li>
+    <li>Și pentru sol, apă, frunze? <span class="rec">Recomand: mai târziu. Acum doar fructe, cu tipul analizei la alegere.</span></li>
+    <li>Memento „fă o analiză în sezon”? <span class="rec">Recomand: mai târziu.</span></li>
+  </ol></div>
+</div>
+</div></section>
+
+<section class="band chap" id="ecrane"><div class="wrap">
+<h2>Ecranele</h2>
+<div class="grid">
+
+<figure><figcaption>Tratamente → Analize</figcaption><div class="phone"><div class="scr" data-zone="s-list">
+  <div class="top"><span class="ttl" style="padding-left:8px">Tratamente</span></div>
+  <div class="body">
+    <div class="seg" role="tablist" aria-label="Tratamente"><button role="tab" data-act="seg" aria-selected="false">Aplicări</button><button role="tab" data-act="seg" aria-selected="true">Analize</button></div>
+    <div class="hero"><span class="lbl">Ultima analiză</span><div class="big" style="font-size:30px;line-height:1.15">Conform</div><span class="sm" style="color:inherit">Maravilla 1 + 2 · buletin din 12 iul. · nicio limită depășită</span></div>
+    <div class="row" data-go="f-fisa"><span class="badge bl">⏳</span><span class="tx"><b>DELNIWA · reziduuri</b><span class="sm">La laborator din 18 iul. · LSVSA Suceava</span></span><span aria-hidden="true">›</span></div>
+    <div class="row" data-go="f-raport"><span class="badge g">✓</span><span class="tx"><b>Maravilla 1 + 2 · reziduuri</b><span class="sm">Conform · prelevat 3 iul. · rezultat 12 iul.</span></span><span aria-hidden="true">›</span></div>
+    <div class="row"><span class="badge g">✓</span><span class="tx"><b>DELNIWA · reziduuri</b><span class="sm">Conform · sezonul 2025</span></span><span aria-hidden="true">›</span></div>
+  </div>
+  <div class="foot"><button class="btn" data-go="f-n1">+ Analiză nouă</button></div>
+  <div class="nav"><span>Acasă</span><span>Livrări</span><span>Recoltări</span><span>Comenzi</span><span class="on">Mai mult</span></div>
+</div></div><p class="fnote">Ce e la laborator stă sus, cu albastru. Atingi o analiză conformă și ajungi la raport.</p></figure>
+
+<figure id="f-n1"><figcaption>Analiză nouă · ce și de unde</figcaption><div class="phone"><div class="scr" data-zone="s-n1">
+  <div class="top"><span class="ico" aria-hidden="true">✕</span><span class="ttl">Analiză nouă</span><span class="step">Pas 1 din 2</span></div>
+  <div class="prog"><i style="width:50%"></i></div>
+  <div class="body">
+    <p class="h2">Ce analiză?</p>
+    <div class="tiles" role="radiogroup" aria-label="Tipul">
+      <button class="ptile" aria-pressed="true" data-act="one">🧪<span>Reziduuri de pesticide</span></button>
+      <button class="ptile" aria-pressed="false" data-act="one">⚙<span>Metale grele</span></button>
+      <button class="ptile" aria-pressed="false" data-act="one">🦠<span>Microbiologic</span></button>
+      <button class="ptile" aria-pressed="false" data-act="one">…<span>Altă analiză</span></button>
+    </div>
+    <span class="lbl">Din ce parcele?</span>
+    <div class="chips"><button class="chip" aria-pressed="true" data-act="sw2">DELNIWA</button><button class="chip" aria-pressed="false" data-act="sw2">Maravilla 1</button><button class="chip" aria-pressed="false" data-act="sw2">Maravilla 2</button></div>
+    <div class="field"><span>Data prelevării</span><div class="input">Sâmbătă, 18 iulie</div></div>
+  </div>
+  <div class="foot"><button class="btn" data-go="f-n2">Continuă</button></div>
+</div></div><p class="fnote">Parcelele personale (Solar, Livadă) nu apar aici: nu vinzi din ele.</p></figure>
+
+<figure id="f-n2"><figcaption>Analiză nouă · prelevarea</figcaption><div class="phone"><div class="scr" data-zone="s-n2">
+  <div class="top"><span class="ico" aria-hidden="true">‹</span><span class="ttl">Analiză nouă</span><span class="step">Pas 2 din 2</span></div>
+  <div class="prog"><i style="width:100%"></i></div>
+  <div class="body">
+    <p class="h2">Prelevarea</p>
+    <div class="field"><span>Procesul-verbal de prelevare</span><div class="two"><div class="input">Nr. 1287</div><button class="btn2" style="height:52px">📷 Poza PV</button></div></div>
+    <span class="lbl">Cine a prelevat?</span>
+    <div class="chips" role="radiogroup"><button class="chip" aria-pressed="true" data-act="one">DSVSA</button><button class="chip" aria-pressed="false" data-act="one">Laboratorul</button><button class="chip" aria-pressed="false" data-act="one">Eu</button></div>
+    <div class="field"><span>Predate la</span><div class="input">LSVSA Suceava</div><span class="sm" style="font-weight:400">Ține minte laboratoarele folosite.</span></div>
+    <div class="field"><span>Data predării</span><div class="input">Sâmbătă, 18 iulie</div></div>
+    <div class="field"><span>Notă (opțional)</span><div class="input ph">ex. 1 kg din fiecare parcelă</div></div>
+  </div>
+  <div class="foot"><button class="btn" data-go="f-fisa">Salvează · la laborator</button></div>
+</div></div><p class="fnote">Poza PV-ului stă privat, ca bonurile. Dacă n-o ai acum, o pui mai târziu.</p></figure>
+
+<figure id="f-fisa"><figcaption>Fișa analizei · la laborator</figcaption><div class="phone"><div class="scr" data-zone="s-fisa">
+  <div class="top"><span class="ico" aria-hidden="true">‹</span><span class="ttl">DELNIWA · reziduuri</span></div>
+  <div class="body">
+    <div class="info">La laborator de 3 zile. Când vine buletinul, treci rezultatul.</div>
+    <div class="tl">
+      <div class="st"><span class="dot g">✓</span><span class="tx"><b>Prelevată · 18 iul.</b><br><span class="sm">PV nr. 1287 · de DSVSA · 📷 poza PV</span></span></div>
+      <div class="st"><span class="dot g">✓</span><span class="tx"><b>Predată · 18 iul.</b><br><span class="sm">LSVSA Suceava</span></span></div>
+      <div class="st"><span class="dot n">3</span><span class="tx"><b>Rezultat</b><br><span class="sm">în așteptare</span></span></div>
+    </div>
+    <span class="day">TRATAMENTE ÎN CELE 30 DE ZILE DINAINTE</span>
+    <div class="row"><span class="badge g">✓</span><span class="tx"><b>Switch 62.5 WG</b><span class="sm">2 iul. · pauza de 7 zile respectată</span></span></div>
+    <div class="row"><span class="badge g">✓</span><span class="tx"><b>Fertirigare A/B</b><span class="sm">10 iul. · fără pauză</span></span></div>
+  </div>
+  <div class="foot"><button class="btn" data-go="f-rez">Adaugă rezultatul</button><button class="btn2">Editează prelevarea</button></div>
+</div></div><p class="fnote">Tratamentele vin singure din registru, ca să vezi dacă a fost ceva aproape de prelevare.</p></figure>
+
+<figure id="f-rez"><figcaption>Rezultatul</figcaption><div class="phone"><div class="scr" data-zone="s-rez">
+  <div class="top"><span class="ico" aria-hidden="true">✕</span><span class="ttl">Rezultatul</span></div>
+  <div class="body">
+    <div class="seg" role="tablist" aria-label="Verdict"><button role="tab" data-act="seg" aria-selected="true">Conform</button><button role="tab" data-act="seg" aria-selected="false">Neconform</button></div>
+    <div class="two"><div class="field"><span>Buletin nr.</span><div class="input">4415</div></div><div class="field"><span>Din data</span><div class="input">27 iul.</div></div></div>
+    <button class="btn2">📎 Buletinul (poză sau PDF)</button>
+    <span class="lbl">Substanțe găsite (opțional)</span>
+    <div class="row"><span class="tx"><b>Ciprodinil</b><span class="sm">0,08 mg/kg · limita 10 (exemplu)</span></span><span class="tag g">sub limită</span></div>
+    <div class="row"><span class="tx"><b>Fludioxonil</b><span class="sm">0,05 mg/kg · limita 5 (exemplu)</span></span><span class="tag g">sub limită</span></div>
+    <button class="btn2">+ Substanță</button>
+    <div class="row"><span class="tx"><b>Restul substanțelor analizate</b><span class="sm">nedetectate</span></span><button class="toggle" role="switch" aria-checked="true" aria-label="Restul nedetectate" data-act="sw"></button></div>
+  </div>
+  <div class="foot"><button class="btn" data-go="f-raport">Salvează și fă raportul</button></div>
+</div></div><p class="fnote">La „Neconform” nu se face raport public. Apare o avertizare pe parcelă și în Acasă.</p></figure>
+
+</div></div></section>
+
+<section class="band chap" id="raport"><div class="wrap">
+<h2>Raportul</h2>
+<div class="grid">
+
+<figure id="f-raport"><figcaption>Raportul · ce primești</figcaption><div class="phone"><div class="scr" data-zone="s-raport">
+  <div class="top"><span class="ico" aria-hidden="true">‹</span><span class="ttl">Raportul analizei</span></div>
+  <div class="body">
+    <div class="rep">
+      <div class="hd"><div><h4>Ferma Zmeurel · Văratec, SV</h4><span class="k">Atestat de producător seria SV · valabil până la 15.07.2031</span></div><span class="qr" aria-label="cod QR"></span></div>
+      <div class="ok">✓ Conform: nicio limită depășită</div>
+      <span class="k">Zmeură Maravilla · parcelele Maravilla 1 și 2</span><br>
+      <span class="k">Prelevată 3 iul. 2026 (PV nr. 1180, DSVSA) · predată la LSVSA Suceava · buletin nr. 4415 din 12 iul. 2026</span>
+      <table><tr><th>Substanță</th><th>Găsit</th><th>Limita</th></tr><tr><td>Ciprodinil</td><td>0,08</td><td>10</td></tr><tr><td>Fludioxonil</td><td>0,05</td><td>5</td></tr><tr><td colspan="3">Restul substanțelor analizate: nedetectate</td></tr></table>
+      <span class="k">Tratamente în cele 30 de zile dinainte: Switch 62.5 WG (24 iun., pauza respectată ✓)</span>
+    </div>
+  </div>
+  <div class="foot"><button class="btn">Distribuie linkul</button><div class="two"><button class="btn2">Descarcă PDF</button><button class="btn2">Afiș A4 cu QR</button></div></div>
+</div></div><p class="fnote">Linkul (de ex. zmeurel.ro/a/7KQ2) merge pe Facebook, pe WhatsApp și în magazin. Afișul are aceeași pagină, mare, cu QR pentru piață.</p></figure>
+
+<figure><figcaption>Ce apare public</figcaption><div class="phone"><div class="scr" data-zone="s-public">
+  <div class="top"><span class="ico" aria-hidden="true">‹</span><span class="ttl">Ce apare în raport</span></div>
+  <div class="body">
+    <div class="row"><span class="tx"><b>Substanțele găsite</b></span><button class="toggle" role="switch" aria-checked="true" aria-label="Substanțele" data-act="sw"></button></div>
+    <div class="row"><span class="tx"><b>Tratamentele din ultimele 30 de zile</b></span><button class="toggle" role="switch" aria-checked="true" aria-label="Tratamentele" data-act="sw"></button></div>
+    <div class="row"><span class="tx"><b>Numărul PV și al buletinului</b></span><button class="toggle" role="switch" aria-checked="true" aria-label="Numerele" data-act="sw"></button></div>
+    <div class="row"><span class="tx"><b>Poza buletinului</b><span class="sm">poate conține nume și adrese</span></span><button class="toggle" role="switch" aria-checked="false" aria-label="Poza buletinului" data-act="sw"></button></div>
+    <div class="row"><span class="tx"><b>Telefonul pentru comenzi</b></span><button class="toggle" role="switch" aria-checked="true" aria-label="Telefonul" data-act="sw"></button></div>
+    <div class="row"><span class="tx"><b>Linkul public e activ</b><span class="sm">îl poți opri oricând</span></span><button class="toggle" role="switch" aria-checked="true" aria-label="Link activ" data-act="sw"></button></div>
+    <p class="sm">Nu apar niciodată: numărul atestatului, poza PV-ului, numele inspectorului.</p>
+  </div>
+</div></div><p class="fnote">Se aleg o dată pe fermă și se pot schimba pentru o analiză anume.</p></figure>
+
+<figure><figcaption>Pe fișa parcelei</figcaption><div class="phone"><div class="scr" data-zone="s-parc">
+  <div class="top"><span class="ico" aria-hidden="true">‹</span><span class="ttl">Maravilla 1</span></div>
+  <div class="body">
+    <div class="tiles"><div class="tile"><span class="sm">Recoltat în sezon</span><b>612 kg</b></div><div class="tile"><span class="sm">Stadiu</span><b>Repaus</b></div></div>
+    <div class="row" data-go="f-raport"><span class="badge g">🧪</span><span class="tx"><b>Ultima analiză: conform</b><span class="sm">buletin din 12 iul. · vezi raportul</span></span><span aria-hidden="true">›</span></div>
+    <div class="row"><span class="badge n">💧</span><span class="tx"><b>Ultimul tratament</b><span class="sm">Switch 62.5 WG · 24 iun.</span></span><span aria-hidden="true">›</span></div>
+  </div>
+</div></div><p class="fnote">Un rând în plus pe fișa care există deja.</p></figure>
+
+</div></div></section>
+
+<section class="band chap"><div class="wrap" data-zone="z-plan">
+  <h2>După ce aprobi</h2>
+  <p class="lead">Un prompt după 25 (și după cel mic cu „Atestat de producător”):</p>
+  <ul class="lead">
+    <li>tabelele noi (analiza, prelevarea, rezultatul, substanțele) și linkul public;</li>
+    <li>PDF-ul și afișul cu QR;</li>
+    <li>tab-ul în Tratamente și rândul pe fișa parcelei;</li>
+    <li>verificarea în demo, apoi merge.</li>
+  </ul>
+  <p class="lead">Datele de exemplu din demo vor include o analiză conformă.</p>
+</div></section>
+<script>
+{
+const KEY='mockup-analize-v1';
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const say=t=>{const m=$('#msg');m.textContent=t;clearTimeout(say.t);say.t=setTimeout(()=>m.textContent='',2500)};
+document.addEventListener('click',e=>{
+ if(document.body.classList.contains('editing'))return;
+ const go=e.target.closest('[data-go]');if(go){document.getElementById(go.dataset.go)?.scrollIntoView({behavior:'smooth',block:'start'});return}
+ const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,p=b.parentNode;
+ if(a==='seg')p.querySelectorAll(':scope>button').forEach(x=>x.setAttribute('aria-selected',x===b));
+ if(a==='one')p.querySelectorAll(':scope>button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+ if(a==='sw2')b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')!=='true');
+ if(a==='sw')b.setAttribute('aria-checked',b.getAttribute('aria-checked')!=='true');
+ if(a==='tab'){p.querySelectorAll(':scope>button').forEach(x=>x.setAttribute('aria-selected',x===b));$$(`[data-panel^="${b.dataset.g}:"]`).forEach(x=>x.classList.toggle('hide',x.dataset.panel!==b.dataset.g+':'+b.dataset.p))}
+});
+$$('figcaption,.fnote').forEach((n,i)=>{if(!n.dataset.zone)n.dataset.zone='c'+i});
+
+const zones=()=>$$('[data-zone]');const orig={};zones().forEach(z=>orig[z.dataset.zone]=z.innerHTML);
+function store(){try{const o={};zones().forEach(z=>o[z.dataset.zone]=z.innerHTML);localStorage.setItem(KEY,JSON.stringify(o))}catch(_){}}
+try{const o=JSON.parse(localStorage.getItem(KEY)||'null');if(o)zones().forEach(z=>{if(o[z.dataset.zone]!=null)z.innerHTML=o[z.dataset.zone]})}catch(_){}
+$('#bEdit').addEventListener('click',e=>{const on=!document.body.classList.contains('editing');document.body.classList.toggle('editing',on);e.currentTarget.setAttribute('aria-pressed',on);e.currentTarget.textContent=on?'Gata cu editarea':'Editează textele';zones().forEach(z=>z.contentEditable=on?'true':'false');if(!on){store();say('Salvat în acest browser.')}});
+document.addEventListener('input',()=>{if(document.body.classList.contains('editing'))store()});
+$('#bNight').addEventListener('click',e=>{const on=!document.body.classList.contains('night');document.body.classList.toggle('night',on);e.currentTarget.setAttribute('aria-pressed',on)});
+$('#bCopy').addEventListener('click',async()=>{const t=zones().map(z=>z.innerText.replace(/\n{3,}/g,'\n\n').trim()).join('\n\n———\n\n');try{await navigator.clipboard.writeText(t);say('Copiat. Lipește-l în chat.')}catch(_){say('Nu am putut copia; selectează textul manual.')}});
+$('#bReset').addEventListener('click',()=>{try{localStorage.removeItem(KEY)}catch(_){}zones().forEach(z=>z.innerHTML=orig[z.dataset.zone]);say('Revenit la textul original.')});
+}
+</script>
+</body>
+</html>
