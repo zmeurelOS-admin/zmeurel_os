@@ -12,6 +12,7 @@ import {
 } from '@/lib/acte/atestat'
 import { captureApiError } from '@/lib/monitoring/report-error'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { farmDisplayName } from '@/lib/tenant/farm-display-name'
 
 export const runtime = 'nodejs'
 
@@ -58,7 +59,7 @@ export async function GET(request: Request) {
       tenants: { nume_ferma: string | null; owner_user_id: string | null } | Array<{ nume_ferma: string | null; owner_user_id: string | null }> | null
     }>) {
       const tenant = Array.isArray(row.tenants) ? row.tenants[0] : row.tenants
-      const farmName = tenant?.nume_ferma?.trim() || 'Ferma ta'
+      const farmName = farmDisplayName(tenant?.nume_ferma) || 'Ferma ta'
 
       if (row.certificate_expiry < todayYmd) {
         expired.push({ tenantId: row.tenant_id, farmName, expiryDate: row.certificate_expiry })

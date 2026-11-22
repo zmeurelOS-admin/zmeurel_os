@@ -128,6 +128,11 @@ describe('conținutul raportului', () => {
     expect(textParceleRaport(r)).toBe('Zmeură Maravilla · parcelele Maravilla 1 și Maravilla 2')
     expect(r.tratamente?.[0]).toEqual({ zi: '2026-06-24', nume: 'Switch 62.5 WG', pauza: 'pauza de 7 zile respectată', respectata: true })
   })
+  it('numele intern al fermei nu apare niciodată', () => {
+    expect(construiesteRaport(intrare({}, { ferma: { nume: 'tenant_demo_4723a180', localitate: null } }))!.ferma.nume).toBe('Ferma demo')
+    expect(construiesteRaport(intrare({}, { ferma: { nume: 'tenant_ab12cd34', localitate: null } }))!.ferma.nume).toBe('Ferma')
+    expect(construiesteRaport(intrare({}, { ferma: { nume: null, localitate: null } }))!.ferma.nume).toBe('Ferma')
+  })
   it('fără atestat (PFA): rândul lipsește', () => {
     expect(construiesteRaport(intrare({}, { atestat: null }))!.atestat).toBeNull()
   })

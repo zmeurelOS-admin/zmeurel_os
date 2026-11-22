@@ -7,6 +7,7 @@
  * Funcții pure (HTML-ul are textul scăpat).
  */
 import { escapeHtml } from '@/lib/rapoarte/export'
+import { farmDisplayNameOrFallback } from '@/lib/tenant/farm-display-name'
 
 import { dataScurtaAnaliza } from './lista'
 import { optiuniEfective, PRELEVAT_IN_RAPORT, type PrelevatDe, type StatusAnaliza, type SubstantaAnaliza } from './model'
@@ -114,7 +115,8 @@ export function construiesteRaport(intrare: IntrareRaport, options: { previzuali
   const serie = curat(intrare.atestat?.serie)
 
   return {
-    ferma: { nume: curat(intrare.ferma.nume) ?? 'Ferma', localitate: curat(intrare.ferma.localitate) },
+    // Niciodată numele intern (`tenant_demo_…` / `tenant_…`); serverul trimite deja numele afișat.
+    ferma: { nume: farmDisplayNameOrFallback(intrare.ferma.nume), localitate: curat(intrare.ferma.localitate) },
     atestat: serie ? { serie, valabilPana: curat(intrare.atestat?.valabilPana) } : null,
     parcele: intrare.parcele.map((parcela) => ({ nume: parcela.nume, soi: curat(parcela.soi) })),
     soiuri: soiuriRaport(intrare.parcele),

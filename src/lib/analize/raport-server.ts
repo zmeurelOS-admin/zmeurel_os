@@ -11,6 +11,7 @@ import QRCode from 'qrcode'
 import { isMissingTableError } from '@/lib/notifications/preferinte'
 import { isMissingColumnError } from '@/lib/schema-features'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { farmDisplayNameOrFallback } from '@/lib/tenant/farm-display-name'
 import { adaugaZile } from '@/lib/tratamente/zile'
 import { formatPhoneDisplay } from '@/lib/utils/phone'
 
@@ -57,8 +58,8 @@ async function construiesteDinAnaliza(admin: Admin, analiza: AnalizaCuTenant, or
       .select('substanta,valoare_mg_kg,lmr_mg_kg,ordine')
       .eq('analiza_id', analiza.id)
       .order('ordine', { ascending: true }) as Promise<Raspuns<SubstantaAnaliza[]>>,
-    admin.from('tenants').select('nume_ferma,localitate,contact_phone').eq('id', tenantId).maybeSingle() as Promise<
-      Raspuns<{ nume_ferma: string | null; localitate: string | null; contact_phone: string | null }>
+    admin.from('tenants').select('nume_ferma,localitate,contact_phone,is_demo').eq('id', tenantId).maybeSingle() as Promise<
+      Raspuns<{ nume_ferma: string | null; localitate: string | null; contact_phone: string | null; is_demo: boolean | null }>
     >,
     // Doar seria, valabilitatea, localitatea și telefonul. Numărul și poza atestatului nu se cer.
     admin.from('farmer_legal_docs').select('legal_type,certificate_series,certificate_expiry,locality,phone').eq('tenant_id', tenantId).maybeSingle() as Promise<
@@ -127,7 +128,11 @@ async function construiesteDinAnaliza(admin: Admin, analiza: AnalizaCuTenant, or
   const raport = construiesteRaport(
     {
       analiza,
-      ferma: { nume: tenantRes.data?.nume_ferma ?? null, localitate: tenantRes.data?.localitate || acte?.locality || null },
+      ferma: {
+        // Numele afișat, niciodată cel intern (`tenant_demo_…`): „Ferma demo” / „Ferma” dacă lipsește.
+        nume: farmDisplayNameOrFallback(tenantRes.data?.nume_ferma, { demo: tenantRes.data?.is_demo === true }),
+        localitate: tenantRes.data?.localitate || acte?.locality || null,
+      },
       atestat: acte?.legal_type === 'certificat_producator' ? { serie: acte.certificate_series, valabilPana: acte.certificate_expiry } : null,
       telefon: telefon ? formatPhoneDisplay(telefon) : null,
       optiuniFerma,
