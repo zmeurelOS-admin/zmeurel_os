@@ -6,6 +6,7 @@ import { getSellableCal1StockSummary } from './miscari-stoc'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/supabase'
 import { type Vanzare } from './vanzari'
 import { ziuaInRomania } from '@/lib/utils/bucharest-date'
+import { completeazaStareaPlatii, type StarePlataRpcClient } from '@/lib/comenzi/stare-plata'
 
 export const COMENZI_STATUSES = [
   'noua',
@@ -427,7 +428,10 @@ async function selectComandaRowById(
     .single()
 
   if (error) throw toReadableError(error, 'Nu am putut încărca comanda.')
-  return data as unknown as ComandaQueryRow
+  const [row] = await completeazaStareaPlatii(supabase as unknown as StarePlataRpcClient, [
+    data as unknown as ComandaQueryRow,
+  ])
+  return row
 }
 
 type ComenziQueryContextLike = {
@@ -477,7 +481,12 @@ export async function getComenzi(
     .order('created_at', { ascending: false })
 
   if (error) throw toReadableError(error, 'Nu am putut incarca comenzile.')
-  return ((data ?? []) as unknown as ComandaQueryRow[]).map(mapComanda)
+  // Operatorul nu citește `vanzari` (migrarea 20261122100000): starea plății vine atunci prin RPC.
+  const rows = await completeazaStareaPlatii(
+    supabase as unknown as StarePlataRpcClient,
+    (data ?? []) as unknown as ComandaQueryRow[],
+  )
+  return rows.map(mapComanda)
 }
 
 export async function createComanda(input: CreateComandaInput): Promise<Comanda> {
