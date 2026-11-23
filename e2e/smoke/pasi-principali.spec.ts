@@ -223,7 +223,7 @@ test('7. Magazia: „+ Am cumpărat” → tratament făcut cu produsul → stoc
   const solutie = formular.getByRole('textbox', { name: 'Soluție, l' })
   if ((await solutie.inputValue()) === '') await solutie.fill('60')
   await formular.getByRole('button', { name: 'Continuă' }).click()
-  await expect(formular.getByText('Din magazie')).toBeVisible()
+  await expect(formular.getByRole('heading', { name: 'Din magazie' })).toBeVisible()
   await formular.getByRole('button', { name: 'Salvează tratamentul' }).click()
   await expect(formular.getByRole('heading', { name: 'Salvat' })).toBeVisible()
   await formular.getByRole('button', { name: 'Gata' }).click()
