@@ -131,6 +131,26 @@ export const NOTIFICATION_CONFIG = {
     playSound: false,
     pushEnabled: true,
   },
+  capcane_verificare: {
+    icon: '🪰',
+    color: '#e6a817',
+    /** Mementoul „Verifică capcanele” (cronul `notificari-dimineata`; proprietarul și operatorii cu „Scrie”). */
+    ton: 'avertizare',
+    toastDuration: 6000,
+    showToast: true,
+    playSound: false,
+    pushEnabled: true,
+  },
+  capcane_peste_prag: {
+    icon: '🪰',
+    color: '#e6a817',
+    /** Alerta „Peste prag”, imediat după o verificare care trece pragul (`/api/capcane/alerta`, doar proprietarul). */
+    ton: 'avertizare',
+    toastDuration: 8000,
+    showToast: true,
+    playSound: false,
+    pushEnabled: true,
+  },
   analize_memento: {
     icon: '🧪',
     color: '#e6a817',

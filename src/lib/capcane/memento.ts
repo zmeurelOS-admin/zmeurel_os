@@ -11,7 +11,7 @@ import { capcaneText, totalBucati, type GrupCapcane } from './model'
 import { atractantScadent, verificareScadenta } from './scadenta'
 
 export const TIP_MEMENTO_CAPCANE = TIPURI_ZILNICE.capcane_verificare
-export const TIP_ALERTA_CAPCANE = 'capcane_peste_prag'
+export const TIP_ALERTA_CAPCANE = TIPURI_ZILNICE.capcane_peste_prag
 
 export const LINK_CAPCANE = '/tratamente?tab=capcane'
 

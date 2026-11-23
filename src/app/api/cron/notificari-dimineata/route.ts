@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { decizieMementoFerma, noteazaTrimitereMemento } from '@/lib/analize/memento-cron'
+import { mementoCapcaneFerma } from '@/lib/capcane/memento-cron'
 import { captureApiError } from '@/lib/monitoring/report-error'
 import {
   TIPURI_ZILNICE,
@@ -176,6 +177,9 @@ async function prognozaFerma(admin: Admin, tenantId: string): Promise<RaspunsFet
  * - „Bani de încasat”, clienții cu bani de dat de 7, 14 sau 30 de zile;
  * - „Tratamente planificate”, o notificare pe fermă în ziua lor (cheia `tratament:<fermă>:<zi>`);
  * - „Produse pe terminate”, doar lunea, doar proprietarului (cheia `magazie:<fermă>:<zi>`; fără migrarea Magaziei, nimic);
+ * - „Verifică capcanele”, în ziua verificării (și după, până se face), proprietarului și operatorilor activi cu „Scrie”
+ *   pe Tratamente, cu „Atractantul se schimbă azi” în același mesaj (cheia `capcane:<fermă>:<zi>:<utilizator>`;
+ *   `src/lib/capcane/memento-cron.ts`; fără migrarea capcanelor, nimic);
  * - „Analiza dinainte de cules”, doar proprietarului, la 21 / 14 / 7 / 3 zile înainte și zilnic din ziua culesului
  *   (cheia `analize:<fermă>:<zi>`; `src/lib/analize/memento-cron.ts`).
  * Citește și inserează în `notifications`; pentru memento notează și ziua trimiterii (`memento_analize_sezon`).
@@ -197,6 +201,7 @@ export async function GET(request: Request) {
       TIPURI_ZILNICE.tratament_planificat,
       TIPURI_ZILNICE.analize_memento,
       TIPURI_ZILNICE.magazie_pe_terminate,
+      TIPURI_ZILNICE.capcane_verificare,
     ])
     const luni = esteLuni(azi)
 
@@ -263,6 +268,14 @@ export async function GET(request: Request) {
           contor.erori += 1
           captureApiError(error, { route: ROUTE, tenantId: ferma.id, tags: { pas: 'magazie' } })
         }
+      }
+
+      try {
+        for (const rezultat of await mementoCapcaneFerma(admin, ferma, azi)) numara(contor, TIPURI_ZILNICE.capcane_verificare, rezultat)
+      } catch (error) {
+        verificata = false
+        contor.erori += 1
+        captureApiError(error, { route: ROUTE, tenantId: ferma.id, tags: { pas: 'capcane' } })
       }
 
       try {

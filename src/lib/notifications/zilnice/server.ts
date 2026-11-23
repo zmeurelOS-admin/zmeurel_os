@@ -3,7 +3,7 @@
  * Citește cu service role și doar inserează în `notifications` (prin `createNotificationForTenantOwner`,
  * ca push-ul să treacă prin „Ce primești” și liniștea de noapte). Nu modifică nimic altceva.
  */
-import { createNotificationForTenantOwner } from '@/lib/notifications/create'
+import { createNotification, createNotificationForTenantOwner } from '@/lib/notifications/create'
 import type { getSupabaseAdmin } from '@/lib/supabase/admin'
 
 import type { NotificareZilnica } from './common'
@@ -87,6 +87,34 @@ export async function trimiteNotificareZilnica(admin: Admin, notificare: Notific
 
   const id = await createNotificationForTenantOwner(
     notificare.tenantId,
+    notificare.type,
+    notificare.title,
+    notificare.body,
+    { ...notificare.data, reminder_key: notificare.reminderKey },
+    notificare.entityType,
+    notificare.entityId,
+    { awaitPush: true },
+  )
+  return id ? 'trimisa' : 'eroare'
+}
+
+/**
+ * Ca `trimiteNotificareZilnica`, dar către un utilizator anume (mementoul capcanelor ajunge și la operatori).
+ * Deduplicarea e pe tip, cheie și utilizator; push-ul trece prin preferințele lui și liniștea de noapte.
+ */
+export async function trimiteNotificareUtilizator(admin: Admin, userId: string, notificare: NotificareZilnica): Promise<RezultatTrimitere> {
+  const { data: existing, error } = await admin
+    .from('notifications')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('type', notificare.type)
+    .eq('data->>reminder_key', notificare.reminderKey)
+    .limit(1)
+  if (error) throw error
+  if ((existing ?? []).length > 0) return 'dubla'
+
+  const id = await createNotification(
+    userId,
     notificare.type,
     notificare.title,
     notificare.body,

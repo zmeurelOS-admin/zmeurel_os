@@ -11,6 +11,8 @@ export const TIPURI_ZILNICE = {
   analize_memento: 'analize_memento',
   magazie_pe_terminate: 'magazie_pe_terminate',
   capcane_verificare: 'capcane_verificare',
+  /** Nu e zilnică: alerta de după o verificare (`/api/capcane/alerta`); refolosește deduplicarea. */
+  capcane_peste_prag: 'capcane_peste_prag',
 } as const
 
 export type TipZilnic = (typeof TIPURI_ZILNICE)[keyof typeof TIPURI_ZILNICE]

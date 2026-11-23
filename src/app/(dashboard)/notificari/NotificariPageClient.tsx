@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import {
   Banknote,
   BarChart3,
+  Bug,
   CalendarClock,
   Check,
   ClipboardList,
@@ -63,6 +64,9 @@ function iconForType(type: string): { icon: ReactNode; tone: IconTone } {
       return { icon: <FlaskConical />, tone: 'warning' }
     case 'magazie_pe_terminate':
       return { icon: <Package />, tone: 'warning' }
+    case 'capcane_verificare':
+    case 'capcane_peste_prag':
+      return { icon: <Bug />, tone: 'warning' }
     case 'legal_docs_expiring':
     case 'legal_docs_expired':
       return { icon: <FileText />, tone: 'warning' }

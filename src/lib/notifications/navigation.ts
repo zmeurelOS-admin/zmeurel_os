@@ -64,6 +64,13 @@ export function getNotificationHref(
       return '/tratamente?fila=planificate'
     case 'magazie_pe_terminate':
       return '/tratamente/magazie'
+    case 'capcane_verificare':
+      return '/tratamente?tab=capcane'
+    case 'capcane_peste_prag': {
+      // Graficul grupului care a trecut de prag.
+      const grupId = typeof d['grup_id'] === 'string' && d['grup_id'] ? d['grup_id'] : null
+      return grupId ? `/tratamente/capcane/${encodeURIComponent(grupId)}` : '/tratamente?tab=capcane'
+    }
     case 'analize_memento':
       // Foaia „Analiza dinainte de cules”, în Acasă.
       return '/dashboard?memento=analize'
