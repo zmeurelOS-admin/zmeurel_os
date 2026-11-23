@@ -21,6 +21,7 @@ h3{font-size:15px;margin:16px 0 8px;color:var(--muted)}
 .sub{color:var(--muted);margin:0 0 10px}
 .concepts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 @media(max-width:560px){.concepts{grid-template-columns:repeat(2,1fr)}}
+.concepts{grid-template-columns:repeat(5,minmax(0,1fr))}@media(max-width:700px){.concepts{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .cpt{border:2px solid var(--border);background:var(--surface);border-radius:16px;padding:10px 8px;cursor:pointer;text-align:center;color:var(--fg);font:inherit}
 .cpt svg{width:72px;height:72px;display:block;margin:0 auto 6px}
 .cpt b{display:block;font-size:15px}
@@ -84,7 +85,7 @@ h3{font-size:15px;margin:16px 0 8px;color:var(--muted)}
  <main>
   <section class="card">
    <h2>Alege semnul</h2>
-   <p class="sub">Patru idei, toate desenate de la zero, în culorile platformei. Apasă pe una: telefonul, logarea și mărimile mici se schimbă pe loc.</p>
+   <p class="sub">Sus: cinci stilizări ale Brazdelor (v2). Jos: prima rundă. Toate desenate de la zero, în culorile platformei. Apasă pe una: telefonul, logarea și mărimile mici se schimbă pe loc.</p>
    <div class="concepts" id="concepts"></div>
    <h3>Culorile</h3>
    <div class="pal" id="pal"></div>
@@ -108,12 +109,12 @@ h3{font-size:15px;margin:16px 0 8px;color:var(--muted)}
 <div class="toast" id="toast" role="status"></div>
 <script>
 const PAL={
- platforma:{n:'Verdele platformei',d:'Exact verdele din aplicație (#3d7a5f), pe fond de hârtie caldă.',tile:'#3d7a5f',paper:'#fbf8ef',ink:'#1f3d30',line:'#3d7a5f',leaf:'#5ca882',accent:'#3d7a5f'},
- ocru:{n:'Verde + pământ',d:'Verdele platformei, cu brazdele în culoarea pământului (ocru). Mai cald, mai „de câmp”.',tile:'#3d7a5f',paper:'#fbf8ef',ink:'#1f3d30',line:'#b07a32',leaf:'#4f9a74',accent:'#b07a32'},
- hartie:{n:'Hârtie',d:'Fond de hârtie, desenul în verde. Iese bine pe fundal închis, mai puțin pe ecranul telefonului cu fundal deschis.',tile:'#fbf8ef',paper:'#3d7a5f',ink:'#1f3d30',line:'#fbf8ef',leaf:'#a8dcb9',accent:'#fbf8ef'}
+ platforma:{n:'Verdele platformei',d:'Exact verdele din aplicație (#3d7a5f), pe fond de hârtie caldă.',tile:'#3d7a5f',paper:'#fbf8ef',ink:'#1f3d30',line:'#3d7a5f',leaf:'#5ca882',accent:'#3d7a5f',sun:'#e2a93b'},
+ ocru:{n:'Verde + pământ',d:'Verdele platformei, cu brazdele în culoarea pământului (ocru). Mai cald, mai „de câmp”.',tile:'#3d7a5f',paper:'#fbf8ef',ink:'#1f3d30',line:'#b07a32',leaf:'#4f9a74',accent:'#b07a32',sun:'#e2a93b'},
+ hartie:{n:'Hârtie',d:'Fond de hârtie, desenul în verde. Iese bine pe fundal închis, mai puțin pe ecranul telefonului cu fundal deschis.',tile:'#fbf8ef',paper:'#3d7a5f',ink:'#1f3d30',line:'#fbf8ef',leaf:'#a8dcb9',accent:'#fbf8ef',sun:'#e2a93b'}
 };
 const C={
- brazde:{n:'Brazdele',s:'caiet + câmp',rec:true,
+ brazde:{g:1,n:'Brazdele',s:'caiet + câmp (v1)',
   why:['Rândurile caietului devin brazde care pleacă spre orizont; din linia orizontului răsare o plantă.','Spune ambele lucruri dintr-o privire: e un caiet și e despre câmp.','Inelele de sus îl fac să arate a caiet de notițe, nu a carte.'],
   svg:(p,m)=>`<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><rect width="128" height="128" rx="28" fill="${m?'none':p.tile}"/>
 <defs><clipPath id="pg${m?'m':''}"><rect x="28" y="28" width="72" height="78" rx="9"/></clipPath></defs>
@@ -123,7 +124,7 @@ const C={
 <path d="M64 70V52" stroke="${m?'#3d7a5f':p.ink}" stroke-width="4.5" stroke-linecap="round"/>
 <path d="M64 58C64 49 57 44 48 44C48 53 55 58 64 58Z" fill="${m?'#3d7a5f':p.leaf}"/><path d="M64 54C64 44 72 38 82 38C82 48 74 54 64 54Z" fill="${m?'#3d7a5f':p.leaf}"/>
 ${[44,64,84].map(x=>`<rect x="${x-3.5}" y="18" width="7" height="18" rx="3.5" fill="${m?'#fff':p.ink}" stroke="${m?'#3d7a5f':p.tile}" stroke-width="2.5"/>`).join('')}</svg>`},
- frunza:{n:'Frunza-pagină',s:'nervurile sunt rânduri',
+ frunza:{g:1,n:'Frunza-pagină',s:'nervurile sunt rânduri',
   why:['O frunză ale cărei nervuri sunt rândurile de caiet pe care scrii.','Foarte simplă, se recunoaște și la 16 px.','Mai mult „natură” decât „câmp lucrat”.'],
   svg:(p,m)=>`<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><rect width="128" height="128" rx="28" fill="${m?'none':p.tile}"/>
 <defs><clipPath id="lf${m?'m':''}"><path d="M30 98C30 56 56 30 100 28C100 72 74 98 30 98Z"/></clipPath></defs>
@@ -131,7 +132,7 @@ ${[44,64,84].map(x=>`<rect x="${x-3.5}" y="18" width="7" height="18" rx="3.5" fi
 <g clip-path="url(#lf${m?'m':''})" stroke="${m?'#000':p.line}" stroke-width="4" stroke-linecap="round"><path d="M20 52H110"/><path d="M20 64H110"/><path d="M20 76H110"/><path d="M20 88H110"/></g>
 <path d="M34 94L92 36" stroke="${m?'#000':p.ink}" stroke-width="5" stroke-linecap="round"/>
 </svg>`},
- semn:{n:'Semnul de carte',s:'caiet cu panglică-răsad',
+ semn:{g:1,n:'Semnul de carte',s:'caiet cu panglică-răsad',
   why:['Un caiet închis, cu panglica de semn de carte care iese jos și se termină într-o frunză.','Mesajul: aici îți ții ferma, pagină cu pagină.','Ca formă e cea mai „produs” dintre toate; se vede bine pe ecranul telefonului.'],
   svg:(p,m)=>`<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><rect width="128" height="128" rx="28" fill="${m?'none':p.tile}"/>
 <rect x="32" y="22" width="64" height="80" rx="10" fill="${m?'#fff':p.paper}"/>
@@ -140,22 +141,38 @@ ${[44,64,84].map(x=>`<rect x="${x-3.5}" y="18" width="7" height="18" rx="3.5" fi
 <path d="M74 92V108" stroke="${m?'#fff':p.accent}" stroke-width="5" stroke-linecap="round"/>
 <path d="M74 108C74 99 81 94 90 94C90 103 83 108 74 108Z" fill="${m?'#fff':p.leaf}"/>
 <path d="M74 104C74 96 67 92 60 92C60 100 66 104 74 104Z" fill="${m?'#fff':p.leaf}"/></svg>`},
- cf:{n:'cf',s:'monogramă cu spirală',
+ cf:{g:1,n:'cf',s:'monogramă cu spirală',
   why:['Literele „cf” desenate, cu f-ul care se termină într-o frunză și cu găurile de spirală pe margine.','Cea mai scurtă și mai „marcă”; se înregistrează ușor la OSIM ca semn figurativ.','Nu spune singură ce e; are nevoie de numele scris lângă.'],
   svg:(p,m)=>`<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><rect width="128" height="128" rx="28" fill="${m?'none':p.tile}"/>
 ${[38,58,78].map(y=>`<circle cx="22" cy="${y+6}" r="4.5" fill="${m?'#fff':p.paper}" opacity="${m?1:.85}"/>`).join('')}
 <path d="M70 50A22 22 0 1 0 70 82" fill="none" stroke="${m?'#fff':p.paper}" stroke-width="11" stroke-linecap="round"/>
 <path d="M86 100V52C86 42 92 36 102 36" fill="none" stroke="${m?'#fff':p.paper}" stroke-width="11" stroke-linecap="round"/>
 <path d="M74 66H100" stroke="${m?'#fff':p.paper}" stroke-width="10" stroke-linecap="round"/>
-<path d="M102 36C102 26 110 20 118 20C118 30 111 36 102 36Z" fill="${m?'#fff':(p===PAL.hartie?p.paper:'#a8dcb9')}"/></svg>`}
+<path d="M102 36C102 26 110 20 118 20C118 30 111 36 102 36Z" fill="${m?'#fff':(p===PAL.hartie?p.paper:'#a8dcb9')}"/></svg>`},
+ dealuri:{g:2,n:'Dealuri',s:'brazde pe deal, ca în Bucovina',rec:true,
+  why:['Brazdele urmează curba dealului, ca fâșiile de pe dealurile din Bucovina; planta răsare pe culme.','Un soare mic dă căldură și se vede și pe telefon.','Rămâne caiet (inelele, foaia) și devine mai personal decât câmpul drept.'],
+  svg:(p,m)=>`<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><rect width="128" height="128" rx="28" fill="${m?'none':p.tile}"/><defs><clipPath id="dl${m?'m':''}"><rect x="28" y="28" width="72" height="78" rx="9"/></clipPath></defs><rect x="28" y="28" width="72" height="78" rx="9" fill="${m?'#fff':p.paper}"/><circle cx="84" cy="48" r="7" fill="${m?'#3d7a5f':p.sun}"/><g clip-path="url(#dl${m?'m':''})" stroke="${m?'#3d7a5f':p.line}" stroke-width="4.5" stroke-linecap="round" fill="none"><path d="M22 76Q64 58 106 76"/><path d="M22 87Q64 70 106 87"/><path d="M22 98Q64 82 106 98"/><path d="M22 109Q64 94 106 109"/></g><path d="M58 68V52.7" stroke="${m?'#3d7a5f':p.ink}" stroke-width="4.5" stroke-linecap="round"/><path d="M58 57.8C58 50.2 52.0 45.9 44.4 45.9C44.4 53.5 50.4 57.8 58 57.8Z" fill="${m?'#3d7a5f':p.leaf}"/><path d="M58 54.4C58 45.9 64.8 40.8 73.3 40.8C73.3 49.3 66.5 54.4 58 54.4Z" fill="${m?'#3d7a5f':p.leaf}"/>${[44,64,84].map(x=>`<rect x="${x-3.5}" y="18" width="7" height="18" rx="3.5" fill="${m?'#fff':p.ink}" stroke="${m?'#3d7a5f':p.tile}" stroke-width="2.5"/>`).join('')}</svg>`},
+ fasii:{g:2,n:'Fâșii',s:'câmp plin, se vede de departe',
+  why:['Brazdele devin fâșii pline, alternând verde închis și deschis, ca un câmp văzut din față.','Cea mai lizibilă la mărimi mici (fila din browser, notificări).','Mai „grafic”, mai puțin desenat de mână.'],
+  svg:(p,m)=>`<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><rect width="128" height="128" rx="28" fill="${m?'none':p.tile}"/><defs><clipPath id="fs${m?'m':''}"><rect x="28" y="28" width="72" height="78" rx="9"/></clipPath></defs><rect x="28" y="28" width="72" height="78" rx="9" fill="${m?'#fff':p.paper}"/><g clip-path="url(#fs${m?'m':''})" fill="${m?'#3d7a5f':p.line}"><path d="M64 70L-10 116L18 116Z"/><path d="M64 70L18 116L42 116Z" opacity=".4"/><path d="M64 70L42 116L64 116Z"/><path d="M64 70L64 116L86 116Z" opacity=".4"/><path d="M64 70L86 116L110 116Z"/><path d="M64 70L110 116L138 116Z" opacity=".4"/></g><path d="M28 70H100" stroke="${m?'#3d7a5f':p.line}" stroke-width="3"/><path d="M64 70V53.8" stroke="${m?'#3d7a5f':p.ink}" stroke-width="4.5" stroke-linecap="round"/><path d="M64 59.2C64 51.1 57.7 46.6 49.6 46.6C49.6 54.7 55.9 59.2 64 59.2Z" fill="${m?'#3d7a5f':p.leaf}"/><path d="M64 55.6C64 46.6 71.2 41.2 80.2 41.2C80.2 50.2 73.0 55.6 64 55.6Z" fill="${m?'#3d7a5f':p.leaf}"/>${[44,64,84].map(x=>`<rect x="${x-3.5}" y="18" width="7" height="18" rx="3.5" fill="${m?'#fff':p.ink}" stroke="${m?'#3d7a5f':p.tile}" stroke-width="2.5"/>`).join('')}</svg>`},
+ tablou:{g:2,n:'Fără foaie',s:'iconița e foaia',
+  why:['Iconița întreagă e foaia: inelele atârnă din marginea de sus, brazdele umplu partea de jos.','Cel mai mare desen în același spațiu, deci cel mai clar pe ecranul telefonului.','Pierde puțin din „caiet”, câștigă în forță.'],
+  svg:(p,m)=>`<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><defs><clipPath id="tb${m?'m':''}"><rect width="128" height="128" rx="28"/></clipPath></defs><rect width="128" height="128" rx="28" fill="${m?'#3d7a5f':p.paper}"/><g clip-path="url(#tb${m?'m':''})"><path d="M0 74H128V128H0Z" fill="${m?'#fff':p.tile}"/><g stroke="${m?'#3d7a5f':p.paper}" stroke-width="5" stroke-linecap="round"><path d="M64 74V132"/><path d="M58 74L30 132"/><path d="M70 74L98 132"/><path d="M52 74L-4 124"/><path d="M76 74L132 124"/></g></g><path d="M64 74V54.2" stroke="${m?'#3d7a5f':p.tile}" stroke-width="4.5" stroke-linecap="round"/><path d="M64 60.8C64 50.9 56.3 45.4 46.4 45.4C46.4 55.3 54.1 60.8 64 60.8Z" fill="${m?'#3d7a5f':p.leaf}"/><path d="M64 56.4C64 45.4 72.8 38.8 83.8 38.8C83.8 49.8 75.0 56.4 64 56.4Z" fill="${m?'#3d7a5f':p.leaf}"/>${[40,64,88].map(x=>`<rect x="${x-4}" y="-4" width="8" height="24" rx="4" fill="${m?'#fff':p.ink}"/>`).join('')}</svg>`},
+ deschis:{g:2,n:'Caiet deschis',s:'brazdele trec peste mijloc',
+  why:['Un caiet deschis: brazdele trec de pe o pagină pe alta, iar planta crește din mijlocul caietului.','Spune „aici scrii tot anul” și „câmp” în același timp.','Mai multe detalii; la 16 px devine un caiet simplu.'],
+  svg:(p,m)=>`<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><rect width="128" height="128" rx="28" fill="${m?'none':p.tile}"/><path d="M64 50C52 44 36 42 18 44V102C36 100 52 102 64 108Z" fill="${m?'#fff':p.paper}"/><path d="M64 50C76 44 92 42 110 44V102C92 100 76 102 64 108Z" fill="${m?'#fff':p.paper}" opacity="${m?1:.92}"/><g stroke="${m?'#3d7a5f':p.line}" stroke-width="4" stroke-linecap="round" fill="none"><path d="M26 66C40 64 54 66 64 72C74 66 88 64 102 66"/><path d="M26 78C40 76 54 78 64 84C74 78 88 76 102 78"/><path d="M26 90C40 88 54 90 64 96C74 90 88 88 102 90"/></g><path d="M64 50V108" stroke="${m?'#3d7a5f':p.ink}" stroke-width="2.5"/><path d="M64 50V32.0" stroke="${m?'#3d7a5f':p.ink}" stroke-width="4.5" stroke-linecap="round"/><path d="M64 38.0C64 29.0 57.0 24.0 48.0 24.0C48.0 33.0 55.0 38.0 64 38.0Z" fill="${m?'#3d7a5f':p.leaf}"/><path d="M64 34.0C64 24.0 72.0 18.0 82.0 18.0C82.0 28.0 74.0 34.0 64 34.0Z" fill="${m?'#3d7a5f':p.leaf}"/></svg>`},
+ rafinat:{g:2,n:'Rafinat',s:'aceeași idee, mai fină',
+  why:['Brazdele din prima rundă, desenate mai fin: o a doua foaie în spate, brazde mai subțiri, planta mai mare.','Arată mai „produs” la mărimi mari (prima pagină, afiș).','La mărimi mici liniile fine se pierd mai repede.'],
+  svg:(p,m)=>`<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><rect width="128" height="128" rx="28" fill="${m?'none':p.tile}"/><defs><clipPath id="rf${m?'m':''}"><rect x="28" y="28" width="72" height="78" rx="9"/></clipPath></defs><rect x="28" y="28" width="72" height="78" rx="9" fill="${m?'#fff':p.paper}" opacity="${m?0:.4}" transform="rotate(6 64 67)"/><rect x="28" y="28" width="72" height="78" rx="9" fill="${m?'#fff':p.paper}"/><g clip-path="url(#rf${m?'m':''})" stroke="${m?'#3d7a5f':p.line}" stroke-width="3" stroke-linecap="round" fill="none"><path d="M28 72H100"/><path d="M64 72V112"/><path d="M61 72L46 112"/><path d="M67 72L82 112"/><path d="M58 72L28 110"/><path d="M70 72L100 110"/><path d="M55 72L14 104"/><path d="M73 72L114 104"/></g><path d="M64 72V52.2" stroke="${m?'#3d7a5f':p.ink}" stroke-width="4.5" stroke-linecap="round"/><path d="M64 58.8C64 48.9 56.3 43.4 46.4 43.4C46.4 53.3 54.1 58.8 64 58.8Z" fill="${m?'#3d7a5f':p.leaf}"/><path d="M64 54.4C64 43.4 72.8 36.8 83.8 36.8C83.8 47.8 75.0 54.4 64 54.4Z" fill="${m?'#3d7a5f':p.leaf}"/>${[44,64,84].map(x=>`<rect x="${x-3.5}" y="18" width="7" height="18" rx="3.5" fill="${m?'#fff':p.ink}" stroke="${m?'#3d7a5f':p.tile}" stroke-width="2.5"/>`).join('')}</svg>`}
 };
-const S={c:'brazde',p:'platforma',notes:{}};
-try{Object.assign(S,JSON.parse(localStorage.getItem('logo-cf-v1')||'{}'))}catch(e){}
+const S={c:'dealuri',p:'platforma',notes:{}};
+try{Object.assign(S,JSON.parse(localStorage.getItem('logo-cf-v2')||'{}'))}catch(e){}
 const $=s=>document.querySelector(s);
 const logo=(m=false)=>C[S.c].svg(PAL[S.p],m);
-function save(){try{localStorage.setItem('logo-cf-v1',JSON.stringify(S))}catch(e){}}
+function save(){try{localStorage.setItem('logo-cf-v2',JSON.stringify(S))}catch(e){}}
 function render(){
- $('#concepts').innerHTML=Object.entries(C).map(([k,c])=>`<button class="cpt" data-c="${k}" aria-pressed="${S.c===k}">${c.svg(PAL[S.p])}<b>${c.n}</b><span>${c.s}</span>${c.rec?'<br><span class="rec">recomandat</span>':''}</button>`).join('');
+ const cb=([k,c])=>`<button class="cpt" data-c="${k}" aria-pressed="${S.c===k}">${c.svg(PAL[S.p])}<b>${c.n}</b><span>${c.s}</span>${c.rec?'<br><span class="rec">recomandat</span>':''}</button>`;
+ $('#concepts').innerHTML=`<p class="rec" style="grid-column:1/-1;margin:0">Brazdele · v2</p>`+Object.entries(C).filter(([k,c])=>c.g===2).map(cb).join('')+`<p class="xs" style="grid-column:1/-1;margin:8px 0 0">Prima rundă</p>`+Object.entries(C).filter(([k,c])=>c.g===1).map(cb).join('');
  $('#pal').innerHTML=Object.entries(PAL).map(([k,p])=>`<button class="tb" data-p="${k}" aria-pressed="${S.p===k}"><span class="sw"><i style="background:${p.tile}"></i><i style="background:${p.paper}"></i><i style="background:${p.line}"></i></span>${p.n}${k==='platforma'?' ✓':''}</button>`).join('');
  const L=logo();
  const apps=['Telefon','Mesaje','Cameră','Vreme','Calendar','Galerie','Ceas'];
