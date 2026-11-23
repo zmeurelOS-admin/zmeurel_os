@@ -22,6 +22,8 @@ export interface ProdusCiorna {
   /** Fertirigare. */
   gPePlanta: number | null
   rezervor: 'A' | 'B'
+  /** Din plan (promptul 30): rândul produsului din `planuri_tratament_linie_produse` (`null` = produsul vechi de pe linie). */
+  planLinieProdusId?: string | null
 }
 
 export interface CiornaTratament {
@@ -140,7 +142,9 @@ export interface AplicareDeSalvat {
   data_planificata: string | null
   metoda_aplicare: string
   tip_interventie: string
-  sursa: 'manuala'
+  /** `din_plan` doar cu `plan_linie_id` (constrângerea `aplicari_tratament_sursa_plan_linie_check`). */
+  sursa: 'manuala' | 'din_plan'
+  plan_linie_id?: string
   produs_id: string | null
   produs_nume_manual: string | null
   meteo_snapshot: Record<string, unknown> | null
@@ -163,6 +167,7 @@ export interface ProdusDeSalvat {
   cantitate_text: string | null
   rezervor: 'A' | 'B' | null
   doza_g_per_planta: number | null
+  plan_linie_produs_id?: string
 }
 
 const TIPURI_CATALOG = new Set(['fungicid', 'insecticid', 'erbicid', 'acaricid', 'foliar', 'ingrasamant', 'bioregulator', 'altul'])
@@ -208,6 +213,8 @@ export function aplicariDeSalvat(input: {
   cand: CandTratament
   meteo: Record<string, unknown> | null
   now?: Date
+  /** Tratamentul vine dintr-o linie de plan: aplicările primesc `plan_linie_id` și `sursa = 'din_plan'`. */
+  planLinieId?: string | null
 }): AplicareDeSalvat[] {
   const { ciorna } = input
   const alese = ciorna.parcelaIds
@@ -237,7 +244,7 @@ export function aplicariDeSalvat(input: {
     data_planificata: input.cand.tip === 'acum' ? null : input.cand.zi,
     metoda_aplicare: METODA_DB[ciorna.metoda],
     tip_interventie: TIP_INTERVENTIE_DB[ciorna.metoda],
-    sursa: 'manuala',
+    ...(input.planLinieId ? { sursa: 'din_plan' as const, plan_linie_id: input.planLinieId } : { sursa: 'manuala' as const }),
     // Antetul cere fie produsul din catalog, fie un nume (constrângerea `aplicari_tratament_produs_xor_check`).
     produs_id: primul?.produsId ?? null,
     produs_nume_manual: primul?.produsId ? null : primul?.nume ?? null,
@@ -253,6 +260,7 @@ export function aplicariDeSalvat(input: {
         tip_snapshot: produs.tip && TIPURI_CATALOG.has(produs.tip) ? produs.tip : null,
         frac_irac_snapshot: produs.frac,
         phi_zile_snapshot: produs.phi !== null && produs.phi >= 0 ? Math.floor(produs.phi) : null,
+        ...(input.planLinieId && produs.planLinieProdusId ? { plan_linie_produs_id: produs.planLinieProdusId } : {}),
       }
       if (ciorna.metoda === 'fertirigare') {
         const g = Number(produs.gPePlanta) || 0

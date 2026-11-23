@@ -67,6 +67,7 @@ export default defineConfig(({ mode }) => {
         'src/lib/tratamente/__tests__/*.test.ts',
         'src/lib/magazie/__tests__/*.test.ts',
         'src/lib/capcane/__tests__/*.test.ts',
+        'src/lib/plan/__tests__/*.test.ts',
         'src/lib/analize/__tests__/*.test.ts',
         'src/lib/lucrari/__tests__/*.test.ts',
         'src/lib/echipa/__tests__/*.test.ts',

@@ -11,6 +11,8 @@ export const TIPURI_ZILNICE = {
   analize_memento: 'analize_memento',
   magazie_pe_terminate: 'magazie_pe_terminate',
   capcane_verificare: 'capcane_verificare',
+  /** Planul pe stadii (promptul 30): „E timpul pentru <stadiu> la <parcele>”. */
+  plan_tratament: 'plan_tratament',
   /** Nu e zilnică: alerta de după o verificare (`/api/capcane/alerta`); refolosește deduplicarea. */
   capcane_peste_prag: 'capcane_peste_prag',
 } as const
