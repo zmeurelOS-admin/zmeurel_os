@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prima pagină, demo și Login — prototip</title>
+<style>
+:root{--bg:#f4f6f3;--s:#ffffff;--s2:#eef2ee;--b:#dfe5df;--f:#14211a;--fs:#4f5d54;--pr:#2f7d5b;--prt:#ffffff;--ps:#e3f1e9;--pt:#1f5a42;--w:#fff4e5;--wt:#8a4b00;--d:#fdecec;--dt:#9b1c1c;--panel:#ffffff}
+.night{--bg:#0b0f0d;--s:#141a17;--s2:#1b231f;--b:#2a342f;--f:#eef3ef;--fs:#a9b5ad;--pr:#5fb38c;--prt:#0b0f0d;--ps:#173528;--pt:#bfe8d3;--w:#3a2a12;--wt:#ffd59a;--d:#3a1717;--dt:#ffb4b4;--panel:#141a17}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--f);font:16px/1.45 Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+button{font:inherit;color:inherit;cursor:pointer}
+.app{display:flex;gap:24px;justify-content:center;align-items:flex-start;padding:16px;flex-wrap:wrap}
+.tools{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding:10px 12px;border-bottom:1px solid var(--b)}
+.tools button{border:1px solid var(--b);background:var(--s);border-radius:12px;padding:8px 12px;font-size:15px}
+.tools button[aria-pressed=true]{background:var(--pr);color:var(--prt);border-color:var(--pr)}
+.phone{width:390px;max-width:100%;height:780px;max-height:calc(100vh - 90px);background:var(--s);border:10px solid #111;border-radius:42px;overflow:hidden;position:relative;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,.18)}
+.night .phone{border-color:#000}
+@media (max-width:700px){.phone{border-width:0;border-radius:0;height:auto;min-height:calc(100vh - 60px);max-height:none;box-shadow:none}.app{padding:0;gap:0}}
+.status{height:26px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:0 18px;font-size:13px;font-weight:700;background:var(--pr);color:var(--prt)}
+.screen{flex:1;overflow-y:auto;display:flex;flex-direction:column;position:relative}
+.top{display:flex;align-items:center;gap:10px;padding:12px 14px;min-height:56px}
+.top .ttl{font-weight:800;font-size:19px;flex:1}
+.iconbtn{width:44px;height:44px;border-radius:99px;border:0;background:var(--s2);font-size:20px;display:grid;place-items:center}
+.body{padding:6px 16px 16px;display:flex;flex-direction:column;gap:12px}
+.foot{padding:12px 16px 16px;display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--b);background:var(--s)}
+.btn{height:56px;border-radius:16px;border:0;background:var(--pr);color:var(--prt);font-weight:800;font-size:17px;width:100%}
+.btn2{min-height:48px;border-radius:16px;border:1px solid var(--b);background:var(--s);font-weight:700;font-size:17px;width:100%;padding:8px 12px}
+.link{border:0;background:none;color:var(--pr);font-weight:700;text-decoration:underline;padding:6px 0;font-size:15px}
+.h1{font-size:30px;line-height:34px;font-weight:800;letter-spacing:-.02em;margin:0}
+.h2{font-size:22px;line-height:28px;font-weight:800;margin:0}
+.sub{font-size:17px;line-height:24px;color:var(--fs);margin:0}
+.sm{font-size:15px;color:var(--fs);margin:0}
+.xs{font-size:13px;color:var(--fs);margin:0}
+.logo{display:flex;align-items:center;gap:8px;font-weight:800;font-size:18px;padding:14px 16px 0}
+.logo i{width:30px;height:30px;border-radius:9px;background:#d64545;display:inline-block}
+.tile{border:2px solid var(--b);border-radius:18px;background:var(--s);padding:14px;text-align:left;display:flex;gap:12px;align-items:flex-start;width:100%}
+.tile[aria-pressed=true]{border-color:var(--pr);background:var(--ps)}
+.tile .em{font-size:28px}
+.tile b{display:block;font-size:19px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tiles .tile{flex-direction:column;align-items:center;text-align:center;min-height:110px;justify-content:center}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:44px;border-radius:99px;border:1px solid var(--b);background:var(--s);padding:8px 16px;font-weight:700}
+.chip[aria-pressed=true]{background:var(--pr);color:var(--prt);border-color:var(--pr)}
+.field{display:flex;flex-direction:column;gap:6px;font-weight:700;font-size:15px}
+.field input{height:52px;border-radius:14px;border:1px solid var(--b);background:var(--s);color:var(--f);padding:0 14px;font:17px Inter,system-ui,sans-serif}
+.info{background:var(--ps);color:var(--pt);border-radius:14px;padding:12px 14px;font-size:15px}
+.warn{background:var(--w);color:var(--wt);border-radius:14px;padding:12px 14px;font-size:15px}
+.bad{background:var(--d);color:var(--dt);border-radius:14px;padding:12px 14px;font-size:15px}
+.row{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--b);border-radius:16px;background:var(--s);text-align:left;width:100%}
+.row .tx{flex:1;display:flex;flex-direction:column}
+.row b{font-size:17px}
+.sep{display:flex;align-items:center;gap:10px;color:var(--fs);font-size:13px;font-weight:700}
+.sep:before,.sep:after{content:"";flex:1;height:1px;background:var(--b)}
+.feat{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.feat div{border:1px solid var(--b);border-radius:14px;padding:10px;font-size:15px;line-height:20px;background:var(--s)}
+.feat b{display:block;font-size:17px;margin-bottom:2px}
+.shot{border:1px solid var(--b);border-radius:16px;background:var(--s2);padding:12px;display:flex;flex-direction:column;gap:7px}
+.shot i{display:block;height:12px;border-radius:6px;background:var(--b)}
+.shot i.g{background:var(--pr);opacity:.55}
+.banner{background:var(--pr);color:var(--prt);padding:10px 14px;font-size:15px;display:flex;flex-direction:column;gap:6px}
+.banner button{align-self:flex-start;border:0;border-radius:99px;padding:6px 12px;background:rgba(0,0,0,.25);color:var(--prt);font-weight:700}
+.nav{display:flex;border-top:1px solid var(--b);background:var(--s);flex:none}
+.nav button{flex:1;border:0;background:none;padding:8px 2px 10px;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:56px}
+.nav button.on{color:var(--pr);font-weight:800}
+.nav .ic{font-size:20px}
+.kpi{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kpi div{border:1px solid var(--b);border-radius:16px;padding:12px;background:var(--s)}
+.kpi b{display:block;font-size:26px}
+.check{display:flex;gap:12px;align-items:center;padding:12px;border:1px solid var(--b);border-radius:16px;background:var(--s);width:100%;text-align:left}
+.check .c{width:28px;height:28px;border-radius:99px;border:2px solid var(--b);flex:none;display:grid;place-items:center;font-weight:800}
+.check.done .c{background:var(--pr);border-color:var(--pr);color:var(--prt)}
+.check.done b{text-decoration:line-through;opacity:.65}
+.check .tx{flex:1;display:flex;flex-direction:column}
+.load{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px}
+.spin{width:56px;height:56px;border-radius:99px;border:6px solid var(--b);border-top-color:var(--pr);animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.bar{height:10px;border-radius:99px;background:var(--b);width:80%;overflow:hidden}.bar i{display:block;height:100%;background:var(--pr);transition:width .4s}
+.sheetwrap{position:absolute;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:flex-end;z-index:3}
+.sheet{background:var(--s);width:100%;border-radius:24px 24px 0 0;padding:16px;display:flex;flex-direction:column;gap:12px}
+.old{background:#fff;color:#334155}
+.night .old{background:#fff;color:#334155}
+.old .pill{display:inline-block;border:1px solid #b7dfc9;background:#e8f5ee;color:#3d7a5f;border-radius:99px;padding:4px 12px;font-size:12px;font-weight:700}
+.old .oh1{font-size:32px;font-weight:900;line-height:36px;color:#1e293b;margin:10px 0}
+.old .obtn{display:block;width:100%;border:0;border-radius:12px;padding:12px;font-weight:700;color:#fff;background:#3d7a5f;margin-top:8px}
+.old .ocard{border:1px solid #e2e8f0;border-radius:16px;padding:14px;margin-top:10px;font-size:14px}
+.strike{position:relative}
+.strike:after{content:"se scoate";position:absolute;top:8px;right:8px;background:#9b1c1c;color:#fff;font-size:12px;font-weight:800;border-radius:8px;padding:2px 8px}
+/* panou */
+.panel{width:420px;max-width:100%;background:var(--panel);border:1px solid var(--b);border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:12px}
+@media (max-width:700px){.panel{border-radius:0;border-left:0;border-right:0}}
+.panel h3{margin:0;font-size:20px}
+.panel .where{font-size:13px;color:var(--fs);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.panel ul{margin:0;padding-left:20px}.panel li{margin:4px 0}
+.q{border:1px solid var(--b);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px;background:var(--s)}
+.q .rec{background:var(--w);color:var(--wt);border-radius:10px;padding:8px 10px;font-size:15px}
+.q .ans{display:flex;gap:8px;flex-wrap:wrap}
+.q .ans button{border:1px solid var(--b);background:var(--s);border-radius:99px;padding:6px 12px;font-size:15px;font-weight:700;min-height:40px}
+.q .ans button[aria-pressed=true]{background:var(--pr);color:var(--prt);border-color:var(--pr)}
+.q textarea{width:100%;min-height:44px;border-radius:10px;border:1px solid var(--b);background:var(--s);color:var(--f);font:15px Inter,system-ui,sans-serif;padding:8px}
+.flow{display:flex;flex-wrap:wrap;gap:6px}
+.flow button{border:1px solid var(--b);background:var(--s);border-radius:99px;padding:6px 10px;font-size:13px}
+.flow button.cur{background:var(--pr);color:var(--prt);border-color:var(--pr)}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--f);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:700;display:none;z-index:9}
+</style>
+</head>
+<body>
+<div class="tools" role="toolbar" aria-label="Instrumente">
+  <button id="tVers" aria-pressed="false">Arată cum e acum</button>
+  <button id="tNight" aria-pressed="false">Noaptea</button>
+  <button id="tRestart">De la început</button>
+  <button id="tCopy">Copiază deciziile</button>
+</div>
+<div class="app">
+  <div class="phone" id="phone"><div class="status"><span>9:41</span><span>●●● 87%</span></div><div class="screen" id="screen"></div></div>
+  <aside class="panel" id="panel" aria-live="polite"></aside>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const S={screen:'landing',hist:[],demoType:'fructe',cultivi:['Zmeura'],pasi:{nume:true,parcela:false,culegatori:false,pret:false},sheet:null,old:false,load:0,ans:{},notes:{}};
+const $=s=>document.querySelector(s);
+
+const FLOW=[['landing','Prima pagină'],['start','Start'],['demoTip','Tip demo'],['loading','Așteptarea'],['acasaDemo','Acasă demo'],['login','Login'],['signup1','Cont nou 1'],['signup2','Cont nou 2'],['acasaNou','Primii pași'],['maiMult','Mai mult'],['planuri','Planul tău']];
+
+const Q={
+ landing:[
+  {id:'testim',q:'Testimonialele „Ion M., Bacău” și „Maria D., Iași”?',rec:'Le scoatem. Azi e o singură fermă reală activă (a ta), deci ar fi inventate, ceea ce e riscant și legal. Le punem înapoi cu fermieri reali, cu acordul lor.',opts:['Scoatem','Le păstrăm']},
+  {id:'locuri',q:'„Beta deschis — locuri limitate”?',rec:'Scos. În loc: „Gratuit cât e în beta”.',opts:['Scos','Rămâne']},
+  {id:'titlu',q:'Titlul paginii?',rec:'„Ferma ta, pe telefon. Fără hârtii.”',opts:['Ferma ta, pe telefon. Fără hârtii.','Nu mai pierde bani din fermă.']},
+  {id:'asoc',q:'Secțiunea mare cu magazinul asociației?',rec:'Un singur rând „Pentru asociații: în curând”, până vine magazinul nou.',opts:['Un rând „în curând”','Rămâne secțiunea']}],
+ start:[{id:'primul',q:'Ce e primul pe /start?',rec:'Demo-ul, fără cont. Contul e a doua opțiune.',opts:['Demo primul','Contul primul']},
+  {id:'confirm',q:'Confirmarea emailului la cont nou?',rec:'Fără confirmare cât e beta (ca azi), ca să nu pierzi oameni.',opts:['Fără confirmare','Cu confirmare']}],
+ demoTip:[{id:'tipuri',q:'Tipurile de demo?',rec:'Doar cele două care există: Fructe de pădure și Solarii.',opts:['Doar cele două','Mai multe']}],
+ loading:[],acasaDemo:[],login:[],
+ signup1:[{id:'intrebari',q:'Câte întrebări după contul nou?',rec:'Două: numele și locul fermei, apoi ce cultivi. Restul din „Primii pași”.',opts:['Două','Niciuna']}],
+ signup2:[{id:'autoparc',q:'Ce cultivi creează parcele automat?',rec:'Nu, doar propune „Adaugă parcela de zmeură”. Parcela o faci tu, cu suprafața ta.',opts:['Doar propune','Creează automat']}],
+ acasaNou:[],maiMult:[],planuri:[]
+};
+
+const NOTES={
+ landing:{t:'Prima pagină · zmeurel.ro',n:['Mai scurtă: titlu, capturi reale din aplicație, 6 plăci „ce ții”, povestea ta, „Gratuit cât e în beta”, întrebări, contact.','Se scot testimonialele inventate și „locuri limitate”.','Butonul principal: „Încearcă fără cont” (demo). Al doilea: „Am deja cont”.','Apasă „Arată cum e acum” sus ca să compari cu pagina de azi.']},
+ start:{t:'/start · alegerea',n:['O singură alegere: demo fără cont (sus) sau cont nou (Google, email).','„Am deja cont” duce la Login.']},
+ demoTip:{t:'Demo · tipul fermei',n:['Aceleași două tipuri ca azi.','Apasă „Pornește demo-ul”.']},
+ loading:{t:'Demo · așteptarea',n:['Nou: aplicația așteaptă până sunt gata datele demo. Azi poți ajunge pe pagini goale dacă intri prea repede.','Pașii se bifează pe rând, apoi intri singur în Acasă.']},
+ acasaDemo:{t:'Acasă în demo',n:['Bannerul demo rămâne. „Creează-ți ferma →” duce la contul nou.','Bara de jos merge: încearcă „Mai mult”.']},
+ login:{t:'Login',n:['Google, email și parolă, „Ai uitat parola?”.','Nou: „Ești operator? Intră din linkul primit pe WhatsApp.”','Nou: „Nu ai cont? Încearcă demo-ul.”','Paginile de parolă (resetare, parolă nouă) primesc același aspect.']},
+ signup1:{t:'Cont nou · ferma',n:['Prima din cele 2 întrebări: numele fermei și localitatea.','Numele apare pe rapoarte și pe raportul analizei.']},
+ signup2:{t:'Cont nou · ce cultivi',n:['A doua întrebare, cu bife. Se poate schimba din Setări.','Pregătește produsele și propunerile din „Primii pași”.']},
+ acasaNou:{t:'Acasă · Primii pași',n:['Cardul cu 4 pași, care se bifează singuri când îi faci.','Apasă un pas: se deschide formularul; după „Salvează”, pasul se bifează.','Dispare când e gata sau la „Ascunde”.']},
+ maiMult:{t:'Mai mult',n:['Ies din meniu: „Clienți magazin” și „Analiză magazin” (datele rămân pentru magazinul nou).','„Planul tău” arată „Gratuit în beta”.']},
+ planuri:{t:'Planul tău',n:['Fără prețuri și fără butoane de plată cât e beta.','Promisiune: afli cu cel puțin o lună înainte când ies abonamentele.']}
+};
+
+function go(s){if(s!==S.screen){S.hist.push(S.screen);S.screen=s;S.sheet=null}render()}
+function back(){S.screen=S.hist.pop()||'landing';S.sheet=null;render()}
+function topbar(t,b=true){return `<div class="top">${b?'<button class="iconbtn" data-act="back" aria-label="Înapoi">‹</button>':''}<span class="ttl">${t}</span></div>`}
+function nav(on){const it=[['acasa','🏡','Acasă'],['x','🚚','Livrări'],['x','🧺','Recoltări'],['x','📦','Comenzi'],['maiMult','•••','Mai mult']];return `<nav class="nav">${it.map(([g,i,l])=>`<button class="${l===on?'on':''}" data-go="${g==='acasa'?(S.cont?'acasaNou':'acasaDemo'):g}" ${g==='x'?'data-act="soon"':''}><span class="ic">${i}</span>${l}</button>`).join('')}</nav>`}
+
+const V={
+landing(){
+ if(S.old) return `<div class="old" style="padding:18px">
+  <div class="strike"><span class="pill">🔓 Beta deschis — locuri limitate</span></div>
+  <div class="oh1">Nu mai pierde bani din fermă.</div>
+  <p style="font-size:14px;color:#64748b">Vezi cât produci, cât vinzi și cât câștigi real — direct de pe telefon. Aplicație gratuită, făcută de un fermier din Suceava.</p>
+  <button class="obtn" data-go="start">Încearcă gratuit</button><button class="obtn" style="background:#25D366">Scrie-mi pe WhatsApp</button>
+  <div class="ocard">Probleme · Soluție · Cum funcționează · Tipuri de ferme · Povestea · Magazinul asociației · Instalare · Întrebări</div>
+  <div class="ocard strike">“Am redus timpul de evidență de la 2 ore pe săptămână la 10 minute.”<br><b>Andrei, Suceava</b></div>
+  <div class="ocard strike">“În sfârșit văd clar cât produce fiecare parcelă.”<br><b>Ion M., Bacău</b></div>
+  <div class="ocard strike">“Simplu, rapid, exact ce aveam nevoie.”<br><b>Maria D., Iași</b></div>
+  <p style="font-size:12px;color:#94a3b8;text-align:center">Experiențe din perioada de testare</p></div>`;
+ const t=S.ans.titlu==='Nu mai pierde bani din fermă.'?'Nu mai pierde bani din fermă.':'Ferma ta, pe telefon. Fără hârtii.';
+ return `<div class="logo"><i></i>Zmeurel</div><div class="body">
+  <h1 class="h1">${t}</h1>
+  <p class="sub">Notezi recoltele, comenzile, livrările și tratamentele în câteva secunde. Vezi cât produci, cât vinzi și cât câștigi.</p>
+  <button class="btn" data-go="start">Încearcă fără cont</button>
+  <button class="btn2" data-go="login">Am deja cont</button>
+  <p class="xs">Gratuit cât e în beta · făcut de un fermier din Văratec, Suceava</p>
+  <div class="shot" aria-label="Captură Recoltări"><span class="sm"><b>Recoltări</b> · azi · 42 kg</span><i class="g" style="width:70%"></i><i style="width:90%"></i><i style="width:55%"></i></div>
+  <p class="h2" style="margin-top:6px">Ce ții în Zmeurel</p>
+  <div class="feat"><div><b>Recoltări</b>kg pe culegător, plata la zi</div><div><b>Comenzi</b>din mesaj, cu livrare și plată</div><div><b>Stoc</b>cât ai, cât e rezervat</div><div><b>Tratamente</b>registru, pauze, magazie</div><div><b>Analize</b>raport cu QR pentru piață</div><div><b>Bani</b>cheltuieli, vânzări, profit</div></div>
+  <div class="shot" aria-label="Captură Tratamente"><span class="sm"><b>Tratamente</b> · E timpul pentru: Înflorire</span><i class="g" style="width:80%"></i><i style="width:60%"></i></div>
+  <p class="sm">Merge și fără semnal. Se sincronizează singur când revine.</p>
+  <p class="h2" style="margin-top:6px">De ce am făcut-o</p>
+  <p class="sub">„Am ~1.900 de plante de zmeură la Văratec. Țineam totul pe hârtie și în WhatsApp și nu știam niciodată exact cât am câștigat. Am făcut Zmeurel pentru ferma mea, apoi pentru alții ca mine.”</p>
+  <p class="xs">— Andrei, fermier și autorul aplicației</p>
+  <div class="info"><b>Gratuit cât e în beta.</b> Datele sunt ale tale: le exporți oricând în Excel sau le ștergi.</div>
+  ${S.ans.asoc==='Rămâne secțiunea'?'<div class="row"><span class="tx"><b>Magazinul asociației</b><span class="sm">secțiunea mare de azi</span></span></div>':'<button class="row" data-act="soon"><span class="tx"><b>Pentru asociații de producători</b><span class="sm">în curând · scrie-mi</span></span>›</button>'}
+  <button class="row" data-act="soon"><span class="tx"><b>Întrebări</b><span class="sm">Trebuie internet? Cine vede datele? Pot invita oameni?</span></span>›</button>
+  <button class="btn2" data-act="soon">Scrie-mi pe WhatsApp</button>
+  <p class="xs">Termeni · Confidențialitate · © Zmeurel</p></div>`},
+start(){return `${topbar('',true)}<div class="logo" style="padding-top:0"><i></i>Zmeurel</div><div class="body">
+  <p class="h2">Cum vrei să începi?</p>
+  ${S.ans.primul==='Contul primul'?'':`<button class="tile" data-go="demoTip"><span class="em">🍓</span><span><b>Încearcă o fermă demo</b><span class="sm">Fără cont. Date de exemplu, le poți schimba. Se șterg după o zi.</span></span></button><div class="sep">SAU</div>`}
+  <button class="btn2" data-act="google">G · Îmi fac cont cu Google</button>
+  <button class="btn2" data-go="signupEmail">Îmi fac cont cu email</button>
+  ${S.ans.primul==='Contul primul'?`<div class="sep">SAU</div><button class="tile" data-go="demoTip"><span class="em">🍓</span><span><b>Încearcă o fermă demo</b><span class="sm">Fără cont.</span></span></button>`:''}
+  <p class="sm">Am deja cont · <button class="link" data-go="login">Intră</button></p></div>`},
+signupEmail(){return `${topbar('Cont nou')}<div class="body">
+  <div class="field">Email<input type="email" placeholder="nume@exemplu.ro"></div>
+  <div class="field">Parolă<input type="password" placeholder="minim 8 caractere"></div>
+  ${S.ans.confirm==='Cu confirmare'?'<div class="warn">Îți trimitem un email de confirmare.</div>':'<p class="xs">Fără email de confirmare cât e beta.</p>'}
+  </div><div class="foot"><button class="btn" data-act="mkcont">Fă contul</button></div>`},
+demoTip(){return `${topbar('Ferma demo')}<div class="body">
+  <p class="h2">Ce fel de fermă?</p>
+  <div class="tiles"><button class="tile" data-act="dt" data-v="fructe" aria-pressed="${S.demoType==='fructe'}"><span class="em">🍓</span><b>Fructe de pădure</b></button><button class="tile" data-act="dt" data-v="solarii" aria-pressed="${S.demoType==='solarii'}"><span class="em">🍅</span><b>Solarii</b></button></div>
+  <p class="sm">Parcele, culegători, comenzi, tratamente, o analiză și magazia, ca să vezi tot.</p></div>
+  <div class="foot"><button class="btn" data-act="startDemo">Pornește demo-ul</button></div>`},
+loading(){const st=['Parcele','Culegători','Comenzi','Tratamente','Gata'];return `<div class="load"><div class="spin" aria-hidden="true"></div><p class="h2">Pregătim ferma demo…</p>
+  <p class="sm">${st.slice(0,S.load).map(x=>x+' ✓').join(' · ')||'Începem…'}</p><div class="bar"><i style="width:${S.load*20}%"></i></div><p class="xs">Durează câteva secunde. Intri singur când e gata.</p></div>`},
+acasaDemo(){return `<div class="banner">🌱 Ești în modul demo. Datele se șterg după o zi.<button data-act="mkfarm">Creează-ți ferma →</button></div>${topbar('Acasă',false)}<div class="body">
+  <div class="kpi"><div><span class="sm">De livrat azi</span><b>189 kg</b></div><div><span class="sm">În stoc</span><b>258 kg</b></div></div>
+  <div class="warn"><b>Maravilla: nu recolta până luni</b><br>Pauză după tratament.</div>
+  <button class="row" data-act="soon"><span class="tx"><b>6 comenzi de pus în livrare</b><span class="sm">azi</span></span>›</button></div><div style="flex:1"></div>${nav('Acasă')}`},
+login(){return `${topbar('',true)}<div class="logo" style="padding-top:0"><i></i>Zmeurel</div><div class="body">
+  <p class="h2">Intră în cont</p>
+  <button class="btn2" data-act="loginok">G · Continuă cu Google</button><div class="sep">SAU</div>
+  <div class="field">Email<input type="email" placeholder="nume@exemplu.ro"></div>
+  <div class="field">Parolă<input type="password" placeholder="••••••••"></div>
+  <button class="link" style="align-self:flex-start" data-act="soon">Ai uitat parola?</button>
+  <div class="info">Ești operator? Intră din linkul primit pe WhatsApp.</div>
+  <p class="sm">Nu ai cont? <button class="link" data-go="start">Încearcă demo-ul</button></p></div>
+  <div class="foot"><button class="btn" data-act="loginok">Intră</button></div>`},
+signup1(){return `<div class="top"><span class="ttl">Ferma ta</span><span class="sm">1 din 2</span></div><div class="bar" style="width:auto;margin:0 16px"><i style="width:50%"></i></div><div class="body">
+  <div class="field">Cum se numește ferma?<input id="fn" placeholder="ex. Ferma Zmeurel" value="${S.farm||''}"></div>
+  <div class="field">Localitatea<input placeholder="ex. Văratec, Suceava"></div>
+  ${S.ans.intrebari==='Niciuna'?'<div class="warn">Varianta „Niciuna”: ecranul ăsta nu mai apare, intri direct în Acasă.</div>':''}</div>
+  <div class="foot"><button class="btn" data-act="s1">Mai departe</button></div>`},
+signup2(){const all=['Zmeura','Mure','Căpșuni','Afine','Solarii','Livadă'];return `<div class="top"><button class="iconbtn" data-act="back" aria-label="Înapoi">‹</button><span class="ttl">Ferma ta</span><span class="sm">2 din 2</span></div><div class="bar" style="width:auto;margin:0 16px"><i style="width:100%"></i></div><div class="body">
+  <p class="h2">Ce cultivi?</p><div class="chips">${all.map(c=>`<button class="chip" data-act="cult" data-v="${c}" aria-pressed="${S.cultivi.includes(c)}">${c==='Zmeura'?'Zmeură':c}</button>`).join('')}</div>
+  <p class="sm">Poți schimba oricând din Setări.</p>
+  ${S.ans.autoparc==='Creează automat'?'<div class="warn">Varianta „Creează automat”: se fac parcele goale pentru fiecare bifă.</div>':''}</div>
+  <div class="foot"><button class="btn" data-act="s2">Intră în fermă</button></div>`},
+acasaNou(){const p=S.pasi,n=Object.values(p).filter(Boolean).length,c=S.cultivi[0]==='Zmeura'?'zmeură':(S.cultivi[0]||'zmeură').toLowerCase();
+ const step=(k,t,s)=>`<button class="check ${p[k]?'done':''}" data-act="pas" data-v="${k}"><span class="c">${p[k]?'✓':''}</span><span class="tx"><b>${t}</b><span class="sm">${s}</span></span>${p[k]?'':'›'}</button>`;
+ return `${topbar(S.farm||'Acasă',false)}<div class="body">
+  ${S.hidePasi?'<p class="sm">Primii pași ascunși.</p>':`<p class="h2">Primii pași · ${n} din 4</p>
+  ${step('nume','Numele fermei','gata')}${step('parcela','Adaugă parcela de '+c,'suprafața și numărul de plante')}${step('culegatori','Adaugă culegătorii','ca să notezi kg pe om')}${step('pret','Pune prețul la '+c,'pentru comenzi și vânzări')}
+  ${n===4?'<div class="info">Gata! Cardul dispare de mâine.</div>':''}<button class="link" style="align-self:flex-start" data-act="hide">Ascunde</button>`}
+  <div class="kpi"><div><span class="sm">De livrat azi</span><b>0 kg</b></div><div><span class="sm">În stoc</span><b>0 kg</b></div></div></div><div style="flex:1"></div>${nav('Acasă')}
+  ${S.sheet?sheet():''}`},
+maiMult(){return `${topbar('Mai mult',false)}<div class="body">
+  ${['Tratamente','Parcele','Lucrări','Stocuri','Produse','Clienți','Culegători','Cheltuieli','Vânzări','Rapoarte','Echipa'].map(x=>`<button class="row" data-act="soon"><span class="tx"><b>${x}</b></span>›</button>`).join('')}
+  <div class="bad" style="text-decoration:line-through">Clienți magazin · Analiză magazin</div><p class="xs" style="margin-top:-6px">ies din meniu (datele rămân)</p>
+  <button class="row" data-go="planuri"><span class="tx"><b>Planul tău</b><span class="sm">Gratuit în beta</span></span>›</button>
+  <button class="row" data-act="soon"><span class="tx"><b>Setări</b></span>›</button></div>${nav('Mai mult')}`},
+planuri(){return `${topbar('Planul tău')}<div class="body">
+  <div class="info" style="padding:16px"><span class="sm" style="color:inherit">Planul tău</span><br><b style="font-size:28px">Gratuit în beta</b><br>toate modulele, fără limită de date</div>
+  <p class="sm">Când ies abonamentele, afli cu cel puțin o lună înainte. Datele rămân ale tale și le poți exporta oricând.</p>
+  <button class="row" data-act="soon"><span class="tx"><b>Exportă tot în Excel</b></span>›</button>
+  <button class="row" data-act="soon"><span class="tx"><b>Scrie-mi ce lipsește</b><span class="sm">WhatsApp</span></span>›</button></div>`}
+};
+function sheet(){const m={parcela:['Parcelă nouă',['Nume','Suprafața (m²)','Număr de plante']],culegatori:['Culegător nou',['Nume','Tarif (lei/kg)']],pret:['Prețul la produs',['Preț (lei/kg)']]}[S.sheet];
+ return `<div class="sheetwrap" data-act="closeSheet"><div class="sheet" data-stop="1"><p class="h2">${m[0]}</p>${m[1].map(f=>`<div class="field">${f}<input></div>`).join('')}<button class="btn" data-act="saveSheet">Salvează</button></div></div>`}
+
+function render(){
+ const sc=$('#screen');sc.innerHTML=(V[S.screen]||V.landing)();sc.scrollTop=0;
+ $('#tVers').style.display=S.screen==='landing'?'':'none';
+ const N=NOTES[S.screen]||{t:S.screen,n:[]};const qs=Q[S.screen]||[];
+ $('#panel').innerHTML=`<span class="where">Ecranul</span><h3>${N.t}</h3>
+  <div class="flow">${FLOW.map(([k,l])=>`<button class="${k===S.screen?'cur':''}" data-goto="${k}">${l}</button>`).join('')}</div>
+  <b>Ce se schimbă</b><ul>${N.n.map(x=>`<li>${x}</li>`).join('')}</ul>
+  ${qs.length?'<b>De hotărât aici</b>':''}${qs.map(q=>`<div class="q"><b>${q.q}</b><div class="rec">Recomand: ${q.rec}</div><div class="ans">${q.opts.map((o,i)=>`<button data-ans="${q.id}" data-v="${o}" aria-pressed="${(S.ans[q.id]||q.opts[0])===o}">${o}${i===0?' ✓ recomandat':''}</button>`).join('')}</div><textarea data-note="${q.id}" placeholder="Altceva? Scrie aici">${S.notes[q.id]||''}</textarea></div>`).join('')}
+  <p class="xs">Apasă butoanele din telefon ca să mergi prin aplicație. Alegerile din dreapta schimbă ecranul pe loc.</p>`;
+ try{localStorage.setItem('proto-start-v1',JSON.stringify({ans:S.ans,notes:S.notes}))}catch(e){}
+}
+function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',1600)}
+document.addEventListener('click',e=>{
+ const t=e.target.closest('[data-go],[data-act],[data-goto],[data-ans]');if(!t)return;
+ if(t.dataset.stop&&!e.target.closest('[data-act]'))return;
+ if(t.dataset.goto){S.hist=[];S.screen=t.dataset.goto;S.sheet=null;if(S.screen==='loading')startLoad();render();return}
+ if(t.dataset.ans){S.ans[t.dataset.ans]=t.dataset.v;render();return}
+ const a=t.dataset.act;
+ if(a==='back')return back();
+ if(a==='soon')return toast('Doar în aplicația reală');
+ if(a==='dt'){S.demoType=t.dataset.v;return render()}
+ if(a==='startDemo'){S.cont=false;go('loading');startLoad();return}
+ if(a==='mkfarm'||a==='google'||a==='mkcont'){S.cont=true;return go(S.ans.intrebari==='Niciuna'?'acasaNou':'signup1')}
+ if(a==='loginok'){S.cont=true;S.farm='Ferma Zmeurel';S.pasi={nume:true,parcela:true,culegatori:true,pret:true};S.hidePasi=true;return go('acasaNou')}
+ if(a==='s1'){S.farm=($('#fn')||{}).value||'Ferma mea';return go('signup2')}
+ if(a==='cult'){const v=t.dataset.v;S.cultivi=S.cultivi.includes(v)?S.cultivi.filter(x=>x!==v):[...S.cultivi,v];return render()}
+ if(a==='s2'){S.hidePasi=false;S.pasi={nume:true,parcela:false,culegatori:false,pret:false};return go('acasaNou')}
+ if(a==='pas'){const k=t.dataset.v;if(S.pasi[k])return;S.sheet=k;return render()}
+ if(a==='saveSheet'){S.pasi[S.sheet]=true;S.sheet=null;toast('Salvat · pas bifat');return render()}
+ if(a==='closeSheet'){if(e.target===t){S.sheet=null;render()}return}
+ if(a==='hide'){S.hidePasi=true;return render()}
+ if(t.dataset.go)go(t.dataset.go);
+});
+document.addEventListener('input',e=>{if(e.target.dataset.note){S.notes[e.target.dataset.note]=e.target.value;try{localStorage.setItem('proto-start-v1',JSON.stringify({ans:S.ans,notes:S.notes}))}catch(x){}}});
+function startLoad(){S.load=0;clearInterval(startLoad.i);startLoad.i=setInterval(()=>{S.load++;if(S.screen!=='loading'){clearInterval(startLoad.i);return}if(S.load>=5){clearInterval(startLoad.i);setTimeout(()=>{if(S.screen==='loading'){S.hist=['landing'];S.screen='acasaDemo';render()}},500)}render()},600)}
+$('#tVers').onclick=()=>{S.old=!S.old;$('#tVers').setAttribute('aria-pressed',S.old);$('#tVers').textContent=S.old?'Arată propunerea':'Arată cum e acum';render()};
+$('#tNight').onclick=()=>{const n=document.documentElement.classList.toggle('night');$('#tNight').setAttribute('aria-pressed',n)};
+$('#tRestart').onclick=()=>{S.hist=[];S.screen='landing';S.sheet=null;S.old=false;$('#tVers').setAttribute('aria-pressed','false');$('#tVers').textContent='Arată cum e acum';render()};
+$('#tCopy').onclick=()=>{const L=[];Object.values(Q).flat().forEach(q=>{L.push(`${q.q} → ${S.ans[q.id]||q.opts[0]}${S.notes[q.id]?' · '+S.notes[q.id]:''}`)});const txt='Decizii · Prima pagină, demo și Login\n'+L.join('\n');(navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast('Copiat'),()=>{prompt('Copiază:',txt)})};
+try{const d=JSON.parse(localStorage.getItem('proto-start-v1')||'{}');S.ans=d.ans||{};S.notes=d.notes||{}}catch(e){}
+render();
+</script>
+</body>
+</html>
