@@ -1,9 +1,9 @@
 self.addEventListener('push', function (event) {
   var payload = {
-    title: 'Zmeurel OS',
+    title: 'Caietul Fermei',
     body: '',
-    icon: '/icon-192.png',
-    badge: '/badge-96.png',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/badge-monocrom-96.png',
     url: '/',
     tag: undefined,
     actions: [],
@@ -42,8 +42,8 @@ self.addEventListener('push', function (event) {
   event.waitUntil(
     self.registration.showNotification(payload.title, {
       body: payload.body,
-      icon: payload.icon ?? '/icon-192.png',
-      badge: payload.badge || '/badge-96.png',
+      icon: payload.icon ?? '/icons/icon-192.png',
+      badge: payload.badge || '/icons/badge-monocrom-96.png',
       data: {
         url: payload.url || '/',
         actions: payload.actions,

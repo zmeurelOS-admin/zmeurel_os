@@ -12,6 +12,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { AssociationContextSwitcher } from "@/components/association/AssociationContextSwitcher"
 import { AssociationSidebar } from "@/components/association/AssociationSidebar"
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
+import { LogoCuNume } from '@/components/brand/LogoCuNume'
+import { APP_NAME } from '@/lib/brand'
 import { operatorSeesHref } from '@/lib/farm-members/nav'
 import { useDemoBannerVisible } from "@/hooks/useDemoBannerVisible"
 import { useShopOrdersInLivrareCount, ShopOrdersInLivrareNavBadge } from "@/lib/shop/useShopOrdersInLivrareCount"
@@ -522,19 +524,11 @@ export function Sidebar() {
               )}
             >
               <Link href="/dashboard" className="flex items-center gap-3 rounded-2xl px-2 py-1.5 transition-colors hover:bg-[var(--surface-card-muted)]">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]">
-                  <Image src="/icons/icon.svg" alt="Zmeurel" width={28} height={28} className="h-7 w-7" />
-                </span>
-                {!collapsed ? (
-                  <span className="min-w-0">
-                    <span className="block text-sm font-extrabold tracking-wide text-[var(--text-primary)]">
-                      Zmeurel
-                    </span>
-                    <span className="block text-xs font-medium uppercase tracking-[0.24em] text-[var(--text-secondary)]">
-                      OS
-                    </span>
-                  </span>
-                ) : null}
+                {collapsed ? (
+                  <Image src="/icons/icon.svg" alt={APP_NAME} width={44} height={44} className="h-11 w-11 shrink-0" />
+                ) : (
+                  <LogoCuNume className="h-11" />
+                )}
               </Link>
             </div>
 

@@ -349,7 +349,7 @@ function ZmeurelLogo({
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <Image
-        src="/icons/icon.svg"
+        src="/shop/icons/icon.svg"
         alt="Zmeurel"
         width={36}
         height={36}
@@ -1821,7 +1821,7 @@ function FooterBrand() {
   return (
     <div>
       <Image
-        src="/icons/icon.svg"
+        src="/shop/icons/icon.svg"
         alt="Zmeurel"
         width={54}
         height={54}

@@ -1,6 +1,8 @@
 import type { MetadataRoute } from 'next'
 import { headers } from 'next/headers'
 
+import { APP_NAME, APP_SHORT_NAME, APP_TAGLINE } from '@/lib/brand'
+
 const DEFAULT_SHOP_DOMAIN = 'comanda.zmeurel.ro'
 const SHOP_DOMAIN = (process.env.SHOP_DOMAIN?.trim() || DEFAULT_SHOP_DOMAIN).toLowerCase()
 
@@ -8,10 +10,17 @@ function normalizeHost(host: string | null): string {
   return (host ?? '').split(':')[0]?.toLowerCase() ?? ''
 }
 
+/** Iconițele platformei (Caietul Fermei), ca în `docs/redesign/brand/caietul-fermei-logo/manifest-exemplu.json`. */
 const osIcons: MetadataRoute.Manifest['icons'] = [
-  { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-  { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-  { src: '/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+  { src: '/icons/icon.svg', sizes: 'any', type: 'image/svg+xml' },
+  ...[72, 96, 128, 144, 152, 192, 384, 512].map((size) => ({
+    src: `/icons/icon-${size}.png`,
+    sizes: `${size}x${size}`,
+    type: 'image/png',
+  })),
+  { src: '/icons/icon-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+  { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+  { src: '/icons/badge-monocrom-96.png', sizes: '96x96', type: 'image/png', purpose: 'monochrome' },
 ]
 
 const shopIcons: MetadataRoute.Manifest['icons'] = [
@@ -46,17 +55,17 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
 
   return {
     id: '/start',
-    name: 'Zmeurel OS',
-    short_name: 'Zmeurel OS',
-    description: 'Evidență simplă pentru fermă',
+    name: APP_NAME,
+    short_name: APP_SHORT_NAME,
+    description: APP_TAGLINE,
     start_url: '/start?source=pwa',
     scope: '/',
     display: 'standalone',
     orientation: 'portrait',
-    background_color: '#f0fdf4',
-    theme_color: '#166534',
+    background_color: '#fbf8ef',
+    theme_color: '#3d7a5f',
     icons: osIcons,
-    // „Distribuie” din aplicația Contacte → Zmeurel OS deschide comanda nouă de material săditor.
+    // „Distribuie” din aplicația Contacte → Caietul deschide comanda nouă de material săditor.
     share_target: {
       action: '/api/share/contact',
       method: 'POST',

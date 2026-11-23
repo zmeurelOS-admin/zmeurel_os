@@ -1,10 +1,9 @@
-import Image from 'next/image'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import type { ReactNode } from 'react'
 
+import { LogoCuNume } from '@/components/brand/LogoCuNume'
 import { kitFocus, kitText } from '@/components/kit'
-import { APP_NAME } from '@/lib/brand'
 import { cn } from '@/lib/utils'
 
 /**
@@ -42,9 +41,8 @@ export function AuthFrame({
               <ChevronLeft aria-hidden className="size-6" />
             </button>
           ) : null}
-          <Link href="/" className={cn('flex items-center gap-2.5 rounded-control', kitFocus)}>
-            <Image src="/icons/icon.svg" alt="" width={32} height={32} className="size-8" priority />
-            <span className={cn(kitText.card, 'font-extrabold text-fg')}>{APP_NAME}</span>
+          <Link href="/" className={cn('flex items-center rounded-control', kitFocus)}>
+            <LogoCuNume className="h-9" />
           </Link>
         </div>
         {title ? <h1 className={cn(kitText.section, 'font-extrabold text-fg')}>{title}</h1> : null}
