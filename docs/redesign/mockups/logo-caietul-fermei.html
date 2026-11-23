@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caietul Fermei — logo</title>
+<style>
+:root{--page:#f4f3ee;--surface:#fff;--fg:#102015;--muted:#3d4a41;--subtle:#64748b;--border:#d7e2d9;--primary:#3d7a5f;--soft:#e6f3ea}
+.night{--page:#0b0e13;--surface:#12161d;--fg:#f5f6f7;--muted:#949ba4;--subtle:#6c737d;--border:#20262f;--primary:#5ca882;--soft:#0f2218}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+header h1{font-size:17px;margin:0 auto 0 0}
+.tb{border:1px solid var(--border);background:var(--surface);color:var(--fg);border-radius:999px;padding:9px 14px;font:inherit;font-size:14px;font-weight:600;min-height:44px;cursor:pointer}
+.tb[aria-pressed=true]{background:var(--primary);color:#fff;border-color:var(--primary)}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:20px;max-width:1180px;margin:0 auto;padding:16px}
+@media(max-width:860px){.wrap{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:16px}
+h2{font-size:19px;margin:0 0 4px}
+h3{font-size:15px;margin:16px 0 8px;color:var(--muted)}
+.sub{color:var(--muted);margin:0 0 10px}
+.concepts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:560px){.concepts{grid-template-columns:repeat(2,1fr)}}
+.cpt{border:2px solid var(--border);background:var(--surface);border-radius:16px;padding:10px 8px;cursor:pointer;text-align:center;color:var(--fg);font:inherit}
+.cpt svg{width:72px;height:72px;display:block;margin:0 auto 6px}
+.cpt b{display:block;font-size:15px}
+.cpt span{font-size:13px;color:var(--subtle)}
+.cpt[aria-pressed=true]{border-color:var(--primary);background:var(--soft)}
+.rec{display:inline-block;font-size:13px;font-weight:700;color:var(--primary)}
+.row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+/* phone */
+.phone{width:300px;border-radius:36px;border:10px solid #111;background:#111;overflow:hidden;flex:none}
+.scr{height:540px;position:relative;overflow:hidden}
+.home{background:linear-gradient(160deg,#9cb7a4,#4d6b5a 55%,#2a3b32);padding:34px 16px}
+.night .home{background:linear-gradient(160deg,#25332b,#121a16)}
+.clock{color:#fff;font-size:44px;font-weight:300;text-align:center;margin:8px 0 2px}
+.date{color:#e8efe9;text-align:center;font-size:13px;margin-bottom:34px}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px 8px}
+.app{text-align:center;color:#fff;font-size:12px;line-height:1.2}
+.app i{display:block;width:52px;height:52px;margin:0 auto 5px;border-radius:14px;background:rgba(255,255,255,.28)}
+.app svg{display:block;width:52px;height:52px;margin:0 auto 5px;border-radius:14px}
+.app em{font-style:normal;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dock{position:absolute;left:12px;right:12px;bottom:14px;display:flex;justify-content:space-around;background:rgba(255,255,255,.18);border-radius:24px;padding:10px}
+.dock i{width:46px;height:46px;border-radius:13px;background:rgba(255,255,255,.3)}
+/* login */
+.login{background:var(--page);padding:40px 22px;display:flex;flex-direction:column;gap:12px}
+.lhead{display:flex;flex-direction:column;align-items:center;gap:10px;margin:10px 0 14px;text-align:center}
+.lhead svg{width:72px;height:72px}
+.wm{font-size:24px;font-weight:800;letter-spacing:-.3px;color:var(--fg)}
+.wm small{display:block;font-size:15px;font-weight:500;color:var(--muted);letter-spacing:0;margin-top:2px}
+.fld{height:52px;border:1px solid var(--border);border-radius:14px;background:var(--surface);display:flex;align-items:center;padding:0 14px;color:var(--subtle);font-size:16px}
+.btn{height:54px;border-radius:14px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px}
+.night .btn{color:#08140e}
+.btn2{height:52px;border-radius:14px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-weight:600;color:var(--fg)}
+/* app bar */
+.bar{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:10px 12px}
+.bar svg{width:32px;height:32px}
+.bar b{font-size:17px}
+.sizes{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}
+.sz{text-align:center;font-size:13px;color:var(--subtle)}
+.sz .bx{display:flex;gap:8px;padding:10px;border-radius:12px;align-items:center}
+.notif{display:flex;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:10px 12px}
+.notif .mono{width:22px;height:22px;flex:none}
+.notif p{margin:0;font-size:14px}
+.notif p b{display:block}
+.pal{display:flex;gap:8px;flex-wrap:wrap}
+.sw{display:inline-flex;gap:3px;margin-right:6px;vertical-align:middle}
+.sw i{width:14px;height:14px;border-radius:4px;display:inline-block;border:1px solid rgba(0,0,0,.1)}
+.panel ul{padding-left:18px;margin:6px 0}
+.panel li{margin:4px 0}
+.note{width:100%;min-height:70px;border:1px solid var(--border);border-radius:12px;background:var(--page);color:var(--fg);font:inherit;padding:10px;margin-top:6px}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#102015;color:#fff;padding:10px 16px;border-radius:999px;display:none;z-index:9}
+.xs{font-size:13px;color:var(--subtle)}
+</style>
+</head>
+<body>
+<header>
+ <h1>Caietul Fermei · logo</h1>
+ <button class="tb" id="tNight" aria-pressed="false">Noaptea</button>
+ <button class="tb" id="tDl">Descarcă SVG</button>
+ <button class="tb" id="tCopy">Copiază alegerea</button>
+</header>
+<div class="wrap">
+ <main>
+  <section class="card">
+   <h2>Alege semnul</h2>
+   <p class="sub">Patru idei, toate desenate de la zero, în culorile platformei. Apasă pe una: telefonul, logarea și mărimile mici se schimbă pe loc.</p>
+   <div class="concepts" id="concepts"></div>
+   <h3>Culorile</h3>
+   <div class="pal" id="pal"></div>
+  </section>
+  <section class="card" style="margin-top:16px">
+   <h2>Cum arată în viața reală</h2>
+   <div class="row" style="margin-top:10px">
+    <div class="phone"><div class="scr home" id="home"></div></div>
+    <div class="phone"><div class="scr login" id="login"></div></div>
+   </div>
+   <h3>Bara de sus din aplicație</h3>
+   <div id="bar"></div>
+   <h3>Mărimi mici (fila din browser, notificări)</h3>
+   <div class="sizes" id="sizes"></div>
+   <h3>Notificarea pe telefon (iconița într-o singură culoare)</h3>
+   <div id="notif"></div>
+  </section>
+ </main>
+ <aside class="card panel" id="panel"></aside>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<script>
+const PAL={
+ platforma:{n:'Verdele platformei',d:'Exact verdele din aplicație (#3d7a5f), pe fond de hârtie caldă.',tile:'#3d7a5f',paper:'#fbf8ef',ink:'#1f3d30',line:'#3d7a5f',leaf:'#5ca882',accent:'#3d7a5f'},
+ ocru:{n:'Verde + pământ',d:'Verdele platformei, cu brazdele în culoarea pământului (ocru). Mai cald, mai „de câmp”.',tile:'#3d7a5f',paper:'#fbf8ef',ink:'#1f3d30',line:'#b07a32',leaf:'#4f9a74',accent:'#b07a32'},
+ hartie:{n:'Hârtie',d:'Fond de hârtie, desenul în verde. Iese bine pe fundal închis, mai puțin pe ecranul telefonului cu fundal deschis.',tile:'#fbf8ef',paper:'#3d7a5f',ink:'#1f3d30',line:'#fbf8ef',leaf:'#a8dcb9',accent:'#fbf8ef'}
+};
+const C={
+ brazde:{n:'Brazdele',s:'caiet + câmp',rec:true,
+  why:['Rândurile caietului devin brazde care pleacă spre orizont; din linia orizontului răsare o plantă.','Spune ambele lucruri dintr-o privire: e un caiet și e despre câmp.','Inelele de sus îl fac să arate a caiet de notițe, nu a carte.'],
+  svg:(p,m)=>`<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><rect width="128" height="128" rx="28" fill="${m?'none':p.tile}"/>
+<defs><clipPath id="pg${m?'m':''}"><rect x="28" y="28" width="72" height="78" rx="9"/></clipPath></defs>
+<rect x="28" y="28" width="72" height="78" rx="9" fill="${m?'#fff':p.paper}"/>
+<g clip-path="url(#pg${m?'m':''})" stroke="${m?'#3d7a5f':p.line}" stroke-width="4.5" stroke-linecap="round" fill="none">
+<path d="M28 70H100"/><path d="M64 70L64 112"/><path d="M60 70L40 112"/><path d="M68 70L88 112"/><path d="M56 70L18 108"/><path d="M72 70L110 108"/></g>
+<path d="M64 70V52" stroke="${m?'#3d7a5f':p.ink}" stroke-width="4.5" stroke-linecap="round"/>
+<path d="M64 58C64 49 57 44 48 44C48 53 55 58 64 58Z" fill="${m?'#3d7a5f':p.leaf}"/><path d="M64 54C64 44 72 38 82 38C82 48 74 54 64 54Z" fill="${m?'#3d7a5f':p.leaf}"/>
+${[44,64,84].map(x=>`<rect x="${x-3.5}" y="18" width="7" height="18" rx="3.5" fill="${m?'#fff':p.ink}" stroke="${m?'#3d7a5f':p.tile}" stroke-width="2.5"/>`).join('')}</svg>`},
+ frunza:{n:'Frunza-pagină',s:'nervurile sunt rânduri',
+  why:['O frunză ale cărei nervuri sunt rândurile de caiet pe care scrii.','Foarte simplă, se recunoaște și la 16 px.','Mai mult „natură” decât „câmp lucrat”.'],
+  svg:(p,m)=>`<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><rect width="128" height="128" rx="28" fill="${m?'none':p.tile}"/>
+<defs><clipPath id="lf${m?'m':''}"><path d="M30 98C30 56 56 30 100 28C100 72 74 98 30 98Z"/></clipPath></defs>
+<path d="M30 98C30 56 56 30 100 28C100 72 74 98 30 98Z" fill="${m?'#fff':p.paper}"/>
+<g clip-path="url(#lf${m?'m':''})" stroke="${m?'#000':p.line}" stroke-width="4" stroke-linecap="round"><path d="M20 52H110"/><path d="M20 64H110"/><path d="M20 76H110"/><path d="M20 88H110"/></g>
+<path d="M34 94L92 36" stroke="${m?'#000':p.ink}" stroke-width="5" stroke-linecap="round"/>
+</svg>`},
+ semn:{n:'Semnul de carte',s:'caiet cu panglică-răsad',
+  why:['Un caiet închis, cu panglica de semn de carte care iese jos și se termină într-o frunză.','Mesajul: aici îți ții ferma, pagină cu pagină.','Ca formă e cea mai „produs” dintre toate; se vede bine pe ecranul telefonului.'],
+  svg:(p,m)=>`<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><rect width="128" height="128" rx="28" fill="${m?'none':p.tile}"/>
+<rect x="32" y="22" width="64" height="80" rx="10" fill="${m?'#fff':p.paper}"/>
+<rect x="32" y="22" width="14" height="80" rx="7" fill="${m?'#fff':p.ink}" opacity="${m?1:.9}"/>
+<g stroke="${m?'#000':p.line}" stroke-width="4" stroke-linecap="round"><path d="M56 42H86"/><path d="M56 54H86"/><path d="M56 66H78"/></g>
+<path d="M74 92V108" stroke="${m?'#fff':p.accent}" stroke-width="5" stroke-linecap="round"/>
+<path d="M74 108C74 99 81 94 90 94C90 103 83 108 74 108Z" fill="${m?'#fff':p.leaf}"/>
+<path d="M74 104C74 96 67 92 60 92C60 100 66 104 74 104Z" fill="${m?'#fff':p.leaf}"/></svg>`},
+ cf:{n:'cf',s:'monogramă cu spirală',
+  why:['Literele „cf” desenate, cu f-ul care se termină într-o frunză și cu găurile de spirală pe margine.','Cea mai scurtă și mai „marcă”; se înregistrează ușor la OSIM ca semn figurativ.','Nu spune singură ce e; are nevoie de numele scris lângă.'],
+  svg:(p,m)=>`<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><rect width="128" height="128" rx="28" fill="${m?'none':p.tile}"/>
+${[38,58,78].map(y=>`<circle cx="22" cy="${y+6}" r="4.5" fill="${m?'#fff':p.paper}" opacity="${m?1:.85}"/>`).join('')}
+<path d="M70 50A22 22 0 1 0 70 82" fill="none" stroke="${m?'#fff':p.paper}" stroke-width="11" stroke-linecap="round"/>
+<path d="M86 100V52C86 42 92 36 102 36" fill="none" stroke="${m?'#fff':p.paper}" stroke-width="11" stroke-linecap="round"/>
+<path d="M74 66H100" stroke="${m?'#fff':p.paper}" stroke-width="10" stroke-linecap="round"/>
+<path d="M102 36C102 26 110 20 118 20C118 30 111 36 102 36Z" fill="${m?'#fff':(p===PAL.hartie?p.paper:'#a8dcb9')}"/></svg>`}
+};
+const S={c:'brazde',p:'platforma',notes:{}};
+try{Object.assign(S,JSON.parse(localStorage.getItem('logo-cf-v1')||'{}'))}catch(e){}
+const $=s=>document.querySelector(s);
+const logo=(m=false)=>C[S.c].svg(PAL[S.p],m);
+function save(){try{localStorage.setItem('logo-cf-v1',JSON.stringify(S))}catch(e){}}
+function render(){
+ $('#concepts').innerHTML=Object.entries(C).map(([k,c])=>`<button class="cpt" data-c="${k}" aria-pressed="${S.c===k}">${c.svg(PAL[S.p])}<b>${c.n}</b><span>${c.s}</span>${c.rec?'<br><span class="rec">recomandat</span>':''}</button>`).join('');
+ $('#pal').innerHTML=Object.entries(PAL).map(([k,p])=>`<button class="tb" data-p="${k}" aria-pressed="${S.p===k}"><span class="sw"><i style="background:${p.tile}"></i><i style="background:${p.paper}"></i><i style="background:${p.line}"></i></span>${p.n}${k==='platforma'?' ✓':''}</button>`).join('');
+ const L=logo();
+ const apps=['Telefon','Mesaje','Cameră','Vreme','Calendar','Galerie','Ceas'];
+ $('#home').innerHTML=`<div class="clock">7:42</div><div class="date">luni, 23 noiembrie</div><div class="grid">${apps.slice(0,5).map(a=>`<div class="app"><i></i><em>${a}</em></div>`).join('')}<div class="app">${L}<em>Caietul Fermei</em></div>${apps.slice(5).map(a=>`<div class="app"><i></i><em>${a}</em></div>`).join('')}</div><div class="dock"><i></i><i></i><i></i><i></i></div>`;
+ $('#login').innerHTML=`<div class="lhead">${L}<div class="wm">Caietul Fermei<small>Ferma ta, pe telefon. Fără hârtii.</small></div></div><div class="btn2">Intră cu Google</div><div class="fld">E-mail</div><div class="fld">Parola</div><div class="btn">Intră</div><p class="xs" style="text-align:center">Ești operator? Intră din linkul primit pe WhatsApp.</p>`;
+ $('#bar').innerHTML=`<div class="bar">${L}<b>Caietul Fermei</b><span class="xs" style="margin-left:auto">Ferma Zmeurel</span></div>`;
+ $('#sizes').innerHTML=[16,32,48,72].map(s=>`<div class="sz"><div class="bx" style="background:#fff;border:1px solid #e5e5e5"><span style="width:${s}px;height:${s}px;display:block">${L.replace('<svg ',`<svg width="${s}" height="${s}" `)}</span></div><div class="bx" style="background:#0b0e13;margin-top:6px"><span style="width:${s}px;height:${s}px;display:block">${L.replace('<svg ',`<svg width="${s}" height="${s}" `)}</span></div>${s} px</div>`).join('');
+ const mono=logo(true).replace('<svg ','<svg class="mono" style="background:var(--primary);border-radius:6px" ');
+ $('#notif').innerHTML=`<div class="notif">${mono}<p><b>Caietul Fermei · acum</b>Maravilla: nu recolta până vineri 27.11 (pauză după tratament).</p></div><p class="xs">Android arată iconița de notificare doar ca siluetă albă; așa se vede semnul tău acolo.</p>`;
+ const c=C[S.c],p=PAL[S.p];
+ $('#panel').innerHTML=`<h2>${c.n}${c.rec?' <span class="rec">· recomandat</span>':''}</h2><p class="sub">${c.s}</p><ul>${c.why.map(w=>`<li>${w}</li>`).join('')}</ul>
+ <h3>Culori: ${p.n}</h3><p class="xs" style="margin:0">${p.d}</p>
+ <h3>De ce culorile platformei</h3><ul><li>Logo-ul stă în aplicație lângă butoanele verzi; dacă ar avea alte culori, ar părea lipit. Verdele e deja „al platformei”.</li><li>Roșul de zmeură rămâne la Zmeurel (ferma și magazinul), ca să nu se încurce cele două.</li><li>Ocrul e singura culoare nouă propusă și doar ca accent.</li></ul>
+ <h3>Ce primești după ce alegi</h3><ul><li>SVG-ul (butonul „Descarcă SVG”), apoi iconițele pentru telefon (72–512 px), favicon și varianta pentru notificări le face agentul din el.</li><li>Pentru OSIM: marca figurativă = semnul + numele scris.</li></ul>
+ <h3>Altceva?</h3><textarea class="note" id="note" placeholder="Ex.: brazdele mai groase, fără inele, alt verde…">${S.notes[S.c]||''}</textarea>
+ <p class="xs">Alegerea și notițele rămân salvate în browser. „Copiază alegerea” și trimite-mi textul.</p>`;
+ save();
+}
+document.addEventListener('click',e=>{const t=e.target.closest('[data-c],[data-p]');if(!t)return;if(t.dataset.c)S.c=t.dataset.c;if(t.dataset.p)S.p=t.dataset.p;render()});
+document.addEventListener('input',e=>{if(e.target.id==='note'){S.notes[S.c]=e.target.value;save()}});
+function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',1600)}
+$('#tNight').onclick=()=>{const n=document.documentElement.classList.toggle('night');$('#tNight').setAttribute('aria-pressed',n)};
+$('#tDl').onclick=()=>{const b=new Blob([logo()],{type:'image/svg+xml'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`caietul-fermei-${S.c}-${S.p}.svg`;document.body.appendChild(a);a.click();a.remove();toast('Descărcat')};
+$('#tCopy').onclick=()=>{const txt=`Logo Caietul Fermei: ${C[S.c].n} · culori ${PAL[S.p].n}${S.notes[S.c]?' · '+S.notes[S.c]:''}`;(navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast('Copiat'),()=>prompt('Copiază:',txt))};
+render();
+</script>
+</body>
+</html>
