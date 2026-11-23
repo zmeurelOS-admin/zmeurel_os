@@ -10,6 +10,7 @@ export const TIPURI_ZILNICE = {
   tratament_planificat: 'tratament_planificat',
   analize_memento: 'analize_memento',
   magazie_pe_terminate: 'magazie_pe_terminate',
+  capcane_verificare: 'capcane_verificare',
 } as const
 
 export type TipZilnic = (typeof TIPURI_ZILNICE)[keyof typeof TIPURI_ZILNICE]

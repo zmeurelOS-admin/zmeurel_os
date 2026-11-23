@@ -9,7 +9,7 @@
  */
 
 /** Cheile din `notificari_preferinte.tipuri`, în ordinea din ecran. */
-export const NOTIFICARI_CHEI = ['noi', 'maine', 'rest', 'meteo', 'pauza', 'tratamente', 'magazie', 'analize', 'sapt', 'acte'] as const
+export const NOTIFICARI_CHEI = ['noi', 'maine', 'rest', 'meteo', 'pauza', 'tratamente', 'magazie', 'capcane', 'capcane_prag', 'analize', 'sapt', 'acte'] as const
 
 export type NotificareCheie = (typeof NOTIFICARI_CHEI)[number]
 
@@ -63,6 +63,8 @@ export const NOTIFICARI_TEXTE: Record<NotificareCheie, { titlu: string; detaliu:
   pauza: { titlu: 'Pauza după tratament', detaliu: 'Când se poate culege din nou din parcelă' },
   tratamente: { titlu: 'Tratamente planificate', detaliu: 'Dimineața, în ziua lor' },
   magazie: { titlu: 'Produse pe terminate', detaliu: 'Luni dimineața, din Magazie' },
+  capcane: { titlu: 'Verifică capcanele', detaliu: 'Dimineața, în ziua verificării' },
+  capcane_prag: { titlu: 'Capturi peste prag', detaliu: 'Imediat după o verificare care trece pragul' },
   analize: { titlu: 'Analiza dinainte de cules', detaliu: 'Pe telefon, la 8:00' },
   sapt: { titlu: 'Săptămâna ta', detaliu: 'Duminică seara: încasat, livrat, cheltuit' },
   acte: { titlu: 'Echipa și documentele', detaliu: 'Cineva nou în echipă, un act care expiră' },
@@ -86,6 +88,9 @@ export const NOTIFICARI_METEO_FARA_LOC = 'Dimineața, după ce salvezi locul fer
  *   și actele care expiră (`legal_docs_*`) intră tot la `acte`.
  * - `analize_memento` → `analize`: mementoul „analiza dinainte de cules” (doar proprietarul îl primește).
  * - `magazie_pe_terminate` → `magazie`: luni dimineața, câte produse din Magazie sunt pe terminate (doar proprietarul).
+ * - `capcane_verificare` → `capcane`: dimineața, în ziua verificării capcanelor (proprietarul și operatorii cu „Scrie”
+ *   pe Tratamente).
+ * - `capcane_peste_prag` → `capcane_prag`: imediat după o verificare care trece pragul (doar proprietarul).
  * - Tipurile care încep cu `meteo_` (`meteo_inghet`, `meteo_grindina`) → `meteo`.
  * - Ce nu e aici (ex. ofertele din asociație) nu are comutator: sună ca până acum,
  *   dar respectă liniștea de noapte.
@@ -100,6 +105,8 @@ const TIP_LA_CHEIE: Record<string, NotificareCheie> = {
   tratament_planificat: 'tratamente',
   analize_memento: 'analize',
   magazie_pe_terminate: 'magazie',
+  capcane_verificare: 'capcane',
+  capcane_peste_prag: 'capcane_prag',
   weekly_sales_summary: 'sapt',
   system: 'acte',
   producer_approved: 'acte',
