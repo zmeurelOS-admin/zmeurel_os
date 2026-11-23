@@ -66,6 +66,8 @@ export function getNotificationHref(
       return '/tratamente/magazie'
     case 'capcane_verificare':
       return '/tratamente?tab=capcane'
+    case 'plan_tratament':
+      return '/tratamente?tab=plan'
     case 'capcane_peste_prag': {
       // Graficul grupului care a trecut de prag.
       const grupId = typeof d['grup_id'] === 'string' && d['grup_id'] ? d['grup_id'] : null

@@ -141,6 +141,16 @@ export const NOTIFICATION_CONFIG = {
     playSound: false,
     pushEnabled: true,
   },
+  plan_tratament: {
+    icon: '🗓️',
+    color: '#3D7A5F',
+    /** Planul pe stadii: „E timpul pentru <stadiu> la <parcele>” (cronul `notificari-dimineata`; proprietarul și operatorii cu „Scrie”). */
+    ton: 'informare',
+    toastDuration: 6000,
+    showToast: true,
+    playSound: false,
+    pushEnabled: true,
+  },
   capcane_peste_prag: {
     icon: '🪰',
     color: '#e6a817',

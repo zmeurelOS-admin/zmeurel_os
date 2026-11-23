@@ -406,3 +406,16 @@ describe('notificarea', () => {
     expect(destinatariPlan({ ownerUserId: 'owner', membri })).toEqual(['owner', 'scrie'])
   })
 })
+
+describe('cronul planului', () => {
+  it('fără migrare (lipsește `planuri_anuntate`) nu trimite nimic', async () => {
+    const { deAnuntatFerma } = await import('@/lib/plan/memento-cron')
+    const query = {
+      select: () => query,
+      eq: () => query,
+      then: (resolve: (value: unknown) => void) => resolve({ data: null, error: { code: '42P01', message: 'relation "planuri_anuntate" does not exist' } }),
+    }
+    const admin = { from: () => query }
+    expect(await deAnuntatFerma(admin, 't', '2027-05-25')).toBeNull()
+  })
+})

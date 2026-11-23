@@ -9,7 +9,7 @@
  */
 
 /** Cheile din `notificari_preferinte.tipuri`, în ordinea din ecran. */
-export const NOTIFICARI_CHEI = ['noi', 'maine', 'rest', 'meteo', 'pauza', 'tratamente', 'magazie', 'capcane', 'capcane_prag', 'analize', 'sapt', 'acte'] as const
+export const NOTIFICARI_CHEI = ['noi', 'maine', 'rest', 'meteo', 'pauza', 'tratamente', 'plan', 'magazie', 'capcane', 'capcane_prag', 'analize', 'sapt', 'acte'] as const
 
 export type NotificareCheie = (typeof NOTIFICARI_CHEI)[number]
 
@@ -62,6 +62,7 @@ export const NOTIFICARI_TEXTE: Record<NotificareCheie, { titlu: string; detaliu:
   meteo: { titlu: 'Îngheț și grindină', detaliu: 'Dimineața, pentru {loc}' },
   pauza: { titlu: 'Pauza după tratament', detaliu: 'Când se poate culege din nou din parcelă' },
   tratamente: { titlu: 'Tratamente planificate', detaliu: 'Dimineața, în ziua lor' },
+  plan: { titlu: 'Planul de tratamente', detaliu: 'Dimineața, când o parcelă ajunge la un stadiu din plan' },
   magazie: { titlu: 'Produse pe terminate', detaliu: 'Luni dimineața, din Magazie' },
   capcane: { titlu: 'Verifică capcanele', detaliu: 'Dimineața, în ziua verificării' },
   capcane_prag: { titlu: 'Capturi peste prag', detaliu: 'Imediat după o verificare care trece pragul' },
@@ -91,6 +92,8 @@ export const NOTIFICARI_METEO_FARA_LOC = 'Dimineața, după ce salvezi locul fer
  * - `capcane_verificare` → `capcane`: dimineața, în ziua verificării capcanelor (proprietarul și operatorii cu „Scrie”
  *   pe Tratamente).
  * - `capcane_peste_prag` → `capcane_prag`: imediat după o verificare care trece pragul (doar proprietarul).
+ * - `plan_tratament` → `plan`: dimineața, „E timpul pentru <stadiu> la <parcele>” din planul pe stadii (proprietarul și
+ *   operatorii cu „Scrie” pe Tratamente).
  * - Tipurile care încep cu `meteo_` (`meteo_inghet`, `meteo_grindina`) → `meteo`.
  * - Ce nu e aici (ex. ofertele din asociație) nu are comutator: sună ca până acum,
  *   dar respectă liniștea de noapte.
@@ -107,6 +110,7 @@ const TIP_LA_CHEIE: Record<string, NotificareCheie> = {
   magazie_pe_terminate: 'magazie',
   capcane_verificare: 'capcane',
   capcane_peste_prag: 'capcane_prag',
+  plan_tratament: 'plan',
   weekly_sales_summary: 'sapt',
   system: 'acte',
   producer_approved: 'acte',

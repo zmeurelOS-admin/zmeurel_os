@@ -36,6 +36,7 @@ import { antetParcela, esteParcelaPersonala } from '@/lib/parcele/card'
 import { jurnalParcela, type TipIntrare } from '@/lib/parcele/jurnal-parcela'
 import { sezonParcela } from '@/lib/parcele/sezon-parcela'
 import { formatStadiuFenologicLabel, grupBiologicParcela } from '@/lib/parcele/stadiu-curent'
+import { IntrebareStadiuParcela } from '@/components/plan/IntrebareStadiuParcela'
 import { normalizeUnitateTip } from '@/lib/parcele/unitate'
 import { queryKeys } from '@/lib/query-keys'
 import { desfiinteazaCultura, getCulturiForSolar, type Cultura } from '@/lib/supabase/queries/culturi'
@@ -309,6 +310,8 @@ export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
                 </Button>
               ) : null}
             </div>
+
+            {!personala ? <IntrebareStadiuParcela parcelaId={parcelaId} azi={azi} poateScrie={poateScrie} /> : null}
 
             {!personala ? <CulesSiAnalizaParcela parcelaId={parcelaId} azi={azi} poateScrie={poateScrie} proprietar={vedeProprietarul} /> : null}
 

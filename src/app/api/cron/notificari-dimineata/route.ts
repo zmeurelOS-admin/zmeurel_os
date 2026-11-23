@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { decizieMementoFerma, noteazaTrimitereMemento } from '@/lib/analize/memento-cron'
 import { mementoCapcaneFerma } from '@/lib/capcane/memento-cron'
+import { mementoPlanFerma } from '@/lib/plan/memento-cron'
 import { captureApiError } from '@/lib/monitoring/report-error'
 import {
   TIPURI_ZILNICE,
@@ -180,6 +181,9 @@ async function prognozaFerma(admin: Admin, tenantId: string): Promise<RaspunsFet
  * - „Verifică capcanele”, în ziua verificării (și după, până se face), proprietarului și operatorilor activi cu „Scrie”
  *   pe Tratamente, cu „Atractantul se schimbă azi” în același mesaj (cheia `capcane:<fermă>:<zi>:<utilizator>`;
  *   `src/lib/capcane/memento-cron.ts`; fără migrarea capcanelor, nimic);
+ * - „Planul de tratamente”: „E timpul pentru <stadiu> la <parcele> · N intervenții”, o singură dată pe linie, parcelă și
+ *   repetare (`planuri_anuntate`), proprietarului și operatorilor activi cu „Scrie” pe Tratamente (cheia
+ *   `plan:<fermă>:<zi>:<utilizator>`; `src/lib/plan/memento-cron.ts`; fără migrarea planului, nimic);
  * - „Analiza dinainte de cules”, doar proprietarului, la 21 / 14 / 7 / 3 zile înainte și zilnic din ziua culesului
  *   (cheia `analize:<fermă>:<zi>`; `src/lib/analize/memento-cron.ts`).
  * Citește și inserează în `notifications`; pentru memento notează și ziua trimiterii (`memento_analize_sezon`).
@@ -202,6 +206,7 @@ export async function GET(request: Request) {
       TIPURI_ZILNICE.analize_memento,
       TIPURI_ZILNICE.magazie_pe_terminate,
       TIPURI_ZILNICE.capcane_verificare,
+      TIPURI_ZILNICE.plan_tratament,
     ])
     const luni = esteLuni(azi)
 
@@ -276,6 +281,14 @@ export async function GET(request: Request) {
         verificata = false
         contor.erori += 1
         captureApiError(error, { route: ROUTE, tenantId: ferma.id, tags: { pas: 'capcane' } })
+      }
+
+      try {
+        for (const rezultat of await mementoPlanFerma(admin, ferma, azi)) numara(contor, TIPURI_ZILNICE.plan_tratament, rezultat)
+      } catch (error) {
+        verificata = false
+        contor.erori += 1
+        captureApiError(error, { route: ROUTE, tenantId: ferma.id, tags: { pas: 'plan' } })
       }
 
       try {
