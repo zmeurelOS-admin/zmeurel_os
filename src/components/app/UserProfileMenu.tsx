@@ -104,7 +104,7 @@ export function UserProfileMenu() {
 
           <Link href="/planuri" onClick={() => setOpen(false)} className={itemClassName}>
             <ShieldCheck className="h-4 w-4" />
-            Plan abonament
+            Planul tău
           </Link>
 
           <div className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">

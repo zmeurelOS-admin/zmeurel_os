@@ -68,8 +68,6 @@ const GROUPS: Group[] = [
       { href: "/livrari", label: "Livrări", emoji: "🚚" },
       { href: "/vanzari", label: "Vânzări", emoji: "💰" },
       { href: "/clienti", label: "Clienți", emoji: "👥", exact: true },
-      { href: "/clienti-magazin", label: "Clienți magazin", emoji: "🫐" },
-      { href: "/analytics-magazin", label: "Analytics magazin", emoji: "📊" },
       { href: "/produse", label: "Produse", emoji: "🛒" },
       { href: "/stocuri", label: "Stocuri", emoji: "📦" },
       { href: "/vanzari-butasi", label: "Material săditor", emoji: "🛍️" },

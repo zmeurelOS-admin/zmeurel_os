@@ -1,25 +1,29 @@
-'use client'
-
-import Link from 'next/link'
+import { Download, MessageCircle } from 'lucide-react'
 
 import { AppShell } from '@/components/app/AppShell'
-import { PageHeader } from '@/components/app/PageHeader'
-import { Button } from '@/components/ui/button'
+import { StatHero, kitText } from '@/components/kit'
+import { NavRow, RowGroup, ScreenBody, ScreenHeader } from '@/components/setari/SetariUi'
+import { APP_NAME } from '@/lib/brand'
+import { SUPPORT_WHATSAPP_URL } from '@/lib/support'
+import { cn } from '@/lib/utils'
 
-export default function PlanuriPage() {
+/**
+ * „Planul tău” (promptul 31): cât e beta, fără prețuri și fără butoane de plată. Exportul e cel din Setări › Cont
+ * (tabelele CSV, care se deschid în Excel).
+ */
+export default function PlanulTauPage() {
   return (
-    <AppShell header={<PageHeader title="Planuri" subtitle="Planuri și abonamente" />}>
-      <div className="mx-auto mt-3 w-full max-w-3xl py-5 sm:mt-0">
-        <section className="agri-card space-y-3 p-4">
-          <h1 className="text-xl font-bold text-[var(--agri-text)]">Toate functionalitatile sunt deblocate in beta.</h1>
-          <p className="text-sm text-[var(--agri-text-muted)]">
-            Abonamentele și limitările de plan sunt suspendate temporar. Poți folosi toate modulele fără upgrade.
-          </p>
-          <Button asChild className="agri-cta w-full sm:w-auto">
-            <Link href="/dashboard">Inapoi la dashboard</Link>
-          </Button>
-        </section>
-      </div>
+    <AppShell header={<ScreenHeader title="Planul tău" backHref="/mai-mult" />}>
+      <ScreenBody className="space-y-4">
+        <StatHero label={`Planul tău în ${APP_NAME}`} value="Gratuit în beta" footer={<p className={kitText.secondary}>toate modulele, fără limită de date</p>} />
+        <p className={cn(kitText.base, 'text-fg')}>
+          Când ies abonamentele, afli cu cel puțin o lună înainte. Datele rămân ale tale și le poți exporta oricând.
+        </p>
+        <RowGroup>
+          <NavRow href="/settings/cont" label="Exportă tot în Excel" sub="tabelele fermei, câte unul pe modul" icon={<Download />} iconTone="primary" />
+          <NavRow href={SUPPORT_WHATSAPP_URL} external label="Scrie-mi ce lipsește" sub="WhatsApp" icon={<MessageCircle />} iconTone="neutral" />
+        </RowGroup>
+      </ScreenBody>
     </AppShell>
   )
 }

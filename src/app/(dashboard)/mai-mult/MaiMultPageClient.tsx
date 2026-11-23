@@ -348,6 +348,7 @@ export function MaiMultPageClient({ farmName, localitate }: { farmName: string |
         ) : null}
 
         <RowGroup>
+          {isOperator ? null : <NavRow href="/planuri" label="Planul tău" sub="Gratuit în beta" icon={<ShieldCheck />} iconTone="primary" />}
           {isOperator ? null : <NavRow href="/settings" label="Setări" icon={<Settings />} iconTone="neutral" />}
           <NavRow
             href={SUPPORT_WHATSAPP_URL}
