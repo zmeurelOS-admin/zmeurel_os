@@ -42,7 +42,9 @@ import {
 import { MeteoDashboardCard } from '@/components/dashboard/MeteoDashboardCard'
 import { DashboardStaticWidgetGrid } from '@/components/dashboard/DashboardStaticWidgetGrid'
 import type { DashboardTaskItem } from '@/components/dashboard/TaskList'
-import { WelcomeCard } from '@/components/dashboard/WelcomeCard'
+import { PrimiiPasi } from '@/components/acasa/PrimiiPasi'
+import { culturileFermei } from '@/lib/parcele/culturi-ferma'
+import { etichetaStocFerma } from '@/lib/stocuri/pe-cultura'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -100,7 +102,6 @@ import { getProduse } from '@/lib/supabase/queries/produse'
 import { getSolarClimateLogsForUnitati } from '@/lib/supabase/queries/solar-tracking'
 import { fetchShopOrders } from '@/lib/shop/shop-orders-queries'
 import {
-  dismissDashboardOnboarding,
   getDashboardProfilePreferences,
   updateDashboardLayout,
 } from '@/lib/supabase/queries/profile-dashboard'
@@ -510,19 +511,6 @@ export default function DashboardPage() {
   )
   const currentLayout = editMode ? (draftLayout ?? savedLayout) : savedLayout
 
-  const dismissOnboardingMutation = useMutation({
-    mutationFn: async () => {
-      if (!userId) return
-      await dismissDashboardOnboarding(userId)
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.currentUserProfile })
-    },
-    onError: () => {
-      toast.error('Nu am putut salva preferința.')
-    },
-  })
-
   const saveLayoutMutation = useMutation({
     mutationFn: async () => {
       if (!userId) throw new Error('Utilizatorul nu este autentificat.')
@@ -564,6 +552,8 @@ export default function DashboardPage() {
 
   const recoltari = recoltariQuery.data ?? EMPTY_LIST
   const parcele = parceleQuery.data ?? EMPTY_LIST
+  // Culturile fermei, din parcele (promptul 31): `null` cât se încarcă parcelele.
+  const culturiFerma = useMemo(() => (parceleQuery.data ? culturileFermei(parceleQuery.data) : null), [parceleQuery.data])
   const activitati = activitatiQuery.data ?? EMPTY_LIST
   const tratamenteQuery = useAplicariTratament()
   const aplicariTratament = tratamenteQuery.data ?? EMPTY_LIST
@@ -579,7 +569,7 @@ export default function DashboardPage() {
             {
               locatie_id: 'tenant-cal1-pool',
               locatie_nume: 'Total fermă',
-              produs: 'Zmeură cal. I',
+              produs: (culturiFerma && etichetaStocFerma(culturiFerma)) ?? 'Cal. I',
               stoc_fresh_cal1: stocuriQuery.data.disponibilCal1Kg,
               stoc_fresh_cal2: 0,
               stoc_congelat: 0,
@@ -589,7 +579,7 @@ export default function DashboardPage() {
             },
           ]
         : [],
-    [stocuriQuery.data],
+    [culturiFerma, stocuriQuery.data],
   )
   const produse = produseQuery.data ?? EMPTY_LIST
   const solarClimateLogs = microclimateQuery.data ?? EMPTY_LIST
@@ -599,7 +589,6 @@ export default function DashboardPage() {
     [currentDateTime, solarClimateLogs],
   )
 
-  const hideOnboarding = profileQuery.data?.hideOnboarding === true
 
   const todayIso = useMemo(() => toIsoDate(currentDay), [currentDay])
   const yesterdayIso = useMemo(() => toIsoDate(new Date(currentDay.getTime() - DAY_MS)), [currentDay])
@@ -1394,7 +1383,6 @@ export default function DashboardPage() {
     [kpiItems.length, plannedActivities.length, recentHarvests.length, recentOrders.length, revenueSeries, stocuri, venitSezon],
   )
 
-  const showWelcomeCard = dashboardRelevantParcele.length === 0 && !hideOnboarding
 
   const renderWidget = useCallback(
     (widgetId: DashboardWidgetId, inEditMode: boolean) => {
@@ -1623,14 +1611,10 @@ export default function DashboardPage() {
 
         {!isLoading ? (
           <>
-            {showWelcomeCard ? (
-              <div className="dashboard-stack-welcome">
-                <WelcomeCard
-                  onAddTerrain={() => router.push('/parcele')}
-                  onDismiss={() => dismissOnboardingMutation.mutate()}
-                />
-              </div>
-            ) : null}
+            {/* „Primii pași” (promptul 31): doar fermă reală, proprietar; în locul cardului vechi de bun venit. */}
+            <div className="mx-auto mb-[var(--dashboard-stack-gap)] w-full max-w-xl empty:hidden md:max-w-none">
+              <PrimiiPasi />
+            </div>
 
             <div className="mb-[var(--dashboard-stack-gap)] hidden md:block md:space-y-[var(--dashboard-stack-gap)]">
               <div className="grid gap-4 lg:grid-cols-12">
@@ -1736,6 +1720,7 @@ export default function DashboardPage() {
                 vanzari={vanzari}
                 vanzariButasi={vanzariButasi}
                 stocDisponibilKg={stocuriQuery.data ? stocuriQuery.data.disponibilCal1Kg : null}
+                culturi={culturiFerma}
                 parcelStates={parcelStates}
                 meteo={meteo.data}
                 pauze={acasaPauze}

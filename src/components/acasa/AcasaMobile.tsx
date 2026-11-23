@@ -35,6 +35,8 @@ import type { Comanda } from '@/lib/supabase/queries/comenzi'
 import type { Recoltare } from '@/lib/supabase/queries/recoltari'
 import type { Vanzare } from '@/lib/supabase/queries/vanzari'
 import type { VanzareButasi } from '@/lib/supabase/queries/vanzari-butasi'
+import { numeMic, type CulturaFerma } from '@/lib/parcele/culturi-ferma'
+import { etichetaStocFerma } from '@/lib/stocuri/pe-cultura'
 import { queryKeys } from '@/lib/query-keys'
 import { marcheazaFacut } from '@/lib/supabase/queries/tratamente'
 import { marcheazaLucrariFacute } from '@/lib/supabase/queries/lucrari'
@@ -58,6 +60,8 @@ export interface AcasaMobileProps {
   vanzariButasi: readonly VanzareButasi[]
   /** Stocul cal. 1 disponibil; `null` = încă se încarcă. */
   stocDisponibilKg: number | null
+  /** Culturile fermei, din parcele (promptul 31); `null` = încă se încarcă. Zero = „Adaugă întâi o parcelă”. */
+  culturi?: readonly CulturaFerma[] | null
   parcelStates: readonly ParcelDashboardState[]
   meteo: MeteoLike
   /** Pauzele active azi (sursa unică din `lib/tratamente/pauza`), cu numele parcelei. */
@@ -102,6 +106,7 @@ export function AcasaMobile({
   stocDisponibilKg,
   parcelStates,
   meteo,
+  culturi = null,
   pauze = [],
   tratamenteAzi = [],
   lucrariAzi = [],
@@ -238,7 +243,7 @@ export function AcasaMobile({
       {/* Perioada și vremea, pe un rând. */}
       <div className="flex items-center justify-between gap-3">
         <StatusPill tone={perioada === 'sezon' ? 'success' : 'info'} icon={perioada === 'sezon' ? <Sprout aria-hidden /> : <Snowflake aria-hidden />}>
-          {perioada === 'sezon' ? 'Sezon · zmeură' : 'Extrasezon · butași și lucrări'}
+          {perioada === 'sezon' ? textSezon(culturi) : 'Extrasezon · butași și lucrări'}
         </StatusPill>
         {vreme.temp !== null || vreme.nota ? (
           <p className="flex min-w-0 flex-col items-end text-right" aria-label="Vremea">
@@ -285,13 +290,17 @@ export function AcasaMobile({
               unit="kg"
               label={`De livrat azi · ${sezon.deLivratCount} ${sezon.deLivratCount === 1 ? 'comandă' : 'comenzi'}${sezon.prioritareCount > 0 ? ` · ${sezon.prioritareCount} ${sezon.prioritareCount === 1 ? 'prioritară' : 'prioritare'}` : ''}`}
             />
-            <StatLink
-              href="/recoltari"
-              tone={sezon.lipsaKg > 0 ? 'warning' : 'neutral'}
-              value={sezon.stocKg === null ? '…' : formatNumber(sezon.stocKg)}
-              unit="kg"
-              label="În stoc, calitatea 1"
-            />
+            {culturi && culturi.length === 0 ? (
+              <StatLink href="/parcele?nou=1" value="—" label="Adaugă întâi o parcelă" />
+            ) : (
+              <StatLink
+                href="/recoltari"
+                tone={sezon.lipsaKg > 0 ? 'warning' : 'neutral'}
+                value={sezon.stocKg === null ? '…' : formatNumber(sezon.stocKg)}
+                unit="kg"
+                label={(culturi && etichetaStocFerma(culturi)) ?? 'În stoc, calitatea 1'}
+              />
+            )}
           </div>
 
           {sezon.lipsaKg > 0 ? (
@@ -496,6 +505,13 @@ export function AcasaMobile({
 
 function capitalize(text: string): string {
   return text.charAt(0).toLocaleUpperCase('ro-RO') + text.slice(1)
+}
+
+/** „Sezon · zmeură, mure” din culturile fermei; fără culturi, doar „Sezon”. */
+function textSezon(culturi: readonly CulturaFerma[] | null): string {
+  if (!culturi || culturi.length === 0) return 'Sezon'
+  const nume = culturi.slice(0, 3).map(numeMic).join(', ')
+  return culturi.length > 3 ? `Sezon · ${nume} …` : `Sezon · ${nume}`
 }
 
 /** O cifră cu eticheta ei, ca legătură spre modulul din care vine. Arată ca `StatTile`. */

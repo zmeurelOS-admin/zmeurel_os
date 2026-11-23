@@ -15,6 +15,7 @@ import { prepareClientBeforeServerSignOut } from '@/lib/auth/server-sign-out-for
 import { clearDemoSeedAttempted, disableDemoMode, disableFarmSetupMode } from '@/lib/demo/onboarding-storage'
 import { deleteAccountAndFarm, resetFarmData } from '@/lib/setari/destructive-actions'
 import { CSV_MODULES, exportAllDataJson, exportModuleCsv, type CsvModule } from '@/lib/setari/export-data'
+import { cheieAscundePrimiiPasi } from '@/lib/dashboard/primii-pasi'
 import { getSupabase } from '@/lib/supabase/client'
 import { toast } from '@/lib/ui/toast'
 import { cn } from '@/lib/utils'
@@ -199,7 +200,15 @@ export function ContPageClient({ tenantId, accountPhone }: { tenantId: string | 
     if (!userId) return
     const { error } = await getSupabase().from('profiles').update({ hide_onboarding: false }).eq('id', userId)
     if (error) toast.error('Nu am putut reporni ghidul.')
-    else toast.success('Ghidul de pornire apare din nou pe Acasă.')
+    else {
+      // „Primii pași” se ascund pe telefon (localStorage): îi arătăm din nou și acolo.
+      try {
+        window.localStorage.removeItem(cheieAscundePrimiiPasi(userId))
+      } catch {
+        // fără localStorage: nimic de șters
+      }
+      toast.success('Ghidul de pornire apare din nou pe Acasă.')
+    }
   }
 
   const runDelete = async () => {

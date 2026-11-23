@@ -38,7 +38,13 @@ export function ParceleListClient() {
   const stare = useParceleStare(azi)
   const cules = useEstimariCules(azi)
   const [filtru, setFiltru] = useState<FiltruTip>('toate')
-  const [formOpen, setFormOpen] = useState(false)
+  // „Primii pași” din Acasă: `/parcele?nou=1` deschide direct formularul de parcelă.
+  const deschideNou = searchParams.get('nou') === '1'
+  const [formOpen, setFormOpen] = useState(deschideNou)
+
+  useEffect(() => {
+    if (deschideNou) router.replace('/parcele')
+  }, [deschideNou, router])
 
   // Legăturile vechi `/parcele?selected=<id>` duc în fișa parcelei.
   const selected = searchParams.get('selected')?.trim()

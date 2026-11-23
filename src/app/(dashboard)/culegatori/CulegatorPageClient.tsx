@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Pencil, Phone, Plus, Trash2, UserCheck, UserX, Users } from 'lucide-react'
 
 import { AppShell } from '@/components/app/AppShell'
@@ -104,6 +104,15 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
     setEditing(null)
     setFormOpen(true)
   }, [])
+
+  // „Primii pași” din Acasă: `/culegatori?nou=1` deschide direct „Culegător nou”.
+  const searchParams = useSearchParams()
+  const deschideNou = searchParams.get('nou') === '1'
+  useEffect(() => {
+    if (!deschideNou) return
+    openCreate()
+    router.replace('/culegatori')
+  }, [deschideNou, openCreate, router])
 
   const openEdit = useCallback((culegator: Culegator) => {
     setEditing(culegator)
