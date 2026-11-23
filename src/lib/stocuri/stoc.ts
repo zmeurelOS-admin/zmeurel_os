@@ -1,11 +1,12 @@
 /**
  * Ecranul Stocuri (prompt 19): cifra mare, descompunerea ei, rândul informativ „Cal. II” și istoricul ajustărilor.
- * Funcții pure. Stocul e doar pentru zmeura cal. I (ce intră în comenzi); serverul e sursa adevărului
+ * Funcții pure. Stocul e cal. I (ce intră în comenzi), pe cultura fermei (`pe-cultura.ts`); serverul e sursa adevărului
  * (`get_sellable_cal1_stock_summary`), aici doar așezăm cifrele lui.
  */
 import { round2 } from '@/lib/format-ro'
 import { inceputSezon } from '@/lib/sezon'
 import { esteZmeura } from '@/lib/stoc-pe-produs'
+import { cheieCultura } from '@/lib/parcele/culturi-ferma'
 import { AJUSTARE_STOC_TIPURI, type AjustareStocTip } from '@/lib/supabase/queries/ajustari-stoc'
 
 export interface StocSummary {
@@ -18,7 +19,7 @@ export interface StocSummary {
 
 export interface DescompunereStoc {
   disponibil: number
-  /** Toată zmeura cal. I recoltată (funcția din bază nu taie pe sezon). */
+  /** Tot cal. I recoltat al culturii (funcția din bază nu taie pe sezon). */
   recoltat: number
   livrat: number
   inLivrare: number
@@ -56,15 +57,23 @@ export interface ParcelaCultura {
  * Aceeași regulă de produs ca stocul: dacă ferma are recoltări de zmeură, numărăm doar zmeura; altfel tot.
  * Cultura vine din parcelă (`cultura`, altfel `tip_fruct`).
  */
-export function cal2InSezon(recoltari: readonly RecoltareCal2[], parcele: readonly ParcelaCultura[], azi: string): number {
+export function cal2InSezon(
+  recoltari: readonly RecoltareCal2[],
+  parcele: readonly ParcelaCultura[],
+  azi: string,
+  /** Stocul pe cultură: doar recoltările culturii (cheia din `cheieCultura`). */
+  cheie?: string | null,
+): number {
   const culturaPeParcela = new Map(parcele.map((parcela) => [parcela.id, parcela.cultura?.trim() || parcela.tip_fruct?.trim() || null]))
-  const eZmeura = (recoltare: RecoltareCal2) => esteZmeura(recoltare.parcela_id ? culturaPeParcela.get(recoltare.parcela_id) : null)
-  const areZmeura = recoltari.some(eZmeura)
+  const culturaRecoltarii = (recoltare: RecoltareCal2) => (recoltare.parcela_id ? culturaPeParcela.get(recoltare.parcela_id) : null)
+  const eZmeura = (recoltare: RecoltareCal2) => esteZmeura(culturaRecoltarii(recoltare))
+  const areZmeura = !cheie && recoltari.some(eZmeura)
   const start = inceputSezon(azi, recoltari)
   let total = 0
   for (const recoltare of recoltari) {
     const zi = String(recoltare.data ?? '').slice(0, 10)
     if (!zi || zi < start || zi > azi) continue
+    if (cheie && cheieCultura(culturaRecoltarii(recoltare)) !== cheie) continue
     if (areZmeura && !eZmeura(recoltare)) continue
     total += Number(recoltare.kg_cal2) || 0
   }
@@ -110,7 +119,7 @@ export function problemaAjustare(tip: AjustareStocTip | null, kg: number | null,
   if (!ajustareAdauga(tip) && round2(kg) > round2(Math.max(disponibil, 0))) {
     return disponibil > 0
       ? `Ai doar ${formatKgScurt(disponibil)} disponibile. Nu poți scădea mai mult.`
-      : 'Nu ai zmeură cal. I disponibilă: nu ai ce scădea.'
+      : 'Nu ai nimic disponibil la cal. I: nu ai ce scădea.'
   }
   return null
 }

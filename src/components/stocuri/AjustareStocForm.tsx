@@ -52,13 +52,17 @@ export interface AjustareStocFormProps {
   onOpenChange: (open: boolean) => void
   /** Disponibilul de acum (cifra mare), pentru regula „nu sub 0”. */
   disponibilKg: number
+  /** Eticheta cifrei, din cultura fermei („Afine cal. I disponibile”). */
+  eticheta?: string
+  /** Stocul pe cultură: cheia culturii ajustate (se scrie în `ajustari_stoc.cultura`). Lipsă = ca înainte. */
+  cultura?: string | null
 }
 
 /**
  * „Ajustează stocul” în 2 pași: motivul (plăci mari), apoi kilogramele pe tastatura din aplicație și o notă.
  * O scădere nu poate duce disponibilul sub 0 (regula e și pe server, în `create_ajustare_stoc`).
  */
-export function AjustareStocForm({ open, onOpenChange, disponibilKg }: AjustareStocFormProps) {
+export function AjustareStocForm({ open, onOpenChange, disponibilKg, eticheta = 'Cal. I disponibil', cultura = null }: AjustareStocFormProps) {
   const queryClient = useQueryClient()
   const form = useStepForm({ steps: STEPS, open, analytics: { moduleName: 'stocuri' } })
   const fields = useKeypadFields({ fields: FIELDS, maxIntegerDigits: 5 })
@@ -103,7 +107,7 @@ export function AjustareStocForm({ open, onOpenChange, disponibilKg }: AjustareS
     setSaving(true)
     setSaveError(null)
     try {
-      const rand = await createAjustareStoc({ tip, cantitateKg: kg, motiv: nota.trim() || null, clientSyncId: key })
+      const rand = await createAjustareStoc({ tip, cantitateKg: kg, motiv: nota.trim() || null, clientSyncId: key, cultura })
       savedKeys.current.add(key)
       invalidateStock(queryClient)
       hapticSuccess()
@@ -198,7 +202,7 @@ export function AjustareStocForm({ open, onOpenChange, disponibilKg }: AjustareS
     content = (
       <div className="space-y-2.5">
         <StepFormTitle eyebrow={tip ? ETICHETA_AJUSTARE[tip] : undefined}>{adauga ? 'Câte kg adaugi?' : 'Câte kg scazi?'}</StepFormTitle>
-        <p className={cn('text-fg-muted', kitText.secondary)}>Zmeură cal. I disponibilă acum: {formatKg(disponibilKg)}</p>
+        <p className={cn('text-fg-muted', kitText.secondary)}>{eticheta} acum: {formatKg(disponibilKg)}</p>
         {saveError ? (
           <Notice tone="danger" title="Nu s-a salvat">
             {saveError}

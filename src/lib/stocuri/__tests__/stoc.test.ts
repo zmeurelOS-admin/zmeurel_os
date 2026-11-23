@@ -93,3 +93,20 @@ describe('istoricul ajustărilor', () => {
     expect(etichetaAjustare('necunoscut')).toBe('necunoscut')
   })
 })
+
+describe('cal2InSezon pe cultură', () => {
+  it('doar recoltările culturii cerute', async () => {
+    const { cal2InSezon: cal2 } = await import('@/lib/stocuri/stoc')
+    const parcele = [
+      { id: 'z', cultura: 'Zmeure Delniwa', tip_fruct: null },
+      { id: 'm', cultura: 'Mure', tip_fruct: null },
+    ]
+    const recoltari = [
+      { data: '2026-11-20', parcela_id: 'z', kg_cal2: 4 },
+      { data: '2026-11-20', parcela_id: 'm', kg_cal2: 6 },
+    ]
+    expect(cal2(recoltari, parcele, '2026-11-21', 'mur')).toBe(6)
+    expect(cal2(recoltari, parcele, '2026-11-21', 'zmeur')).toBe(4)
+    expect(cal2(recoltari, parcele, '2026-11-21')).toBe(4)
+  })
+})

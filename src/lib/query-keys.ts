@@ -71,6 +71,8 @@ export const queryKeys = {
   solarStages: (scope: string) => ['solar-stages', scope] as const,
   stocGlobal: ['stoc-global'] as const,
   stocGlobalCal1: ['stoc-global-cal1'] as const,
+  /** Stocul cal. 1 pe cultură (promptul 31; `stoc_cal1_pe_cultura`). */
+  stocPeCultura: ['stoc-pe-cultura'] as const,
   stocuriLocatiiRoot: ['stocuri-locatii'] as const,
   stocuriLocatii: (filtersKey: unknown) => ['stocuri-locatii', filtersKey] as const,
   subscriptionPlanTenant: ['subscription-plan', 'tenant'] as const,
@@ -98,6 +100,7 @@ export const queryKeys = {
 export const STOCK_QUERY_KEYS = [
   queryKeys.stocGlobal,
   queryKeys.stocGlobalCal1,
+  queryKeys.stocPeCultura,
   queryKeys.ajustariStoc,
   queryKeys.stocuriLocatiiRoot,
   queryKeys.miscariStoc,

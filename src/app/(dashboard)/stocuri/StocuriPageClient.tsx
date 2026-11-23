@@ -1,19 +1,21 @@
 'use client'
 
-import { useMemo, useState, useSyncExternalStore } from 'react'
+import { useState, useSyncExternalStore } from 'react'
+import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
-import { Ban, Home, Minus, MoreHorizontal, Plus, Snowflake, SlidersHorizontal, Soup } from 'lucide-react'
+import { Ban, Home, Map as MapIcon, Minus, MoreHorizontal, Plus, Snowflake, SlidersHorizontal, Soup } from 'lucide-react'
 
 import { AppShell } from '@/components/app/AppShell'
-import { Button, EmptyState, ListRow, Notice, StatHero, kitText } from '@/components/kit'
+import { Button, EmptyState, ListRow, Notice, Segments, StatHero, buttonVariants, kitText } from '@/components/kit'
 import { ScreenBody, ScreenHeader } from '@/components/setari/SetariUi'
 import { AjustareStocForm } from '@/components/stocuri/AjustareStocForm'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { formatKg, formatNumber } from '@/lib/format-ro'
+import { cheieCultura, culturaPrincipala, etichetaStocCal1 } from '@/lib/parcele/culturi-ferma'
 import { queryKeys } from '@/lib/query-keys'
-import { ajustariPeZile, cal2InSezon, deltaKgText, descompunereStoc, esteTipAjustare, etichetaAjustare } from '@/lib/stocuri/stoc'
-import { getAjustariStoc, type AjustareStocTip } from '@/lib/supabase/queries/ajustari-stoc'
-import { getSellableCal1StockSummary } from '@/lib/supabase/queries/miscari-stoc'
+import { ajustariPeZile, cal2InSezon, deltaKgText, descompunereStoc, esteTipAjustare, etichetaAjustare, type DescompunereStoc } from '@/lib/stocuri/stoc'
+import { useStocFerma } from '@/lib/stocuri/useStocFerma'
+import { getAjustariStoc, getAjustariStocCuCultura, type AjustareStocTip } from '@/lib/supabase/queries/ajustari-stoc'
 import { getParcele } from '@/lib/supabase/queries/parcele'
 import { getRecoltari } from '@/lib/supabase/queries/recoltari'
 import { aziRo, ziRelativaRo } from '@/lib/tratamente/zile'
@@ -72,24 +74,55 @@ function semnKg(semn: '+' | '−', kg: number): string {
   return kg === 0 ? formatKg(0) : `${semn} ${formatKg(Math.abs(kg))}`
 }
 
+
+/**
+ * Stocuri (prompt 19, pe cultură din promptul 31): cifra mare a culturii, descompunerea ei, Cal. II informativ și
+ * istoricul ajustărilor. Cultura vine din parcele: fără parcele, „Adaugă întâi o parcelă”; o cultură, o cifră cu
+ * eticheta ei („Afine cal. I disponibile”); mai multe culturi (cu migrarea 20261124100000), o filă pe cultură.
+ */
 export function StocuriPageClient() {
   useTrackModuleView('stocuri')
   const azi = useSyncExternalStore(subscribeToDayChange, readToday, noServerDay)
   const [formOpen, setFormOpen] = useState(false)
+  const [filaAleasa, setFilaAleasa] = useState<string | null>(null)
 
-  const summaryQuery = useQuery({ queryKey: queryKeys.stocGlobalCal1, queryFn: getSellableCal1StockSummary })
-  const ajustariQuery = useQuery({ queryKey: queryKeys.ajustariStoc, queryFn: getAjustariStoc, staleTime: 30_000, refetchOnWindowFocus: false })
+  const { stare, culturi, summary, summaryQuery } = useStocFerma({ peCultura: true })
+  const peCultura = stare.mod === 'pe-cultura'
+  const ajustariQuery = useQuery({
+    queryKey: peCultura ? [...queryKeys.ajustariStoc, 'cultura'] : queryKeys.ajustariStoc,
+    queryFn: peCultura ? getAjustariStocCuCultura : getAjustariStoc,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  })
   const recoltariQuery = useQuery({ queryKey: queryKeys.recoltari, queryFn: getRecoltari, staleTime: 30_000, refetchOnWindowFocus: false })
   const parceleQuery = useQuery({ queryKey: queryKeys.parcele, queryFn: getParcele, staleTime: 30_000, refetchOnWindowFocus: false })
 
-  const stoc = summaryQuery.data ? descompunereStoc(summaryQuery.data) : null
-  const cal2 = useMemo(
-    () => (azi && recoltariQuery.data && parceleQuery.data ? cal2InSezon(recoltariQuery.data, parceleQuery.data, azi) : null),
-    [azi, recoltariQuery.data, parceleQuery.data],
-  )
-  const zile = useMemo(() => ajustariPeZile(ajustariQuery.data ?? []), [ajustariQuery.data])
+  // Fila aleasă: o cultură a fermei; implicit cea principală.
+  const file = stare.mod === 'pe-cultura' ? stare.culturi : []
+  const fila = file.find((item) => item.cheie === filaAleasa) ?? file.find((item) => item.cheie === culturaPrincipala(culturi ?? [])?.cheie) ?? file[0] ?? null
+  const cheiePrincipala = culturaPrincipala(culturi ?? [])?.cheie ?? null
 
-  const loading = summaryQuery.isLoading
+  const stoc: DescompunereStoc | null =
+    stare.mod === 'pe-cultura'
+      ? fila
+        ? { disponibil: fila.disponibil, recoltat: fila.recoltat, livrat: fila.livrat, inLivrare: fila.inLivrare, ajustari: fila.ajustari }
+        : null
+      : stare.mod === 'unic' && summary
+        ? descompunereStoc(summary)
+        : null
+  const eticheta = stare.mod === 'pe-cultura' ? (fila ? etichetaStocCal1(fila) : '') : stare.mod === 'unic' ? stare.eticheta : ''
+
+  const cheieFila = peCultura ? (fila?.cheie ?? null) : null
+  // Calcule mici, pe fiecare desenare (React Compiler le ține minte singur).
+  const cal2 = azi && recoltariQuery.data && parceleQuery.data ? cal2InSezon(recoltariQuery.data, parceleQuery.data, azi, cheieFila) : null
+  const toate = ajustariQuery.data ?? []
+  // Ajustările vechi (fără cultură) sunt ale culturii principale, ca în socoteala stocului.
+  const aleFilei = cheieFila
+    ? toate.filter((rand) => (cheieCultura((rand as { cultura?: string | null }).cultura) ?? cheiePrincipala) === cheieFila)
+    : toate
+  const zile = ajustariPeZile(aleFilei)
+
+  const loading = stare.mod === 'incarca' && !summaryQuery.isError
   const addButton = (
     <Button type="button" variant="primary" size="touch-lg" className="w-full" disabled={!stoc} onClick={() => setFormOpen(true)}>
       <SlidersHorizontal aria-hidden />
@@ -131,10 +164,32 @@ export function StocuriPageClient() {
           </div>
         ) : null}
 
+        {stare.mod === 'fara-parcele' ? (
+          <EmptyState
+            icon={<MapIcon />}
+            title="Adaugă întâi o parcelă"
+            description="Stocul se ține pe cultura parcelelor: alegi cultura și soiul când pui parcela."
+            action={
+              <Link href="/parcele?nou=1" className={buttonVariants({ variant: 'primary', size: 'touch-lg' })}>
+                Adaugă o parcelă
+              </Link>
+            }
+          />
+        ) : null}
+
+        {stare.mod === 'pe-cultura' && file.length > 1 && fila ? (
+          <Segments
+            aria-label="Cultura"
+            options={file.map((item) => ({ value: item.cheie, label: item.nume }))}
+            value={fila.cheie}
+            onValueChange={setFilaAleasa}
+          />
+        ) : null}
+
         {stoc ? (
           <>
             <StatHero
-              label="Zmeură cal. I disponibilă"
+              label={eticheta}
               value={formatNumber(stoc.disponibil)}
               unit="kg"
               footer={
@@ -216,7 +271,13 @@ export function StocuriPageClient() {
         ) : null}
       </ScreenBody>
 
-      <AjustareStocForm open={formOpen} onOpenChange={setFormOpen} disponibilKg={stoc?.disponibil ?? 0} />
+      <AjustareStocForm
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        disponibilKg={stoc?.disponibil ?? 0}
+        eticheta={eticheta || 'Cal. I disponibil'}
+        cultura={peCultura ? (fila?.cheie ?? null) : null}
+      />
     </AppShell>
   )
 }

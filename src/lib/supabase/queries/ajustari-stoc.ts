@@ -35,6 +35,8 @@ export interface CreateAjustareStocInput {
   data?: string | null
   /** Cheia de idempotență a formularului (aceeași la reîncercare): o cheie deja salvată nu mai face altă ajustare. */
   clientSyncId?: string | null
+  /** Cultura ajustării (cheia: „afin”), doar la stocul pe cultură (migrarea 20261124100000). Lipsă = ca înainte. */
+  cultura?: string | null
 }
 
 type SupabaseLikeError = {
@@ -53,6 +55,7 @@ type AjustariRpcClient = ReturnType<typeof getSupabase> & {
       p_motiv: string | null
       p_data: string | null
       p_client_sync_id?: string
+      p_cultura?: string
     },
   ) => Promise<{ data: AjustareStoc | null; error: SupabaseLikeError | null }>
 }
@@ -127,11 +130,14 @@ export async function createAjustareStoc(input: CreateAjustareStocInput): Promis
 
   const delta = input.tip === 'corectie_plus' ? cantitate : -cantitate
   const rpcClient = supabase as AjustariRpcClient
+  const cultura = input.cultura?.trim() || null
   const args = {
     p_tip: input.tip,
     p_delta_kg: delta,
     p_motiv: input.motiv?.trim() || null,
     p_data: input.data || null,
+    // Parametrul există doar după migrarea stocului pe cultură; pleacă doar când ecranul e pe cultură.
+    ...(cultura ? { p_cultura: cultura } : {}),
   }
   const key = input.clientSyncId || null
 
@@ -174,4 +180,27 @@ export async function getAjustariStoc(): Promise<AjustareStoc[]> {
 
   if (error) throw toReadableError(error, 'Nu am putut încărca istoricul ajustărilor.')
   return (data ?? []) as AjustareStoc[]
+}
+
+/** O ajustare cu cultura ei (coloana există doar după migrarea 20261124100000). */
+export type AjustareStocCuCultura = AjustareStoc & { cultura: string | null }
+
+/**
+ * Istoricul cu cultura fiecărei ajustări, pentru Stocuri pe cultură. Se cere doar când `stoc_cal1_pe_cultura`
+ * există (aceeași migrare adaugă și coloana).
+ */
+export async function getAjustariStocCuCultura(): Promise<AjustareStocCuCultura[]> {
+  const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
+
+  const { data, error } = await supabase
+    .from('ajustari_stoc')
+    .select(`${AJUSTARE_COLUMNS},cultura`)
+    .eq('tenant_id', tenantId)
+    .order('data', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(200)
+
+  if (error) throw toReadableError(error, 'Nu am putut încărca istoricul ajustărilor.')
+  return (data ?? []) as unknown as AjustareStocCuCultura[]
 }
