@@ -74,6 +74,7 @@ export default defineConfig(({ mode }) => {
         'src/lib/acte/__tests__/*.test.{ts,tsx}',
         'src/lib/parcele/__tests__/parcela-fisa.test.ts',
         'src/lib/parcele/__tests__/formular-parcela.test.ts',
+        'src/lib/parcele/__tests__/culturi-ferma.test.ts',
         'src/lib/rapoarte/__tests__/*.test.ts',
         'src/lib/stocuri/__tests__/*.test.ts',
         'src/lib/produse/__tests__/*.test.ts',
