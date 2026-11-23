@@ -5,6 +5,7 @@ import type { Database, TablesInsert } from '@/types/supabase'
 import { DEMO_DATA_ORIGIN } from '@/lib/demo/demo-constants'
 import { deleteDemoAnalize, seedDemoAnalize } from '@/lib/demo/demo-analize'
 import { seedDemoStadii } from '@/lib/demo/demo-stadii'
+import { deleteDemoCapcane, seedDemoCapcane } from '@/lib/demo/demo-capcane'
 import { deleteDemoMagazie, seedDemoMagazie } from '@/lib/demo/demo-magazie'
 import { seedDemoTratamente } from '@/lib/demo/demo-tratamente'
 import { LEGAL_DOCS_BUCKET } from '@/lib/legal-docs/shared'
@@ -616,6 +617,8 @@ async function deleteDemoRows(params: {
       deletedRows += await deleteDemoAnalize(supabaseAdmin, tenantId, ids)
     }
     if (table === 'parcele' && ids.length > 0) {
+      // Capcanele de pe parcelele demo (cheia spre `parcele` e `ON DELETE RESTRICT`); verificările pleacă în cascadă.
+      deletedRows += await deleteDemoCapcane(supabaseAdmin, tenantId, ids)
       await deleteTreatmentsOnParcels(supabaseAdmin, tenantId, ids)
     }
     if (table === 'parcele') {
@@ -1325,6 +1328,10 @@ export async function seedDemoDataForTenant(
     // Analizele la fructe: o analiză conformă cu link public și data culesului pe parcele. Nu oprește demo-ul.
     const analize = await seedDemoAnalize(supabaseAdmin, tenantId, insertedParcele, Number(day(0).slice(0, 4)))
     if (analize.error) console.warn('[demo-seed] analize', analize.error)
+    // Capcanele (promptul 29): 2 grupuri Drosophila (unul peste prag, cu verificarea azi) și lipicioasele galbene.
+    // Nu oprește demo-ul; fără migrare nu pune nimic.
+    const capcane = await seedDemoCapcane(supabaseAdmin, tenantId, insertedParcele, day)
+    if (capcane.error) console.warn('[demo-seed] capcane', capcane.error)
   }
 
   if (demoType === 'solar') {
