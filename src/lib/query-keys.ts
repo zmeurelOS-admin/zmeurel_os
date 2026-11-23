@@ -55,6 +55,10 @@ export const queryKeys = {
   magazieProdus: (produsId: string) => ['tratamente', 'magazie', 'produs', produsId] as const,
   /** Toate mișcările (doar proprietarul): Rapoarte și exportul „Magazia”. */
   magazieMiscari: ['tratamente', 'magazie', 'miscari'] as const,
+  /** Capcanele (promptul 29), sub `tratamente`: graficul arată și tratamentele parcelei. */
+  capcane: ['tratamente', 'capcane'] as const,
+  capcaneDate: ['tratamente', 'capcane', 'date'] as const,
+  capcanePraguri: ['tratamente', 'capcane', 'praguri'] as const,
   solarClimate: (scope: string) => ['solar-climate', scope] as const,
   solarStages: (scope: string) => ['solar-stages', scope] as const,
   stocGlobal: ['stoc-global'] as const,
