@@ -43,6 +43,34 @@ const TIPURI: Record<TipDemo, { titlu: string; culturi: string; emoji: string; c
 
 const DEMO_EMAIL_SUFFIX = '@demo.zmeurel.local'
 
+/** Demo-ul pornit în tabul ăsta și încă negata (tipul lui), ca o reîncărcare a paginii să reia așteptarea. */
+const CHEIE_DEMO_IN_LUCRU = 'zmeurel_demo_in_lucru'
+
+function citesteDemoInLucru(): TipDemo | null {
+  try {
+    const valoare = window.sessionStorage.getItem(CHEIE_DEMO_IN_LUCRU)
+    return esteTipDemo(valoare) ? valoare : null
+  } catch {
+    return null
+  }
+}
+
+function scrieDemoInLucru(tip: TipDemo) {
+  try {
+    window.sessionStorage.setItem(CHEIE_DEMO_IN_LUCRU, tip)
+  } catch {
+    // fără sessionStorage: reluarea după o reîncărcare nu mai e posibilă, restul merge
+  }
+}
+
+function stergeDemoInLucru() {
+  try {
+    window.sessionStorage.removeItem(CHEIE_DEMO_IN_LUCRU)
+  } catch {
+    // nimic de șters
+  }
+}
+
 type SupabaseBrowser = ReturnType<typeof getSupabase>
 
 /** Numărătoarea reală din ferma demo (ce vede utilizatorul prin RLS). */
@@ -113,24 +141,71 @@ export function StartPageClient({ deschideDemo }: { deschideDemo: boolean }) {
   const [eroareGoogle, setEroareGoogle] = useState<string | null>(null)
   const inDemo = useRef(false)
 
-  // Un utilizator deja intrat (care nu pornește acum un demo) merge în aplicație.
+  const bifeaza = (pas: PasDemo) => setFacute((curent) => new Set(curent).add(pas))
+
+  /** Așteaptă datele reale, apoi intră în Acasă cu pagină nouă. Aruncă la limita de timp sau la eroare. */
+  const verificaSiIntra = async (tipDemo: TipDemo, limitaMs?: number) => {
+    const tenantId = await getTenantId(supabase)
+    const rezultat = await asteaptaDemoGata({
+      tip: tipDemo,
+      citeste: () => numaraDemo(supabase, tenantId),
+      laFiecare: setNumaratoare,
+      limitaMs,
+    })
+    if (!rezultat.ok) {
+      // „Încearcă din nou” pune atunci datele din nou (seed-ul de demo își șterge întâi rândurile lui).
+      setFacute((curent) => {
+        const urmator = new Set(curent)
+        urmator.delete('date')
+        return urmator
+      })
+      throw new Error(
+        rezultat.motiv === 'eroare' ? 'Nu am putut verifica datele demo. Verifică internetul.' : 'Datele demo nu au apărut la timp.',
+      )
+    }
+    enableDemoMode()
+    disableFarmSetupMode()
+    markDemoSeedAttempted()
+    track('demo_started', { demo_type: tipDemo })
+    stergeDemoInLucru()
+    // Intrare cu pagină nouă: memoria aplicației (React Query, tenantul ținut minte) pornește goală,
+    // deci nicio pagină nu rămâne cu ce citise înainte de date.
+    resetTenantIdCache()
+    window.location.assign('/dashboard')
+  }
+
+  // Un utilizator deja intrat merge în aplicație. Excepție: demo-ul pornit chiar acum, dacă pagina s-a reîncărcat
+  // în timpul pregătirii (seed-ul continuă pe server): reluăm așteptarea, nu intrăm pe pagini goale.
   useEffect(() => {
     let activ = true
     void supabase.auth.getSession().then(({ data }) => {
-      if (activ && data.session && !inDemo.current) router.replace('/dashboard')
+      if (!activ || !data.session || inDemo.current) return
+      const tipInLucru = citesteDemoInLucru()
+      if (tipInLucru && data.session.user.email?.toLowerCase().endsWith(DEMO_EMAIL_SUFFIX)) {
+        inDemo.current = true
+        setTip(tipInLucru)
+        setFacute(new Set<PasDemo>(['cont', 'date']))
+        setStep('asteptare')
+        verificaSiIntra(tipInLucru, 60_000).catch((cause: unknown) => {
+          if (activ) setEroare(cause instanceof Error && cause.message ? cause.message : 'Nu am putut porni demo-ul.')
+        })
+        return
+      }
+      router.replace('/dashboard')
     })
     return () => {
       activ = false
     }
+    // Doar la deschiderea paginii.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, supabase])
-
-  const bifeaza = (pas: PasDemo) => setFacute((curent) => new Set(curent).add(pas))
 
   const pornesteDemo = async () => {
     if (inDemo.current && !eroare) return
     inDemo.current = true
     setStep('asteptare')
     setEroare(null)
+    scrieDemoInLucru(tip)
     try {
       if (!facute.has('cont')) {
         await asiguraContDemo(supabase)
@@ -141,27 +216,7 @@ export function StartPageClient({ deschideDemo }: { deschideDemo: boolean }) {
         await puneDateleDemo(tip)
         bifeaza('date')
       }
-      const tenantId = await getTenantId(supabase)
-      const rezultat = await asteaptaDemoGata({
-        tip,
-        citeste: () => numaraDemo(supabase, tenantId),
-        laFiecare: setNumaratoare,
-      })
-      if (!rezultat.ok) {
-        throw new Error(
-          rezultat.motiv === 'eroare'
-            ? 'Nu am putut verifica datele demo. Verifică internetul.'
-            : 'Datele demo nu au apărut la timp.',
-        )
-      }
-      enableDemoMode()
-      disableFarmSetupMode()
-      markDemoSeedAttempted()
-      track('demo_started', { demo_type: tip })
-      // Intrare cu pagină nouă: memoria aplicației (React Query, tenantul ținut minte) pornește goală,
-      // deci nicio pagină nu rămâne cu ce citise înainte de date.
-      resetTenantIdCache()
-      window.location.assign('/dashboard')
+      await verificaSiIntra(tip)
     } catch (cause) {
       setEroare(cause instanceof Error && cause.message ? cause.message : 'Nu am putut porni demo-ul.')
     }

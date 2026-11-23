@@ -25,6 +25,12 @@ export function ServiceWorkerRegister() {
       })
     }
 
+    // La prima vizită nu există încă un service worker care controlează pagina: `clientsClaim` (next.config) o preia
+    // imediat și declanșează `controllerchange`. Reîncărcăm doar la o versiune nouă (exista deja un controller),
+    // nu la prima preluare: altfel pagina se reîncărca în mijlocul pornirii demo-ului (promptul 31).
+    const aveaController = Boolean(navigator.serviceWorker.controller)
+    let seReincarca = false
+
     const register = async () => {
       try {
         const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
@@ -43,6 +49,8 @@ export function ServiceWorkerRegister() {
         })
 
         navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (!aveaController || seReincarca) return
+          seReincarca = true
           window.location.reload()
         })
       } catch {
