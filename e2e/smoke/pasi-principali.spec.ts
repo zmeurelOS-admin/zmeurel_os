@@ -20,7 +20,10 @@ import { ascultaErori, iesiDinCont, pornesteDemoNou } from './demo'
  *   9. Planul pe stadii (promptul 30): tab-ul Plan arată „E timpul pentru…” (planul demo „Zmeură <an>”, linia de
  *      „După recoltare”) → atingi intervenția → formularul de tratament vine completat → „Salvează · făcut” → în
  *      „Planul întreg” linia apare „făcut”. Nu cere migrare (tabelele de plan există deja);
- *  10. pe mobil (375 px), bara de jos are 5 taburi.
+ *  10. pe mobil (375 px), bara de jos are 5 taburi;
+ *  11. prima pagină fără textele scoase (testimoniale, „locuri limitate”) și Login cu nota pentru operatori, fără cont;
+ *  12. Mai mult fără „Clienți magazin” / „Analytics magazin”, iar „Planul tău” scrie „Gratuit în beta”.
+ *  Demo-ul trece prin ecranul de așteptare din `/start` (promptul 31): `pornesteDemoNou` îl verifică.
  */
 
 test.describe.configure({ mode: 'serial' })
@@ -29,7 +32,7 @@ let context: BrowserContext
 let page: Page
 let erori: string[] = []
 
-/** „În stoc, calitatea 1: 1.234,5 kg …” → 1234.5 */
+/** „Zmeură cal. I disponibilă: 1.234,5 kg …” → 1234.5 */
 function kgDinText(text: string): number {
   const potrivire = text.match(/:\s*([\d.]+(?:,\d+)?)\s*kg/)
   if (!potrivire) throw new Error(`Nu găsesc kilogramele în „${text}”`)
@@ -38,7 +41,7 @@ function kgDinText(text: string): number {
 
 async function stocCal1PeComenzi(p: Page): Promise<number> {
   await p.goto('/comenzi', { waitUntil: 'load' })
-  const rand = p.getByText(/^În stoc, calitatea 1:/)
+  const rand = p.getByText(/^Zmeură cal\. I disponibilă:/)
   await expect(rand).toBeVisible()
   return kgDinText((await rand.textContent()) ?? '')
 }
@@ -64,7 +67,8 @@ test('1. Acasă se încarcă fără erori de consolă din aplicație', async () 
   erori.length = 0
   await page.goto('/dashboard', { waitUntil: 'load' })
   await expect(page.getByRole('heading', { name: 'Acasă', level: 1 })).toBeVisible()
-  await expect(page.getByRole('link', { name: /^În stoc, calitatea 1:/ })).toBeVisible()
+  // Cultura vine din parcele (promptul 31): demo-ul are zmeură, deci eticheta e a zmeurei, cu date (nu „…”).
+  await expect(page.getByRole('link', { name: /^Zmeură cal\. I disponibilă: [\d.,]+ kg/ })).toBeVisible()
   await page.waitForLoadState('networkidle').catch(() => undefined)
   expect(erori, `Erori de consolă pe Acasă:\n${erori.join('\n')}`).toEqual([])
 })
@@ -288,6 +292,35 @@ test('9. Plan: „E timpul pentru…” → formularul completat → „Salveaz�
   await page.getByRole('button', { name: 'Vezi planul întreg' }).first().click()
   await expect(page.getByRole('heading', { name: /^Zmeură \d{4}$/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /Cupru \(exemplu\).*făcut/ })).toBeVisible()
+})
+
+test('11. prima pagină și Login (fără cont): fără textele scoase, nota pentru operatori', async ({ browser }) => {
+  const anonim = await browser.newContext()
+  try {
+    const p = await anonim.newPage()
+    await p.goto('/', { waitUntil: 'load' })
+    await expect(p.getByRole('heading', { level: 1, name: 'Ferma ta, pe telefon. Fără hârtii.' })).toBeVisible()
+    await expect(p.getByRole('link', { name: 'Încearcă fără cont' })).toBeVisible()
+    const text = (await p.locator('body').innerText()) ?? ''
+    for (const scos of ['locuri limitate', 'Ion M., Bacău', 'Maria D., Iași', 'Nu mai pierde bani din fermă']) {
+      expect(text, `Prima pagină încă are „${scos}”`).not.toContain(scos)
+    }
+    await p.goto('/login', { waitUntil: 'load' })
+    await expect(p.getByText('Ești operator? Intră din linkul primit pe WhatsApp.')).toBeVisible()
+    await expect(p.getByRole('link', { name: 'Încearcă demo-ul' })).toBeVisible()
+  } finally {
+    await anonim.close()
+  }
+})
+
+test('12. Mai mult fără intrările de magazin; Planul tău scrie „Gratuit în beta”', async () => {
+  await page.goto('/mai-mult', { waitUntil: 'load' })
+  await expect(page.getByRole('link', { name: /Planul tău/ })).toBeVisible()
+  const text = await page.locator('body').innerText()
+  expect(text).not.toContain('Clienți magazin')
+  expect(text).not.toContain('Analytics magazin')
+  await page.getByRole('link', { name: /Planul tău/ }).click()
+  await expect(page.getByText('Gratuit în beta')).toBeVisible()
 })
 
 test('10. pe mobil (375 px), bara de jos are 5 taburi', async () => {

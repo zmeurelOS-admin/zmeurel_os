@@ -35,13 +35,16 @@ export function ascultaErori(page: Page): string[] {
 
 /**
  * Demo nou: întâi iese din orice sesiune (cookie-urile contextului sunt oricum goale la pornire), apoi
- * `/start` → „Continuă fără cont” → „Fructe de pădure” și așteaptă Acasă.
+ * `/start` → „Încearcă o fermă demo” → „Fructe de pădure” (aleasă) → „Pornește demo-ul” → ecranul de așteptare
+ * (pașii bifați pe rând) → Acasă, abia când datele se văd (promptul 31).
  */
 export async function pornesteDemoNou(page: Page): Promise<void> {
   await page.context().clearCookies()
   await page.goto('/start', { waitUntil: 'load' })
-  await page.getByRole('button', { name: 'Continuă fără cont' }).click()
-  await page.getByRole('button', { name: /Fructe de pădure/ }).click()
+  await page.getByRole('button', { name: /Încearcă o fermă demo/ }).click()
+  await expect(page.getByRole('radio', { name: /Fructe de pădure/ })).toHaveAttribute('aria-checked', 'true')
+  await page.getByRole('button', { name: 'Pornește demo-ul' }).click()
+  await expect(page.getByRole('heading', { name: 'Pregătim ferma demo…' })).toBeVisible()
   await page.waitForURL(/\/dashboard/, { timeout: 90_000 })
 }
 
