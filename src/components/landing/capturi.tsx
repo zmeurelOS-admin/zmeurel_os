@@ -13,7 +13,7 @@ export function Capturi() {
         <SectionTitle id="capturi-titlu">Cum arată</SectionTitle>
         <p className={cn(kitText.secondary, 'mt-1 text-fg-muted')}>Capturi din aplicație, dintr-o fermă demo.</p>
       </div>
-      <ul className="mx-auto mt-4 flex w-full max-w-3xl snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 md:grid md:grid-cols-5 md:overflow-visible">
+      <ul className="mx-auto mt-4 flex w-full max-w-3xl snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 md:grid md:grid-cols-5 md:overflow-visible">
         {CAPTURI.slice(1).map((captura) => (
           <li key={captura.src} className="w-[62%] shrink-0 snap-start md:w-auto">
             <figure>
