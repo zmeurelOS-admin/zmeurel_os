@@ -235,7 +235,8 @@ export type StareAn = 'acum' | 'planificat' | 'facut' | 'sarit' | 'urmeaza' | 'n
 
 /**
  * Starea unei linii pe anul curent, pe toate parcelele planului (pentru „Planul întreg”): acum > planificat >
- * urmează > făcut > sărit > nefăcut. Parcelele cu excepție nu contează.
+ * făcut (pe cel puțin o parcelă; `facute` / `total` spun pe câte) > urmează > sărit > nefăcut. Parcelele cu excepție
+ * nu contează.
  */
 export function stareLinieAn(linie: LiniePlan, calcul: CalculPlan): { stare: StareAn; facute: number; total: number } {
   const stari = calcul.parcelaIds
@@ -247,11 +248,17 @@ export function stareLinieAn(linie: LiniePlan, calcul: CalculPlan): { stare: Sta
   const are = (stare: StareLinie) => stari.some((s) => s.stare === stare)
   if (are('acum')) return { stare: 'acum', facute, total }
   if (are('planificat')) return { stare: 'planificat', facute, total }
+  if (facute > 0) return { stare: 'facut', facute, total }
   if (are('urmeaza') || are('fara_stadiu')) return { stare: 'urmeaza', facute, total }
-  if (are('facut')) return { stare: 'facut', facute, total }
   if (stari.every((s) => s.stare === 'sarit')) return { stare: 'sarit', facute, total }
   if (are('sarit') && !are('nefacut')) return { stare: 'sarit', facute, total }
   return { stare: 'nefacut', facute, total }
+}
+
+/** „făcut”, „făcut 2 din 3” (pe o parte din parcele), „acum”… */
+export function textStareAn(stare: { stare: StareAn; facute: number; total: number }): string {
+  if (stare.stare === 'facut' && stare.facute < stare.total) return `făcut ${stare.facute} din ${stare.total}`
+  return ETICHETA_STARE_AN[stare.stare]
 }
 
 export const ETICHETA_STARE_AN: Record<StareAn, string> = {

@@ -29,12 +29,13 @@ import {
   anPlanNou,
   cheieStare,
   detaliuLinie,
-  ETICHETA_STARE_AN,
   eticheta,
   ordoneazaLinii,
   parcelePlan,
   stadiiPlan,
   stareLinieAn,
+  textProduseLinie,
+  textStareAn,
   titluLinie,
   type LiniePlan,
   type StareAn,
@@ -264,9 +265,14 @@ export function PlanIntregClient({ planId }: { planId: string }) {
                                 </span>
                               ) : undefined
                             }
-                            title={<span className={cn(sarit && 'text-fg-muted line-through')}>{titluLinie(linie)}</span>}
-                            detail={detaliuLinie(linie) || undefined}
-                            trailing={stare && stare.stare !== 'fara_parcele' ? <StatusPill tone={TON_STARE[stare.stare]}>{ETICHETA_STARE_AN[stare.stare]}</StatusPill> : undefined}
+                            title={<span className={cn(sarit && 'text-fg-muted line-through')}>{textProduseLinie(linie)}</span>}
+                            detail={
+                              <span className="flex flex-col items-start gap-1.5">
+                                <span>{[linie.scop, detaliuLinie(linie)].filter(Boolean).join(' · ')}</span>
+                                {/* Starea stă sub text, ca titlul să rămână întreg pe telefon. */}
+                                {stare && stare.stare !== 'fara_parcele' ? <StatusPill tone={TON_STARE[stare.stare]}>{textStareAn(stare)}</StatusPill> : null}
+                              </span>
+                            }
                             onClick={() => setFoaie({ tip: 'linie', linieId: linie.id })}
                           />
                         </li>
@@ -380,7 +386,8 @@ export function PlanIntregClient({ planId }: { planId: string }) {
               {detaliuLinie(linieFoaie) ? <SummaryRow label="Cum" value={detaliuLinie(linieFoaie)} /> : null}
               {linieFoaie.scop ? <SummaryRow label="Scopul" value={linieFoaie.scop} /> : null}
             </SummaryList>
-            {parcelaIds.length > 0 ? (
+            {/* Starea pe parcele se calculează pe anul curent: planul făcut pentru anul următor n-are încă stare. */}
+            {parcelaIds.length > 0 && anParcele === data.an ? (
               <section className="space-y-2">
                 <p className={cn('font-bold text-fg', kitText.secondary)}>Pe parcele, în {data.an}</p>
                 <ul className="space-y-2">

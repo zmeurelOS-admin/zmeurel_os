@@ -7,8 +7,8 @@ import { Button, EmptyState, ListRow, Notice, StatusPill, kitText } from '@/comp
 import {
   eticheta,
   interventiiText,
+  textProduseLinie,
   textRepetare,
-  titluLinie,
   verificarePrincipala,
   detaliuLinie,
   type GrupDeFacut,
@@ -169,6 +169,7 @@ export function PlanTab({ azi, data, poateScrie, onDeschideLinie, onPlanNou }: P
                 const verificari = data.verifica(linie, parcelaIds)
                 const principala = verificarePrincipala(verificari)
                 const detaliu = [
+                  linie.scop,
                   detaliuLinie(linie),
                   repetare > 1 ? `a ${repetare}-a aplicare` : null,
                   parcelaIds.length < grup.parcelaIds.length ? textParcele(parcelaIds, data.numeParcele) : null,
@@ -180,7 +181,7 @@ export function PlanTab({ azi, data, poateScrie, onDeschideLinie, onPlanNou }: P
                     <ListRow
                       avatar={false}
                       leading={<IconitaLinie linie={linie} ton={principala && !principala.ok ? 'warning' : 'primary'} />}
-                      title={titluLinie(linie)}
+                      title={textProduseLinie(linie)}
                       detail={
                         <span className="flex flex-col items-start gap-1.5">
                           {detaliu ? <span>{detaliu}</span> : null}

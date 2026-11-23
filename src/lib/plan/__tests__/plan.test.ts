@@ -19,6 +19,7 @@ import {
   stadiiUrmatoare,
   stareLinieAn,
   textGrup,
+  textStareAn,
   verificaInterval,
   verificaMaxim,
   verificaPauza,
@@ -192,6 +193,10 @@ describe('ce urmează', () => {
     expect(stareLinieAn(linii[0], calculeazaPlan(p, asocieri, ctx())).stare).toBe('acum')
     const facut = calculeazaPlan(p, asocieri, ctx({ aplicari: [aplicare({}), aplicare({ id: 'b', parcela_id: 'p2' })] }))
     expect(stareLinieAn(linii[0], facut)).toMatchObject({ stare: 'facut', facute: 2, total: 2 })
+    // Făcut pe o parcelă, cealaltă încă n-a ajuns: „făcut 1 din 2”.
+    const partial = calculeazaPlan(p, asocieri, ctx({ aplicari: [aplicare({})] }))
+    expect(stareLinieAn(linii[0], partial)).toMatchObject({ stare: 'facut', facute: 1, total: 2 })
+    expect(textStareAn(stareLinieAn(linii[0], partial))).toBe('făcut 1 din 2')
     const sarit = calculeazaPlan(p, asocieri, ctx({ sarite: ['p1', 'p2'].map((parcela_id) => ({ plan_linie_id: 'l-inflorit', parcela_id, an: 2027, motiv: null })) }))
     expect(stareLinieAn(linii[0], sarit).stare).toBe('sarit')
   })

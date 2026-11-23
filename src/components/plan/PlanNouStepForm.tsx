@@ -338,8 +338,9 @@ export function PlanNouStepForm({ open, onOpenChange, todayIso, varianta: varian
           aria-label="Cum faci planul"
           value={varianta}
           onValueChange={(value) => {
-            if (!value) return
-            setVarianta(value as VariantaPlan)
+            // Placa aleasă deja, atinsă din nou, vine ca „nimic ales”: mergem mai departe cu ea.
+            const next = (value || varianta) as VariantaPlan
+            setVarianta(next)
             form.next()
           }}
         >
