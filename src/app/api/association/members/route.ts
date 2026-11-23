@@ -9,6 +9,7 @@ import { captureApiError } from '@/lib/monitoring/report-error'
 import { createNotification, NOTIFICATION_TYPES } from '@/lib/notifications/create'
 import { createClient } from '@/lib/supabase/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { APP_NAME } from '@/lib/brand'
 
 export const runtime = 'nodejs'
 
@@ -105,7 +106,7 @@ export async function POST(request: Request) {
       return apiError(
         404,
         'USER_NOT_FOUND',
-        'Acest email nu are cont în Zmeurel OS. Fermierul trebuie să se înregistreze mai întâi.'
+        `Acest email nu are cont în ${APP_NAME}. Fermierul trebuie să se înregistreze mai întâi.`
       )
     }
 

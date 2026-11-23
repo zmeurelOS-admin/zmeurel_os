@@ -55,6 +55,7 @@ import { pastilaPauza } from '@/lib/tratamente/texte'
 import { aziRo } from '@/lib/tratamente/zile'
 import { SUPPORT_WHATSAPP_URL } from '@/lib/support'
 import { cn } from '@/lib/utils'
+import { APP_NAME } from '@/lib/brand'
 
 type TileDef = { href: string; label: string; icon: ReactNode; tone: IconTone }
 type TileGroupDef = { title: string; items: TileDef[] }
@@ -340,7 +341,7 @@ export function MaiMultPageClient({ farmName, localitate }: { farmName: string |
         )}
 
         {isSuperAdmin ? (
-          <RowGroup title="Admin (Zmeurel)">
+          <RowGroup title={`Admin (${APP_NAME})`}>
             {ADMIN_ROWS.map((row) => (
               <NavRow key={row.href} href={row.href} label={row.label} icon={row.icon} iconTone="neutral" />
             ))}

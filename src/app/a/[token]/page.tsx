@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 
 import { RaportAnalizaView } from '@/components/analize/RaportAnalizaView'
 import { origineAplicatie, raportPublicDupaToken } from '@/lib/analize/raport-server'
+import { APP_NAME } from '@/lib/brand'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,7 +30,7 @@ export default async function AnalizaPublicaPage({ params }: { params: Promise<{
         <p className="text-[15px] font-semibold text-fg-muted">Analiza la fructe</p>
         <RaportAnalizaView raport={rezultat.raport} qrSvg={rezultat.qrSvg} />
         <p className="text-[13px] text-fg-muted">
-          Raport făcut în Zmeurel din buletinul laboratorului. Substanțele, valorile și limitele sunt cele scrise de fermier din buletin.
+          Raport făcut în {APP_NAME} din buletinul laboratorului. Substanțele, valorile și limitele sunt cele scrise de fermier din buletin.
         </p>
       </div>
     </main>

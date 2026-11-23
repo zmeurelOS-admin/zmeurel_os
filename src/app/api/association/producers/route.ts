@@ -8,6 +8,7 @@ import { captureApiError } from '@/lib/monitoring/report-error'
 import { createNotification, NOTIFICATION_TYPES } from '@/lib/notifications/create'
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/types/supabase'
+import { APP_NAME_GENITIV } from '@/lib/brand'
 
 export const runtime = 'nodejs'
 
@@ -48,7 +49,7 @@ export async function PATCH(request: Request) {
       return apiError(
         403,
         'FORBIDDEN',
-        'Doar administratorul Zmeurel.ro poate aproba fermieri pentru asociație'
+        `Doar administratorul ${APP_NAME_GENITIV} poate aproba fermieri pentru asociație`
       )
     }
 

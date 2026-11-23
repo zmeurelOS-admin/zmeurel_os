@@ -28,7 +28,7 @@ Clienții înregistrați în ERP (nume, telefon, email, adresă, observații etc
 ## Roluri GDPR (înțeles produs)
 
 - **Operator** pentru datele comenzii plasate de clientul final către asociație: **Asociația** (comerciantul identificat în setări publice / termeni).
-- **Furnizor tehnic / împuternicit** (în funcție de contractul încheiat în viața reală): **Zmeurel OS** (zmeurel.ro) — găzduire aplicație, transmitere și stocare tehnică a comenzilor în baza de date.
+- **Furnizor tehnic / împuternicit** (în funcție de contractul încheiat în viața reală): **Caietul Fermei** (caietulfermei.ro; fostul Zmeurel OS) — găzduire aplicație, transmitere și stocare tehnică a comenzilor în baza de date.
 - **Fermierul (tenant)**: operator pentru datele proprii din ERP; vede comenzile aferente `tenant_id`-ului său, conform RLS.
 - **Admin asociație** (workspace `/asociatie`): acces la comenzile relevante magazinului asociației (conform politicii RLS implementate).
 - **Superadmin**: acces administrativ de platformă (trebuie restricționat procedural în organizație).
@@ -42,6 +42,6 @@ Clienții înregistrați în ERP (nume, telefon, email, adresă, observații etc
 ## Recomandări (în afara codului)
 
 - [ ] Definire perioadă **retenție** pentru comenzi și câmpuri derivate.
-- [ ] **Contract operator–împuternicit** între Asociație și Zmeurel OS (sau document echivalent).
+- [ ] **Contract operator–împuternicit** între Asociație și Caietul Fermei (sau document echivalent).
 - [ ] Procedură formalizată pentru **cereri GDPR** de la clienți (inclusiv anonimi).
 - [ ] Verificare **fiscală / TVA / facturare** cu avocat/contabil.

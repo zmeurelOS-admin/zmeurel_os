@@ -158,7 +158,7 @@ test.describe('Admin access', () => {
     await page.goto('/dashboard')
     await page.getByRole('link', { name: 'Mai mult' }).click()
     await expect(page).toHaveURL(/\/mai-mult/)
-    await expect(page.getByText('Admin (Zmeurel)')).toHaveCount(0)
+    await expect(page.getByText('Admin (Caietul Fermei)')).toHaveCount(0)
   })
 
   test('superadmin sees and can access admin area', async ({ page, context }) => {
@@ -209,7 +209,7 @@ test.describe('Admin access', () => {
     await page.goto('/dashboard')
     await page.getByRole('link', { name: 'Mai mult' }).click()
     await expect(page).toHaveURL(/\/mai-mult/)
-    await expect(page.getByText('Admin (Zmeurel)')).toBeVisible()
+    await expect(page.getByText('Admin (Caietul Fermei)')).toBeVisible()
     await expect(page.getByRole('link', { name: 'Panou admin' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Analytics global' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Audit' })).toBeVisible()

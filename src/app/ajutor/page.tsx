@@ -1,11 +1,13 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import Link from 'next/link'
 
 import Footer from '@/components/landing/footer'
 import { buildLoginUrl } from '@/lib/auth/redirects'
+import { APP_NAME, CONTACT_EMAIL } from '@/lib/brand'
 
 export const metadata: Metadata = {
-  title: 'Ajutor | Zmeurel OS',
+  title: `Ajutor | ${APP_NAME}`,
 }
 
 export default function AjutorPage() {
@@ -27,10 +29,8 @@ export default function AjutorPage() {
             href="/"
             className="flex min-w-0 items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--landing-dark)] sm:gap-3 sm:text-sm"
           >
-            <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--landing-dark)] text-xs font-bold text-white shadow-lg sm:size-10 sm:text-sm">
-              ZO
-            </span>
-            <span className="hidden sm:inline truncate">Zmeurel OS</span>
+            <Image src="/icons/icon.svg" alt="" width={40} height={40} className="size-9 shrink-0 sm:size-10" />
+            <span className="hidden sm:inline truncate">{APP_NAME}</span>
           </Link>
           <Link
             href={buildLoginUrl()}
@@ -55,10 +55,10 @@ export default function AjutorPage() {
             <p className="text-sm text-[color:var(--agri-text-muted)]">
               Scrie-ne la{' '}
               <a
-                href="mailto:contact@zmeurel.ro"
+                href={`mailto:${CONTACT_EMAIL}`}
                 className="font-medium text-[var(--landing-leaf)] underline-offset-2 hover:underline"
               >
-                contact@zmeurel.ro
+                {CONTACT_EMAIL}
               </a>{' '}
               și îți răspundem în cel mai scurt timp.
             </p>

@@ -160,7 +160,7 @@ describe('POST /api/association/members (invitare)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('404: email fără cont în Zmeurel OS', async () => {
+  it('404: email fără cont în Caietul Fermei', async () => {
     resolveAuthUserIdByEmail.mockResolvedValue(null)
     mocks.getSupabaseAdmin.mockReturnValue(buildAdmin({}))
     const req = createSameOriginRequest('/api/association/members', {

@@ -4,6 +4,7 @@ import { buttonVariants, kitText } from '@/components/kit'
 import { SectionShell, SectionTitle } from '@/components/landing/landing-shared'
 import { SUPPORT_WHATSAPP_URL } from '@/lib/support'
 import { cn } from '@/lib/utils'
+import { CONTACT_EMAIL } from '@/lib/brand'
 
 /** Contactul: WhatsApp și email. */
 export function Contact() {
@@ -21,8 +22,8 @@ export function Contact() {
           <MessageCircle aria-hidden />
           Scrie-mi pe WhatsApp
         </a>
-        <a href="mailto:contact@zmeurel.ro" className={cn(buttonVariants({ variant: 'quiet', size: 'touch' }), 'w-full sm:w-auto sm:px-6')}>
-          contact@zmeurel.ro
+        <a href={`mailto:${CONTACT_EMAIL}`} className={cn(buttonVariants({ variant: 'quiet', size: 'touch' }), 'w-full sm:w-auto sm:px-6')}>
+          {CONTACT_EMAIL}
         </a>
       </div>
     </SectionShell>

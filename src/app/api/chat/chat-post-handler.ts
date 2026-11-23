@@ -72,6 +72,7 @@ import {
   sanitizeCanonicalEntity,
   toNumberOrNull,
 } from './utils'
+import { APP_NAME, APP_NAME_GENITIV } from '@/lib/brand'
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -177,7 +178,7 @@ function buildTargetedFlowExtractionPrompt(params: {
   } = params
 
   return [
-    'Ești extractorul semantic pentru Zmeurel OS. Răspunzi strict prin obiectul structurat cerut de schemă.',
+    `Ești extractorul semantic pentru ${APP_NAME}. Răspunzi strict prin obiectul structurat cerut de schemă.`,
     `Data locală curentă: ${nowLocalDate}`,
     `Data și ora locală curentă: ${nowLocalDateTime}`,
     `Now ISO (debug): ${nowIso}`,
@@ -680,7 +681,7 @@ function buildSystemPrompt(ctx: {
 }): string {
   const { today, yesterday, pathname, context, memory } = ctx
   const parts: string[] = [
-    `Ești asistentul Zmeurel OS pentru fermieri. Română ONLY. Max 3 propoziții. Fără inventat.`,
+    `Ești asistentul ${APP_NAME_GENITIV} pentru fermieri. Română ONLY. Max 3 propoziții. Fără inventat.`,
     `Azi:${today} Ieri:${yesterday} Pagina:${pathname}`,
   ]
   if (context) parts.push(`Date fermă: ${context}`)

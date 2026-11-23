@@ -7,6 +7,7 @@ import { loadOwnerName } from '@/lib/farm-members/operator-link-server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { cn } from '@/lib/utils'
+import { APP_NAME } from '@/lib/brand'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,7 +40,7 @@ export default async function AccesOpritPage() {
     <main className="min-h-screen bg-page px-4 py-8">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-md items-center">
         <section className="w-full rounded-card border border-border bg-surface p-6 text-center shadow-1">
-          <Image src="/icons/icon.svg" alt="Zmeurel OS" width={48} height={48} className="mx-auto" />
+          <Image src="/icons/icon.svg" alt={APP_NAME} width={48} height={48} className="mx-auto" />
           <h1 className={cn('mt-4 font-extrabold text-fg', kitText.section)}>Accesul tău a fost oprit</h1>
           <p className={cn('mt-2 text-fg-muted', kitText.base)}>{cereLinkNou(owner)}</p>
           <form action="/api/auth/sign-out?next=/" method="POST" className="mt-5">

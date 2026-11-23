@@ -2,10 +2,11 @@ import type { Metadata } from 'next'
 
 import { AssociationLandingView } from '@/components/shop/association/AssociationLandingView'
 import { loadAssociationSettingsCached } from '@/lib/association/public-settings'
+import { APP_NAME } from '@/lib/brand'
 
 const title = 'Gustă din Bucovina — Produse locale din Suceava'
 const description =
-  'Magazin online al Asociației Gustă din Bucovina — produse locale din Suceava. Platformă tehnică: Zmeurel OS.'
+  `Magazin online al Asociației Gustă din Bucovina — produse locale din Suceava. Platformă tehnică: ${APP_NAME}.`
 
 export const dynamic = 'force-dynamic'
 

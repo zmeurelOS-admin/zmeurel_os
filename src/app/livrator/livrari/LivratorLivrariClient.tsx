@@ -11,6 +11,7 @@ import {
   waUrlForPhone,
   type ShopOrderRow,
 } from '@/lib/shop/b2c-order-helpers'
+import { APP_NAME, APP_SHORT_NAME } from '@/lib/brand'
 
 type Props = {
   livratorName: string
@@ -65,9 +66,9 @@ export function LivratorLivrariClient({ livratorName, token, initialOrders }: Pr
         <header className="sticky top-0 z-10 -mx-3 border-b border-[#F3DAD4]/80 bg-[#FFF6F3]/95 px-4 py-3 backdrop-blur">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
-              <img src="/icons/icon.svg" alt="Zmeurel" className="h-10 w-10 rounded-xl" />
+              <img src="/icons/icon.svg" alt={APP_NAME} className="h-10 w-10 rounded-xl" />
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-[#F16B6B]">Zmeurel livrări</p>
+                <p className="truncate text-sm font-semibold text-[#F16B6B]">{`Livrări · ${APP_SHORT_NAME}`}</p>
                 <h1 className="truncate text-lg font-extrabold leading-tight">Salut, {livratorName}</h1>
               </div>
             </div>

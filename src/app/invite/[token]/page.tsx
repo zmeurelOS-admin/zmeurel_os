@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server'
 import { cn } from '@/lib/utils'
 
 import { InviteSignupClient } from './InviteSignupClient'
+import { APP_NAME } from '@/lib/brand'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,7 +30,7 @@ function Card({ children, center = false }: { children: React.ReactNode; center?
     <main className="min-h-screen bg-page px-4 py-8">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-md items-center">
         <section className={cn('w-full rounded-card border border-border bg-surface p-5 shadow-1 sm:p-6', center && 'text-center')}>
-          <Image src="/icons/icon.svg" alt="Zmeurel OS" width={48} height={48} className="mx-auto" />
+          <Image src="/icons/icon.svg" alt={APP_NAME} width={48} height={48} className="mx-auto" />
           {children}
         </section>
       </div>

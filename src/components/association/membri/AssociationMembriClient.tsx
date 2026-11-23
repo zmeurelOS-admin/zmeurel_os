@@ -41,6 +41,7 @@ import type { AssociationMemberListItem } from '@/lib/association/members-querie
 import type { AssociationRole } from '@/lib/association/auth'
 import { toast } from '@/lib/ui/toast'
 import { cn } from '@/lib/utils'
+import { APP_NAME } from '@/lib/brand'
 
 const ROLES: { value: AssociationRole; label: string; hint: string }[] = [
   {
@@ -345,7 +346,7 @@ export function AssociationMembriClient({ initialMembers }: AssociationMembriCli
           <DialogHeader>
             <DialogTitle>Invită membru</DialogTitle>
             <DialogDescription>
-              Utilizatorul trebuie să aibă deja cont în Zmeurel OS (același email ca la înregistrare).
+              Utilizatorul trebuie să aibă deja cont în {APP_NAME} (același email ca la înregistrare).
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">

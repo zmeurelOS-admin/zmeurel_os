@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { withoutHiddenOperatorEmails } from '@/lib/farm-members/operator-link'
 import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
 import type { Database } from '@/types/supabase'
+import { APP_NAME } from '@/lib/brand'
 
 export type ShopOrderNotifyPayload = {
   tenantId: string
@@ -30,8 +31,8 @@ function buildMessageBody(p: ShopOrderNotifyPayload): string {
   const isAssoc = p.dataOrigin === 'magazin_asociatie'
   const header = isAssoc ? 'Comandă nouă din Magazinul Gustă din Bucovina' : 'Comandă nouă din magazin'
   const intro = isAssoc
-    ? `Comanda a fost plasată de clientul ${p.clientName} prin platforma Zmeurel OS (operator tehnic). Comerciant: asociația.`
-    : `Comandă plasată prin platforma Zmeurel OS de clientul ${p.clientName}.`
+    ? `Comanda a fost plasată de clientul ${p.clientName} prin platforma ${APP_NAME} (operator tehnic). Comerciant: asociația.`
+    : `Comandă plasată prin platforma ${APP_NAME} de clientul ${p.clientName}.`
   return [
     header,
     '',
@@ -44,7 +45,7 @@ function buildMessageBody(p: ShopOrderNotifyPayload): string {
     '',
     p.numeFerma ? `Fermă (linie): ${p.numeFerma}` : '',
     '',
-    'Poți gestiona comanda în Zmeurel OS → modulul Comenzi.',
+    `Poți gestiona comanda în ${APP_NAME} → modulul Comenzi.`,
   ]
     .filter(Boolean)
     .join('\n')
@@ -124,7 +125,7 @@ export async function notifyFarmerShopOrder(
     const subject =
       association
         ? 'Comandă nouă din Magazinul Gustă din Bucovina'
-        : 'Comandă nouă din magazin · Zmeurel'
+        : `Comandă nouă din magazin · ${APP_NAME}`
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',

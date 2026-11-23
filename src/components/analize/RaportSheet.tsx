@@ -12,6 +12,7 @@ import { queryKeys } from '@/lib/query-keys'
 import { getOptiuniFerma, salveazaOptiuniAnaliza, salveazaOptiuniFerma } from '@/lib/supabase/queries/analize'
 import { toast } from '@/lib/ui/toast'
 import { cn } from '@/lib/utils'
+import { APP_NAME } from '@/lib/brand'
 
 type RaportCuQr = { raport: RaportAnaliza; qrSvg: string }
 
@@ -104,7 +105,7 @@ export function RaportSheet({ analiza, onClose, poateScrie, esteProprietar, onSc
   const tipar = (ce: 'pdf' | 'afis') => {
     if (!date) return
     if (!tipareste(ce === 'pdf' ? htmlRaportPdf(date.raport, date.qrSvg) : htmlAfisA4(date.raport, date.qrSvg))) {
-      toast.error('Browserul a blocat fereastra de tipărire. Permite ferestrele noi pentru Zmeurel și încearcă din nou.')
+      toast.error(`Browserul a blocat fereastra de tipărire. Permite ferestrele noi pentru ${APP_NAME} și încearcă din nou.`)
     }
   }
 

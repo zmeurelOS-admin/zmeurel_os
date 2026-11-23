@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { APP_NAME } from '@/lib/brand'
 
 export const dynamic = 'force-static'
 
@@ -8,7 +9,7 @@ export default function OfflinePage() {
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center bg-background px-6 py-12 text-center">
       <div className="mb-6">
-        <Image src="/icons/icon.svg" alt="Zmeurel" width={72} height={72} priority />
+        <Image src="/icons/icon.svg" alt={APP_NAME} width={72} height={72} priority />
       </div>
 
       <h1 className="text-2xl font-semibold tracking-tight text-foreground">Ești offline</h1>

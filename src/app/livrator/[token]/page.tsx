@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 import { getActiveLivratorByToken } from '@/lib/livrator/access'
+import { APP_NAME } from '@/lib/brand'
 
 type PageProps = {
   params: Promise<{ token: string }>
@@ -26,7 +27,7 @@ export default async function LivratorTokenPage({ params }: PageProps) {
             href="/"
             className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-[#F16B6B] px-5 text-sm font-semibold text-white"
           >
-            Înapoi la Zmeurel
+            Înapoi la {APP_NAME}
           </Link>
         </section>
       </main>

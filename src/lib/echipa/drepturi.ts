@@ -6,6 +6,7 @@ import {
   type FarmMemberModule,
   type FarmMemberModuleAccess,
 } from '@/lib/farm-members/access'
+import { APP_NAME } from '@/lib/brand'
 
 /**
  * Logica ecranului Echipa (fără React): ordinea modulelor, ciorna „Nu / Citește / Scrie”,
@@ -125,14 +126,14 @@ export function mesajInvitatie(input: { rol: 'operator' | 'livrator'; nume?: str
   const nume = input.nume?.trim()
   if (input.rol === 'livrator') {
     return `Salut${nume ? ` ${nume}` : ''}! 🚚
-Acesta e linkul tău de acces pentru livrările Zmeurel:
+Acesta e linkul tău de acces pentru livrări, în ${APP_NAME}:
 ${input.link}
 
 Deschide-l pe telefon înainte de fiecare zi de livrări.
-— Echipa Zmeurel`
+— Echipa ${APP_NAME}`
   }
   return `Salut${nume ? ` ${nume}` : ''}!
-Ți-am pregătit acces de operator în Zmeurel OS:
+Ți-am pregătit acces de operator în ${APP_NAME}:
 ${input.link}
 
 Deschide linkul pe telefon și intri direct în ferma mea, fără parolă.`

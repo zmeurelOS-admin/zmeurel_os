@@ -9,14 +9,15 @@ import { loadAssociationCatalogCached } from '@/lib/shop/load-association-catalo
 
 import '@/styles/association-shop.css'
 import '@/styles/gusta-brand.css'
+import { APP_NAME, APP_URL } from '@/lib/brand'
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://zmeurel.app'
+const siteUrl = APP_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: { default: 'Gustă din Bucovina', template: '%s · Gustă din Bucovina' },
   description:
-    'Magazin online al Asociației Gustă din Bucovina — produse locale din Suceava. Comandă prin platforma Zmeurel OS, fără cont obligatoriu.',
+    `Magazin online al Asociației Gustă din Bucovina — produse locale din Suceava. Comandă prin platforma ${APP_NAME}, fără cont obligatoriu.`,
   openGraph: {
     siteName: 'Gustă din Bucovina',
     locale: 'ro_RO',

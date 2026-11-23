@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { AssociationLegalDoc, AssociationLegalSection } from '@/components/shop/association/AssociationLegalDoc'
 import { loadAssociationSettingsCached } from '@/lib/association/public-settings'
 import { resolveMerchantPublicInfo } from '@/lib/shop/association/merchant-info'
+import { APP_NAME } from '@/lib/brand'
 
 /* DRAFT_LEGAL_REVIEW — conținut provizoriu */
 
@@ -45,7 +46,7 @@ export default async function MagazinAsociatieConfidentialitatePage() {
           comenzii în sensul GDPR, în limitele descrise mai jos.
         </p>
         <p>
-          Platforma <strong>Zmeurel OS</strong> procesează aceste date în calitate de împuternicit / furnizor tehnic
+          Platforma <strong>{APP_NAME}</strong> procesează aceste date în calitate de împuternicit / furnizor tehnic
           (procesare pe infrastructura aplicației), strict pentru funcționarea magazinului și transmiterea comenzii
           către comerciant.
         </p>

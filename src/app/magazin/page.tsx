@@ -1,11 +1,12 @@
 import Link from 'next/link'
+import { APP_NAME } from '@/lib/brand'
 
 export default function MagazinLandingPage() {
   return (
     <div className="min-h-[100dvh] bg-gradient-to-b from-[#f6faf7] via-[#f2f7f4] to-[#e8f0ec] px-4 py-12 text-[#0f1411] dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 dark:text-zinc-100">
       <div className="mx-auto max-w-lg text-center">
         <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-700/80 dark:text-emerald-400/90">
-          Zmeurel
+          {APP_NAME}
         </p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-emerald-950 dark:text-emerald-50">
           Magazin fermier
@@ -36,7 +37,7 @@ export default function MagazinLandingPage() {
             href="/login"
             className="text-sm font-semibold text-emerald-700 underline-offset-4 hover:underline dark:text-emerald-400"
           >
-            Autentificare Zmeurel (pentru fermieri)
+            Autentificare {APP_NAME} (pentru fermieri)
           </Link>
         </p>
       </div>

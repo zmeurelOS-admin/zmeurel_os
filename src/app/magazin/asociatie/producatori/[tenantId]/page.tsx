@@ -3,12 +3,13 @@ import { notFound } from 'next/navigation'
 
 import { GustProducerProfilePage } from '@/components/shop/association/producers/GustProducerProfilePage'
 import { loadProducerProfileCached } from '@/lib/shop/load-producer-profile'
+import { APP_URL } from '@/lib/brand'
 
 export const dynamic = 'force-dynamic'
 
 type Props = { params: Promise<{ tenantId: string }> }
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://zmeurel.app'
+const siteUrl = APP_URL
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { tenantId } = await params

@@ -21,6 +21,7 @@ import { getProduseFitosanitare } from '@/lib/supabase/queries/tratamente'
 import { useAplicariTratament } from '@/lib/tratamente/hooks'
 import { toast } from '@/lib/ui/toast'
 import { cn } from '@/lib/utils'
+import { APP_NAME } from '@/lib/brand'
 
 function descarcaExcel(nume: string, doc: DocumentExport) {
   const blob = new Blob([documentHtml(doc)], { type: 'application/vnd.ms-excel' })
@@ -161,7 +162,7 @@ export function ExportRaportSheet({ open, onOpenChange, azi, perioada, date, sum
     if (format === 'excel') {
       descarcaExcel(numeFisier(ce === 'raport' ? `raport ${perioada.eticheta}` : ce === 'analize' ? 'analizele sezonului' : 'registrul de tratamente', azi, 'xls'), doc)
     } else if (!tiparestePdf(doc)) {
-      toast.error('Browserul a blocat fereastra de tipărire. Permite ferestrele noi pentru Zmeurel și încearcă din nou.')
+      toast.error(`Browserul a blocat fereastra de tipărire. Permite ferestrele noi pentru ${APP_NAME} și încearcă din nou.`)
       return
     }
     trackEvent('export_raport', {

@@ -51,6 +51,7 @@ import type { AssociationRole } from '@/lib/association/auth'
 import type { AssociationProducer } from '@/lib/association/queries'
 import { toast } from '@/lib/ui/toast'
 import { cn } from '@/lib/utils'
+import { APP_NAME_GENITIV } from '@/lib/brand'
 
 function farmInitials(numeFerma: string) {
   const parts = numeFerma.trim().split(/\s+/).filter(Boolean)
@@ -584,7 +585,7 @@ export function AssociationProducatoriClient({
     <AppShell header={<PageHeader title="Producători" subtitle="Fermieri aprobați în asociație" />}>
       <div className="mx-auto w-full max-w-6xl pb-10 md:pb-8">
         <p className="mb-4 text-sm text-[var(--text-secondary)] md:mb-6">
-          Aprobarea fermierilor pentru vitrina „Gustă din Bucovina” este gestionată de administratorul Zmeurel.ro. Aici
+          Aprobarea fermierilor pentru vitrina „Gustă din Bucovina” este gestionată de administratorul {APP_NAME_GENITIV}. Aici
           vezi producătorii aprobați și poți lista produsele lor în magazinul asociației (admin / moderator).
         </p>
 

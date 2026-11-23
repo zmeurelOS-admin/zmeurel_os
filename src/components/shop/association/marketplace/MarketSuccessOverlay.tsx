@@ -9,6 +9,7 @@ import type { GustCheckoutSuccess } from '@/components/shop/association/cart/gus
 import { GUSTA_MERCHANT_LEGAL_NAME_DEFAULT } from '@/lib/shop/association/brand-config'
 import { resolveMerchantPublicInfo } from '@/lib/shop/association/merchant-info'
 import { formatQuantityForDisplay } from '@/lib/shop/utils'
+import { APP_HOST, APP_NAME } from '@/lib/brand'
 
 type Props = {
   success: GustCheckoutSuccess
@@ -256,7 +257,7 @@ export function MarketSuccessOverlay({ success, publicSettings, onBackToShop }: 
           color: [100, 100, 100],
         })
       }
-      writeText('Platformă tehnică: Zmeurel OS (zmeurel.ro)', {
+      writeText(`Platformă tehnică: ${APP_NAME} (${APP_HOST})`, {
         align: 'center',
         size: 8,
         color: [100, 100, 100],

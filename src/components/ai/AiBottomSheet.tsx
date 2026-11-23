@@ -17,6 +17,7 @@ import { queryKeys } from '@/lib/query-keys'
 import { invalidateDupaRecoltare } from '@/lib/recoltari/invalidate'
 import { toast } from '@/lib/ui/toast'
 import { hapticSuccess } from '@/lib/utils/haptic'
+import { APP_NAME_GENITIV } from '@/lib/brand'
 
 // ─── Speech Recognition type shims ───────────────────────────────────────────
 
@@ -98,7 +99,7 @@ const SUGGESTIONS: Record<string, string[]> = {
   '/dashboard': ['Ce trebuie să fac azi?', 'Sumar fermă', 'Alerte active?'],
 }
 
-const ASSISTANT_NAME = 'Asistentul Zmeurel'
+const ASSISTANT_NAME = `Asistentul ${APP_NAME_GENITIV}`
 
 function getSuggestions(pathname: string): string[] {
   for (const [key, pills] of Object.entries(SUGGESTIONS)) {

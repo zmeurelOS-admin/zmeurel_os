@@ -1,3 +1,5 @@
+import { APP_NAME, APP_URL } from '@/lib/brand'
+
 /**
  * Conținut de brand pentru magazinul asociației „Gustă din Bucovina”.
  */
@@ -33,8 +35,8 @@ export const gustaAssociationBrand = {
   ] as const,
 
   /** Platforma nu este comerciant; afișat discret în footer magazin public. */
-  platformAttributionLabel: 'Zmeurel OS',
-  platformAttributionUrl: 'https://zmeurel.ro',
+  platformAttributionLabel: APP_NAME,
+  platformAttributionUrl: APP_URL,
 
   stats: [
     { id: 'producers', value: '50+', label: 'producători în rețea' },

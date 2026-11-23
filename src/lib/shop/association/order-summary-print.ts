@@ -1,3 +1,5 @@
+import { APP_HOST, APP_NAME } from '@/lib/brand'
+
 /** Rezumat comandă pentru print / „Descarcă” — confirmare electronică tip document (Legea 365/2002 orientativ). */
 
 export type OrderSummaryPrintLine = {
@@ -67,7 +69,7 @@ Nume: ${escapeHtml(p.clientName)}<br/>
 Telefon: ${escapeHtml(p.clientPhone)}<br/>
 Adresă / localitate: ${escapeHtml(p.clientAddress)}<br/>
 Contact WhatsApp la numărul indicat: ${p.whatsappConsent ? 'da (consimțământ)' : 'nu'}</p>
-<p class="footer">Comanda va fi confirmată de ${escapeHtml(p.merchantLegalName)}. Platforma Zmeurel OS (zmeurel.ro) este furnizor tehnic; contractul de vânzare se încheie cu comerciantul.</p>
+<p class="footer">Comanda va fi confirmată de ${escapeHtml(p.merchantLegalName)}. Platforma ${APP_NAME} (${APP_HOST}) este furnizor tehnic; contractul de vânzare se încheie cu comerciantul.</p>
 </body></html>`
 }
 

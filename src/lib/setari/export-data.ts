@@ -152,6 +152,6 @@ export async function exportModuleCsv(input: {
   const config = CSV_MODULES.find((item) => item.key === input.module)
   if (!config) return
   const rows = await fetchTenantRowsBatched(config.table, input.tenantId, input.onRows)
-  downloadFile(rowsToCsv(rows), `zmeurel-${input.module}-${ziuaInRomania()}.csv`, 'text/csv;charset=utf-8')
+  downloadFile(rowsToCsv(rows), `caietul-fermei-${input.module}-${ziuaInRomania()}.csv`, 'text/csv;charset=utf-8')
   track('export', { type: 'csv', module: input.module, rows: rows.length })
 }

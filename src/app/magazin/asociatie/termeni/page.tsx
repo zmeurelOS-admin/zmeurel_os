@@ -4,6 +4,7 @@ import { AssociationLegalDoc, AssociationLegalSection } from '@/components/shop/
 import { WithdrawalFormDownloadButton } from '@/components/shop/association/legal/WithdrawalFormDownloadButton'
 import { loadAssociationSettingsCached } from '@/lib/association/public-settings'
 import { resolveMerchantPublicInfo } from '@/lib/shop/association/merchant-info'
+import { APP_HOST, APP_NAME, APP_URL } from '@/lib/brand'
 
 /* DRAFT_LEGAL_REVIEW — conținut provizoriu; revizuire juridică obligatorie înainte de producție */
 
@@ -86,7 +87,7 @@ export default async function MagazinAsociatieTermeniPage() {
         </p>
         <div className="mt-3 space-y-2">{contactBlock}</div>
         <p className="mt-3">
-          Platforma <strong>Zmeurel OS</strong> (<a href="https://zmeurel.ro">zmeurel.ro</a>) este furnizorul tehnic
+          Platforma <strong>{APP_NAME}</strong> (<a href={APP_URL}>{APP_HOST}</a>) este furnizorul tehnic
           al magazinului online (găzduire, transmitere comenzi și instrumente digitale), nu comerciantul bunurilor.
         </p>
       </AssociationLegalSection>
@@ -183,13 +184,13 @@ export default async function MagazinAsociatieTermeniPage() {
         ) : null}
         <p className="mt-3">
           Pentru probleme tehnice ale platformei (acces, erori de afișare, transmisie comandă), puteți folosi canalul
-          indicat pe <a href="https://zmeurel.ro">zmeurel.ro</a>.
+          indicat pe <a href={APP_URL}>{APP_HOST}</a>.
         </p>
       </AssociationLegalSection>
 
       <AssociationLegalSection title="9. Limitare de răspundere">
         <p>
-          Platforma Zmeurel OS facilitează afișarea produselor și transmiterea comenzilor către comerciant. Rolul
+          Platforma {APP_NAME} facilitează afișarea produselor și transmiterea comenzilor către comerciant. Rolul
           platformei este predominant tehnic și logistic informațional.
         </p>
         <p>

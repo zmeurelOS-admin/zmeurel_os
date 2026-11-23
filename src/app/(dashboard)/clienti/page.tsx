@@ -3,11 +3,12 @@ import { createServiceRoleClient } from '@/lib/supabase/admin'
 import { normalizeClientTip } from '@/lib/supabase/queries/clienti'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 import { ClientPageClient } from './ClientPageClient'
+import { APP_NAME } from '@/lib/brand'
 
 const GOOGLE_CONTACTS_TENANT_ID = '99485d6b-f186-49db-a379-bb9a12d34968'
 
 export const metadata = {
-  title: 'Clienți | Zmeurel OS',
+  title: `Clienți | ${APP_NAME}`,
   description: 'Gestionează baza de clienți',
 }
 

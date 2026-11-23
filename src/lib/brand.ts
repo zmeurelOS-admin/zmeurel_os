@@ -11,6 +11,9 @@ export const APP_NAME = 'Caietul Fermei'
 /** Numele scurt: aplicația instalată pe telefon, sigla din antet, textele scurte. */
 export const APP_SHORT_NAME = 'Caietul'
 
+/** „Asistentul Caietului Fermei”, „regulile Caietului Fermei”. */
+export const APP_NAME_GENITIV = 'Caietului Fermei'
+
 export const APP_TAGLINE = 'Ferma ta, pe telefon. Fără hârtii.'
 
 export const DEFAULT_APP_URL = 'https://caietulfermei.ro'

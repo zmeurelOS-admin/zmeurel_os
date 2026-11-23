@@ -127,7 +127,7 @@ describe('PATCH /api/association/producers (aprobare tenant)', () => {
     vi.clearAllMocks()
   })
 
-  it('403: non-superadmin → mesaj Zmeurel.ro', async () => {
+  it('403: non-superadmin → mesaj Caietul Fermei', async () => {
     isSuperAdmin.mockResolvedValue(false)
     mocks.createClient.mockResolvedValue(clientForPatch({ superadmin: false, tenantFound: true }))
     const req = createSameOriginRequest('/api/association/producers', {
@@ -137,7 +137,7 @@ describe('PATCH /api/association/producers (aprobare tenant)', () => {
     const res = await PATCH(req)
     expect(res.status).toBe(403)
     const j = (await res.json()) as { error?: { message?: string } }
-    expect(j.error?.message).toContain('Zmeurel.ro')
+    expect(j.error?.message).toContain('Caietului Fermei')
   })
 
   it('200: superadmin → actualizare', async () => {
