@@ -278,7 +278,7 @@ export function ProdusForm({ open, onOpenChange, produs }: ProdusFormProps) {
           onChange={(event) => set('nume', event.target.value)}
           autoComplete="off"
           maxLength={120}
-          placeholder="ex. Zmeură proaspătă"
+          placeholder="ex. Gem de casă"
           error={incercat ? erori.nume : undefined}
         />
         <div className="space-y-2">

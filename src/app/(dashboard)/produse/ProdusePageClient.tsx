@@ -129,7 +129,7 @@ export function ProdusePageClient() {
               cautare.trim()
                 ? 'Încearcă alt nume.'
                 : fila === 'activ'
-                  ? 'Adaugă ce vinzi: zmeură, mure, gem. Apar la comenzi și vânzări.'
+                  ? 'Adaugă ce vinzi: fructe, legume, gem. Apar la comenzi și vânzări.'
                   : 'Produsele dezactivate apar aici.'
             }
           />

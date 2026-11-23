@@ -436,7 +436,8 @@ export async function deleteAllClients(
 
 // ─── Mesajul WhatsApp implicit (anunțuri către patiserii și magazine) ──────────
 
-export const DEFAULT_WA_MESSAGE = 'Bună ziua! Am început livrările de zmeură proaspătă. Vă așteptăm cu comanda! 🍓'
+// Fără cultură scrisă fix (promptul 31): ferma poate vinde orice cultură.
+export const DEFAULT_WA_MESSAGE = 'Bună ziua! Am început livrările. Vă așteptăm cu comanda!'
 
 type WaSettingsTable = {
   select: (columns: string) => {

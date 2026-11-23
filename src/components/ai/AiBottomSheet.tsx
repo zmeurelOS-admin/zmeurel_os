@@ -85,7 +85,7 @@ interface HistoryHintPayload {
 
 const SUGGESTIONS: Record<string, string[]> = {
   '/cheltuieli': ['300 lei manoperă ieri', 'Adaugă cheltuială', 'Cât am cheltuit luna asta?'],
-  '/investitii': ['1200 lei butași zmeur', 'Pompă irigații 850 lei', 'Adaugă investiție'],
+  '/investitii': ['1200 lei butași', 'Pompă irigații 850 lei', 'Adaugă investiție'],
   '/recoltari': ['Recoltat 12kg azi', 'Total recoltat luna asta?', 'Adaugă recoltare'],
   '/activitati-agricole': ['Stropit cu Switch azi', 'Irigat parcela 1', 'Adaugă activitate'],
   // „Activități agricole” s-a împărțit în Lucrări și Tratamente: aceleași exemple, pe paginile noi.
@@ -803,7 +803,7 @@ export function AiBottomSheet({ open, onClose, variant = 'sheet' }: AiBottomShee
                 Spune-mi ce vrei să faci în fermă.
               </p>
               <p style={{ fontSize: 12, color: 'var(--ai-sheet-subtle-text)', marginBottom: 10 }}>
-                Poți scrie direct: „5 kg zmeură azi” sau „comandă pentru Maria”.
+                Poți scrie direct: „5 kg azi” sau „comandă pentru Maria”.
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {suggestions.map((s) => (
