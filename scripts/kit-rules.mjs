@@ -59,6 +59,9 @@ export const KIT_RULE_DIRS = [
   // Capcanele (promptul 29): tab-ul din Tratamente, fișa grupului (sub src/app/(dashboard)/tratamente/capcane), logica.
   'src/components/capcane',
   'src/lib/capcane',
+  // Planul pe stadii (promptul 30): tab-ul Plan, „Planul întreg” (sub src/app/(dashboard)/tratamente/plan), logica.
+  'src/components/plan',
+  'src/lib/plan',
   // Analizele la fructe (promptul 26): tab-ul din Tratamente, raportul public `/a/[token]`, logica.
   'src/components/analize',
   'src/lib/analize',
