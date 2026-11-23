@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prima pagină, demo și Login — mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: mockup de aplicație pentru fermierul care l-a cerut; practic, citit pe telefon.
+   IDEA: dosarul de analize al fermei, de la prelevare la afișul de la piață.
+   PICTURE: telefoanele cu ecranele reale, care merg la atingere.
+   COLOUR and TYPE: verdele Zmeurel pe alb (noaptea aproape-negru); chihlimbar doar pentru avertizări; Inter.
+   LAYOUT: unde și cum (propunere + întrebări), ecranele, raportul. */
+:root{color-scheme:light dark;--bg:light-dark(#f4f6f3,#0b0e13);--ink:light-dark(#102015,#f5f6f7);--muted:light-dark(#3d4a41,#a3aab3);--line:light-dark(#d7e2d9,#232a33);--card:light-dark(#ffffff,#12161d);--acc:light-dark(#3d7a5f,#5ca882);--gb:light-dark(#e6f3ea,#0f2218);--ob:light-dark(#fff4e5,#1d1812);--ot:light-dark(#8a4b00,#d9b26a)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+.band{padding:clamp(20px,4vw,44px) max(4vw,14px)}
+.wrap{max-width:1240px;margin:0 auto}
+h1{font-size:clamp(28px,6vw,44px);line-height:1.05;margin:0 0 6px;font-weight:800;letter-spacing:-.02em;text-wrap:balance}
+h2{font-size:clamp(24px,4vw,32px);line-height:1.1;margin:0 0 14px;font-weight:800}
+.lead{color:var(--muted);margin:0 0 12px;max-width:70ch}
+.small{font-size:13px;color:var(--muted)}
+.bar{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:10px max(4vw,14px);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.bar button,.bar a{height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:600 15px Inter,sans-serif;cursor:pointer;display:inline-flex;align-items:center;text-decoration:none}
+.bar button[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#fff}
+.bar .msg{font-size:13px;color:var(--muted)}
+body.editing [data-zone]{outline:2px dashed var(--acc);outline-offset:4px;border-radius:8px}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px;margin-bottom:24px}
+.note-g,.note-o{border-radius:16px;padding:14px 16px;font-size:15px}
+.note-g{background:var(--gb)}.note-o{background:var(--ob)}
+.note-g b,.note-o b{display:block;font-size:16px;margin-bottom:6px}
+.note-o b{color:var(--ot)}
+.notes ul,.notes ol{margin:0;padding-left:20px}.notes li{margin:5px 0}
+.rec{display:block;color:var(--muted);font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,370px),1fr));gap:28px 24px;align-items:start}
+figure{margin:0}figcaption{font-weight:800;font-size:17px;margin:0 0 8px}
+.fnote{font-size:15px;color:var(--muted);margin:10px 2px 0}
+.chap{border-top:1px solid var(--line)}
+/* telefonul */
+.phone{--p:#fff;--s:#fff;--s2:#f3f4f1;--f:#102015;--fm:#3d4a41;--fs:#64748b;--b:#d7e2d9;--in:#c8d4cb;--pr:#3d7a5f;--op:#fff;--ps:#e6f3ea;--pt:#1f5a42;--ib:#eff6ff;--it:#1d4ed8;--nb:#f1f5f9;--nt:#334155;--wb:#fffbeb;--wt:#92400e;--wl:#f3d7a1;--db:#fef2f2;--dt:#991b1b;
+ width:100%;max-width:390px;border-radius:30px;border:8px solid #1b1f24;background:var(--p);color:var(--f);overflow:hidden;box-shadow:0 18px 40px -24px rgba(0,0,0,.45)}
+body.night .phone{--p:#0b0e13;--s:#12161d;--s2:#171b22;--f:#f5f6f7;--fm:#949ba4;--fs:#8a919b;--b:#20262f;--in:#2a313b;--pr:#5ca882;--op:#08140e;--ps:#0f2218;--pt:#8fd0ae;--ib:#131a26;--it:#8ab6ea;--nb:#171b22;--nt:#c5cad1;--wb:#1d1812;--wt:#d9b26a;--wl:#3a2e1c;--db:#211314;--dt:#f0a3a3}
+.scr{min-height:720px;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:4px;padding:10px 10px 0}
+.ico{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;border:0;background:none;color:inherit;font-size:20px}
+.ttl{flex:1;font-weight:700;font-size:17px}.step{font-size:15px;color:var(--fm);padding-right:10px}
+.prog{height:6px;border-radius:9px;background:var(--s2);margin:8px 18px 0;overflow:hidden}.prog i{display:block;height:100%;background:var(--pr)}
+.body{flex:1;padding:14px 18px 8px;display:flex;flex-direction:column;gap:12px}
+.h1{font-size:26px;line-height:32px;font-weight:800;margin:0}.h2{font-size:22px;line-height:28px;font-weight:800;margin:0}
+.lbl{font-size:15px;font-weight:700}.sub{font-size:15px;color:var(--fm)}.sm{font-size:13px;color:var(--fm)}
+.row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;border:1px solid var(--b);background:var(--s);color:var(--f);font:inherit;text-align:left;width:100%}
+.row .tx{flex:1;display:flex;flex-direction:column;gap:2px}.row .tx b{font-size:17px;line-height:22px}
+.num{font-weight:800;font-size:17px;text-align:right;white-space:nowrap}
+.badge{width:40px;height:40px;flex:none;border-radius:12px;display:grid;place-items:center;font-weight:800}
+.g{background:var(--ps);color:var(--pt)}.bl{background:var(--ib);color:var(--it)}.n{background:var(--nb);color:var(--nt)}.w{background:var(--wb);color:var(--wt)}.d{background:var(--db);color:var(--dt)}
+.tag{height:26px;padding:0 9px;border-radius:99px;display:inline-flex;align-items:center;font-size:13px;font-weight:700;white-space:nowrap}
+.tags{display:flex;flex-wrap:wrap;gap:6px;padding-top:2px}
+.warn{border:1px solid var(--wl);background:var(--wb);color:var(--wt);border-radius:16px;padding:12px 14px}
+.warn b{display:block;font-size:17px;line-height:22px}.warn span{font-size:15px;font-weight:600}
+.info{border-radius:16px;background:var(--ib);color:var(--it);padding:10px 14px;font-size:15px;font-weight:600}
+.seg{height:48px;border-radius:16px;background:var(--s2);padding:4px;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px}
+.seg button{border:0;border-radius:12px;background:transparent;color:var(--fm);font:600 15px Inter,sans-serif;cursor:pointer}
+.seg button[aria-selected=true]{background:var(--s);color:var(--f);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{height:44px;padding:0 14px;border-radius:99px;border:1px solid var(--in);background:var(--s);color:var(--f);font:700 15px Inter,sans-serif;cursor:pointer}
+.chip[aria-pressed=true]{border:2px solid var(--pr);background:var(--ps);color:var(--pt)}
+.btn{height:56px;border-radius:16px;border:0;background:var(--pr);color:var(--op);font:700 17px Inter,sans-serif;width:100%;cursor:pointer}
+.btn2{height:48px;border-radius:16px;border:1px solid var(--in);background:transparent;color:var(--f);font:700 15px Inter,sans-serif;width:100%;cursor:pointer}
+.foot{padding:12px 18px 18px;border-top:1px solid var(--b);display:flex;flex-direction:column;gap:10px}
+.hero{border-radius:20px;background:var(--ps);color:var(--pt);padding:16px}
+.hero .big{font-size:44px;line-height:1;font-weight:800;letter-spacing:-.02em}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{padding:12px 14px;border-radius:16px;border:1px solid var(--b);background:var(--s);display:flex;flex-direction:column;gap:2px}.tile b{font-size:22px;line-height:28px}
+.ptile{min-height:96px;padding:12px;border-radius:16px;border:1px solid var(--b);background:var(--s);display:flex;flex-direction:column;justify-content:space-between;font:700 15px Inter,sans-serif;color:var(--f);text-align:left;cursor:pointer}
+.ptile[aria-pressed=true]{border:2px solid var(--pr);background:var(--ps);color:var(--pt)}
+.field{display:flex;flex-direction:column;gap:6px}.field span{font-size:15px;font-weight:700}
+.input{height:52px;border-radius:14px;border:1px solid var(--in);background:var(--s);padding:0 14px;display:flex;align-items:center;font-size:17px;color:var(--f)}
+.input.ph{color:var(--fs)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.bars{display:flex;align-items:flex-end;gap:8px;height:110px;padding:0 4px}.bars div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;color:var(--fm)}.bars i{display:block;width:100%;border-radius:6px 6px 2px 2px}
+.toggle{width:52px;height:32px;border-radius:99px;background:var(--in);position:relative;flex:none;border:0;cursor:pointer}.toggle::after{content:"";position:absolute;top:4px;left:4px;width:24px;height:24px;border-radius:99px;background:#fff;transition:left .15s}
+.toggle[aria-checked=true]{background:var(--pr)}.toggle[aria-checked=true]::after{left:24px}
+.mini{height:36px;border-radius:10px;background:var(--s2);padding:3px;display:grid;grid-auto-flow:column;gap:3px}.mini button{border:0;border-radius:8px;background:transparent;font:600 13px Inter;color:var(--fm);padding:0 8px;cursor:pointer}.mini button[aria-selected=true]{background:var(--s);color:var(--f);font-weight:700}
+.nav{height:62px;display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--b);background:var(--s);font-size:13px;color:var(--fs);text-align:center;align-items:center}.nav .on{color:var(--pr);font-weight:700}
+.day{font-size:13px;font-weight:700;color:var(--fs);padding-top:4px;letter-spacing:.02em}
+.hide{display:none!important}
+@media (prefers-reduced-motion:reduce){.toggle::after{transition:none}}
+</style>
+</head><body>
+<style>
+.tl{display:flex;flex-direction:column;gap:0;border:1px solid var(--b);border-radius:16px;overflow:hidden}
+.tl .st{display:flex;gap:12px;padding:12px 14px;align-items:flex-start}
+.tl .st+.st{border-top:1px solid var(--b)}
+.dot{width:28px;height:28px;border-radius:99px;flex:none;display:grid;place-items:center;font-weight:800;font-size:14px}
+.rep{background:#fff;color:#102015;border-radius:14px;border:1px solid #d7e2d9;padding:14px;font-size:13px;line-height:1.45}
+.rep h4{margin:0;font-size:17px;line-height:22px}
+.rep .ok{background:#e6f3ea;color:#1f5a42;border-radius:12px;padding:10px 12px;font-weight:700;font-size:15px;margin:10px 0}
+.rep table{width:100%;border-collapse:collapse;margin:6px 0}
+.rep td,.rep th{text-align:left;padding:5px 4px;border-bottom:1px solid #e3e9e4;font-size:13px}
+.rep th{color:#3d4a41;font-weight:700}
+.rep .qr{width:64px;height:64px;flex:none;background:
+ conic-gradient(from 90deg at 25% 25%,#102015 25%,#fff 0) 0 0/16px 16px,#fff;border:3px solid #102015;border-radius:4px}
+.rep .hd{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+.rep .k{color:#3d4a41}
+.lock{background:linear-gradient(160deg,#1d3b2c,#0b0e13);color:#fff;min-height:720px;display:flex;flex-direction:column;padding:18px 14px;gap:12px}
+.lock .clock{font-size:64px;font-weight:300;text-align:center;line-height:1;margin-top:30px}
+.lock .date{text-align:center;font-size:15px;opacity:.85;margin-bottom:18px}
+.notif{background:rgba(255,255,255,.94);color:#102015;border-radius:20px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.notif .app{font-size:13px;color:#3d4a41;display:flex;gap:6px;align-items:center}
+.notif b{font-size:16px;line-height:21px}.notif p{margin:0;font-size:14px;line-height:19px}
+.notif .acts{display:flex;gap:8px;margin-top:4px}
+.notif .acts button{flex:1;height:44px;border-radius:12px;border:0;background:#e6f3ea;color:#1f5a42;font:700 14px Inter,sans-serif}
+</style>
+<style>
+.lp{background:var(--bg);min-height:720px;display:flex;flex-direction:column}
+.lp .hero2{padding:22px 18px 10px;display:flex;flex-direction:column;gap:12px}
+.lp h3{font-size:30px;line-height:34px;margin:0;font-weight:800;letter-spacing:-.02em}
+.lp .sub{font-size:17px;line-height:24px;color:var(--fs);margin:0}
+.shot{border:1px solid var(--b);border-radius:18px;background:var(--s);padding:10px;display:flex;flex-direction:column;gap:6px}
+.shot .mini{height:12px;border-radius:6px;background:var(--b)}
+.shot .mini.g{background:var(--ps)}
+.feat{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.feat div{border:1px solid var(--b);border-radius:14px;padding:10px;font-size:15px;line-height:20px}
+.feat b{display:block;font-size:17px;margin-bottom:2px}
+.logo{display:flex;align-items:center;gap:8px;font-weight:800;font-size:17px;padding:14px 18px 0}
+.logo i{width:28px;height:28px;border-radius:8px;background:#d64545;display:inline-block}
+.check{display:flex;gap:10px;align-items:center;padding:12px;border:1px solid var(--b);border-radius:14px}
+.check .c{width:26px;height:26px;border-radius:99px;border:2px solid var(--b);flex:none;display:grid;place-items:center;font-weight:800}
+.check.done .c{background:var(--pr);border-color:var(--pr);color:#fff}
+.check.done b{text-decoration:line-through;opacity:.7}
+.load{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-height:560px;text-align:center;padding:24px}
+.spin{width:56px;height:56px;border-radius:99px;border:6px solid var(--b);border-top-color:var(--pr)}
+</style>
+<div class="bar" role="toolbar" aria-label="Instrumente">
+  <button id="bEdit" aria-pressed="false">Editează textele</button>
+  <button id="bNight" aria-pressed="false">Ecranele noaptea</button>
+  <button id="bCopy">Copiază tot textul</button>
+  <button id="bReset">Revino la original</button>
+  <a href="#prima">Prima pagină</a><a href="#start">Start și Login</a><a href="#nou">Fermă nouă</a><a href="#ascuns">Ce ascundem</a>
+  <span class="msg" id="msg" role="status"></span>
+</div>
+
+<header class="band"><div class="wrap" data-zone="z-head">
+  <h1>Prima pagină, demo-ul și Login</h1>
+  <p class="lead">Ce vede un fermier care aude de Zmeurel, din primul minut până la ferma lui: prima pagină, alegerea între demo și cont, intrarea în cont, apoi primii pași pe o fermă nouă. Plus ce ascundem până vin magazinul și abonamentele.</p>
+  <p class="small" style="margin:0">Paginile publice (prima pagină, Start, Login) trec pe tokenii kitului, cu zi și noapte după telefon. Textele sunt propuneri: le poți edita direct aici.</p>
+</div></header>
+
+<section class="band chap" id="prima"><div class="wrap">
+<h2>1. Prima pagină (zmeurel.ro)</h2>
+<div class="notes" data-zone="n1">
+  <div class="note-g"><b>Ce propun</b><ul>
+    <li><b style="display:inline;font-size:15px">Mai scurtă și adevărată.</b> Rămân 6 părți:
+      <ol style="margin:4px 0">
+        <li>titlul cu „Încearcă fără cont”;</li>
+        <li>3 capturi reale din aplicație;</li>
+        <li>ce face, în 6 plăci;</li>
+        <li>povestea ta;</li>
+        <li>„Gratuit în beta”;</li>
+        <li>întrebări și contact.</li>
+      </ol></li>
+    <li><b style="display:inline;font-size:15px">Scoatem testimonialele cu „Ion M., Bacău” și „Maria D., Iași”.</b> Azi e o singură fermă reală activă (a ta), așa că recenziile acestea ar fi inventate. Pe lângă faptul că nu e corect, e și riscant legal (practici comerciale înșelătoare). Rămâne doar povestea ta, cu numele tău.</li>
+    <li><b style="display:inline;font-size:15px">Scoatem „Beta deschis — locuri limitate”.</b> Nu e adevărat. În loc: „Gratuit cât e în beta”.</li>
+    <li><b style="display:inline;font-size:15px">Capturile</b> sunt făcute automat din demo, deci arată aplicația de azi (Recoltări, Comenzi, Tratamente).</li>
+    <li><b style="display:inline;font-size:15px">Asociația și magazinul:</b> un singur rând, „Pentru asociații de producători: în curând”, cu WhatsApp.</li>
+    <li>Rămân titlul, descrierea pentru Google și imaginea de distribuire, adaptate la textul nou.</li>
+  </ul></div>
+  <div class="note-o"><b>De hotărât (cu recomandarea mea)</b><ol>
+    <li>Testimonialele inventate? <span class="rec">Recomand: le scoatem. Le punem înapoi când ai fermieri reali care acceptă să apară cu numele.</span></li>
+    <li>„Locuri limitate”? <span class="rec">Recomand: scos.</span></li>
+    <li>Titlul? <span class="rec">Recomand: „Ferma ta, pe telefon. Fără hârtii.” Varianta de azi: „Nu mai pierde bani din fermă.” Alege tu sau scrie altul.</span></li>
+    <li>Butonul principal? <span class="rec">Recomand: „Încearcă fără cont” (demo), iar al doilea „Am deja cont”. WhatsApp jos, la contact.</span></li>
+    <li>Secțiunea mare cu magazinul asociației? <span class="rec">Recomand: un rând „în curând”, până vine magazinul nou.</span></li>
+  </ol></div>
+</div>
+<div class="grid">
+
+<figure><figcaption>Prima pagină · sus</figcaption><div class="phone"><div class="lp" data-zone="s-lp1">
+  <div class="logo"><i aria-hidden="true"></i>Zmeurel</div>
+  <div class="hero2">
+    <h3>Ferma ta, pe telefon. Fără hârtii.</h3>
+    <p class="sub">Notezi recoltele, comenzile, livrările și tratamentele în câteva secunde. Vezi cât produci, cât vinzi și cât câștigi.</p>
+    <button class="btn">Încearcă fără cont</button>
+    <button class="btn2">Am deja cont</button>
+    <p class="sm">Gratuit cât e în beta · făcut de un fermier din Văratec, Suceava</p>
+    <div class="shot" aria-label="Captură: Recoltări"><span class="sm"><b style="display:inline">Recoltări</b> · azi</span><span class="mini g" style="width:70%"></span><span class="mini" style="width:90%"></span><span class="mini" style="width:60%"></span><span class="mini g" style="width:40%"></span></div>
+  </div>
+</div></div><p class="fnote">Primul ecran spune ce face și te lasă să încerci imediat, fără cont.</p></figure>
+
+<figure><figcaption>Prima pagină · ce face</figcaption><div class="phone"><div class="lp" data-zone="s-lp2">
+  <div class="hero2">
+    <p class="h2" style="margin:0">Ce ții în Zmeurel</p>
+    <div class="feat">
+      <div><b>Recoltări</b>kg pe culegător, plata la zi</div>
+      <div><b>Comenzi</b>din mesaj, cu livrare și plată</div>
+      <div><b>Stoc</b>cât ai, cât e rezervat</div>
+      <div><b>Tratamente</b>registru, pauze, magazie</div>
+      <div><b>Analize</b>raport cu QR pentru piață</div>
+      <div><b>Bani</b>cheltuieli, vânzări, profit</div>
+    </div>
+    <div class="shot" aria-label="Captură: Tratamente"><span class="sm"><b style="display:inline">Tratamente</b> · Plan</span><span class="mini g" style="width:80%"></span><span class="mini" style="width:65%"></span><span class="mini" style="width:75%"></span></div>
+    <p class="sm">Merge și fără semnal. Se sincronizează singur când revine.</p>
+  </div>
+</div></div><p class="fnote">Șase plăci în loc de patru secțiuni lungi (probleme, soluție, cum funcționează, tipuri de ferme).</p></figure>
+
+<figure><figcaption>Prima pagină · povestea și jos</figcaption><div class="phone"><div class="lp" data-zone="s-lp3">
+  <div class="hero2">
+    <p class="h2" style="margin:0">De ce am făcut-o</p>
+    <p class="sub">„Am ~1.900 de plante de zmeură la Văratec. Țineam totul pe hârtie și în WhatsApp și nu știam niciodată exact cât am câștigat. Am făcut Zmeurel pentru ferma mea, apoi pentru alții ca mine.”</p>
+    <p class="sm">— Andrei, fermier și autorul aplicației</p>
+    <div class="info"><b style="display:inline">Gratuit cât e în beta.</b> Datele sunt ale tale: le exporți oricând în Excel sau le ștergi.</div>
+    <div class="row"><span class="tx"><b>Pentru asociații de producători</b><span class="sm">în curând · scrie-mi</span></span><span aria-hidden="true">›</span></div>
+    <div class="row"><span class="tx"><b>Întrebări</b><span class="sm">Trebuie internet? Cine vede datele? Pot invita oameni?</span></span><span aria-hidden="true">›</span></div>
+    <button class="btn2">Scrie-mi pe WhatsApp</button>
+    <p class="sm">Termeni · Confidențialitate · © Zmeurel</p>
+  </div>
+</div></div><p class="fnote">Povestea reală ține locul testimonialelor.</p></figure>
+
+</div></div></section>
+
+<section class="band chap" id="start"><div class="wrap">
+<h2>2. Start, demo și Login</h2>
+<div class="notes" data-zone="n2">
+  <div class="note-g"><b>Ce propun</b><ul>
+    <li><b style="display:inline;font-size:15px">/start:</b> o singură alegere. „Încearcă o fermă demo” (fără cont) sus, „Îmi fac cont” (Google, apoi email) dedesubt.</li>
+    <li><b style="display:inline;font-size:15px">Demo-ul:</b> alegi tipul (Fructe de pădure / Solarii), apoi un ecran de așteptare „Pregătim ferma demo…” care <b style="display:inline;font-size:15px">așteaptă până sunt gata datele</b>. Azi se poate ajunge pe pagini goale dacă intri prea repede.</li>
+    <li><b style="display:inline;font-size:15px">Login:</b> Google, email și parolă, „Ai uitat parola?”, plus două rânduri de ajutor:
+      <ul>
+        <li>„Ești operator? Intră din linkul primit pe WhatsApp.”;</li>
+        <li>„Nu ai cont? Încearcă demo-ul.”</li>
+      </ul></li>
+    <li>Paginile de parolă (resetare, parolă nouă) primesc același aspect.</li>
+  </ul></div>
+  <div class="note-o"><b>De hotărât (cu recomandarea mea)</b><ol>
+    <li>Ce e primul pe /start? <span class="rec">Recomand: demo-ul, fără cont. Contul e a doua opțiune.</span></li>
+    <li>Confirmarea emailului la cont nou? <span class="rec">Recomand: rămâne fără confirmare cât e beta (cum e azi), ca să nu pierzi oameni.</span></li>
+    <li>Tipurile de demo? <span class="rec">Recomand: doar cele două care există. Altele mai târziu.</span></li>
+  </ol></div>
+</div>
+<div class="grid">
+
+<figure><figcaption>/start · alegerea</figcaption><div class="phone"><div class="scr" data-zone="s-start">
+  <div class="logo"><i aria-hidden="true"></i>Zmeurel</div>
+  <div class="body">
+    <p class="h2">Cum vrei să începi?</p>
+    <button class="ptile" style="text-align:left;align-items:flex-start;min-height:120px" data-go="f-tip">🍓<span><b style="display:block;font-size:19px">Încearcă o fermă demo</b>Fără cont. Date de exemplu, le poți schimba. Se șterg după o zi.</span></button>
+    <span class="day">SAU</span>
+    <button class="btn2">G · Îmi fac cont cu Google</button>
+    <button class="btn2">Îmi fac cont cu email</button>
+    <p class="sm">Am deja cont · <u>Intră</u></p>
+  </div>
+</div></div><p class="fnote">Demo-ul e cea mai rapidă cale să vezi aplicația.</p></figure>
+
+<figure id="f-tip"><figcaption>Demo · ce fel de fermă</figcaption><div class="phone"><div class="scr" data-zone="s-tip">
+  <div class="top"><span class="ico" aria-hidden="true">‹</span><span class="ttl">Ferma demo</span></div>
+  <div class="body">
+    <p class="h2">Ce fel de fermă?</p>
+    <div class="tiles" role="radiogroup"><button class="ptile" aria-pressed="true" data-act="one">🍓<span>Fructe de pădure</span></button><button class="ptile" aria-pressed="false" data-act="one">🍅<span>Solarii</span></button></div>
+    <p class="sm">Parcele, culegători, comenzi, tratamente, o analiză și magazia, ca să vezi tot.</p>
+  </div>
+  <div class="foot"><button class="btn" data-go="f-load">Pornește demo-ul</button></div>
+</div></div><p class="fnote">Aceleași două tipuri ca azi.</p></figure>
+
+<figure id="f-load"><figcaption>Demo · așteptarea</figcaption><div class="phone"><div class="scr" data-zone="s-load">
+  <div class="load">
+    <div class="spin" aria-hidden="true"></div>
+    <p class="h2" style="margin:0">Pregătim ferma demo…</p>
+    <p class="sm">Parcele ✓ · Culegători ✓ · Comenzi… </p>
+    <div class="prog" style="width:80%"><i style="width:60%"></i></div>
+    <p class="sm">Durează câteva secunde.</p>
+  </div>
+</div></div><p class="fnote">Intri în Acasă abia când datele sunt gata.</p></figure>
+
+<figure><figcaption>Login</figcaption><div class="phone"><div class="scr" data-zone="s-login">
+  <div class="logo"><i aria-hidden="true"></i>Zmeurel</div>
+  <div class="body">
+    <p class="h2">Intră în cont</p>
+    <button class="btn2">G · Continuă cu Google</button>
+    <span class="day">SAU</span>
+    <div class="field"><span>Email</span><div class="input ph">nume@exemplu.ro</div></div>
+    <div class="field"><span>Parolă</span><div class="input ph">••••••••</div></div>
+    <p class="sm"><u>Ai uitat parola?</u></p>
+    <div class="info">Ești operator? Intră din linkul primit pe WhatsApp.</div>
+    <p class="sm">Nu ai cont? <u>Încearcă demo-ul</u></p>
+  </div>
+  <div class="foot"><button class="btn">Intră</button></div>
+</div></div><p class="fnote">Operatorii nu mai caută parole: linkul e calea lor.</p></figure>
+
+</div></div></section>
+
+<section class="band chap" id="nou"><div class="wrap">
+<h2>3. Fermă nouă: primii pași</h2>
+<div class="notes" data-zone="n3">
+  <div class="note-g"><b>Ce propun</b><ul>
+    <li><b style="display:inline;font-size:15px">După contul nou:</b> 2 întrebări scurte.
+      <ol style="margin:4px 0">
+        <li>numele fermei și localitatea;</li>
+        <li>ce cultivi, cu bife: zmeură, mure, căpșuni, afine, solarii, livadă.</li>
+      </ol></li>
+    <li><b style="display:inline;font-size:15px">În Acasă,</b> cardul „Primii pași”, cu 4 bife care se bifează singure: prima parcelă, primul culegător, prețul la produs, primul membru în Echipa (opțional). Dispare când sunt gata sau la „Ascunde”.</li>
+    <li>Din demo, „Creează-ți ferma →” duce aici. Datele demo nu se mută.</li>
+  </ul></div>
+  <div class="note-o"><b>De hotărât (cu recomandarea mea)</b><ol>
+    <li>Câte întrebări la început? <span class="rec">Recomand: două (numele și locul, ce cultivi). Restul se pune din „Primii pași”.</span></li>
+    <li>Ce cultivi creează parcele automat? <span class="rec">Recomand: nu, doar propune „Adaugă parcela de zmeură”. Parcela o faci tu, cu suprafața ta.</span></li>
+  </ol></div>
+</div>
+<div class="grid">
+
+<figure><figcaption>Cont nou · ferma</figcaption><div class="phone"><div class="scr" data-zone="s-nou1">
+  <div class="top"><span class="ttl">Ferma ta</span><span class="step">1 din 2</span></div>
+  <div class="prog"><i style="width:50%"></i></div>
+  <div class="body">
+    <div class="field"><span>Cum se numește ferma?</span><div class="input ph">ex. Ferma Zmeurel</div></div>
+    <div class="field"><span>Localitatea</span><div class="input ph">ex. Văratec, Suceava</div></div>
+  </div>
+  <div class="foot"><button class="btn">Mai departe</button></div>
+</div></div><p class="fnote">Numele apare pe rapoarte și pe raportul analizei.</p></figure>
+
+<figure><figcaption>Cont nou · ce cultivi</figcaption><div class="phone"><div class="scr" data-zone="s-nou2">
+  <div class="top"><span class="ico" aria-hidden="true">‹</span><span class="ttl">Ferma ta</span><span class="step">2 din 2</span></div>
+  <div class="prog"><i style="width:100%"></i></div>
+  <div class="body">
+    <p class="h2">Ce cultivi?</p>
+    <div class="chips"><button class="chip" aria-pressed="true" data-act="sw2">Zmeură</button><button class="chip" aria-pressed="false" data-act="sw2">Mure</button><button class="chip" aria-pressed="false" data-act="sw2">Căpșuni</button><button class="chip" aria-pressed="false" data-act="sw2">Afine</button><button class="chip" aria-pressed="false" data-act="sw2">Solarii</button><button class="chip" aria-pressed="false" data-act="sw2">Livadă</button></div>
+    <p class="sm">Poți schimba oricând din Setări.</p>
+  </div>
+  <div class="foot"><button class="btn">Intră în fermă</button></div>
+</div></div><p class="fnote">Alegerile pregătesc produsele și propunerile din „Primii pași”.</p></figure>
+
+<figure><figcaption>Acasă · Primii pași</figcaption><div class="phone"><div class="scr" data-zone="s-pasi">
+  <div class="top"><span class="ttl" style="padding-left:8px">Acasă</span></div>
+  <div class="body">
+    <p class="h2" style="margin:0">Primii pași · 1 din 4</p>
+    <div class="check done"><span class="c">✓</span><span class="tx"><b>Numele fermei</b></span></div>
+    <div class="check"><span class="c"></span><span class="tx"><b>Adaugă parcela de zmeură</b><span class="sm">suprafața și numărul de plante</span></span><span aria-hidden="true">›</span></div>
+    <div class="check"><span class="c"></span><span class="tx"><b>Adaugă culegătorii</b><span class="sm">ca să notezi kg pe om</span></span><span aria-hidden="true">›</span></div>
+    <div class="check"><span class="c"></span><span class="tx"><b>Pune prețul zmeurii</b><span class="sm">pentru comenzi și vânzări</span></span><span aria-hidden="true">›</span></div>
+    <p class="sm"><u>Ascunde</u></p>
+  </div>
+  <div class="nav"><span class="on">Acasă</span><span>Livrări</span><span>Recoltări</span><span>Comenzi</span><span>Mai mult</span></div>
+</div></div><p class="fnote">Fiecare rând deschide formularul potrivit. Cardul dispare când e gata.</p></figure>
+
+</div></div></section>
+
+<section class="band chap" id="ascuns"><div class="wrap">
+<h2>4. Ce ascundem (decis: da)</h2>
+<div class="notes" data-zone="n4">
+  <div class="note-g"><b>Ce propun</b><ul>
+    <li><b style="display:inline;font-size:15px">Clienți magazin și Analiză magazin:</b> ies din Mai mult și din bara laterală. Rutele trimit spre Comenzi. Codul și datele rămân, pentru magazinul nou.</li>
+    <li><b style="display:inline;font-size:15px">Planuri și abonamente:</b> pagina devine „Gratuit cât e în beta”, cu ce urmează, fără prețuri. Butoanele de plată dispar.</li>
+    <li>Magazinul <b style="display:inline;font-size:15px">comanda.zmeurel.ro</b> și asociația nu se ating.</li>
+  </ul></div>
+</div>
+<div class="grid">
+<figure><figcaption>Planuri → Gratuit în beta</figcaption><div class="phone"><div class="scr" data-zone="s-beta">
+  <div class="top"><span class="ico" aria-hidden="true">‹</span><span class="ttl">Planul tău</span></div>
+  <div class="body">
+    <div class="hero"><span class="lbl">Planul tău</span><div class="big" style="font-size:30px">Gratuit în beta</div><span class="sm" style="color:inherit">toate modulele, fără limită de date</span></div>
+    <p class="sm">Când ies abonamentele, afli cu cel puțin o lună înainte. Datele rămân ale tale și le poți exporta oricând.</p>
+    <div class="row"><span class="tx"><b>Exportă tot în Excel</b></span><span aria-hidden="true">›</span></div>
+    <div class="row"><span class="tx"><b>Scrie-mi ce lipsește</b><span class="sm">WhatsApp</span></span><span aria-hidden="true">›</span></div>
+  </div>
+</div></div><p class="fnote">Fără prețuri și fără butoane de plată cât e beta.</p></figure>
+</div>
+</div></section>
+
+<section class="band chap"><div class="wrap" data-zone="z-plan">
+  <h2>După ce aprobi</h2>
+  <p class="lead">Un singur prompt (31): prima pagină, /start cu așteptarea demo-ului, Login și paginile de parolă, cele 2 întrebări la cont nou, „Primii pași” în Acasă, ascunderea magazinului și a abonamentelor. Capturile pentru prima pagină se fac automat din demo.</p>
+</div></section>
+<script>
+{
+const KEY='mockup-start-v1';
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const say=t=>{const m=$('#msg');m.textContent=t;clearTimeout(say.t);say.t=setTimeout(()=>m.textContent='',2500)};
+document.addEventListener('click',e=>{
+ if(document.body.classList.contains('editing'))return;
+ const go=e.target.closest('[data-go]');if(go){document.getElementById(go.dataset.go)?.scrollIntoView({behavior:'smooth',block:'start'});return}
+ const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,p=b.parentNode;
+ if(a==='seg')p.querySelectorAll(':scope>button').forEach(x=>x.setAttribute('aria-selected',x===b));
+ if(a==='one')p.querySelectorAll(':scope>button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+ if(a==='sw2')b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')!=='true');
+ if(a==='sw')b.setAttribute('aria-checked',b.getAttribute('aria-checked')!=='true');
+ if(a==='tab'){p.querySelectorAll(':scope>button').forEach(x=>x.setAttribute('aria-selected',x===b));$$(`[data-panel^="${b.dataset.g}:"]`).forEach(x=>x.classList.toggle('hide',x.dataset.panel!==b.dataset.g+':'+b.dataset.p))}
+});
+$$('figcaption,.fnote').forEach((n,i)=>{if(!n.dataset.zone)n.dataset.zone='c'+i});
+
+const zones=()=>$$('[data-zone]');const orig={};zones().forEach(z=>orig[z.dataset.zone]=z.innerHTML);
+function store(){try{const o={};zones().forEach(z=>o[z.dataset.zone]=z.innerHTML);localStorage.setItem(KEY,JSON.stringify(o))}catch(_){}}
+try{const o=JSON.parse(localStorage.getItem(KEY)||'null');if(o)zones().forEach(z=>{if(o[z.dataset.zone]!=null)z.innerHTML=o[z.dataset.zone]})}catch(_){}
+$('#bEdit').addEventListener('click',e=>{const on=!document.body.classList.contains('editing');document.body.classList.toggle('editing',on);e.currentTarget.setAttribute('aria-pressed',on);e.currentTarget.textContent=on?'Gata cu editarea':'Editează textele';zones().forEach(z=>z.contentEditable=on?'true':'false');if(!on){store();say('Salvat în acest browser.')}});
+document.addEventListener('input',()=>{if(document.body.classList.contains('editing'))store()});
+$('#bNight').addEventListener('click',e=>{const on=!document.body.classList.contains('night');document.body.classList.toggle('night',on);e.currentTarget.setAttribute('aria-pressed',on)});
+$('#bCopy').addEventListener('click',async()=>{const t=zones().map(z=>z.innerText.replace(/\n{3,}/g,'\n\n').trim()).join('\n\n———\n\n');try{await navigator.clipboard.writeText(t);say('Copiat. Lipește-l în chat.')}catch(_){say('Nu am putut copia; selectează textul manual.')}});
+$('#bReset').addEventListener('click',()=>{try{localStorage.removeItem(KEY)}catch(_){}zones().forEach(z=>z.innerHTML=orig[z.dataset.zone]);say('Revenit la textul original.')});
+}
+</script>
+</body>
+</html>
