@@ -336,11 +336,11 @@ export function PlanNouStepForm({ open, onOpenChange, todayIso, varianta: varian
         <TileGroup
           type="single"
           aria-label="Cum faci planul"
-          value={varianta}
+          // Nicio placă aleasă dinainte: atingerea alege și merge mai departe (o placă deja aleasă n-ar mai răspunde).
+          value={null}
           onValueChange={(value) => {
-            // Placa aleasă deja, atinsă din nou, vine ca „nimic ales”: mergem mai departe cu ea.
-            const next = (value || varianta) as VariantaPlan
-            setVarianta(next)
+            if (!value) return
+            setVarianta(value as VariantaPlan)
             form.next()
           }}
         >
