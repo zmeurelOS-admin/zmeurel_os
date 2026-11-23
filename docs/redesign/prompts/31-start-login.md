@@ -4,7 +4,7 @@ Lucrezi singur, fără plan și fără să ceri aprobare. Ce te blochează sari 
 
 **Branch:** `redesign/start-31`, din `origin/main` de la momentul lansării. Commit-uri mici, push după fiecare bucată. Fără merge. Folosește `git add` pe fișiere anume, nu `git commit -a`: `public/sw.js` nu se comite.
 
-**În paralel rulează promptul 30** (`redesign/plan-30`: Tratamente, Plan, `src/lib/plan`, `src/components/plan`, `src/components/tratamente`, notificările zilnice). Nu atinge fișierele astea. La final, dacă `origin/main` s-a mutat, fă `git rebase origin/main` și rezolvă conflictele, apoi rulează din nou verificările.
+**Promptul 30 (Planul pe stadii) e terminat** și intră în main înainte de tine (Tratamente → tab-ul Plan, `src/lib/plan`, `src/components/plan`, notificarea zilnică). Pornește din `origin/main` de la momentul lansării. Dacă main e încă `c6aef5c` (30 nu e încă în main), pornește de acolo, nu atinge fișierele din Tratamente, Plan, `src/components/tratamente`, `src/lib/notifications/zilnice`, iar la final fă `git rebase origin/main`, rezolvă conflictele și rulează din nou verificările.
 
 **Prototipul aprobat** (toate recomandările acceptate de Andrei): `docs/redesign/mockups/start-login-prototip.html` de pe `redesign/prompturi-11-12`. Deschide-l în browser: e un telefon cu navigare reală, cu notițele „Ce se schimbă” și deciziile lângă fiecare ecran. Urmează varianta recomandată de la fiecare întrebare.
 
