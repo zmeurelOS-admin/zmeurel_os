@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 
 import { AcasaMobile } from '@/components/acasa/AcasaMobile'
 import { MementoAcasa } from '@/components/analize/MementoAcasa'
+import { MementoCapcaneAcasa } from '@/components/capcane/MementoCapcaneAcasa'
 import { AppShell } from '@/components/app/AppShell'
 import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
@@ -1716,11 +1717,13 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Analiza la fructe: cardul mementoului (primul) și avertizarea pentru o analiză neconformă, pe orice ecran. */}
+            {/* Analiza la fructe (cardul mementoului, primul, și avertizarea pentru o analiză neconformă) și capcanele, pe orice ecran. */}
             <div className="mx-auto mb-[var(--dashboard-stack-gap)] w-full max-w-xl space-y-3 empty:hidden md:max-w-none">
               <Suspense fallback={null}>
                 <MementoAcasa azi={todayIso} proprietar={memberRole !== 'operator'} />
               </Suspense>
+              {/* Capcanele: „Verificare azi · N capcane”, până se face verificarea. */}
+              <MementoCapcaneAcasa azi={todayIso} />
             </div>
 
             {/* Telefon (sub 768 px): Acasă pe kit, „ce am de făcut azi”. Grila de pe desktop e mai jos, neschimbată. */}

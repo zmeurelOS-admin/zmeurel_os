@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { AppShell } from '@/components/app/AppShell'
 import { Notice, ToggleRow, kitText } from '@/components/kit'
 import { MementoSetari } from '@/components/analize/MementoSetari'
+import { PraguriCapcaneSetari } from '@/components/capcane/PraguriCapcaneSetari'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { PushToggle } from '@/components/setari/PushToggle'
 import { ScreenBody, ScreenHeader } from '@/components/setari/SetariUi'
@@ -85,7 +86,8 @@ export function CePrimestiPageClient({
           {error ? <Notice tone="danger" title={error} /> : null}
 
           <div className="space-y-2" aria-busy={isLoading || saving}>
-            {NOTIFICARI_CHEI.filter((cheie) => cheie !== 'analize').map((cheie) => (
+            {/* „Capturi peste prag” ajunge doar la proprietar: operatorul nu vede comutatorul. */}
+            {NOTIFICARI_CHEI.filter((cheie) => cheie !== 'analize' && (proprietar || cheie !== 'capcane_prag')).map((cheie) => (
               <ToggleRow
                 key={cheie}
                 title={NOTIFICARI_TEXTE[cheie].titlu}
@@ -101,6 +103,8 @@ export function CePrimestiPageClient({
             ))}
           </div>
         </section>
+
+        {proprietar ? <PraguriCapcaneSetari /> : null}
 
         {proprietar ? <MementoSetari preferinte={stare} disabled={isLoading || unavailable} onChange={(next) => void update(next)} /> : null}
 
