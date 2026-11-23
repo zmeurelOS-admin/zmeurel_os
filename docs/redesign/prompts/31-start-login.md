@@ -100,6 +100,10 @@ Caută tot ce presupune zmeura. Cel puțin:
   - fără prețuri și fără butoane de plată.
 - Adaugă `src/app/(dashboard)/planuri` în `KIT_RULE_DIRS`.
 
+## 5b. Numele aplicației într-un singur loc
+
+Platforma se va redenumi în „Caietul Fermei” (promptul 32). Ca redenumirea să fie simplă, textele noi scrise de tine (prima pagină, `/start`, Login, „Primii pași”, „Planul tău”) iau numele aplicației dintr-o constantă, nu scris de mână: `src/lib/brand.ts`, cu `APP_NAME = 'Zmeurel OS'` deocamdată. Nu redenumești nimic acum.
+
 ## 6. Verificare
 
 - `npm run lint`, `npm run typecheck`, `npm run check:kit`, `npm run test:critical:unit`, `npm run build`.
