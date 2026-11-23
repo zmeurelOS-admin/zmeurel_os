@@ -8,6 +8,7 @@
  */
 import QRCode from 'qrcode'
 
+import { APP_URL } from '@/lib/brand'
 import { isMissingTableError } from '@/lib/notifications/preferinte'
 import { isMissingColumnError } from '@/lib/schema-features'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
@@ -34,7 +35,7 @@ export function origineAplicatie(host?: string | null, proto?: string | null): s
   const env = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL
   if (env) return env.replace(/\/$/, '')
   if (host) return `${proto || 'https'}://${host}`
-  return 'https://app.zmeurel.ro'
+  return APP_URL
 }
 
 type AnalizaCuTenant = AnalizaPentruRaport & { id: string; tenant_id: string }

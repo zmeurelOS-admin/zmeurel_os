@@ -1,11 +1,11 @@
 import { validateSameOriginMutation } from '@/lib/api/route-security'
+import { APP_URL } from '@/lib/brand'
 import { createServiceRoleClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { isFarmOwner } from '@/lib/tenant/account-deletion'
 import { getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
 
 const GOOGLE_CONTACTS_TENANT_ID = '99485d6b-f186-49db-a379-bb9a12d34968'
-const DEFAULT_APP_URL = 'https://www.zmeurel.ro'
 
 type CronSyncResult = {
   synced: number
@@ -33,7 +33,7 @@ function getCronUrl(): URL {
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL?.trim() ||
     process.env.SITE_URL?.trim() ||
-    DEFAULT_APP_URL
+    APP_URL
 
   return new URL('/api/cron/sync-google-contacts', baseUrl)
 }

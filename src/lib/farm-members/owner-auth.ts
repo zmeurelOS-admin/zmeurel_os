@@ -1,3 +1,4 @@
+import { APP_URL, originDinUrl } from '@/lib/brand'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getTenantIdByUserId } from '@/lib/tenant/get-tenant'
@@ -43,21 +44,15 @@ export async function getFarmOwnerContext(): Promise<FarmOwnerContext | null> {
   }
 }
 
+/** Originea linkurilor trimise pe WhatsApp: `SITE_URL`, apoi `NEXT_PUBLIC_SITE_URL`, altfel adresa platformei. */
+function originLinkuri(): string {
+  return originDinUrl(process.env.SITE_URL) ?? originDinUrl(process.env.NEXT_PUBLIC_SITE_URL) ?? APP_URL
+}
+
 export function farmMemberInviteUrl(token: string): string {
-  return `https://zmeurel.ro/livrator/${encodeURIComponent(token)}`
+  return `${originLinkuri()}/livrator/${encodeURIComponent(token)}`
 }
 
 export function farmOperatorInviteUrl(token: string): string {
-  const configured = process.env.SITE_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? 'https://zmeurel.ro'
-  let origin = 'https://zmeurel.ro'
-  try {
-    origin = new URL(configured).origin
-  } catch {
-    try {
-      origin = new URL(`https://${configured.replace(/^\/+|\/+$/g, '')}`).origin
-    } catch {
-      origin = 'https://zmeurel.ro'
-    }
-  }
-  return `${origin}/invite/${encodeURIComponent(token)}`
+  return `${originLinkuri()}/invite/${encodeURIComponent(token)}`
 }

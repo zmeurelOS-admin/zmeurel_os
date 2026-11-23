@@ -1,9 +1,11 @@
+import { APP_NAME, APP_URL } from '@/lib/brand'
+
 const softwareApplicationJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
-  name: 'Zmeurel OS',
+  name: APP_NAME,
   description: 'Aplicație de gestiune agricolă pentru fermieri și asociații de producători',
-  url: 'https://www.zmeurel.ro',
+  url: APP_URL,
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web, Android, iOS',
   offers: {

@@ -10,15 +10,15 @@ import { Hero } from '@/components/landing/hero'
 import { LandingFooter } from '@/components/landing/landing-footer'
 import { LandingHeader } from '@/components/landing/landing-header'
 import { Story } from '@/components/landing/story'
-import { APP_NAME } from '@/lib/brand'
+import { APP_NAME, APP_TAGLINE, APP_URL } from '@/lib/brand'
 import { cn } from '@/lib/utils'
 
-const TITLU = 'Ferma ta, pe telefon. Fără hârtii.'
+const TITLU = APP_TAGLINE
 const DESCRIERE =
   'Notezi recoltele, comenzile, livrările și tratamentele în câteva secunde. Vezi cât produci, cât vinzi și cât câștigi. Gratuit cât e în beta.'
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://www.zmeurel.ro'),
+  metadataBase: new URL(APP_URL),
   title: `${APP_NAME} — ${TITLU}`,
   description: DESCRIERE,
   keywords:
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: `${APP_NAME} — ${TITLU}`,
     description: DESCRIERE,
-    url: 'https://www.zmeurel.ro',
+    url: APP_URL,
     siteName: APP_NAME,
     locale: 'ro_RO',
     type: 'website',
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
     description: DESCRIERE,
     images: ['/og-image.jpg'],
   },
-  alternates: { canonical: 'https://www.zmeurel.ro' },
+  alternates: { canonical: APP_URL },
   robots: { index: true, follow: true },
 }
 
