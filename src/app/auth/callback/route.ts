@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { RUTA_FERMA_NOUA, esteFermaNoua } from '@/lib/auth/cont-nou'
 import { ensureTenantForUser, normalizeFarmName } from '@/lib/auth/ensure-tenant'
 import { acceptFarmInviteForUser } from '@/lib/farm-members/invite-accept'
 import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
@@ -188,6 +189,16 @@ async function completeOnboardingForUser(
   return null
 }
 
+/** Ferma creată acum câteva minute, încă fără localitate. La orice eroare: nu (intră direct în aplicație). */
+async function fermaTocmaiCreata(supabase: ServerSupabase, tenantId: string): Promise<boolean> {
+  try {
+    const { data } = await asDbClient(supabase).from('tenants').select('created_at, localitate').eq('id', tenantId).maybeSingle()
+    return data ? esteFermaNoua(data) : false
+  } catch {
+    return false
+  }
+}
+
 async function resolvePostLoginPath(
   supabase: ServerSupabase,
   userId: string,
@@ -197,6 +208,8 @@ async function resolvePostLoginPath(
   if (safeNext && safeNext !== '/dashboard' && safeNext !== '/start') return safeNext
 
   if (resolvedTenantId !== undefined) {
+    // Contul nou (Google, prima intrare): întâi întrebarea cu numele și locul fermei (promptul 31).
+    if (resolvedTenantId && (await fermaTocmaiCreata(supabase, resolvedTenantId))) return RUTA_FERMA_NOUA
     return '/dashboard'
   }
 
