@@ -19,7 +19,7 @@ const ICON: Record<MetodaFormular, React.ReactNode> = {
   sol: <Mountain aria-hidden />,
 }
 
-/** Pasul 1: „Repetă” un tratament anterior sau alege metoda. Capcanele apar dezactivate, „în curând”. */
+/** Pasul 1: „Repetă” un tratament anterior sau alege metoda. Capcanele au tab-ul lor (montare, verificare): aici apar doar ca trimitere. */
 export function PasMetoda({
   repeta,
   onRepeta,
@@ -62,7 +62,7 @@ export function PasMetoda({
           <Tile value="stropire" leading={ICON.stropire} title="Stropire" subtitle="Fungicid, insecticid, foliar" onClick={() => onMetoda('stropire')} />
           <Tile value="fertirigare" leading={ICON.fertirigare} title="Fertirigare" subtitle="Prin picurare, pe parcele" onClick={() => onMetoda('fertirigare')} />
           <Tile value="sol" leading={ICON.sol} title="La sol" subtitle="Granulat, îngrășământ de bază" onClick={() => onMetoda('sol')} />
-          <Tile leading={<SquareDashed aria-hidden />} title="Capcane" subtitle="Montare, verificare · în curând" disabled />
+          <Tile leading={<SquareDashed aria-hidden />} title="Capcane" subtitle="În tab-ul Capcane, din Tratamente" disabled />
         </TileGroup>
       </section>
     </div>

@@ -14,7 +14,10 @@ import { ascultaErori, iesiDinCont, pornesteDemoNou } from './demo'
  *   6. Tratamente → Analize: analiza din demo și raportul public deschis fără cont;
  *   7. Magazia (promptul 28): „+ Am cumpărat” Kelpak → un tratament făcut cu Kelpak („Repetă” stropirea demo) →
  *      stocul scade. Se sare, cu motivul scris, cât migrarea `20261122130000_magazia.sql` nu e aplicată;
- *   8. pe mobil (375 px), bara de jos are 5 taburi.
+ *   8. Capcanele (promptul 29): „+ Montează” Drosophila pe Delniwa Sud → „Verifică acum” cu 5 capturi în fiecare
+ *      capcană (peste prag: 1 / capcană / săptămână) → apare „peste prag”. Se sare, cu motivul scris, cât migrarea
+ *      `20261123100000_capcane.sql` nu e aplicată;
+ *   9. pe mobil (375 px), bara de jos are 5 taburi.
  */
 
 test.describe.configure({ mode: 'serial' })
@@ -229,7 +232,42 @@ test('7. Magazia: „+ Am cumpărat” → tratament făcut cu produsul → stoc
   expect(stocDupaTratament).toBeLessThan(stocDupaCumparare)
 })
 
-test('8. pe mobil (375 px), bara de jos are 5 taburi', async () => {
+test('8. Capcane: montează → verifică peste prag → apare „peste prag”', async () => {
+  await page.goto('/tratamente?tab=capcane', { waitUntil: 'load' })
+  // Așteptăm tab-ul gata: fie mesajul „după actualizarea bazei de date”, fie butonul „Montează”.
+  const mesaj = page.getByText(/Capcanele vor merge după actualizarea bazei de date/).first()
+  const monteaza = page.getByRole('button', { name: 'Montează', exact: true }).first()
+  await expect(mesaj.or(monteaza)).toBeVisible()
+  const faraMigrare = await mesaj.isVisible()
+  test.skip(faraMigrare, 'Migrarea 20261123100000_capcane.sql nu e aplicată: tab-ul Capcane arată „după actualizarea bazei de date”.')
+
+  // „+ Montează”: Drosophila, 3 bucăți pe Delniwa Sud (parcela de vânzare, în fereastra culesului din demo).
+  await monteaza.click()
+  const montare = page.getByRole('dialog', { name: 'Montează capcane' })
+  await montare.getByRole('radio', { name: /Drosophila/ }).click()
+  await montare.getByRole('button', { name: 'Delniwa Sud', exact: true }).click()
+  await montare.getByRole('button', { name: 'Continuă' }).click()
+  await montare.getByRole('button', { name: /^Montează/ }).click()
+  await expect(montare.getByRole('heading', { name: 'Capcane montate' })).toBeVisible()
+  await montare.getByRole('button', { name: 'Gata' }).click()
+
+  // Fișa grupului → „Verifică acum”: 5 capturi în fiecare dintre cele 3 capcane (15 ≥ 3 = peste prag).
+  await page.getByRole('button', { name: /Delniwa Sud · 3 Drosophila/ }).first().click()
+  await expect(page.getByRole('heading', { name: 'Delniwa Sud · capturi' })).toBeVisible()
+  await page.getByRole('button', { name: 'Verifică acum' }).click()
+  const verificare = page.getByRole('dialog', { name: 'Verificare capcane' })
+  for (let i = 1; i <= 3; i += 1) {
+    await expect(verificare.getByRole('heading', { name: `Delniwa Sud · capcana ${i}` })).toBeVisible()
+    await apasaTaste(page, 'Tastatură pentru capturi', '5')
+    await verificare.getByRole('button', { name: i < 3 ? 'Următoarea capcană' : 'Salvează verificarea' }).click()
+  }
+  await expect(verificare.getByRole('heading', { name: 'Verificare salvată' })).toBeVisible()
+  await expect(verificare.getByText('Peste prag la Delniwa Sud')).toBeVisible()
+  await verificare.getByRole('button', { name: 'Gata' }).click()
+  await expect(page.getByText('peste prag', { exact: true }).first()).toBeVisible()
+})
+
+test('9. pe mobil (375 px), bara de jos are 5 taburi', async () => {
   await page.setViewportSize({ width: 375, height: 812 })
   await page.goto('/dashboard', { waitUntil: 'load' })
   const bara = page.getByRole('navigation', { name: 'Navigare principală' })
