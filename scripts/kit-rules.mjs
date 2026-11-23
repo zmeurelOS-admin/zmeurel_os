@@ -56,6 +56,9 @@ export const KIT_RULE_DIRS = [
   // Magazia (promptul 28): pagina stă sub src/app/(dashboard)/tratamente/magazie.
   'src/components/magazie',
   'src/lib/magazie',
+  // Capcanele (promptul 29): tab-ul din Tratamente, fișa grupului (sub src/app/(dashboard)/tratamente/capcane), logica.
+  'src/components/capcane',
+  'src/lib/capcane',
   // Analizele la fructe (promptul 26): tab-ul din Tratamente, raportul public `/a/[token]`, logica.
   'src/components/analize',
   'src/lib/analize',

@@ -24,6 +24,11 @@ import {
 } from '@/components/kit'
 import { ScreenBody, ScreenHeader } from '@/components/setari/SetariUi'
 import { AnalizaNouaStepForm } from '@/components/analize/AnalizaNouaStepForm'
+import { CapcaneTab } from '@/components/capcane/CapcaneTab'
+import { MonteazaStepForm } from '@/components/capcane/MonteazaStepForm'
+import { VerificaStepForm } from '@/components/capcane/VerificaStepForm'
+import { capcaneDeVerificat } from '@/lib/capcane'
+import { useCapcane } from '@/lib/capcane/useCapcane'
 import { AnalizeTab } from '@/components/analize/AnalizeTab'
 import { RezultatStepForm } from '@/components/analize/RezultatStepForm'
 import { esteParcelaDeVanzare, laboratoareFolosite, type AnalizaRow } from '@/lib/analize/model'
@@ -77,6 +82,9 @@ const ICON_TIP: Record<TipJurnal, React.ReactNode> = {
   altele: <FlaskConical aria-hidden />,
 }
 
+type TabTratamente = 'aplicari' | 'capcane' | 'analize'
+const tabDinUrl = (value: string | null): TabTratamente => (value === 'analize' || value === 'capcane' ? value : 'aplicari')
+
 const LUNI = ['Ianuarie', 'Februarie', 'Martie', 'Aprilie', 'Mai', 'Iunie', 'Iulie', 'August', 'Septembrie', 'Octombrie', 'Noiembrie', 'Decembrie']
 
 function stareRand(rand: RandJurnal, azi: string): { text: string; tone: StatusTone } {
@@ -127,8 +135,9 @@ export function TratamentePageClient() {
   const [busy, setBusy] = useState<'facut' | 'anulat' | null>(null)
   const [parcelaInitiala, setParcelaInitiala] = useState<string | null>(null)
 
-  // ─── Tab-ul „Analize” (`?tab=analize`; `&noua=1&parcele=<id,id>` deschide „Analiză nouă”, din memento) ───
-  const [tab, setTab] = useState<'aplicari' | 'analize'>(() => (searchParams.get('tab') === 'analize' ? 'analize' : 'aplicari'))
+  // ─── Taburile: Aplicări · Capcane (`?tab=capcane`) · Analize (`?tab=analize`; `&noua=1&parcele=<id,id>` deschide
+  // „Analiză nouă”, din memento). „Plan” vine între Aplicări și Capcane în promptul 30. ───
+  const [tab, setTab] = useState<TabTratamente>(() => tabDinUrl(searchParams.get('tab')))
   const [analizaNouaOpen, setAnalizaNouaOpen] = useState(false)
   const [analizaEditata, setAnalizaEditata] = useState<AnalizaRow | null>(null)
   const [parceleAnalizaInitiale, setParceleAnalizaInitiale] = useState<string[]>([])
@@ -136,6 +145,18 @@ export function TratamentePageClient() {
   const [analizaRezultat, setAnalizaRezultat] = useState<AnalizaRow | null>(null)
   const [raportDeschis, setRaportDeschis] = useState<string | null>(null)
   const analizeQuery = useQuery({ queryKey: queryKeys.analize, queryFn: getAnalize, staleTime: 30_000, enabled: tab === 'analize', retry: false })
+
+  // ─── Capcanele (promptul 29) ───
+  const capcane = useCapcane(azi, { enabled: tab === 'capcane' })
+  const [monteazaOpen, setMonteazaOpen] = useState(false)
+  const [verificaOpen, setVerificaOpen] = useState(false)
+  const grupuriDeVerificat = useMemo(() => {
+    if (!azi) return []
+    const active = capcane.grupuri.filter((grup) => grup.status === 'activa')
+    const scadente = capcaneDeVerificat(active, azi).grupuri
+    // Nimic scadent azi: „Verifică acum” verifică toate grupurile montate.
+    return scadente.length > 0 ? scadente : active
+  }, [azi, capcane.grupuri])
 
   const { pauze, aplicari, activitati, loading } = usePauzeActive(azi)
   const parceleQuery = useQuery({ queryKey: queryKeys.parcele, queryFn: getParcele, staleTime: 30_000, refetchOnWindowFocus: false })
@@ -207,9 +228,17 @@ export function TratamentePageClient() {
     })
   }, [azi, nouaDinUrl, parceleDinUrl, parceleQuery.isLoading, poateScrie, router])
 
-  const schimbaTab = (next: 'aplicari' | 'analize') => {
+  const schimbaTab = (next: TabTratamente) => {
     setTab(next)
-    router.replace(next === 'analize' ? '/tratamente?tab=analize' : '/tratamente', { scroll: false })
+    router.replace(next === 'aplicari' ? '/tratamente' : `/tratamente?tab=${next}`, { scroll: false })
+  }
+
+  // „Fă un tratament pe …” din verificarea capcanelor: formularul de tratament cu parcela aleasă.
+  const tratamentPeParcela = (parcelaId: string) => {
+    if (!poateScrie) return
+    setInitial(null)
+    setParcelaInitiala(parcelaId)
+    setFormOpen(true)
   }
 
   const dupaAnaliza = (analiza: AnalizaRow) => {
@@ -223,6 +252,17 @@ export function TratamentePageClient() {
     setParcelaInitiala(null)
     setFormOpen(true)
   }
+
+  // Din Acasă: `/tratamente?tab=capcane&verifica=1` deschide „Verifică acum”.
+  const verificaDinUrl = searchParams.get('verifica') === '1'
+  useEffect(() => {
+    if (!verificaDinUrl || !azi || capcane.loading) return
+    queueMicrotask(() => {
+      setTab('capcane')
+      if (poateScrie && grupuriDeVerificat.length > 0) setVerificaOpen(true)
+      router.replace('/tratamente?tab=capcane', { scroll: false })
+    })
+  }, [azi, capcane.loading, grupuriDeVerificat.length, poateScrie, router, verificaDinUrl])
 
   // „+ Tratament” din fișa parcelei: `/tratamente?parcela=<id>` deschide formularul cu parcela aleasă.
   const parcelaDinUrl = searchParams.get('parcela')?.trim() ?? ''
@@ -322,8 +362,21 @@ export function TratamentePageClient() {
     )
   })
 
+  const capcaneButoane = (
+    <div className="grid grid-cols-2 gap-2.5">
+      <Button type="button" variant="primary" size="touch-lg" className="w-full" disabled={grupuriDeVerificat.length === 0} onClick={() => setVerificaOpen(true)}>
+        Verifică acum
+      </Button>
+      <Button type="button" variant="neutral" size="touch-lg" className="w-full" onClick={() => setMonteazaOpen(true)}>
+        <Plus aria-hidden />
+        Montează
+      </Button>
+    </div>
+  )
   const addButton =
-    tab === 'analize' ? (
+    tab === 'capcane' ? (
+      capcaneButoane
+    ) : tab === 'analize' ? (
       <Button type="button" variant="primary" size="touch-lg" className="w-full" onClick={() => deschideAnalizaNoua()}>
         <Plus aria-hidden />
         Analiză nouă
@@ -342,9 +395,9 @@ export function TratamentePageClient() {
       header={<ScreenHeader title="Tratamente" backHref="/mai-mult" />}
       bottomBarFixed
       bottomBar={
-        !loadingAll && poateScrie && !(tab === 'analize' && analizeIndisponibile) ? (
-          <div className="mx-auto w-full max-w-md pl-18 pr-4">
-            <div className="rounded-box shadow-2">{addButton}</div>
+        !loadingAll && poateScrie && !(tab === 'analize' && analizeIndisponibile) && !(tab === 'capcane' && (capcane.indisponibil || capcane.loading)) ? (
+          <div className={cn('mx-auto w-full max-w-md pr-4', tab === 'capcane' ? 'pl-4' : 'pl-18')}>
+            <div className={cn('rounded-box', tab === 'capcane' ? 'bg-surface p-2 shadow-2' : 'shadow-2')}>{addButton}</div>
           </div>
         ) : undefined
       }
@@ -354,11 +407,28 @@ export function TratamentePageClient() {
           aria-label="Tratamente"
           options={[
             { value: 'aplicari', label: 'Aplicări' },
+            { value: 'capcane', label: 'Capcane' },
             { value: 'analize', label: 'Analize' },
           ]}
           value={tab}
           onValueChange={schimbaTab}
         />
+
+        {tab === 'capcane' && azi ? (
+          <>
+            <div className="hidden md:block">{poateScrie && !capcane.indisponibil && !capcane.loading ? capcaneButoane : null}</div>
+            <CapcaneTab
+              azi={azi}
+              grupuri={capcane.grupuri}
+              starePeGrup={capcane.starePeGrup}
+              numeParcele={numeParcele}
+              loading={capcane.loading}
+              error={capcane.error}
+              indisponibil={capcane.indisponibil}
+              poateScrie={poateScrie}
+            />
+          </>
+        ) : null}
 
         {tab === 'analize' && azi ? (
           <>
@@ -555,6 +625,28 @@ export function TratamentePageClient() {
             // „Salvează și fă raportul”: raportul se deschide după ce formularul s-a închis.
             if (analiza.status === 'conform') window.setTimeout(() => setRaportDeschis(analiza.id), 220)
           }}
+        />
+      ) : null}
+
+      {azi ? (
+        <MonteazaStepForm
+          open={monteazaOpen}
+          onOpenChange={setMonteazaOpen}
+          todayIso={azi}
+          parcele={parcele.map((parcela) => ({ id: parcela.id, nume: parcela.nume_parcela?.trim() || 'Parcelă' }))}
+        />
+      ) : null}
+      {azi ? (
+        <VerificaStepForm
+          open={verificaOpen}
+          onOpenChange={setVerificaOpen}
+          todayIso={azi}
+          grupuri={grupuriDeVerificat}
+          verificari={capcane.verificari}
+          numeParcele={numeParcele}
+          praguri={capcane.praguri}
+          inCoacere={capcane.inCoacere}
+          onTratament={tratamentPeParcela}
         />
       ) : null}
 
