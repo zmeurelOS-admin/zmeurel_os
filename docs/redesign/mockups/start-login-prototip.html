@@ -119,10 +119,10 @@ button{font:inherit;color:inherit;cursor:pointer}
 <div class="toast" id="toast" role="status"></div>
 
 <script>
-const S={screen:'landing',hist:[],demoType:'fructe',cultivi:['Zmeura'],pasi:{nume:true,parcela:false,culegatori:false,pret:false},sheet:null,old:false,load:0,ans:{},notes:{}};
+const S={screen:'landing',hist:[],demoType:'fructe',cult:null,pcult:'Zmeură',pasi:{nume:true,parcela:false,culegatori:false,pret:false},sheet:null,old:false,load:0,ans:{},notes:{}};
 const $=s=>document.querySelector(s);
 
-const FLOW=[['landing','Prima pagină'],['start','Start'],['demoTip','Tip demo'],['loading','Așteptarea'],['acasaDemo','Acasă demo'],['login','Login'],['signup1','Cont nou 1'],['signup2','Cont nou 2'],['acasaNou','Primii pași'],['maiMult','Mai mult'],['planuri','Planul tău']];
+const FLOW=[['landing','Prima pagină'],['start','Start'],['demoTip','Tip demo'],['loading','Așteptarea'],['acasaDemo','Acasă demo'],['login','Login'],['signup1','Cont nou'],['acasaNou','Primii pași'],['maiMult','Mai mult'],['planuri','Planul tău']];
 
 const Q={
  landing:[
@@ -134,9 +134,8 @@ const Q={
   {id:'confirm',q:'Confirmarea emailului la cont nou?',rec:'Fără confirmare cât e beta (ca azi), ca să nu pierzi oameni.',opts:['Fără confirmare','Cu confirmare']}],
  demoTip:[{id:'tipuri',q:'Tipurile de demo?',rec:'Doar cele două care există: Fructe de pădure și Solarii.',opts:['Doar cele două','Mai multe']}],
  loading:[],acasaDemo:[],login:[],
- signup1:[{id:'intrebari',q:'Câte întrebări după contul nou?',rec:'Două: numele și locul fermei, apoi ce cultivi. Restul din „Primii pași”.',opts:['Două','Niciuna']}],
- signup2:[{id:'autoparc',q:'Ce cultivi creează parcele automat?',rec:'Nu, doar propune „Adaugă parcela de zmeură”. Parcela o faci tu, cu suprafața ta.',opts:['Doar propune','Creează automat']}],
- acasaNou:[],maiMult:[],planuri:[]
+ signup1:[{id:'intrebari',q:'Câte întrebări după contul nou?',rec:'Una: numele și locul fermei. Fără „Ce cultivi?”: cultura vine din prima parcelă.',opts:['Una','Niciuna']}],
+ acasaNou:[{id:'multe',q:'Ferma are mai multe culturi?',rec:'Stocul și comenzile merg pe cultură: o filă pe cultură la Stoc; comanda întreabă cultura doar dacă ai mai multe.',opts:['Pe cultură','Un singur stoc pentru tot']}],maiMult:[],planuri:[]
 };
 
 const NOTES={
@@ -146,9 +145,8 @@ const NOTES={
  loading:{t:'Demo · așteptarea',n:['Nou: aplicația așteaptă până sunt gata datele demo. Azi poți ajunge pe pagini goale dacă intri prea repede.','Pașii se bifează pe rând, apoi intri singur în Acasă.']},
  acasaDemo:{t:'Acasă în demo',n:['Bannerul demo rămâne. „Creează-ți ferma →” duce la contul nou.','Bara de jos merge: încearcă „Mai mult”.']},
  login:{t:'Login',n:['Google, email și parolă, „Ai uitat parola?”.','Nou: „Ești operator? Intră din linkul primit pe WhatsApp.”','Nou: „Nu ai cont? Încearcă demo-ul.”','Paginile de parolă (resetare, parolă nouă) primesc același aspect.']},
- signup1:{t:'Cont nou · ferma',n:['Prima din cele 2 întrebări: numele fermei și localitatea.','Numele apare pe rapoarte și pe raportul analizei.']},
- signup2:{t:'Cont nou · ce cultivi',n:['A doua întrebare, cu bife. Se poate schimba din Setări.','Pregătește produsele și propunerile din „Primii pași”.']},
- acasaNou:{t:'Acasă · Primii pași',n:['Cardul cu 4 pași, care se bifează singuri când îi faci.','Apasă un pas: se deschide formularul; după „Salvează”, pasul se bifează.','Dispare când e gata sau la „Ascunde”.']},
+ signup1:{t:'Cont nou · ferma',n:['O singură întrebare: numele fermei și localitatea. Numele apare pe rapoarte.','Nu mai întrebăm „Ce cultivi?”: nicio cultură aleasă din start, nicio zmeură implicită.']},
+ acasaNou:{t:'Acasă · Primii pași',n:['Primul pas: „Adaugă prima parcelă”, cu cultura și soiul. De aici știe aplicația ce fruct ai și cum se recoltează.','Până la prima parcelă: stocul scrie „adaugă o parcelă”, prețul așteaptă parcela. Fără „zmeură” scris fix.','După parcelă, totul ia cultura ei: „Afine cal. I în stoc”, „Pune prețul la afine”. Încearcă cu altă cultură decât zmeura.','Pașii se bifează singuri; cardul dispare când e gata sau la „Ascunde”.']},
  maiMult:{t:'Mai mult',n:['Ies din meniu: „Clienți magazin” și „Analiză magazin” (datele rămân pentru magazinul nou).','„Planul tău” arată „Gratuit în beta”.']},
  planuri:{t:'Planul tău',n:['Fără prețuri și fără butoane de plată cât e beta.','Promisiune: afli cu cel puțin o lună înainte când ies abonamentele.']}
 };
@@ -222,23 +220,19 @@ login(){return `${topbar('',true)}<div class="logo" style="padding-top:0"><i></i
   <div class="info">Ești operator? Intră din linkul primit pe WhatsApp.</div>
   <p class="sm">Nu ai cont? <button class="link" data-go="start">Încearcă demo-ul</button></p></div>
   <div class="foot"><button class="btn" data-act="loginok">Intră</button></div>`},
-signup1(){return `<div class="top"><span class="ttl">Ferma ta</span><span class="sm">1 din 2</span></div><div class="bar" style="width:auto;margin:0 16px"><i style="width:50%"></i></div><div class="body">
+signup1(){return `<div class="top"><span class="ttl">Ferma ta</span></div><div class="body">
   <div class="field">Cum se numește ferma?<input id="fn" placeholder="ex. Ferma Zmeurel" value="${S.farm||''}"></div>
   <div class="field">Localitatea<input placeholder="ex. Văratec, Suceava"></div>
   ${S.ans.intrebari==='Niciuna'?'<div class="warn">Varianta „Niciuna”: ecranul ăsta nu mai apare, intri direct în Acasă.</div>':''}</div>
-  <div class="foot"><button class="btn" data-act="s1">Mai departe</button></div>`},
-signup2(){const all=['Zmeura','Mure','Căpșuni','Afine','Solarii','Livadă'];return `<div class="top"><button class="iconbtn" data-act="back" aria-label="Înapoi">‹</button><span class="ttl">Ferma ta</span><span class="sm">2 din 2</span></div><div class="bar" style="width:auto;margin:0 16px"><i style="width:100%"></i></div><div class="body">
-  <p class="h2">Ce cultivi?</p><div class="chips">${all.map(c=>`<button class="chip" data-act="cult" data-v="${c}" aria-pressed="${S.cultivi.includes(c)}">${c==='Zmeura'?'Zmeură':c}</button>`).join('')}</div>
-  <p class="sm">Poți schimba oricând din Setări.</p>
-  ${S.ans.autoparc==='Creează automat'?'<div class="warn">Varianta „Creează automat”: se fac parcele goale pentru fiecare bifă.</div>':''}</div>
-  <div class="foot"><button class="btn" data-act="s2">Intră în fermă</button></div>`},
-acasaNou(){const p=S.pasi,n=Object.values(p).filter(Boolean).length,c=S.cultivi[0]==='Zmeura'?'zmeură':(S.cultivi[0]||'zmeură').toLowerCase();
- const step=(k,t,s)=>`<button class="check ${p[k]?'done':''}" data-act="pas" data-v="${k}"><span class="c">${p[k]?'✓':''}</span><span class="tx"><b>${t}</b><span class="sm">${s}</span></span>${p[k]?'':'›'}</button>`;
+  <div class="foot"><button class="btn" data-act="s1">Intră în fermă</button></div>`},
+acasaNou(){const p=S.pasi,n=Object.values(p).filter(Boolean).length,c=S.cult?S.cult.toLowerCase():null;
+ const step=(k,t,s,dis)=>`<button class="check ${p[k]?'done':''}" data-act="${dis?'needParc':'pas'}" data-v="${k}" ${dis?'style="opacity:.55"':''}><span class="c">${p[k]?'✓':''}</span><span class="tx"><b>${t}</b><span class="sm">${s}</span></span>${p[k]?'':'›'}</button>`;
+ const stocL=S.ans.multe==='Un singur stoc pentru tot'?'Fructe cal. I în stoc':(c?S.cult+' cal. I în stoc':'Stoc');
  return `${topbar(S.farm||'Acasă',false)}<div class="body">
   ${S.hidePasi?'<p class="sm">Primii pași ascunși.</p>':`<p class="h2">Primii pași · ${n} din 4</p>
-  ${step('nume','Numele fermei','gata')}${step('parcela','Adaugă parcela de '+c,'suprafața și numărul de plante')}${step('culegatori','Adaugă culegătorii','ca să notezi kg pe om')}${step('pret','Pune prețul la '+c,'pentru comenzi și vânzări')}
+  ${step('nume','Numele fermei','gata')}${step('parcela',p.parcela?'Prima parcelă: '+S.parcNume:'Adaugă prima parcelă','cultura, soiul, suprafața')}${step('culegatori','Adaugă culegătorii','ca să notezi kg pe om')}${step('pret',c?'Pune prețul la '+c:'Pune prețul','pentru comenzi și vânzări'+(c?'':' · după prima parcelă'),!c)}
   ${n===4?'<div class="info">Gata! Cardul dispare de mâine.</div>':''}<button class="link" style="align-self:flex-start" data-act="hide">Ascunde</button>`}
-  <div class="kpi"><div><span class="sm">De livrat azi</span><b>0 kg</b></div><div><span class="sm">În stoc</span><b>0 kg</b></div></div></div><div style="flex:1"></div>${nav('Acasă')}
+  <div class="kpi"><div><span class="sm">De livrat azi</span><b>0 kg</b></div><div><span class="sm">${stocL}</span><b>${c?'0 kg':'—'}</b>${c?'':'<span class="xs">adaugă o parcelă</span>'}</div></div></div><div style="flex:1"></div>${nav('Acasă')}
   ${S.sheet?sheet():''}`},
 maiMult(){return `${topbar('Mai mult',false)}<div class="body">
   ${['Tratamente','Parcele','Lucrări','Stocuri','Produse','Clienți','Culegători','Cheltuieli','Vânzări','Rapoarte','Echipa'].map(x=>`<button class="row" data-act="soon"><span class="tx"><b>${x}</b></span>›</button>`).join('')}
@@ -251,7 +245,8 @@ planuri(){return `${topbar('Planul tău')}<div class="body">
   <button class="row" data-act="soon"><span class="tx"><b>Exportă tot în Excel</b></span>›</button>
   <button class="row" data-act="soon"><span class="tx"><b>Scrie-mi ce lipsește</b><span class="sm">WhatsApp</span></span>›</button></div>`}
 };
-function sheet(){const m={parcela:['Parcelă nouă',['Nume','Suprafața (m²)','Număr de plante']],culegatori:['Culegător nou',['Nume','Tarif (lei/kg)']],pret:['Prețul la produs',['Preț (lei/kg)']]}[S.sheet];
+function sheet(){if(S.sheet==='parcela'){const all=['Zmeură','Mure','Afine','Căpșuni','Roșii','Meri'];return `<div class="sheetwrap" data-act="closeSheet"><div class="sheet" data-stop="1"><p class="h2">Prima parcelă</p><div class="field">Cultura<div class="chips">${all.map(x=>`<button class="chip" data-act="pcult" data-v="${x}" aria-pressed="${S.pcult===x}">${x}</button>`).join('')}</div></div><div class="field">Soiul<input placeholder="ex. Maravilla"></div><div class="field">Nume parcelă<input id="pn" placeholder="ex. Lângă casă"></div><div class="field">Suprafața (m²)<input inputmode="numeric"></div><button class="btn" data-act="saveSheet">Salvează</button></div></div>`}
+ const m={parcela:['Parcelă nouă',['Nume','Suprafața (m²)','Număr de plante']],culegatori:['Culegător nou',['Nume','Tarif (lei/kg)']],pret:['Prețul la '+(S.cult||'').toLowerCase(),['Preț (lei/kg)']]}[S.sheet];
  return `<div class="sheetwrap" data-act="closeSheet"><div class="sheet" data-stop="1"><p class="h2">${m[0]}</p>${m[1].map(f=>`<div class="field">${f}<input></div>`).join('')}<button class="btn" data-act="saveSheet">Salvează</button></div></div>`}
 
 function render(){
@@ -263,7 +258,7 @@ function render(){
   <b>Ce se schimbă</b><ul>${N.n.map(x=>`<li>${x}</li>`).join('')}</ul>
   ${qs.length?'<b>De hotărât aici</b>':''}${qs.map(q=>`<div class="q"><b>${q.q}</b><div class="rec">Recomand: ${q.rec}</div><div class="ans">${q.opts.map((o,i)=>`<button data-ans="${q.id}" data-v="${o}" aria-pressed="${(S.ans[q.id]||q.opts[0])===o}">${o}${i===0?' ✓ recomandat':''}</button>`).join('')}</div><textarea data-note="${q.id}" placeholder="Altceva? Scrie aici">${S.notes[q.id]||''}</textarea></div>`).join('')}
   <p class="xs">Apasă butoanele din telefon ca să mergi prin aplicație. Alegerile din dreapta schimbă ecranul pe loc.</p>`;
- try{localStorage.setItem('proto-start-v1',JSON.stringify({ans:S.ans,notes:S.notes}))}catch(e){}
+ try{localStorage.setItem('proto-start-v2',JSON.stringify({ans:S.ans,notes:S.notes}))}catch(e){}
 }
 function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',1600)}
 document.addEventListener('click',e=>{
@@ -276,24 +271,24 @@ document.addEventListener('click',e=>{
  if(a==='soon')return toast('Doar în aplicația reală');
  if(a==='dt'){S.demoType=t.dataset.v;return render()}
  if(a==='startDemo'){S.cont=false;go('loading');startLoad();return}
- if(a==='mkfarm'||a==='google'||a==='mkcont'){S.cont=true;return go(S.ans.intrebari==='Niciuna'?'acasaNou':'signup1')}
- if(a==='loginok'){S.cont=true;S.farm='Ferma Zmeurel';S.pasi={nume:true,parcela:true,culegatori:true,pret:true};S.hidePasi=true;return go('acasaNou')}
- if(a==='s1'){S.farm=($('#fn')||{}).value||'Ferma mea';return go('signup2')}
- if(a==='cult'){const v=t.dataset.v;S.cultivi=S.cultivi.includes(v)?S.cultivi.filter(x=>x!==v):[...S.cultivi,v];return render()}
- if(a==='s2'){S.hidePasi=false;S.pasi={nume:true,parcela:false,culegatori:false,pret:false};return go('acasaNou')}
+ if(a==='mkfarm'||a==='google'||a==='mkcont'){S.cont=true;if(S.ans.intrebari==='Niciuna'){S.hidePasi=false;S.cult=null;S.pasi={nume:true,parcela:false,culegatori:false,pret:false};return go('acasaNou')}return go('signup1')}
+ if(a==='loginok'){S.cont=true;S.farm='Ferma Zmeurel';S.cult='Zmeură';S.pasi={nume:true,parcela:true,culegatori:true,pret:true};S.hidePasi=true;return go('acasaNou')}
+ if(a==='s1'){S.farm=($('#fn')||{}).value||'Ferma mea';S.hidePasi=false;S.cult=null;S.pasi={nume:true,parcela:false,culegatori:false,pret:false};return go('acasaNou')}
+ if(a==='pcult'){S.pcult=t.dataset.v;return render()}
+ if(a==='needParc')return toast('Întâi adaugă prima parcelă');
  if(a==='pas'){const k=t.dataset.v;if(S.pasi[k])return;S.sheet=k;return render()}
- if(a==='saveSheet'){S.pasi[S.sheet]=true;S.sheet=null;toast('Salvat · pas bifat');return render()}
+ if(a==='saveSheet'){if(S.sheet==='parcela'){S.cult=S.pcult;S.parcNume=(($('#pn')||{}).value||'')||S.pcult}S.pasi[S.sheet]=true;S.sheet=null;toast('Salvat · pas bifat');return render()}
  if(a==='closeSheet'){if(e.target===t){S.sheet=null;render()}return}
  if(a==='hide'){S.hidePasi=true;return render()}
  if(t.dataset.go)go(t.dataset.go);
 });
-document.addEventListener('input',e=>{if(e.target.dataset.note){S.notes[e.target.dataset.note]=e.target.value;try{localStorage.setItem('proto-start-v1',JSON.stringify({ans:S.ans,notes:S.notes}))}catch(x){}}});
+document.addEventListener('input',e=>{if(e.target.dataset.note){S.notes[e.target.dataset.note]=e.target.value;try{localStorage.setItem('proto-start-v2',JSON.stringify({ans:S.ans,notes:S.notes}))}catch(x){}}});
 function startLoad(){S.load=0;clearInterval(startLoad.i);startLoad.i=setInterval(()=>{S.load++;if(S.screen!=='loading'){clearInterval(startLoad.i);return}if(S.load>=5){clearInterval(startLoad.i);setTimeout(()=>{if(S.screen==='loading'){S.hist=['landing'];S.screen='acasaDemo';render()}},500)}render()},600)}
 $('#tVers').onclick=()=>{S.old=!S.old;$('#tVers').setAttribute('aria-pressed',S.old);$('#tVers').textContent=S.old?'Arată propunerea':'Arată cum e acum';render()};
 $('#tNight').onclick=()=>{const n=document.documentElement.classList.toggle('night');$('#tNight').setAttribute('aria-pressed',n)};
 $('#tRestart').onclick=()=>{S.hist=[];S.screen='landing';S.sheet=null;S.old=false;$('#tVers').setAttribute('aria-pressed','false');$('#tVers').textContent='Arată cum e acum';render()};
 $('#tCopy').onclick=()=>{const L=[];Object.values(Q).flat().forEach(q=>{L.push(`${q.q} → ${S.ans[q.id]||q.opts[0]}${S.notes[q.id]?' · '+S.notes[q.id]:''}`)});const txt='Decizii · Prima pagină, demo și Login\n'+L.join('\n');(navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast('Copiat'),()=>{prompt('Copiază:',txt)})};
-try{const d=JSON.parse(localStorage.getItem('proto-start-v1')||'{}');S.ans=d.ans||{};S.notes=d.notes||{}}catch(e){}
+try{const d=JSON.parse(localStorage.getItem('proto-start-v2')||'{}');S.ans=d.ans||{};S.notes=d.notes||{}}catch(e){}
 render();
 </script>
 </body>
