@@ -136,7 +136,11 @@ export const COLOANE_REGISTRU = [
   'Se poate recolta de la',
 ] as const
 
-export function documentRegistru(randuri: readonly RandRegistru[], start: string, end: string): DocumentExport {
+/**
+ * Registrul de tratamente. `monitorizare` = tabelele „Monitorizare cu capcane” (promptul 29), puse după tratamente;
+ * lipsesc când ferma n-are capcane sau migrarea lor nu e aplicată.
+ */
+export function documentRegistru(randuri: readonly RandRegistru[], start: string, end: string, monitorizare: readonly TabelExport[] = []): DocumentExport {
   return {
     titlu: 'Registrul de tratamente',
     subtitlu: `Perioada: ${dataRo(start)} – ${dataRo(end)}`,
@@ -156,6 +160,7 @@ export function documentRegistru(randuri: readonly RandRegistru[], start: string
           rand.recoltarePermisa ? dataRo(rand.recoltarePermisa) : '',
         ]),
       },
+      ...monitorizare,
     ],
   }
 }

@@ -6,6 +6,8 @@ import { FileSpreadsheet, FileText, FlaskConical, Package, SprayCan } from 'luci
 
 import { BottomSheet, Button, Notice, kitText } from '@/components/kit'
 import { analizeInPerioada, documentAnalize } from '@/lib/analize/export'
+import { tabeleMonitorizare } from '@/lib/capcane/export'
+import { useCapcane } from '@/lib/capcane/useCapcane'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { AnalizeIndisponibileError, getAnalize } from '@/lib/supabase/queries/analize'
 import { documentMagazie } from '@/lib/magazie/export'
@@ -93,6 +95,21 @@ export function ExportRaportSheet({ open, onOpenChange, azi, perioada, date, sum
   const magazieGata = magazieStocQuery.isSuccess && magazieMiscariQuery.isSuccess
   const magazieLipsa = magazieStocQuery.isSuccess && magazieStocQuery.data === null
 
+  // „Monitorizare cu capcane” (promptul 29), în registru. Fără migrare sau fără capcane: secțiunea lipsește.
+  const capcane = useCapcane(azi, { enabled: open })
+  const monitorizare = useMemo(() => {
+    if (capcane.indisponibil || capcane.grupuri.length === 0) return []
+    return tabeleMonitorizare({
+      grupuri: capcane.grupuri,
+      verificari: capcane.verificari,
+      numeParcele: new Map(date.parcele.map((parcela) => [parcela.id, parcela.nume_parcela?.trim() || 'Parcelă'])),
+      praguri: capcane.praguri,
+      inCoacere: capcane.inCoacere,
+      start: perioada.start,
+      end: perioada.end,
+    })
+  }, [capcane.grupuri, capcane.indisponibil, capcane.inCoacere, capcane.praguri, capcane.verificari, date.parcele, perioada.end, perioada.start])
+
   const tratamenteGata = aplicariQuery.isSuccess && activitatiQuery.isSuccess && !catalogQuery.isLoading
   const tratamenteEroare = aplicariQuery.isError || activitatiQuery.isError
 
@@ -140,7 +157,7 @@ export function ExportRaportSheet({ open, onOpenChange, azi, perioada, date, sum
         ? docRaport()
         : ce === 'analize'
           ? documentAnalize(analizeQuery.data ?? [], new Map(date.parcele.map((parcela) => [parcela.id, parcela.nume_parcela?.trim() || 'Parcelă'])), perioada.start, perioada.end)
-          : documentRegistru(registru, perioada.start, perioada.end)
+          : documentRegistru(registru, perioada.start, perioada.end, monitorizare)
     if (format === 'excel') {
       descarcaExcel(numeFisier(ce === 'raport' ? `raport ${perioada.eticheta}` : ce === 'analize' ? 'analizele sezonului' : 'registrul de tratamente', azi, 'xls'), doc)
     } else if (!tiparestePdf(doc)) {
@@ -183,7 +200,7 @@ export function ExportRaportSheet({ open, onOpenChange, azi, perioada, date, sum
             {tratamenteGata
               ? registru.length === 0
                 ? 'Niciun tratament în perioada aleasă.'
-                : `${registru.length} ${registru.length === 1 ? 'rând' : 'rânduri'}: data, parcela, metoda, produsul, substanța, doza, cantitatea, pauza și ziua de la care se poate recolta. Include și tratamentele vechi din Activități.`
+                : `${registru.length} ${registru.length === 1 ? 'rând' : 'rânduri'}: data, parcela, metoda, produsul, substanța, doza, cantitatea, pauza și ziua de la care se poate recolta. Include și tratamentele vechi din Activități.${monitorizare.length > 0 ? ' Plus monitorizarea cu capcane: grupurile și capturile pe săptămâni.' : ''}`
               : tratamenteEroare
                 ? ''
                 : 'Se încarcă tratamentele…'}
