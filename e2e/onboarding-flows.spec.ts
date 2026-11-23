@@ -57,7 +57,7 @@ async function loginViaUi(page: Page, email: string, password: string) {
   await page.goto('/login')
   await page.locator('#login-email').fill(email)
   await page.locator('#login-password').fill(password)
-  await page.getByRole('button', { name: 'Autentifica-te' }).click()
+  await page.getByRole('button', { name: 'Intră', exact: true }).click()
   await page.waitForURL(/\/(dashboard|parcele|start)/, { timeout: 45000 })
 }
 

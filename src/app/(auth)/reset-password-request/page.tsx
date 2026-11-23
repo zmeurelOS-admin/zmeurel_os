@@ -1,15 +1,11 @@
 'use client'
 
 import { FormEvent, useMemo, useState } from 'react'
-import { Loader2 } from 'lucide-react'
-import Link from 'next/link'
-import { toast } from '@/lib/ui/toast'
 
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { getSupabase } from '@/lib/supabase/client'
+import { AuthFrame } from '@/components/auth/AuthFrame'
+import { BigInput, Button, Notice } from '@/components/kit'
 import { isHiddenOperatorEmail } from '@/lib/farm-members/operator-link'
+import { getSupabase } from '@/lib/supabase/client'
 
 function getRedirectBase() {
   if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL
@@ -17,15 +13,19 @@ function getRedirectBase() {
   return ''
 }
 
+/** „Ai uitat parola?”: trimite pe email linkul pentru o parolă nouă. Logica e cea de dinainte. */
 export default function ResetPasswordRequestPage() {
   const supabase = useMemo(() => getSupabase(), [])
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
+  const [eroare, setEroare] = useState<string | null>(null)
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (loading) return
     setLoading(true)
+    setEroare(null)
 
     // Conturile ascunse ale operatorilor din link n-au parolă și nu primesc email: nu trimitem nimic.
     if (isHiddenOperatorEmail(email)) {
@@ -34,67 +34,41 @@ export default function ResetPasswordRequestPage() {
       return
     }
 
-    const redirectBase = getRedirectBase()
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${redirectBase}/update-password`,
+      redirectTo: `${getRedirectBase()}/update-password`,
     })
-
     setLoading(false)
-
     if (error) {
-      toast.error(error.message)
+      setEroare(error.message || 'Emailul nu s-a trimis. Încearcă din nou.')
       return
     }
-
     setSent(true)
-    toast.success('Email de reset trimis.')
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-md sm:p-8">
-        <h1 className="text-2xl font-bold text-[#312E3F]">Resetare parolă</h1>
-        <p className="mt-2 text-sm text-gray-500">Primește pe email link-ul pentru setarea unei parole noi.</p>
-
-        {sent ? (
-          <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-            Dacă adresa există, ai primit un email cu link de resetare.
-          </div>
-        ) : null}
-
-        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="reset-email">Email</Label>
-            <Input
-              id="reset-email"
-              type="email"
-              autoComplete="email"
-              placeholder="email@exemplu.ro"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-            />
-          </div>
-
-          <Button type="submit" className="w-full bg-[#F16B6B] text-white hover:bg-[#e05555]" disabled={loading}>
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Se trimite...
-              </>
-            ) : (
-              'Trimite email resetare'
-            )}
-          </Button>
-        </form>
-
-        <Link href="/login" className="mt-4 inline-block text-sm font-medium text-emerald-700 hover:underline">
-          Înapoi la login
-        </Link>
-      </div>
-    </div>
+    <AuthFrame title="Ai uitat parola?" intro="Îți trimitem pe email un link pentru o parolă nouă." backHref="/login">
+      {sent ? (
+        <Notice tone="success" title="Verifică emailul.">
+          Dacă adresa are cont, ai primit linkul pentru parola nouă.
+        </Notice>
+      ) : null}
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <BigInput
+          id="reset-email"
+          label="Email"
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+          placeholder="nume@exemplu.ro"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          required
+        />
+        {eroare ? <Notice tone="danger" title={eroare} /> : null}
+        <Button type="submit" variant="primary" size="touch-lg" className="w-full" loading={loading}>
+          Trimite linkul
+        </Button>
+      </form>
+    </AuthFrame>
   )
 }
-
-
-

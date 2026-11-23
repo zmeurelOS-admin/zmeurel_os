@@ -168,7 +168,7 @@ test.describe('Conversie demo → fermă reală', () => {
       await loginForm.locator('#login-password').fill(conversionPassword!)
       await Promise.all([
         page.waitForURL(/\/dashboard/, { timeout: 90_000 }),
-        loginForm.getByRole('button', { name: 'Autentifica-te' }).click(),
+        loginForm.getByRole('button', { name: 'Intră', exact: true }).click(),
       ])
       await expect(page.getByTestId('demo-banner-create-farm')).toHaveCount(0)
     })

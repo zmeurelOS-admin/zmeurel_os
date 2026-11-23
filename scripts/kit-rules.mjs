@@ -93,6 +93,12 @@ export const KIT_RULE_DIRS = [
   'src/app/acces-oprit',
   // Bannerul cu actele lipsă (Actele fermei, prompt 21).
   'src/components/legal-docs',
+  // Prima pagină, /start (cu ecranul de așteptare din demo), Login și paginile de parolă, „Planul tău” (prompt 31).
+  // `src/components/auth` rămâne afară: sigla Google are culorile ei.
+  'src/components/landing',
+  'src/app/(onboarding)/start',
+  'src/app/(auth)',
+  'src/app/(dashboard)/planuri',
 ]
 
 /**
