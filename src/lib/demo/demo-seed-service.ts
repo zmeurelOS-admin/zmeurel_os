@@ -7,6 +7,7 @@ import { deleteDemoAnalize, seedDemoAnalize } from '@/lib/demo/demo-analize'
 import { seedDemoStadii } from '@/lib/demo/demo-stadii'
 import { deleteDemoCapcane, seedDemoCapcane } from '@/lib/demo/demo-capcane'
 import { deleteDemoMagazie, seedDemoMagazie } from '@/lib/demo/demo-magazie'
+import { deleteDemoPlan, seedDemoPlan } from '@/lib/demo/demo-plan'
 import { seedDemoTratamente } from '@/lib/demo/demo-tratamente'
 import { LEGAL_DOCS_BUCKET } from '@/lib/legal-docs/shared'
 import { getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
@@ -620,6 +621,10 @@ async function deleteDemoRows(params: {
       // Capcanele de pe parcelele demo (cheia spre `parcele` e `ON DELETE RESTRICT`); verificările pleacă în cascadă.
       deletedRows += await deleteDemoCapcane(supabaseAdmin, tenantId, ids)
       await deleteTreatmentsOnParcels(supabaseAdmin, tenantId, ids)
+    }
+    if (table === 'parcele') {
+      // Planul demo (promptul 30): parcelele lui, apoi planul cu liniile (cheia `parcele_planuri.plan_id` e `RESTRICT`).
+      deletedRows += await deleteDemoPlan(supabaseAdmin, tenantId)
     }
     if (table === 'parcele') {
       // Mișcările de magazie puse de seed (nota „Demo · …”); ieșirile au plecat deja cu tratamentele demo.
@@ -1332,6 +1337,10 @@ export async function seedDemoDataForTenant(
     // Nu oprește demo-ul; fără migrare nu pune nimic.
     const capcane = await seedDemoCapcane(supabaseAdmin, tenantId, insertedParcele, day)
     if (capcane.error) console.warn('[demo-seed] capcane', capcane.error)
+    // Planul pe stadii (promptul 30): „Zmeură <an>” pe zmeură, cu „E timpul pentru · După recoltare” și o linie făcută.
+    // După tratamente și stadii. Nu oprește demo-ul dacă dă greș.
+    const planDemo = await seedDemoPlan(supabaseAdmin, tenantId, insertedParcele, day, magazie.produse)
+    if (planDemo.error) console.warn('[demo-seed] plan', planDemo.error)
   }
 
   if (demoType === 'solar') {
