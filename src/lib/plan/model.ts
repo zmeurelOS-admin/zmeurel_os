@@ -210,12 +210,14 @@ export function textDoza(produs: Pick<ProdusLinie, 'doza_ml_per_hl' | 'doza_l_pe
 }
 
 /** „Borofol + Atonik”. */
-export function textProduseLinie(linie: Pick<LiniePlan, 'produse'>): string {
+type ProdusText = Pick<ProdusLinie, 'nume' | 'doza_ml_per_hl' | 'doza_l_per_ha' | 'cantitate_text' | 'tip'>
+
+export function textProduseLinie(linie: { produse: readonly Pick<ProdusLinie, 'nume'>[] }): string {
   return linie.produse.map((produs) => produs.nume).join(' + ') || 'Fără produs'
 }
 
 /** Titlul liniei: „Borofol · bor la înflorire”. */
-export function titluLinie(linie: Pick<LiniePlan, 'produse' | 'scop'>): string {
+export function titluLinie(linie: { produse: readonly Pick<ProdusLinie, 'nume'>[]; scop: string | null }): string {
   return linie.scop ? `${textProduseLinie(linie)} · ${linie.scop}` : textProduseLinie(linie)
 }
 
@@ -228,7 +230,7 @@ export function textRepetare(repetare: LiniePlan['repetare']): string | null {
 }
 
 /** Detaliul liniei: „foliar · 1,5 l/ha · repetă la 10 zile, de 2 ori”. */
-export function detaliuLinie(linie: Pick<LiniePlan, 'metoda' | 'produse' | 'repetare'>): string {
+export function detaliuLinie(linie: Pick<LiniePlan, 'metoda' | 'repetare'> & { produse: readonly ProdusText[] }): string {
   const doze = linie.produse.map(textDoza).filter((d): d is string => Boolean(d))
   return [linie.metoda ? ETICHETA_METODA[linie.metoda] : null, doze.length === 1 ? doze[0] : doze.length > 1 ? doze.join(' + ') : null, textRepetare(linie.repetare)]
     .filter(Boolean)
@@ -245,4 +247,24 @@ export function interventiiText(n: number): string {
   if (n === 1) return '1 intervenție'
   const rest = Math.abs(n) % 100
   return `${n} ${n !== 0 && (rest === 0 || rest >= 20) ? 'de ' : ''}intervenții`
+}
+
+/**
+ * Anul pentru care se face un plan nou: toamna și iarna (septembrie–decembrie) se pregătește sezonul următor
+ * („Zmeură 2027”, din ce s-a aplicat în 2026); de la ianuarie, anul curent.
+ */
+export function anPlanNou(azi: string): number {
+  const an = Number(azi.slice(0, 4))
+  return Number(azi.slice(5, 7)) >= 9 ? an + 1 : an
+}
+
+/** Cultura planului din cultura parcelei („Zmeure Delniwa” → `zmeur`); necunoscut = zmeură. */
+export function culturaDinParcela(cultura: string | null | undefined): string {
+  const primul = String(cultura ?? '').trim().split(/\s+/)[0] ?? ''
+  return normalizeCropCod(cultura) ?? normalizeCropCod(primul) ?? 'zmeur'
+}
+
+/** Stadiile din care se alege la o linie nouă (ale culturii planului). */
+export function listaStadiiPlanNou(culturaTip: string | null | undefined): StadiuCod[] {
+  return listStadiiPentruGrup(grupPlan(culturaTip))
 }

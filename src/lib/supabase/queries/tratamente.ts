@@ -34,7 +34,7 @@ const table = (db: Db, name: string) => (db as unknown as { from: (name: string)
 const PRODUS_ROW_COLS =
   'id,ordine,produs_id,produs_nume_manual,produs_nume_snapshot,substanta_activa_snapshot,tip_snapshot,frac_irac_snapshot,phi_zile_snapshot,doza_ml_per_hl,doza_l_per_ha,cantitate_totala,unitate_cantitate,cantitate_text'
 const APLICARE_COLS =
-  'id,parcela_id,status,data_planificata,data_aplicata,metoda_aplicare,tip_interventie,sursa,observatii,created_at,produs_id,produs_nume_manual,doza_ml_per_hl,doza_l_per_ha,meteo_snapshot'
+  'id,parcela_id,status,data_planificata,data_aplicata,metoda_aplicare,tip_interventie,sursa,observatii,created_at,produs_id,produs_nume_manual,doza_ml_per_hl,doza_l_per_ha,meteo_snapshot,plan_linie_id'
 const HEADER_PRODUS = 'produs:produse_fitosanitare(id,nume_comercial,substanta_activa,tip,frac_irac,phi_zile)'
 
 function selectAplicari(cuColoaneNoi: boolean): string {

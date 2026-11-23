@@ -74,6 +74,8 @@ export interface AplicareRow {
   doza_ml_per_hl: number | null
   doza_l_per_ha: number | null
   meteo_snapshot: unknown
+  /** Linia de plan din care vine aplicarea (planul pe stadii, promptul 30). */
+  plan_linie_id?: string | null
   /** Doar după migrarea `20261121160000`. */
   lot_id?: string | null
   /** Produsul din antet (aplicările vechi din plan). */

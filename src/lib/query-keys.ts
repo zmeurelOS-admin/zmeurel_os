@@ -57,6 +57,14 @@ export const queryKeys = {
   magazieMiscari: ['tratamente', 'magazie', 'miscari'] as const,
   /** Capcanele (promptul 29), sub `tratamente`: graficul arată și tratamentele parcelei. */
   capcane: ['tratamente', 'capcane'] as const,
+  /**
+   * Planul pe stadii (promptul 30), sub `tratamente`: un tratament salvat din plan schimbă ce urmează, deci
+   * invalidarea lui `tratamente` reîncarcă și planul.
+   */
+  plan: ['tratamente', 'plan'] as const,
+  planuri: ['tratamente', 'plan', 'planuri'] as const,
+  planParcele: ['tratamente', 'plan', 'parcele'] as const,
+  planSarite: ['tratamente', 'plan', 'sarite'] as const,
   capcaneDate: ['tratamente', 'capcane', 'date'] as const,
   capcanePraguri: ['tratamente', 'capcane', 'praguri'] as const,
   solarClimate: (scope: string) => ['solar-climate', scope] as const,

@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { Button, CalendarPanel, Notice, StepForm, StepFormTitle, SuccessScreen, addDaysIso, kitText, useStepForm } from '@/components/kit'
+import { BigTextarea, Button, CalendarPanel, Notice, StatusPill, StepForm, StepFormTitle, SuccessScreen, SummaryList, SummaryRow, addDaysIso, kitText, useStepForm } from '@/components/kit'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { queryKeys } from '@/lib/query-keys'
 import { getMagazieStocSauNimic } from '@/lib/supabase/queries/magazie'
-import { costEstimat, verificaMagazie } from '@/lib/magazie/formular'
+import { costEstimat, textVerificare, verificaMagazie } from '@/lib/magazie/formular'
+import { verificaInterval, verificaMaxim, verificaPauza, type Verificare } from '@/lib/plan/verificari'
+import { produseFacute } from '@/lib/plan/usePlan'
 import { creeazaProdusFerma, salveazaTratament, salveazaVolumeParcele, type TipProdusNou } from '@/lib/supabase/queries/tratamente'
 import { avertizareCulesLaTratament } from '@/lib/analize/memento'
 import { useMementoAnalize } from '@/lib/analize/useMementoAnalize'
@@ -74,6 +76,17 @@ export interface TratamentStepFormProps {
     spray?: { canSpray: boolean; reason?: string } | null
     current?: { temp: number | null; windSpeed: number | null } | null
   } | null
+  /**
+   * Din plan (promptul 30): formularul vine completat dintr-o linie (`initial`), cu „Completat din <plan> · <stadiu>”,
+   * „Salvează · făcut” direct din pasul cu produsele și „Sar peste”. Aplicările primesc `plan_linie_id`.
+   */
+  plan?: {
+    linieId: string
+    /** „Zmeură 2027 · Înflorit”. */
+    sursa: string
+    /** `null` = fără migrare: „Sar peste” nu apare. */
+    onSarPeste: ((motiv: string | null) => Promise<void>) | null
+  } | null
 }
 
 const STEPS = ['metoda', 'detalii', 'cand'] as const
@@ -116,7 +129,7 @@ function istoricDin(aplicari: readonly AplicareRow[]): AplicareIstoric[] {
  * Alegerea produsului și calendarul țin locul conținutului pasului (nimic nu se deschide peste formular).
  * Cheia formularului (`form.clientSyncId`) e lotul aplicărilor: aceeași la reîncercare, deci fără dublare.
  */
-export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplicari, todayIso, initial, parcelaInitiala = null, meteo }: TratamentStepFormProps) {
+export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplicari, todayIso, initial, parcelaInitiala = null, meteo, plan = null }: TratamentStepFormProps) {
   const queryClient = useQueryClient()
   const { memberRole } = useDashboardAuth()
   const esteProprietar = memberRole !== 'operator'
@@ -131,7 +144,8 @@ export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplica
 
   const [ciorna, setCiorna] = useState<CiornaTratament>(EMPTY)
   const [volumEditat, setVolumEditat] = useState(false)
-  const [vedere, setVedere] = useState<null | 'produs' | 'produs-nou' | 'calendar' | 'renunta'>(null)
+  const [vedere, setVedere] = useState<null | 'produs' | 'produs-nou' | 'calendar' | 'renunta' | 'sar'>(null)
+  const [motivSarit, setMotivSarit] = useState('')
   const [cand, setCand] = useState<CandTip>('acum')
   const [zi, setZi] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -146,6 +160,7 @@ export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplica
     setCiorna(initial ?? (parcelaInitiala ? { ...EMPTY, parcelaIds: [parcelaInitiala] } : EMPTY))
     setVolumEditat(false)
     setVedere(null)
+    setMotivSarit('')
     setCand('acum')
     setZi(null)
     setSaving(false)
@@ -411,8 +426,44 @@ export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplica
     return { verificari, cost: esteProprietar ? costEstimat(verificari) : null }
   }, [cand, ciornaEfectiva, esteProprietar, lipsa, magazieQuery.data, parceleSortate, ziTratament])
 
-  const save = async () => {
-    if (!canSave || !candObj) return
+  // ─── Din plan: verificările la completare (magazia, maximul pe sezon, intervalul, pauza față de cules) ───
+  const facute = useMemo(() => (plan ? produseFacute(aplicari) : []), [aplicari, plan])
+  const verificariPlan: Verificare[] = useMemo(() => {
+    if (!plan) return []
+    const rezultat: Verificare[] = []
+    const an = Number(ziTratament.slice(0, 4))
+    for (const produs of ciorna.produse) {
+      const p = { produs_id: produs.produsId, nume: produs.nume }
+      const maxim = verificaMaxim({ produs: p, nrMax: produs.nrMaxPeSezon, parcelaIds: ciorna.parcelaIds, facute, an })
+      if (maxim) rezultat.push(maxim)
+      const interval = verificaInterval({ produs: p, intervalMin: produs.intervalMinZile, parcelaIds: ciorna.parcelaIds, facute, zi: ziTratament })
+      if (interval) rezultat.push(interval)
+    }
+    const pauzaV = verificaPauza({ phi: pauzaProduse, zi: ziTratament, datesCules: alese.map((parcela) => cules.estimari.get(parcela.id)?.data ?? null) })
+    if (pauzaV) rezultat.push(pauzaV)
+    return rezultat
+  }, [alese, ciorna.parcelaIds, ciorna.produse, cules.estimari, facute, pauzaProduse, plan, ziTratament])
+
+  const sarPeste = async () => {
+    if (!plan?.onSarPeste || saving) return
+    setSaving(true)
+    setSaveError(null)
+    try {
+      await plan.onSarPeste(motivSarit.trim() || null)
+      hapticSuccess()
+      setSaving(false)
+      onOpenChange(false)
+    } catch (error) {
+      hapticError()
+      setSaving(false)
+      setSaveError(mesajEroare(error))
+      setVedere(null)
+    }
+  }
+
+  const save = async (candFortat?: CandTratament) => {
+    const candSalvat = candFortat ?? candObj
+    if (!candSalvat || lipsa !== null || saving) return
     const key = form.clientSyncId
     setSaving(true)
     setSaveError(null)
@@ -420,9 +471,10 @@ export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplica
       const rows = aplicariDeSalvat({
         ciorna: ciornaEfectiva,
         parcele: parceleSortate,
-        cand: candObj,
+        cand: candSalvat,
+        planLinieId: plan?.linieId ?? null,
         meteo:
-          candObj.tip === 'acum' && meteo
+          candSalvat.tip === 'acum' && meteo
             ? { spray: meteo.spray ?? null, current: meteo.current ?? null, salvat_la: new Date().toISOString() }
             : null,
       })
@@ -437,14 +489,14 @@ export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplica
       if (liveKeyRef.current !== key) return
       setSaving(false)
       setSaved(
-        candObj.tip === 'planifica'
-          ? { titlu: 'Planificat', detaliu: `${ETICHETA_TIP[ciorna.metoda]} ${ziCuDataRo(candObj.zi)} · ${rezumat.parceleText}` }
+        candSalvat.tip === 'planifica'
+          ? { titlu: 'Planificat', detaliu: `${ETICHETA_TIP[ciorna.metoda]} ${ziCuDataRo(candSalvat.zi)} · ${rezumat.parceleText}` }
           : {
               titlu: 'Salvat',
               detaliu: rezumat.panaLa ? `Nu recolta din ${rezumat.parceleText} până ${ziCuDataRo(rezumat.panaLa)}.` : `${ETICHETA_TIP[ciorna.metoda]} · fără pauză.`,
             },
       )
-      form.markSuccess({ metoda: ciorna.metoda, parcele: rows.length, produse: ciorna.produse.length, cand: candObj.tip })
+      form.markSuccess({ metoda: ciorna.metoda, parcele: rows.length, produse: ciorna.produse.length, cand: candSalvat.tip, din_plan: Boolean(plan) })
     } catch (error) {
       hapticError()
       if (liveKeyRef.current !== key) return
@@ -491,7 +543,18 @@ export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplica
 
   let content: React.ReactNode = null
   let stepLabel: string | undefined
-  if (vedere === 'renunta') {
+  if (vedere === 'sar') {
+    stepLabel = 'Sar peste'
+    content = (
+      <div className="space-y-4">
+        <StepFormTitle>Sari peste intervenția asta?</StepFormTitle>
+        <p className={cn('text-fg-muted', kitText.base)}>
+          Rămâne în plan, tăiată, pentru {textParcele(ciorna.parcelaIds, numeParcele)} în anul acesta. O poți readuce din planul întreg.
+        </p>
+        <BigTextarea label="Motivul (opțional)" value={motivSarit} onChange={(event) => setMotivSarit(event.target.value)} placeholder="De ex. a plouat, nu e nevoie" rows={3} />
+      </div>
+    )
+  } else if (vedere === 'renunta') {
     stepLabel = 'Nesalvat'
     content = (
       <div className="flex min-h-full flex-col justify-center gap-3 py-6 text-center">
@@ -554,7 +617,7 @@ export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplica
   } else if (form.stepKey === 'metoda') {
     content = <PasMetoda repeta={repetaOptiuni} onRepeta={repeta} onMetoda={alegeMetoda} />
   } else if (form.stepKey === 'detalii') {
-    content = (
+    const detalii = (
       <PasDetalii
         ciorna={ciorna}
         parcele={parceleSortate}
@@ -572,6 +635,56 @@ export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplica
         avertismente={avertismente}
         lipsa={lipsa}
       />
+    )
+    const verificariMagazie = (magazie?.verificari ?? []).filter((v) => v.tip !== 'neurmarit')
+    content = plan ? (
+      <div className="space-y-4">
+        <Notice tone="info" title={`Completat din „${plan.sursa}”`}>
+          Schimbă ce vrei: parcelele, produsele, dozele.
+        </Notice>
+        {saveError ? (
+          <Notice tone="danger" title="Nu s-a salvat">
+            {saveError}
+          </Notice>
+        ) : null}
+        {detalii}
+        {verificariMagazie.length > 0 || verificariPlan.length > 0 ? (
+          <section className="space-y-2" aria-label="Verificări">
+            <p className={cn('font-bold text-fg', kitText.secondary)}>Verificări</p>
+            <SummaryList>
+              {verificariMagazie.map((v, index) => (
+                <SummaryRow
+                  key={`m-${index}`}
+                  label={v.nume}
+                  value={
+                    <span className="flex flex-wrap items-center justify-end gap-1.5">
+                      <span>{textVerificare(v)}</span>
+                      <StatusPill tone={v.tip === 'lipsa' ? 'warning' : 'success'}>{v.tip === 'lipsa' ? 'puțin' : 'OK'}</StatusPill>
+                    </span>
+                  }
+                />
+              ))}
+              {verificariPlan.map((v, index) => (
+                <SummaryRow
+                  key={`v-${index}`}
+                  label={v.tip === 'pauza' ? 'Pauza' : (v.produs ?? 'Produs')}
+                  value={
+                    <span className="flex flex-wrap items-center justify-end gap-1.5">
+                      <span>{v.text}</span>
+                      <StatusPill tone={v.ok ? 'success' : 'warning'}>{v.eticheta}</StatusPill>
+                    </span>
+                  }
+                />
+              ))}
+            </SummaryList>
+          </section>
+        ) : null}
+        <Button type="button" variant="neutral" size="touch" className="w-full" disabled={lipsa !== null} onClick={() => form.next()}>
+          Altă zi sau planifică
+        </Button>
+      </div>
+    ) : (
+      detalii
     )
   } else if (form.stepKey === 'cand') {
     content = (
@@ -595,7 +708,7 @@ export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplica
     )
   }
 
-  const titlu = form.stepKey === 'metoda' ? 'Tratament nou' : ETICHETA_TIP[ciorna.metoda]
+  const titlu = form.stepKey === 'metoda' ? 'Tratament nou' : plan ? `${ETICHETA_TIP[ciorna.metoda]} · din plan` : ETICHETA_TIP[ciorna.metoda]
 
   return (
     <StepForm
@@ -608,14 +721,21 @@ export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplica
       stepLabel={stepLabel}
       onBack={handleBack}
       footer={
-        vedere !== null
+        vedere === 'sar'
+          ? { primary: { label: 'Sar peste', onClick: () => void sarPeste(), loading: saving, disabled: saving } }
+          : vedere !== null
           ? null
+          : form.stepKey === 'detalii' && plan
+            ? {
+                primary: { label: saving ? 'Se salvează…' : 'Salvează · făcut', onClick: () => void save({ tip: 'acum' }), loading: saving, disabled: lipsa !== null || saving },
+                ...(plan.onSarPeste ? { secondary: { label: 'Sar peste', onClick: () => setVedere('sar'), disabled: saving } } : {}),
+              }
           : form.stepKey === 'detalii'
             ? { primary: { label: 'Continuă', onClick: () => form.next(), disabled: lipsa !== null } }
             : form.stepKey === 'cand'
               ? {
                   primary: {
-                    label: saving ? 'Se salvează…' : cand === 'planifica' ? 'Planifică tratamentul' : 'Salvează tratamentul',
+                    label: saving ? 'Se salvează…' : cand === 'planifica' ? 'Planifică tratamentul' : plan ? 'Salvează · făcut' : 'Salvează tratamentul',
                     onClick: () => void save(),
                     loading: saving,
                     disabled: !canSave,
