@@ -178,7 +178,9 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-c],[data-p
 document.addEventListener('input',e=>{if(e.target.id==='note'){S.notes[S.c]=e.target.value;save()}});
 function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',1600)}
 $('#tNight').onclick=()=>{const n=document.documentElement.classList.toggle('night');$('#tNight').setAttribute('aria-pressed',n)};
-$('#tDl').onclick=()=>{const b=new Blob([logo()],{type:'image/svg+xml'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`caietul-fermei-${S.c}-${S.p}.svg`;document.body.appendChild(a);a.click();a.remove();toast('Descărcat')};
+let DL=null;try{window.claude&&window.claude.use&&window.claude.use('downloads').then(d=>{DL=d}).catch(()=>{})}catch(e){}
+$('#tDl').onclick=async()=>{const fn=`caietul-fermei-${S.c}-${S.p}.svg`;if(DL){try{await DL.save({filename:fn,data:logo()});toast('Descărcat')}catch(e){toast('Descărcarea a fost anulată')}return}
+ const b=new Blob([logo()],{type:'image/svg+xml'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=fn;document.body.appendChild(a);a.click();a.remove();toast('Descărcat')};
 $('#tCopy').onclick=()=>{const txt=`Logo Caietul Fermei: ${C[S.c].n} · culori ${PAL[S.p].n}${S.notes[S.c]?' · '+S.notes[S.c]:''}`;(navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast('Copiat'),()=>prompt('Copiază:',txt))};
 render();
 </script>
