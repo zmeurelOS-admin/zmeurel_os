@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { stripProxyOwnedHeaders } from '@/lib/auth/proxy-headers'
+import { APP_URL } from '@/lib/brand'
 import { buildLoginUrl } from '@/lib/auth/redirects'
 import {
   firstAllowedRoute,
@@ -13,6 +14,7 @@ import {
 } from '@/lib/farm-members/access'
 import { isHiddenOperatorEmail } from '@/lib/farm-members/operator-link'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { destinatieRedirect, flagRedirectActiv } from '@/lib/redirect-domeniu'
 import { getNonOperatorTenantIdOrNull, getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
 import type { Database } from '@/types/supabase'
 
@@ -73,6 +75,16 @@ function isPurePublicNoAuthBypassRoute(pathname: string, request: NextRequest): 
 }
 
 export async function proxy(request: NextRequest) {
+  // Adresele vechi (zmeurel.ro → caietulfermei.ro), doar cu REDIRECT_OLD_DOMAIN=1. Primul pas: fără sesiune, fără bază.
+  const redirectDomeniu = destinatieRedirect({
+    host: request.headers.get('host'),
+    pathname: request.nextUrl.pathname,
+    search: request.nextUrl.search,
+    activ: flagRedirectActiv(),
+    appUrl: APP_URL,
+  })
+  if (redirectDomeniu) return NextResponse.redirect(redirectDomeniu, 308)
+
   const requestHeaders = new Headers(request.headers)
   stripProxyOwnedHeaders(requestHeaders)
   const { pathname } = request.nextUrl
