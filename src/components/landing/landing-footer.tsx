@@ -1,62 +1,35 @@
 import Link from 'next/link'
 
-import { SectionShell } from '@/components/landing/landing-shared'
+import { kitFocus, kitText } from '@/components/kit'
+import { APP_NAME } from '@/lib/brand'
+import { cn } from '@/lib/utils'
 
-type FooterLinkItem = {
-  href: string
-  label: string
-  external?: boolean
-  tone?: 'default' | 'shop'
-}
-
-const footerLinks: FooterLinkItem[] = [
+const LINKURI = [
   { href: '/start', label: 'Demo' },
-  { href: '/login', label: 'Login' },
-  { href: '/comanda', label: 'Magazinul fermei', tone: 'shop' },
-  { href: 'https://wa.me/40752953048', label: 'WhatsApp', external: true },
-  { href: 'mailto:contact@zmeurel.ro', label: 'Contact', external: true },
+  { href: '/login', label: 'Intră în cont' },
   { href: '/ajutor', label: 'Ajutor' },
-  { href: '/confidentialitate', label: 'Confidențialitate' },
   { href: '/termeni', label: 'Termeni' },
+  { href: '/confidentialitate', label: 'Confidențialitate' },
 ]
 
+/** Subsolul primei pagini (și al paginilor Ajutor, Termeni, Confidențialitate). */
 export function LandingFooter() {
   return (
-    <SectionShell label="Footer" className="border-t border-slate-200 bg-[#FAFAF6] py-10">
-      <footer className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="text-base font-bold text-slate-800">Zmeurel OS</p>
-          <p className="mt-1 text-sm text-slate-500">© 2026 Toate drepturile rezervate.</p>
-        </div>
-
-        <nav className="flex flex-wrap gap-x-5 gap-y-3" aria-label="Linkuri footer">
-          {footerLinks.map((link) =>
-            link.external ? (
-              <a
-                key={link.label}
-                href={link.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm font-medium text-slate-600 transition hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3D7A5F] focus-visible:ring-offset-2"
-              >
-                {link.label}
-              </a>
-            ) : (
-              <Link
-                key={link.label}
-                href={link.href}
-                className={
-                  link.tone === 'shop'
-                    ? 'text-xs text-[#F16B6B] transition hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3D7A5F] focus-visible:ring-offset-2'
-                    : 'text-sm font-medium text-slate-600 transition hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3D7A5F] focus-visible:ring-offset-2'
-                }
-              >
-                {link.label}
-              </Link>
-            ),
-          )}
+    <footer className="border-t border-border-subtle bg-page px-4 py-8" aria-label="Subsol">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+        <nav className="flex flex-wrap gap-x-1 gap-y-1" aria-label="Legături">
+          {LINKURI.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={cn(kitText.secondary, 'inline-flex h-touch items-center rounded-control px-2 font-semibold text-fg-muted hover:text-fg', kitFocus)}
+            >
+              {link.label}
+            </Link>
+          ))}
         </nav>
-      </footer>
-    </SectionShell>
+        <p className={cn(kitText.helper, 'px-2 text-fg-muted')}>© {new Date().getFullYear()} {APP_NAME}</p>
+      </div>
+    </footer>
   )
 }

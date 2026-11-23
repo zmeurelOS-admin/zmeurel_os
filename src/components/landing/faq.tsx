@@ -1,48 +1,39 @@
-'use client'
+import { ChevronDown } from 'lucide-react'
 
-import { Minus, Plus } from 'lucide-react'
-import { useState } from 'react'
+import { kitFocus, kitText } from '@/components/kit'
+import { SectionShell, SectionTitle } from '@/components/landing/landing-shared'
+import { cn } from '@/lib/utils'
 
-import { SectionIntro, SectionShell } from '@/components/landing/landing-shared'
-
-const faqItems = [
-  { question: 'Cât costă?', answer: 'Aplicația este gratuită în perioada de beta.' },
-  { question: 'Trebuie instalată?', answer: 'Nu. Funcționează direct din browser, pe orice telefon sau calculator.' },
-  { question: 'Merge pe Android și iPhone?', answer: 'Da, pe orice telefon cu browser modern.' },
-  { question: 'Datele mele sunt în siguranță?', answer: 'Da. Datele sunt salvate în cloud și doar tu ai acces la ferma ta.' },
-  { question: 'Pot folosi pentru solarii sau livezi?', answer: 'Da — fructe de pădure, solarii, livezi și orice alt tip de fermă.' },
-  { question: 'Ce e magazinul pentru asociații?', answer: 'Un magazin public unde producătorii unei asociații vând împreună, cu branding comun și administrare centralizată.' },
-  { question: 'Cum primesc ajutor?', answer: 'Scrie-mi direct pe WhatsApp și te ajut.' },
+const INTREBARI = [
+  { q: 'Cât costă?', a: 'Nimic, cât e în beta: toate modulele, fără limită de date. Când ies abonamentele, afli cu cel puțin o lună înainte.' },
+  { q: 'Trebuie instalată?', a: 'Nu. Merge din browser, pe orice telefon sau calculator. O poți pune pe ecranul telefonului ca pe o aplicație.' },
+  { q: 'Trebuie internet?', a: 'Da, ca să salvezi. Dacă pică semnalul, formularul păstrează ce ai scris și apeși din nou „Salvează” când revine.' },
+  { q: 'Cine vede datele?', a: 'Doar tu și oamenii pe care îi inviți. Datele sunt ale tale: le exporți oricând în Excel sau le ștergi.' },
+  { q: 'Pot invita oameni?', a: 'Da. Trimiți pe WhatsApp un link și alegi ce poate vedea sau scrie fiecare.' },
+  { q: 'Merge și pentru solarii sau livezi?', a: 'Da. Cultura o alegi la fiecare parcelă: zmeură, afine, roșii, mere sau ce cultivi tu.' },
 ]
 
+/** Întrebările frecvente, cu `details` (fără JavaScript). */
 export function Faq() {
-  const [openIndex, setOpenIndex] = useState<number | null>(0)
-
   return (
-    <SectionShell label="Întrebări frecvente" className="bg-[#FAFAF6] py-16 md:py-24">
-      <SectionIntro badge="Răspunsuri rapide" title="Întrebări frecvente" />
-
-      <div className="mx-auto mt-10 max-w-2xl space-y-3">
-        {faqItems.map((item, index) => {
-          const isOpen = openIndex === index
-
-          return (
-            <article key={item.question} className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-              <button
-                type="button"
-                className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3D7A5F] focus-visible:ring-inset"
-                aria-expanded={isOpen}
-                onClick={() => setOpenIndex(isOpen ? null : index)}
-              >
-                <span className="text-sm font-semibold text-slate-800 md:text-base">{item.question}</span>
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E8F5EE] text-[#3D7A5F]">
-                  {isOpen ? <Minus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                </span>
-              </button>
-              {isOpen ? <p className="px-5 pb-5 text-sm leading-7 text-slate-500">{item.answer}</p> : null}
-            </article>
-          )
-        })}
+    <SectionShell label="Întrebări frecvente">
+      <SectionTitle>Întrebări</SectionTitle>
+      <div className="mt-4 space-y-2">
+        {INTREBARI.map((item) => (
+          <details key={item.q} className="group rounded-box border border-border bg-surface">
+            <summary
+              className={cn(
+                kitText.base,
+                'flex min-h-touch cursor-pointer list-none items-center justify-between gap-3 rounded-box px-4 py-3 font-bold text-fg [&::-webkit-details-marker]:hidden',
+                kitFocus,
+              )}
+            >
+              {item.q}
+              <ChevronDown aria-hidden className="size-5 shrink-0 text-fg-muted transition-transform group-open:rotate-180" />
+            </summary>
+            <p className={cn(kitText.secondary, 'px-4 pb-4 text-fg-muted')}>{item.a}</p>
+          </details>
+        ))}
       </div>
     </SectionShell>
   )

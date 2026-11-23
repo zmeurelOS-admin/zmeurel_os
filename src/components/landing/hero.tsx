@@ -1,69 +1,48 @@
+import Image from 'next/image'
 import Link from 'next/link'
 
-import { FarmPill } from '@/components/landing/FarmPill'
-import { SectionShell } from '@/components/landing/landing-shared'
+import { buttonVariants, kitText } from '@/components/kit'
+import { CAPTURI } from '@/components/landing/capturi-date'
+import { cn } from '@/lib/utils'
 
-const stats = [
-  { value: '30 sec', label: 'să notezi o recoltare' },
-  { value: '1 loc', label: 'pentru toate datele fermei' },
-  { value: '100%', label: 'gratuit în beta' },
-]
-
+/** Titlul, cele două butoane și prima captură (singura imagine încărcată imediat). */
 export function Hero() {
+  const prima = CAPTURI[0]
   return (
-    <SectionShell label="Hero Zmeurel OS" className="overflow-hidden bg-[#FAFAF6] py-16 md:py-24">
-      <div
-        className="rounded-[28px]"
-        style={{
-          backgroundImage:
-            'radial-gradient(circle at top, rgba(61,122,95,0.10), transparent 42%), radial-gradient(circle at 85% 30%, rgba(183,223,201,0.28), transparent 26%)',
-        }}
-      >
-        <div className="mx-auto max-w-3xl text-center">
-          <FarmPill />
-
-          <span className="inline-flex items-center rounded-full border border-[#B7DFC9] bg-[#E8F5EE] px-4 py-1.5 text-xs font-semibold tracking-wide text-[#3D7A5F]">
-            🔓 Beta deschis — locuri limitate
-          </span>
-
-          <h1 className="mt-6 text-4xl font-black tracking-tight text-slate-800 md:text-5xl lg:text-6xl">
-            Nu mai pierde bani din fermă.
+    <section aria-labelledby="titlu-pagina" className="px-4 pb-6 pt-8 md:pt-14">
+      <div className="mx-auto grid w-full max-w-3xl gap-8 md:grid-cols-[1.1fr_0.9fr] md:items-center">
+        <div className="space-y-4">
+          <h1 id="titlu-pagina" className="text-[34px] font-extrabold leading-[1.08] tracking-[-0.03em] text-fg md:text-[44px]">
+            Ferma ta, pe telefon. Fără hârtii.
           </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-slate-500 md:text-base">
-            Vezi cât produci, cât vinzi și cât câștigi real — direct de pe telefon. Aplicație gratuită,
-            făcută de un fermier din Suceava.
+          <p className={cn(kitText.base, 'text-fg-muted')}>
+            Notezi recoltele, comenzile, livrările și tratamentele în câteva secunde. Vezi cât produci, cât vinzi și cât câștigi.
           </p>
-
-          <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row">
-            <Link
-              href="/start"
-              className="rounded-xl bg-[#3D7A5F] px-6 py-3 text-center text-sm font-semibold text-white transition hover:bg-[#1f4a37] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3D7A5F] focus-visible:ring-offset-2"
-            >
-              Încearcă gratuit
+          <div className="flex flex-col gap-2.5 pt-1 sm:flex-row">
+            <Link href="/start?demo=1" className={cn(buttonVariants({ variant: 'primary', size: 'touch-lg' }), 'w-full sm:w-auto sm:px-8')}>
+              Încearcă fără cont
             </Link>
-            <a
-              href="https://wa.me/40752953048"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-xl bg-[#25D366] px-6 py-3 text-center text-sm font-semibold text-white transition hover:bg-[#1ebc5a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3D7A5F] focus-visible:ring-offset-2"
-            >
-              Scrie-mi pe WhatsApp
-            </a>
+            <Link href="/login" className={cn(buttonVariants({ variant: 'neutral', size: 'touch-lg' }), 'w-full sm:w-auto sm:px-8')}>
+              Am deja cont
+            </Link>
           </div>
+          <p className={cn(kitText.helper, 'text-fg-muted')}>Gratuit cât e în beta · făcut de un fermier din Văratec, Suceava</p>
         </div>
-
-        <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-3">
-          {stats.map((stat) => (
-            <article
-              key={stat.value}
-              className="rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm last:col-span-2 md:last:col-span-1"
-            >
-              <p className="text-2xl font-black text-[#3D7A5F] md:text-3xl">{stat.value}</p>
-              <p className="mt-2 text-sm leading-6 text-slate-500">{stat.label}</p>
-            </article>
-          ))}
-        </div>
+        <figure className="mx-auto w-full max-w-[280px]">
+          <div className="overflow-hidden rounded-card border border-border bg-surface shadow-2">
+            <Image
+              src={prima.src}
+              alt={prima.alt}
+              width={prima.width}
+              height={prima.height}
+              priority
+              sizes="280px"
+              className="h-auto w-full"
+            />
+          </div>
+          <figcaption className={cn(kitText.helper, 'mt-2 text-center text-fg-muted')}>{prima.titlu}</figcaption>
+        </figure>
       </div>
-    </SectionShell>
+    </section>
   )
 }
