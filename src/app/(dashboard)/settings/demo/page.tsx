@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
-import { Apple, Flower2, Home, Wheat } from 'lucide-react'
+import { Flower2, Home } from 'lucide-react'
 
 import { AppShell } from '@/components/app/AppShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
@@ -21,13 +21,13 @@ import {
 import { toast } from '@/lib/ui/toast'
 import { cn } from '@/lib/utils'
 
-type DemoSeedType = 'berries' | 'solar' | 'orchard' | 'fieldcrop'
+// Doar tipurile al căror seed umple modulele refăcute (promptul 31): livada și cultura mare nu au tratamente,
+// stadii, analize, capcane sau plan.
+type DemoSeedType = 'berries' | 'solar'
 
 const SCENARII: Array<{ id: DemoSeedType; label: string; hint: string; icon: React.ReactNode }> = [
   { id: 'berries', label: 'Fructe de pădure', hint: 'zmeură, mure, afine', icon: <Flower2 /> },
   { id: 'solar', label: 'Solarii', hint: 'roșii, castraveți, ardei', icon: <Home /> },
-  { id: 'orchard', label: 'Livezi', hint: 'meri, pruni, cireși', icon: <Apple /> },
-  { id: 'fieldcrop', label: 'Cultură mare', hint: 'grâu, porumb, floarea-soarelui', icon: <Wheat /> },
 ]
 
 /** Setări › Mod demo: doar în conturile demo. Aceleași acțiuni ca secțiunea „Mod demo” de dinainte. */
