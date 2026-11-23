@@ -17,7 +17,10 @@ import { ascultaErori, iesiDinCont, pornesteDemoNou } from './demo'
  *   8. Capcanele (promptul 29): „+ Montează” Drosophila pe Delniwa Sud → „Verifică acum” cu 5 capturi în fiecare
  *      capcană (peste prag: 1 / capcană / săptămână) → apare „peste prag”. Se sare, cu motivul scris, cât migrarea
  *      `20261123100000_capcane.sql` nu e aplicată;
- *   9. pe mobil (375 px), bara de jos are 5 taburi.
+ *   9. Planul pe stadii (promptul 30): tab-ul Plan arată „E timpul pentru…” (planul demo „Zmeură <an>”, linia de
+ *      „După recoltare”) → atingi intervenția → formularul de tratament vine completat → „Salvează · făcut” → în
+ *      „Planul întreg” linia apare „făcut”. Nu cere migrare (tabelele de plan există deja);
+ *  10. pe mobil (375 px), bara de jos are 5 taburi.
  */
 
 test.describe.configure({ mode: 'serial' })
@@ -267,7 +270,27 @@ test('8. Capcane: montează → verifică peste prag → apare „peste prag”'
   await expect(page.getByText('peste prag', { exact: true }).first()).toBeVisible()
 })
 
-test('9. pe mobil (375 px), bara de jos are 5 taburi', async () => {
+test('9. Plan: „E timpul pentru…” → formularul completat → „Salvează · făcut” → linia apare „făcut”', async () => {
+  await page.goto('/tratamente?tab=plan', { waitUntil: 'load' })
+  await expect(page.getByText('E timpul pentru', { exact: true }).first()).toBeVisible()
+
+  // Intervenția din demo: Cupru (exemplu), „După recoltare” pe Delniwa Nord + Maravilla.
+  await page.getByRole('button', { name: /Cupru \(exemplu\)/ }).first().click()
+  const formular = page.getByRole('dialog', { name: 'Stropire · din plan' })
+  await expect(formular.getByText(/Completat din „Zmeură \d{4} · /)).toBeVisible()
+  // Parcelele demo n-au volumul de soluție salvat: îl scriem, altfel „Salvează · făcut” rămâne dezactivat.
+  const solutie = formular.getByRole('textbox', { name: 'Soluție, l' })
+  if ((await solutie.inputValue()) === '') await solutie.fill('120')
+  await formular.getByRole('button', { name: 'Salvează · făcut' }).click()
+  await expect(formular.getByRole('heading', { name: 'Salvat' })).toBeVisible()
+  await formular.getByRole('button', { name: 'Gata' }).click()
+
+  await page.getByRole('button', { name: 'Vezi planul întreg' }).first().click()
+  await expect(page.getByRole('heading', { name: /^Zmeură \d{4}$/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Cupru \(exemplu\).*făcut/ })).toBeVisible()
+})
+
+test('10. pe mobil (375 px), bara de jos are 5 taburi', async () => {
   await page.setViewportSize({ width: 375, height: 812 })
   await page.goto('/dashboard', { waitUntil: 'load' })
   const bara = page.getByRole('navigation', { name: 'Navigare principală' })
