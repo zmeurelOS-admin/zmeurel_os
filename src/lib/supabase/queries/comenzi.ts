@@ -7,6 +7,8 @@ import type { Tables, TablesInsert, TablesUpdate } from '@/types/supabase'
 import { type Vanzare } from './vanzari'
 import { ziuaInRomania } from '@/lib/utils/bucharest-date'
 import { completeazaStareaPlatii, type StarePlataRpcClient } from '@/lib/comenzi/stare-plata'
+import { culturaPrincipala, culturileFermei } from '@/lib/parcele/culturi-ferma'
+import { asiguraProdusCultura } from './produse-cultura'
 
 export const COMENZI_STATUSES = [
   'noua',
@@ -86,6 +88,8 @@ export interface CreateComandaInput {
   observatii?: string | null
   /** Cheia de idempotență a formularului (aceeași la reîncercare). */
   client_sync_id?: string | null
+  /** Cultura comenzii („Afine”), aleasă când ferma are mai multe; lipsă = cultura principală a fermei. */
+  cultura?: string | null
 }
 
 export interface UpdateComandaInput {
@@ -390,25 +394,26 @@ function getDefaultActiveStatus(dataLivrare?: string | null): ComandaStatus {
 }
 
 /**
- * ID-ul produsului "Zmeură proaspătă" al tenantului (gardă pentru viitor pe
- * comenzi.produs_id; disponibilul rămâne necalculat pe produs — produs unic).
- * Nefatal: întoarce null dacă produsul lipsește (ex. tenanți demo).
+ * Produsul comenzii (`comenzi.produs_id`), din cultura ei (promptul 31): cultura aleasă în formular, altfel cultura
+ * principală a fermei (din parcele). Produsul „<Cultură> proaspătă” se asigură dacă lipsește; unul existent care se
+ * potrivește (ex. „Zmeură proaspătă”) rămâne cel folosit, ca înainte. Nefatal: `null` fără parcele sau la eroare.
  */
-async function resolveZmeuraProdusId(
+async function resolveProdusComanda(
   supabase: ReturnType<typeof getSupabase>,
   tenantId: string,
+  cultura: string | null | undefined,
 ): Promise<string | null> {
   try {
-    const { data, error } = await supabase
-      .from('produse')
-      .select('id,nume')
-      .eq('tenant_id', tenantId)
-      .ilike('nume', 'zmeur%')
-      .limit(5)
-
-    if (error || !data?.length) return null
-    const exact = data.find((row) => row.nume === 'Zmeură proaspătă')
-    return (exact ?? data[0]).id
+    let text = cultura?.trim() || null
+    if (!text) {
+      const { data, error } = await supabase
+        .from('parcele')
+        .select('cultura,tip_fruct,status,status_operational')
+        .eq('tenant_id', tenantId)
+      if (error) return null
+      text = culturaPrincipala(culturileFermei(data ?? []))?.nume ?? null
+    }
+    return text ? await asiguraProdusCultura(text) : null
   } catch {
     return null
   }
@@ -515,7 +520,7 @@ export async function createComanda(input: CreateComandaInput): Promise<Comanda>
     order_kind: input.order_kind ?? 'manual',
     status: requestedStatus === 'in_livrare' ? getDefaultActiveStatus(input.data_livrare ?? null) : requestedStatus,
     observatii: input.observatii?.trim() || null,
-    produs_id: await resolveZmeuraProdusId(supabase, tenantId),
+    produs_id: await resolveProdusComanda(supabase, tenantId, input.cultura),
     created_by: user?.id ?? null,
     updated_by: user?.id ?? null,
   }

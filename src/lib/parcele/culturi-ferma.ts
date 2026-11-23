@@ -238,3 +238,17 @@ export function culturaProdusului(numeProdus: string | null | undefined, culturi
 export function culturaPrincipala(culturi: readonly CulturaFerma[]): CulturaFerma | null {
   return culturi.find((cultura) => cultura.cheie === 'zmeur') ?? culturi[0] ?? null
 }
+
+const LEGUME = new Set([
+  'rosie', 'castravete', 'ardei', 'vanata', 'salata', 'spanac', 'fasole', 'dovlecel', 'mazare', 'cartof', 'ceapa',
+  'usturoi', 'morcov', 'varza', 'conopida', 'broccoli', 'ridiche', 'sfecla', 'telina', 'praz', 'patrunjel', 'busuioc',
+  'rucola', 'gulie',
+])
+const CEREALE = new Set(['grau', 'porumb', 'floarea soarelui', 'rapita', 'soia', 'orz', 'ovaz'])
+
+/** Categoria produsului pentru o cultură (`produse.categorie`: fruct / leguma / altele). */
+export function categorieProdus(cheie: string): 'fruct' | 'leguma' | 'altele' {
+  if (LEGUME.has(cheie)) return 'leguma'
+  if (CEREALE.has(cheie)) return 'altele'
+  return 'fruct'
+}

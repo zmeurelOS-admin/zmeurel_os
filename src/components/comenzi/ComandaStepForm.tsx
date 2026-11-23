@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 import {
   Button,
@@ -19,9 +19,11 @@ import { resolveExistingClientByPhone } from '@/lib/comenzi/ai-order-client'
 import { CANTITATI_KG, mesajEroareComanda } from '@/lib/comenzi/day-view'
 import { comandaClientName } from '@/lib/comenzi/display'
 import { formatKg, formatLei, relativeDayRo, round2 } from '@/lib/format-ro'
+import { culturaPrincipala, culturileFermei } from '@/lib/parcele/culturi-ferma'
 import { pretPentruClient, usePretStandardStare } from '@/lib/pret-standard'
 import { queryKeys } from '@/lib/query-keys'
 import type { Client } from '@/lib/supabase/queries/clienti'
+import { getParcele } from '@/lib/supabase/queries/parcele'
 import {
   createComanda,
   deliverComanda,
@@ -174,6 +176,11 @@ export function ComandaStepForm({
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saved, setSaved] = useState<{ comanda: Comanda; warning: string | null } | null>(null)
+  // Cultura comenzii (promptul 31): se întreabă doar când ferma are mai multe culturi; implicit cea principală.
+  const parceleQuery = useQuery({ queryKey: queryKeys.parcele, queryFn: getParcele, enabled: open && !editing })
+  const culturi = useMemo(() => culturileFermei(parceleQuery.data ?? []), [parceleQuery.data])
+  const [culturaAleasa, setCulturaAleasa] = useState<string | null>(null)
+  const culturaComenzii = culturi.find((item) => item.cheie === culturaAleasa) ?? culturaPrincipala(culturi)
 
   // ─── O cheie de formular nouă înseamnă o comandă nouă ───
   const [sessionKey, setSessionKey] = useState<string | null>(null)
@@ -223,6 +230,7 @@ export function ComandaStepForm({
     setChoice(null)
     setConfirmingClose(false)
     setSaving(false)
+    setCulturaAleasa(null)
     setSaveError(null)
     setSaved(null)
   }
@@ -332,6 +340,7 @@ export function ComandaStepForm({
           telefon: client?.telefon ?? (draft.telefon.trim() || null),
           data_comanda: todayIso,
           status: 'confirmata',
+          cultura: culturaComenzii?.nume ?? null,
         })
         track('comanda_add', { cantitate, client_id: draft.clientId })
 
@@ -514,6 +523,9 @@ export function ComandaStepForm({
         nota={draft.nota}
         prioritara={hasPrioritara ? prioritara : null}
         onPrioritara={(value) => setDraft((previous) => ({ ...previous, prioritara: value }))}
+        culturi={editing ? [] : culturi.map((item) => ({ value: item.cheie, label: item.nume }))}
+        cultura={culturaComenzii?.cheie ?? null}
+        onCultura={setCulturaAleasa}
         onOpenChoice={(next) => {
           if (next === 'cantitate') {
             fields.reset()

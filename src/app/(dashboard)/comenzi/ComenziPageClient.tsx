@@ -49,6 +49,9 @@ import { queryKeys } from '@/lib/query-keys'
 import { useSchemaFeatures } from '@/lib/schema-features'
 import { getClienți } from '@/lib/supabase/queries/clienti'
 import { getComenzi, getComenziStockSummaryAzi, type Comanda } from '@/lib/supabase/queries/comenzi'
+import { getParcele } from '@/lib/supabase/queries/parcele'
+import { culturileFermei } from '@/lib/parcele/culturi-ferma'
+import { etichetaStocFerma } from '@/lib/stocuri/pe-cultura'
 import { useTodayIso } from '@/lib/ui/use-today-iso'
 import { cn } from '@/lib/utils'
 
@@ -220,6 +223,15 @@ export function ComenziPageClient() {
     refetchOnWindowFocus: false,
   })
   const stocDisponibilKg = stockSummary ? stockSummary.totalStocDisponibilKg : null
+  // Eticheta stocului, din cultura parcelelor (promptul 31).
+  const parceleQuery = useQuery({ queryKey: queryKeys.parcele, queryFn: getParcele })
+  const culturiFerma = useMemo(() => (parceleQuery.data ? culturileFermei(parceleQuery.data) : null), [parceleQuery.data])
+  const textStoc =
+    culturiFerma && culturiFerma.length === 0
+      ? 'Adaugă întâi o parcelă: stocul vine din recoltările ei.'
+      : stocDisponibilKg !== null
+        ? `${(culturiFerma && etichetaStocFerma(culturiFerma)) ?? 'În stoc, calitatea 1'}: ${formatKg(stocDisponibilKg)}`
+        : 'Se calculează stocul…'
 
   const clientMap = useMemo(() => new Map(clienti.map((client) => [client.id, client])), [clienti])
   const clientName = useCallback((comanda: Comanda) => comandaClientName(comanda, clientMap), [clientMap])
@@ -538,7 +550,7 @@ export function ComenziPageClient() {
                     </Button>
                   ) : null}
                   <p className={cn('px-1 text-fg-muted', kitText.helper)}>
-                    {stocDisponibilKg !== null ? `În stoc, calitatea 1: ${formatKg(stocDisponibilKg)}` : 'Se calculează stocul…'}
+                    {textStoc}
                     {inLivrareCount > 0 ? ` · ${inLivrareCount} deja în livrare` : ''}
                   </p>
                 </div>

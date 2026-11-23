@@ -34,6 +34,7 @@ import type { UnitateTip } from '@/lib/parcele/unitate'
 import { queryKeys } from '@/lib/query-keys'
 import { useSchemaFeatures } from '@/lib/schema-features'
 import { createParcela, updateParcela, type Parcela } from '@/lib/supabase/queries/parcele'
+import { asiguraProdusCultura } from '@/lib/supabase/queries/produse-cultura'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
 import { cn } from '@/lib/utils'
 
@@ -128,6 +129,10 @@ export function ParcelaStepForm({ open, onOpenChange, editing = null, onSaved }:
         : await createParcela({ ...payload, id_parcela: generateParcelCode(), nume_parcela: payload.nume_parcela ?? draft.nume.trim(), suprafata_m2: payload.suprafata_m2 ?? 0, an_plantare: payload.an_plantare ?? an })
       void queryClient.invalidateQueries({ queryKey: queryKeys.parcele, exact: true })
       void queryClient.invalidateQueries({ queryKey: queryKeys.volumeParcele })
+      // Prima parcelă dintr-o cultură: produsul „<Cultură> proaspătă” al fermei, pentru comenzi (nefatal, idempotent).
+      void asiguraProdusCultura(parcela.cultura ?? draft.cultura).then((id) => {
+        if (id) void queryClient.invalidateQueries({ queryKey: queryKeys.produse })
+      })
       if (!editing) track('parcela_add', { suprafata: payload.suprafata_m2 ?? 0, tip_unitate: draft.tip })
       hapticSuccess()
       setSaved(parcela.nume_parcela ?? draft.nume.trim())

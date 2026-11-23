@@ -74,6 +74,10 @@ export interface ComandaDetaliiStepProps {
   onPrioritara: (value: boolean) => void
   onOpenChoice: (choice: ComandaChoiceKey) => void
   saveError: string | null
+  /** Culturile fermei, doar când are mai multe (promptul 31): comanda întreabă cultura. */
+  culturi?: ReadonlyArray<{ value: string; label: string }>
+  cultura?: string | null
+  onCultura?: (cheie: string) => void
 }
 
 /** Cantitatea pe plăci (nimic preselectat), ziua livrării, adresa, prețul, nota și „Prioritară”. */
@@ -94,6 +98,9 @@ export function ComandaDetaliiStep({
   onPrioritara,
   onOpenChoice,
   saveError,
+  culturi = [],
+  cultura = null,
+  onCultura,
 }: ComandaDetaliiStepProps) {
   // Eroarea trebuie văzută și când conținutul pasului e derulat în jos.
   const errorRef = useRef<HTMLDivElement>(null)
@@ -132,6 +139,23 @@ export function ComandaDetaliiStep({
             {saveError}
           </Notice>
         </div>
+      ) : null}
+
+      {culturi.length > 1 && onCultura ? (
+        <section className="space-y-2">
+          <SectionLabel id="comanda-cultura">Ce cultură?</SectionLabel>
+          <TileGroup
+            type="single"
+            columns={culturi.length === 2 ? 2 : 3}
+            value={cultura}
+            onValueChange={(value) => value && onCultura(value)}
+            aria-labelledby="comanda-cultura"
+          >
+            {culturi.map((item) => (
+              <Tile key={item.value} size="sm" value={item.value} title={item.label} />
+            ))}
+          </TileGroup>
+        </section>
       ) : null}
 
       <section className="space-y-2">

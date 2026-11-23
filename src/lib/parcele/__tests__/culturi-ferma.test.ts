@@ -108,3 +108,13 @@ describe('culturaProdusului și cultura principală', () => {
     expect(culturaPrincipala([])).toBeNull()
   })
 })
+
+describe('categorieProdus', () => {
+  it('fruct, legumă, altele', async () => {
+    const { categorieProdus } = await import('@/lib/parcele/culturi-ferma')
+    expect(categorieProdus('zmeur')).toBe('fruct')
+    expect(categorieProdus('rosie')).toBe('leguma')
+    expect(categorieProdus('grau')).toBe('altele')
+    expect(categorieProdus('mix fructe')).toBe('fruct')
+  })
+})
