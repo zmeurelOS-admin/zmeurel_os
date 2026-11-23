@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 
 import { kitText } from '@/components/kit'
 import { SectionShell, SectionTitle } from '@/components/landing/landing-shared'
-import { APP_SHORT_NAME } from '@/lib/brand'
+import { APP_NAME } from '@/lib/brand'
 import { cn } from '@/lib/utils'
 
 const PLACI: { titlu: string; text: string; icon: ReactNode }[] = [
@@ -18,8 +18,8 @@ const PLACI: { titlu: string; text: string; icon: ReactNode }[] = [
 /** Cele 6 plăci „Ce ții în …”. */
 export function CeTii() {
   return (
-    <SectionShell label={`Ce ții în ${APP_SHORT_NAME}`}>
-      <SectionTitle>{`Ce ții în ${APP_SHORT_NAME}`}</SectionTitle>
+    <SectionShell label={`Ce ții în ${APP_NAME}`}>
+      <SectionTitle>{`Ce ții în ${APP_NAME}`}</SectionTitle>
       <ul className="mt-4 grid grid-cols-2 gap-2.5 md:grid-cols-3">
         {PLACI.map((placa) => (
           <li key={placa.titlu} className="rounded-box border border-border bg-surface p-3.5 shadow-1">
