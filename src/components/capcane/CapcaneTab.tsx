@@ -34,7 +34,7 @@ export function detaliuGrup(grup: GrupCapcane, stare: StareGrup | undefined, azi
   const deVerificat = verificareScadenta(grup, azi) ? ' · de verificat azi' : ''
   if (!stare?.ultimaVerificare) return `Montate ${ziCuDataRo(grup.data_montare)} · nicio verificare încă${deVerificat}`
   const capturi = capturiText(stare.capturiSaptamana ?? 0)
-  return `${eticheta(stare.ultimaVerificare, azi)}: ${capturi}${stare.pestePrag ? ', peste prag' : ''}${deVerificat}`
+  return `${eticheta(stare.ultimaVerificare, azi)}: ${capturi}${deVerificat}`
 }
 
 /** „Ultima: acum 7 zile.” */
@@ -106,8 +106,17 @@ export function CapcaneTab({ azi, grupuri, starePeGrup, numeParcele, loading, er
           avatar={false}
           leading={<IconitaTip tip={grup.tip} ton={stare?.pestePrag ? 'warning' : grup.status === 'scoasa' ? 'neutral' : 'primary'} />}
           title={titluGrup(nume(grup), grup.tip, grup.nr_bucati)}
-          detail={grup.status === 'scoasa' ? `Scoase · montate ${ziCuDataRo(grup.data_montare)}` : detaliuGrup(grup, stare, azi)}
-          trailing={stare?.pestePrag && grup.status === 'activa' ? <StatusPill tone="warning">peste prag</StatusPill> : undefined}
+          detail={
+            grup.status === 'scoasa' ? (
+              `Scoase · montate ${ziCuDataRo(grup.data_montare)}`
+            ) : (
+              <span className="flex flex-col items-start gap-1.5">
+                <span>{detaliuGrup(grup, stare, azi)}</span>
+                {/* Insigna stă sub text, nu în dreapta: titlul („Maravilla 1 · 3 Drosophila”) rămâne întreg pe telefon. */}
+                {stare?.pestePrag ? <StatusPill tone="warning">peste prag</StatusPill> : null}
+              </span>
+            )
+          }
           onClick={() => router.push(`/tratamente/capcane/${grup.id}`)}
         />
       </li>

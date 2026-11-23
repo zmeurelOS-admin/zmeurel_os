@@ -297,6 +297,12 @@ export function VerificaStepForm({ open, onOpenChange, todayIso, grupuri, verifi
           <p className={cn('text-fg-muted', kitText.secondary)}>{subtitlu}</p>
         </div>
         <KgField label="Câte ai prins?" unit="insecte" value={fields.values.n} active onActivate={() => undefined} />
+        {/* Sub câmp, nu la capătul pasului: tastatura din `dock` ar ascunde-o pe telefon. */}
+        {rezumatGrupCurent?.pestePrag && (ultimulDinGrup || ultimul) ? (
+          <Notice tone="warning" title={`Peste prag la ${nume(grup.parcela_id)}`}>
+            {`Total ${rezumatGrupCurent.capturiSaptamana} în ${capcaneText(grup.nr_bucati)} săptămâna aceasta.${inCoacere(grup.parcela_id, todayIso) ? ' Fructele sunt în coacere.' : ''}`}
+          </Notice>
+        ) : null}
         {pas.atractantScadent ? (
           <ToggleRow
             title="Am schimbat atractantul"
@@ -333,11 +339,6 @@ export function VerificaStepForm({ open, onOpenChange, todayIso, grupuri, verifi
             onChange={(poza) => setRaspunsuri((prev) => new Map(prev).set(cheie!, { ...raspunsCurent, capturi: valoare, poza }))}
             disabled={saving}
           />
-        ) : null}
-        {rezumatGrupCurent?.pestePrag && (ultimulDinGrup || ultimul) ? (
-          <Notice tone="warning" title={`Peste prag la ${nume(grup.parcela_id)}`}>
-            {`Total ${rezumatGrupCurent.capturiSaptamana} în ${capcaneText(grup.nr_bucati)} săptămâna aceasta.${inCoacere(grup.parcela_id, todayIso) ? ' Fructele sunt în coacere.' : ''}`}
-          </Notice>
         ) : null}
       </div>
     )

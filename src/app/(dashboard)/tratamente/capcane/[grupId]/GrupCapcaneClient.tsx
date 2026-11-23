@@ -112,7 +112,8 @@ export function GrupCapcaneClient({ grupId }: { grupId: string }) {
     }
   }
 
-  const ultimaPeste = pestePragPeSaptamana.at(-1) && saptamani.at(-1)?.capturi !== null
+  // Starea grupului = săptămâna ultimei verificări (ca pe listă), nu săptămâna curentă, care poate fi încă neverificată.
+  const ultimaPeste = grup ? capcane.starePeGrup.get(grup.id)?.pestePrag === true : false
   const activ = grup?.status === 'activa'
 
   return (
