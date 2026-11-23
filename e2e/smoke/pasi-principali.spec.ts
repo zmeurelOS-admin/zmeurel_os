@@ -265,7 +265,7 @@ test('8. Capcane: montează → verifică peste prag → apare „peste prag”'
     await verificare.getByRole('button', { name: i < 3 ? 'Următoarea capcană' : 'Salvează verificarea' }).click()
   }
   await expect(verificare.getByRole('heading', { name: 'Verificare salvată' })).toBeVisible()
-  await expect(verificare.getByText('Peste prag la Delniwa Sud')).toBeVisible()
+  await expect(verificare.getByText('Peste prag la Delniwa Sud', { exact: true })).toBeVisible()
   await verificare.getByRole('button', { name: 'Gata' }).click()
   await expect(page.getByText('peste prag', { exact: true }).first()).toBeVisible()
 })
