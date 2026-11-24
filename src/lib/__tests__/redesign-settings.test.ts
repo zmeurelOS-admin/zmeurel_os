@@ -56,6 +56,7 @@ describe('schema-features', () => {
         'comenzi.client_sync_id',
         'aplicari_tratament.lot_id',
         'activitati_agricole.status',
+        'ajustari_stoc.categorie_pierdere',
       ]),
     )
     await expect(probeSchemaFeatures(client)).resolves.toEqual(NO_SCHEMA_FEATURES)
@@ -72,8 +73,9 @@ describe('schema-features', () => {
       cheiIdempotenta: true,
       tratamenteLot: true,
       lucrariPlanificate: true,
+      pierderiMotiv: true,
     })
-    expect(calls).toHaveLength(8)
+    expect(calls).toHaveLength(9)
   })
 
   it('o altă eroare nu e luată drept „lipsește”: verificarea se reia', async () => {
