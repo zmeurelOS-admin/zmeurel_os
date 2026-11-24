@@ -866,7 +866,7 @@ export async function seedDemoDataForTenant(
               ['Maravilla', 'camp', 'Zmeure Maravilla', 4000, 'comercial', 'productie', 2000],
               ['Mure Thornfree', 'camp', 'Mure', 2000, 'comercial', 'productie', 600],
               ['Afine', 'camp', 'Afine', 1500, 'personal', 'consum'],
-              ['Grădina casei', 'camp', 'Mix fructe', 1000, 'personal', 'consum'],
+              ['Grădina casei', 'camp', 'Zmeură', 1000, 'personal', 'consum'],
             ]
   ).map((row, idx) => {
     const coords = SUCEAVA_COORDS[idx % SUCEAVA_COORDS.length]
