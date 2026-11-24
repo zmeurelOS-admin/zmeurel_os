@@ -150,6 +150,8 @@ const runtimeCaching = [
 const withBundleAnalyzer = require('@next/bundle-analyzer')({
   enabled: process.env.ANALYZE === 'true',
 })
+const PRECACHE_REVISION = process.env.VERCEL_GIT_COMMIT_SHA || `local-${Date.now()}`
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const withPWA = require('next-pwa')({
   dest: 'public',
@@ -194,13 +196,15 @@ const withPWA = require('next-pwa')({
     '!icon-512.png',
     '!apple-icon.png',
   ],
+  // Revizia se schimbă la fiecare deploy: altfel (revision: null) telefoanele păstrează la nesfârșit manifestul și
+  // iconițele de la prima instalare (numele „Zmeurel OS” și logo-ul vechi după redenumire).
   additionalManifestEntries: [
-    { url: '/offline', revision: null },
-    { url: '/icons/icon.svg', revision: null },
-    { url: '/apple-icon.png', revision: null },
-    { url: '/icon-192.png', revision: null },
-    { url: '/icon-512.png', revision: null },
-    { url: '/manifest.webmanifest', revision: null },
+    { url: '/offline', revision: PRECACHE_REVISION },
+    { url: '/icons/icon.svg', revision: PRECACHE_REVISION },
+    { url: '/apple-icon.png', revision: PRECACHE_REVISION },
+    { url: '/icon-192.png', revision: PRECACHE_REVISION },
+    { url: '/icon-512.png', revision: PRECACHE_REVISION },
+    { url: '/manifest.webmanifest', revision: PRECACHE_REVISION },
   ],
   manifestTransforms: [
     async (entries) => {
@@ -216,7 +220,11 @@ const withPWA = require('next-pwa')({
       // Keep the install-time precache intentionally tiny so the worker can
       // activate quickly on mobile. Runtime caching still covers Next static
       // assets after activation.
-      const manifest = entries.filter((entry) => allowedNonStatic.has(entry.url))
+      const seen = new Set()
+      const manifest = entries
+        .filter((entry) => allowedNonStatic.has(entry.url))
+        .map((entry) => ({ ...entry, revision: PRECACHE_REVISION }))
+        .filter((entry) => (seen.has(entry.url) ? false : (seen.add(entry.url), true)))
 
       return { manifest, warnings: [] }
     },
