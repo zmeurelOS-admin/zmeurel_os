@@ -17,6 +17,7 @@ import {
   Undo2,
 } from 'lucide-react'
 
+import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { invalidateDupaComanda, useComandaActions } from '@/components/comenzi/useComandaActions'
 import {
   BigInput,
@@ -140,6 +141,7 @@ export function StopSheet({
   onMoveToEnd,
 }: StopSheetProps) {
   const actions = useComandaActions()
+  const { farmName } = useDashboardAuth()
   const queryClient = useQueryClient()
 
   const [view, setView] = useState<SheetView>(entry)
@@ -237,7 +239,7 @@ export function StopSheet({
   const hasNoAnswer = comanda.last_call_status === 'no_answer'
   const address = comanda.locatie_livrare?.trim() || stop.client?.adresa?.trim() || ''
   const waUrl = canSendOrderMessage(comanda)
-    ? whatsappMessageUrl(telefon, deliveryAnnouncementMessage(comanda, stop.name))
+    ? whatsappMessageUrl(telefon, deliveryAnnouncementMessage(comanda, stop.name, farmName))
     : null
 
   const run = async (key: string, work: () => Promise<void>) => {

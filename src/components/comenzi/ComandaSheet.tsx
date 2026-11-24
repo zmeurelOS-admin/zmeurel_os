@@ -30,6 +30,7 @@ import {
   kitText,
   parseDecimal,
 } from '@/components/kit'
+import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { parseStocInsuficient } from '@/lib/comenzi/day-view'
 import {
   comandaDayLabel,
@@ -108,6 +109,7 @@ export function ComandaSheet({
   onEdit,
 }: ComandaSheetProps) {
   const actions = useComandaActions()
+  const { farmName } = useDashboardAuth()
   const [view, setView] = useState<SheetView>('detalii')
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -150,7 +152,7 @@ export function ComandaSheet({
     isOpen && canSendOrderMessage(comanda)
       ? whatsappMessageUrl(
           telefon,
-          inLivrare ? deliveryAnnouncementMessage(comanda, clientName) : orderConfirmationMessage(comanda, clientName),
+          inLivrare ? deliveryAnnouncementMessage(comanda, clientName, farmName) : orderConfirmationMessage(comanda, clientName, farmName),
         )
       : null
 

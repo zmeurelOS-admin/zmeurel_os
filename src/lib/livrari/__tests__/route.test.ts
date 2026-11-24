@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { deliveryAnnouncementMessage, whatsappMessageUrl } from '@/lib/comenzi/whatsapp-messages'
+import { deliveryAnnouncementMessage, numeFermaPentruMesaj, orderConfirmationMessage, whatsappMessageUrl } from '@/lib/comenzi/whatsapp-messages'
 import {
   applyOptimizedOrder,
   canSaveLocation,
@@ -193,5 +193,20 @@ describe('mesajele WhatsApp', () => {
     expect(message).toContain('va fi livrată la adresa: Burdujeni.')
     expect(whatsappMessageUrl('0745 123 456', message)).toMatch(/^https:\/\/wa\.me\/40745123456\?text=Bun%C4%83%20ziua/)
     expect(whatsappMessageUrl(null, message)).toBeNull()
+  })
+
+  // Promptul 33: semnătura e numele fermei care trimite, nu „Ferma Zmeurel” scris fix.
+  it('semnează cu numele fermei; fără nume (sau cu cel pus automat), mesajul e neutru', () => {
+    const comanda = makeComanda({ cantitate_kg: 2, total: 60, created_at: '2026-06-19T09:00:00.000Z' })
+    expect(deliveryAnnouncementMessage(comanda, 'Ion', 'Ferma Popescu')).toContain('Mulțumim! — Ferma Popescu 🌿')
+    expect(orderConfirmationMessage(comanda, 'Ion', 'Livada Verde')).toContain('Mulțumim că ați ales Livada Verde! 🌿')
+    for (const nume of [null, undefined, '', '  ', 'Ferma mea', "Ion's Farm", 'tenant_demo_ab12', 'tenant_ab12']) {
+      const anunt = deliveryAnnouncementMessage(comanda, 'Ion', nume)
+      const confirmare = orderConfirmationMessage(comanda, 'Ion', nume)
+      expect(anunt).toContain('Mulțumim! 🌿')
+      expect(confirmare).toContain('Mulțumim! 🌿')
+      expect(`${anunt}${confirmare}`).not.toMatch(/zmeurel/i)
+    }
+    expect(numeFermaPentruMesaj('  Ferma Zmeurel ')).toBe('Ferma Zmeurel')
   })
 })

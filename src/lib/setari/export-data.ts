@@ -135,7 +135,7 @@ export async function exportAllDataJson(input: {
     tables,
     errors,
   }
-  downloadFile(JSON.stringify(payload, null, 2), `zmeurel-gdpr-export-${nowIso.slice(0, 10)}.json`, 'application/json;charset=utf-8')
+  downloadFile(JSON.stringify(payload, null, 2), `caietul-fermei-date-${nowIso.slice(0, 10)}.json`, 'application/json;charset=utf-8')
   track('export', {
     type: 'json',
     module: 'all',
