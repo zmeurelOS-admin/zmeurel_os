@@ -9,11 +9,25 @@ import { AppShell } from '@/components/app/AppShell'
 import { Button, EmptyState, ListRow, Notice, Segments, StatHero, buttonVariants, kitText } from '@/components/kit'
 import { ScreenBody, ScreenHeader } from '@/components/setari/SetariUi'
 import { AjustareStocForm } from '@/components/stocuri/AjustareStocForm'
+import { PierdereStocForm } from '@/components/stocuri/PierdereStocForm'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
+import { useSchemaFeatures } from '@/lib/schema-features'
 import { formatKg, formatNumber } from '@/lib/format-ro'
 import { cheieCultura, culturaPrincipala, etichetaStocCal1 } from '@/lib/parcele/culturi-ferma'
 import { queryKeys } from '@/lib/query-keys'
-import { ajustariPeZile, cal2InSezon, deltaKgText, descompunereStoc, esteTipAjustare, etichetaAjustare, type DescompunereStoc } from '@/lib/stocuri/stoc'
+import { inceputSezon } from '@/lib/sezon'
+import { ETICHETA_MOTIV_PIERDERE, etichetaRandPierdere, sumarPierderiSezon } from '@/lib/stocuri/pierderi'
+import {
+  TIPURI_AJUSTARE,
+  TIPURI_AJUSTARE_FARA_PIERDERI,
+  ajustariPeZile,
+  cal2InSezon,
+  deltaKgText,
+  descompunereStoc,
+  esteTipAjustare,
+  etichetaAjustare,
+  type DescompunereStoc,
+} from '@/lib/stocuri/stoc'
 import { useStocFerma } from '@/lib/stocuri/useStocFerma'
 import { getAjustariStoc, getAjustariStocCuCultura, type AjustareStocTip } from '@/lib/supabase/queries/ajustari-stoc'
 import { getParcele } from '@/lib/supabase/queries/parcele'
@@ -84,13 +98,18 @@ export function StocuriPageClient() {
   useTrackModuleView('stocuri')
   const azi = useSyncExternalStore(subscribeToDayChange, readToday, noServerDay)
   const [formOpen, setFormOpen] = useState(false)
+  const [pierdereOpen, setPierdereOpen] = useState(false)
+  // Pierderile cu motiv (promptul 33) există doar după migrarea 20261125100000.
+  const features = useSchemaFeatures()
+  const cuPierderi = features.ready && features.pierderiMotiv
   const [filaAleasa, setFilaAleasa] = useState<string | null>(null)
 
   const { stare, culturi, summary, summaryQuery } = useStocFerma({ peCultura: true })
   const peCultura = stare.mod === 'pe-cultura'
   const ajustariQuery = useQuery({
-    queryKey: peCultura ? [...queryKeys.ajustariStoc, 'cultura'] : queryKeys.ajustariStoc,
-    queryFn: peCultura ? getAjustariStocCuCultura : getAjustariStoc,
+    queryKey: [...queryKeys.ajustariStoc, peCultura ? 'cultura' : 'unic', cuPierderi ? 'motiv' : 'fara-motiv'],
+    queryFn: () => (peCultura ? getAjustariStocCuCultura({ categorie: cuPierderi }) : getAjustariStoc({ categorie: cuPierderi })),
+    enabled: features.ready,
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   })
@@ -121,13 +140,26 @@ export function StocuriPageClient() {
     ? toate.filter((rand) => (cheieCultura((rand as { cultura?: string | null }).cultura) ?? cheiePrincipala) === cheieFila)
     : toate
   const zile = ajustariPeZile(aleFilei)
+  const pierderi = azi && recoltariQuery.data ? sumarPierderiSezon(aleFilei, inceputSezon(azi, recoltariQuery.data)) : null
 
   const loading = stare.mod === 'incarca' && !summaryQuery.isError
-  const addButton = (
+  const ajusteazaButton = (
     <Button type="button" variant="primary" size="touch-lg" className="w-full" disabled={!stoc} onClick={() => setFormOpen(true)}>
       <SlidersHorizontal aria-hidden />
-      Ajustează stocul
+      {cuPierderi ? 'Ajustează' : 'Ajustează stocul'}
     </Button>
+  )
+  // Cu migrarea pierderilor: „Pierdere” lângă „Ajustează”, pe fila culturii.
+  const addButton = cuPierderi ? (
+    <div className="grid grid-cols-2 gap-2">
+      <Button type="button" variant="neutral" size="touch-lg" className="w-full" disabled={!stoc} onClick={() => setPierdereOpen(true)}>
+        <Ban aria-hidden />
+        Pierdere
+      </Button>
+      {ajusteazaButton}
+    </div>
+  ) : (
+    ajusteazaButton
   )
 
   return (
@@ -213,6 +245,19 @@ export function StocuriPageClient() {
               <RandDescompunere label="Ajustări" value={semnKg(stoc.ajustari < 0 ? '−' : '+', stoc.ajustari)} />
             </section>
 
+            {pierderi && pierderi.totalKg > 0 ? (
+              <ListRow
+                avatar={false}
+                title="Pierderi în sezon"
+                detail={
+                  pierderi.peMotiv.stricat > 0
+                    ? `din care ${ETICHETA_MOTIV_PIERDERE.stricat.toLocaleLowerCase('ro-RO')} ${formatKg(pierderi.peMotiv.stricat)}`
+                    : 'nu e venit, nici cheltuială'
+                }
+                trailing={<span className={cn('whitespace-nowrap font-extrabold tabular-nums text-fg', kitText.base)}>{formatKg(pierderi.totalKg)}</span>}
+              />
+            ) : null}
+
             <ListRow
               avatar={false}
               title="Cal. II în sezon"
@@ -232,7 +277,11 @@ export function StocuriPageClient() {
                 <EmptyState
                   icon={<SlidersHorizontal />}
                   title="Nicio ajustare"
-                  description="Congelat, procesat, pierderi sau consum propriu: le notezi cu „Ajustează stocul”."
+                  description={
+                    cuPierderi
+                      ? 'Pierderile le notezi cu „Pierdere”; congelat, procesat sau corecții, cu „Ajustează”.'
+                      : 'Congelat, procesat, pierderi sau consum propriu: le notezi cu „Ajustează stocul”.'
+                  }
                 />
               ) : (
                 <ul className="space-y-2">
@@ -245,7 +294,7 @@ export function StocuriPageClient() {
                             <ListRow
                               avatar={false}
                               leading={<TipBadge tip={rand.tip} />}
-                              title={etichetaAjustare(rand.tip)}
+                              title={etichetaRandPierdere(rand as { tip: string; categorie_pierdere?: string | null }) ?? etichetaAjustare(rand.tip)}
                               detail={rand.motiv?.trim() || undefined}
                               trailing={
                                 <span
@@ -277,7 +326,19 @@ export function StocuriPageClient() {
         disponibilKg={stoc?.disponibil ?? 0}
         eticheta={eticheta || 'Cal. I disponibil'}
         cultura={peCultura ? (fila?.cheie ?? null) : null}
+        tipuri={cuPierderi ? TIPURI_AJUSTARE_FARA_PIERDERI : TIPURI_AJUSTARE}
       />
+
+      {cuPierderi && azi ? (
+        <PierdereStocForm
+          open={pierdereOpen}
+          onOpenChange={setPierdereOpen}
+          disponibilKg={stoc?.disponibil ?? 0}
+          eticheta={eticheta || 'Cal. I disponibil'}
+          cultura={peCultura ? (fila?.cheie ?? null) : null}
+          azi={azi}
+        />
+      ) : null}
     </AppShell>
   )
 }

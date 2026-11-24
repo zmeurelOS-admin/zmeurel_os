@@ -27,6 +27,7 @@ export type SchemaFeature =
   | 'cheiIdempotenta'
   | 'tratamenteLot'
   | 'lucrariPlanificate'
+  | 'pierderiMotiv'
 
 export type SchemaFeatures = Record<SchemaFeature, boolean>
 
@@ -40,6 +41,7 @@ export const NO_SCHEMA_FEATURES: SchemaFeatures = {
   cheiIdempotenta: false,
   tratamenteLot: false,
   lucrariPlanificate: false,
+  pierderiMotiv: false,
 }
 
 /** O coloană reprezentativă pe grup: coloanele unui grup se adaugă împreună, în aceeași migrare. */
@@ -56,6 +58,8 @@ const PROBES: Record<SchemaFeature, { table: string; column: string }> = {
   tratamenteLot: { table: 'aplicari_tratament', column: 'lot_id' },
   // Lucrări (20261121180000): `activitati_agricole.status` și `lot_id` vin împreună.
   lucrariPlanificate: { table: 'activitati_agricole', column: 'status' },
+  // Pierderile din stoc cu motiv (20261125100000): `ajustari_stoc.categorie_pierdere` și `create_pierdere_stoc`.
+  pierderiMotiv: { table: 'ajustari_stoc', column: 'categorie_pierdere' },
 }
 
 const MISSING_COLUMN_CODES = new Set(['42703', 'PGRST204'])

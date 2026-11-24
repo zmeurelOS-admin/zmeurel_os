@@ -166,20 +166,83 @@ export async function createAjustareStoc(input: CreateAjustareStocInput): Promis
   return result.data
 }
 
-export async function getAjustariStoc(): Promise<AjustareStoc[]> {
+export interface CreatePierdereStocInput {
+  motiv: 'stricat' | 'consum_propriu' | 'donat' | 'altul'
+  /** Kilograme pozitive; pe server devin o scădere. */
+  cantitateKg: number
+  /** La „Altul”, ce s-a întâmplat; nota, după el. */
+  detaliu?: string | null
+  data?: string | null
+  cultura?: string | null
+  clientSyncId: string
+  /** Omul a confirmat că stocul culturii trece sub zero. */
+  subZeroConfirmat?: boolean
+}
+
+type PierdereRpcClient = {
+  rpc: (
+    fn: 'create_pierdere_stoc',
+    args: {
+      p_kg: number
+      p_categorie: string
+      p_detaliu: string | null
+      p_data: string | null
+      p_cultura: string | null
+      p_client_sync_id: string
+      p_sub_zero_confirmat: boolean
+    },
+  ) => PromiseLike<{ data: AjustareStoc | null; error: SupabaseLikeError | null }>
+}
+
+/** Mesajul pentru baza fără migrarea pierderilor (`PGRST202`): butonul nu ar trebui să apară, dar oricum. */
+export const PIERDERI_FARA_MIGRARE = 'Pierderile cu motiv merg după actualizarea bazei de date.'
+
+/**
+ * Pierdere din stoc cu motiv (promptul 33), prin `create_pierdere_stoc` (migrarea 20261125100000). Cheia formularului
+ * deduplică pe server; două cereri simultane cu aceeași cheie: rândul există, îl recitim.
+ */
+export async function createPierdereStoc(input: CreatePierdereStocInput): Promise<AjustareStoc> {
+  const cantitate = round2(Math.abs(Number(input.cantitateKg) || 0))
+  if (cantitate <= 0) throw new Error('Cantitatea trebuie să fie mai mare decât 0.')
+  const rpcClient = getSupabase() as unknown as PierdereRpcClient
+  const result = await rpcClient.rpc('create_pierdere_stoc', {
+    p_kg: cantitate,
+    p_categorie: input.motiv,
+    p_detaliu: input.detaliu?.trim() || null,
+    p_data: input.data || null,
+    p_cultura: input.cultura?.trim() || null,
+    p_client_sync_id: input.clientSyncId,
+    p_sub_zero_confirmat: Boolean(input.subZeroConfirmat),
+  })
+  if (result.error && isClientSyncConflict(result.error)) {
+    const existing = await findAjustareByKey(input.clientSyncId)
+    if (existing) return existing
+  }
+  if (result.error && isMissingRpcParam(result.error)) throw new Error(PIERDERI_FARA_MIGRARE)
+  if (result.error) throw toReadableError(result.error, 'Nu am putut salva pierderea.')
+  if (!result.data) throw new Error('Nu am primit pierderea salvată de la baza de date.')
+  return result.data
+}
+
+/** Coloanele istoricului: cu motivul pierderii doar după migrarea 20261125100000. */
+function coloaneIstoric(extra: { cultura?: boolean; categorie?: boolean }): string {
+  return [AJUSTARE_COLUMNS, extra.cultura ? 'cultura' : null, extra.categorie ? 'categorie_pierdere' : null].filter(Boolean).join(',')
+}
+
+export async function getAjustariStoc(options: { categorie?: boolean } = {}): Promise<AjustareStoc[]> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
 
   const { data, error } = await supabase
     .from('ajustari_stoc')
-    .select(AJUSTARE_COLUMNS)
+    .select(coloaneIstoric({ categorie: options.categorie }))
     .eq('tenant_id', tenantId)
     .order('data', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(200)
 
   if (error) throw toReadableError(error, 'Nu am putut încărca istoricul ajustărilor.')
-  return (data ?? []) as AjustareStoc[]
+  return (data ?? []) as unknown as AjustareStoc[]
 }
 
 /** O ajustare cu cultura ei (coloana există doar după migrarea 20261124100000). */
@@ -189,13 +252,13 @@ export type AjustareStocCuCultura = AjustareStoc & { cultura: string | null }
  * Istoricul cu cultura fiecărei ajustări, pentru Stocuri pe cultură. Se cere doar când `stoc_cal1_pe_cultura`
  * există (aceeași migrare adaugă și coloana).
  */
-export async function getAjustariStocCuCultura(): Promise<AjustareStocCuCultura[]> {
+export async function getAjustariStocCuCultura(options: { categorie?: boolean } = {}): Promise<AjustareStocCuCultura[]> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
 
   const { data, error } = await supabase
     .from('ajustari_stoc')
-    .select(`${AJUSTARE_COLUMNS},cultura`)
+    .select(coloaneIstoric({ cultura: true, categorie: options.categorie }))
     .eq('tenant_id', tenantId)
     .order('data', { ascending: false })
     .order('created_at', { ascending: false })

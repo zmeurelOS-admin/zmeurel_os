@@ -56,13 +56,15 @@ export interface AjustareStocFormProps {
   eticheta?: string
   /** Stocul pe cultură: cheia culturii ajustate (se scrie în `ajustari_stoc.cultura`). Lipsă = ca înainte. */
   cultura?: string | null
+  /** Plăcile de motiv; implicit toate. Cu migrarea pierderilor, fără Pierdere și Consum propriu (promptul 33). */
+  tipuri?: readonly AjustareStocTip[]
 }
 
 /**
  * „Ajustează stocul” în 2 pași: motivul (plăci mari), apoi kilogramele pe tastatura din aplicație și o notă.
  * O scădere nu poate duce disponibilul sub 0 (regula e și pe server, în `create_ajustare_stoc`).
  */
-export function AjustareStocForm({ open, onOpenChange, disponibilKg, eticheta = 'Cal. I disponibil', cultura = null }: AjustareStocFormProps) {
+export function AjustareStocForm({ open, onOpenChange, disponibilKg, eticheta = 'Cal. I disponibil', cultura = null, tipuri = TIPURI_AJUSTARE }: AjustareStocFormProps) {
   const queryClient = useQueryClient()
   const form = useStepForm({ steps: STEPS, open, analytics: { moduleName: 'stocuri' } })
   const fields = useKeypadFields({ fields: FIELDS, maxIntegerDigits: 5 })
@@ -170,7 +172,7 @@ export function AjustareStocForm({ open, onOpenChange, disponibilKg, eticheta = 
       <div className="space-y-4">
         <StepFormTitle>De ce se schimbă stocul?</StepFormTitle>
         <TileGroup type="single" value={tip} onValueChange={() => undefined} aria-label="Motivul">
-          {TIPURI_AJUSTARE.map((valoare) => (
+          {tipuri.map((valoare) => (
             <Tile
               key={valoare}
               value={valoare}

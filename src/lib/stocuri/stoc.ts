@@ -95,6 +95,14 @@ export const ETICHETA_AJUSTARE: Record<AjustareStocTip, string> = {
 
 export const TIPURI_AJUSTARE: readonly AjustareStocTip[] = AJUSTARE_STOC_TIPURI
 
+/**
+ * „Ajustează stocul” după migrarea pierderilor (promptul 33): pierderea și consumul propriu se notează din butonul
+ * „Pierdere”, cu motiv; aici rămân congelat, procesat, corecțiile și altul.
+ */
+export const TIPURI_AJUSTARE_FARA_PIERDERI: readonly AjustareStocTip[] = AJUSTARE_STOC_TIPURI.filter(
+  (tip) => tip !== 'pierdere' && tip !== 'consum_propriu',
+)
+
 export function esteTipAjustare(tip: string): tip is AjustareStocTip {
   return (AJUSTARE_STOC_TIPURI as readonly string[]).includes(tip)
 }

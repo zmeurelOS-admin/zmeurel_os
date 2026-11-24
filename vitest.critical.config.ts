@@ -81,6 +81,7 @@ export default defineConfig(({ mode }) => {
         'src/components/acasa/__tests__/NeincasatePeste30Acasa.test.tsx',
         'src/lib/rapoarte/__tests__/*.test.ts',
         'src/lib/stocuri/__tests__/*.test.ts',
+        'src/components/stocuri/__tests__/*.test.tsx',
         'src/lib/produse/__tests__/*.test.ts',
         'src/lib/security/__tests__/*.test.ts',
         'src/lib/supabase/queries/__tests__/financial-saves.test.ts',
