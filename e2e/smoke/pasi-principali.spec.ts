@@ -22,7 +22,11 @@ import { ascultaErori, iesiDinCont, pornesteDemoNou } from './demo'
  *      „Planul întreg” linia apare „făcut”. Nu cere migrare (tabelele de plan există deja);
  *  10. pe mobil (375 px), bara de jos are 5 taburi;
  *  11. prima pagină fără textele scoase (testimoniale, „locuri limitate”) și Login cu nota pentru operatori, fără cont;
- *  12. Mai mult fără „Clienți magazin” / „Analytics magazin”, iar „Planul tău” scrie „Gratuit în beta”.
+ *  12. Mai mult fără „Clienți magazin” / „Analytics magazin”, iar „Planul tău” scrie „Gratuit în beta”;
+ *  13–19 (promptul 33): Acasă cu vremea fără „Pune locul fermei” (demo-ul are parcele cu coordonate), foaia
+ *      clopoțelului pe kit, Stocuri cu o filă pe cultură (fără „Mix fructe”) și „Pierdere” (doar cu migrarea
+ *      20261125100000), Tratamente cu cele 4 taburi și rândul Magaziei, raportul public fără cookie-uri și cu
+ *      `noindex`, foaia Stadiul pe lăstari la Maravilla, Setări. „La poartă” = „Vânzare rapidă” (pasul 4).
  *  Demo-ul trece prin ecranul de așteptare din `/start` (promptul 31): `pornesteDemoNou` îl verifică.
  */
 
@@ -31,6 +35,8 @@ test.describe.configure({ mode: 'serial' })
 let context: BrowserContext
 let page: Page
 let erori: string[] = []
+/** Calea raportului public (`/a/<token>`), găsită la pasul 6, verificată la pasul 17. */
+let caleRaport: string | null = null
 
 /** „Zmeură cal. I disponibilă: 1.234,5 kg …” → 1234.5 */
 function kgDinText(text: string): number {
@@ -168,6 +174,7 @@ test('6. Tratamente → Analize: analiza din demo și raportul public, fără co
   await expect(link).toBeVisible()
   const url = ((await link.textContent()) ?? '').trim()
   const cale = new URL(url).pathname
+  caleRaport = cale
 
   // Fără cont: context nou, fără cookie-uri.
   const anonim = await browser.newContext()
@@ -321,6 +328,96 @@ test('12. Mai mult fără intrările de magazin; Planul tău scrie „Gratuit î
   expect(text).not.toContain('Analytics magazin')
   await page.getByRole('link', { name: /Planul tău/ }).click()
   await expect(page.getByText('Gratuit în beta')).toBeVisible()
+})
+
+test('13. Acasă: vremea (fără „Pune locul fermei”: demo-ul are parcele cu coordonate), fără erori', async () => {
+  erori.length = 0
+  await page.goto('/dashboard', { waitUntil: 'load' })
+  await expect(page.getByRole('heading', { name: 'Acasă', level: 1 })).toBeVisible()
+  await page.waitForLoadState('networkidle').catch(() => undefined)
+  await expect(page.getByText('Pune locul fermei ca să vezi vremea ta')).toHaveCount(0)
+  // Zilele următoare apar doar după redeploy-ul `fetch-meteo` (promptul 33); până atunci, nimic stricat.
+  const zile = page.getByRole('list', { name: 'Următoarele zile' })
+  if ((await zile.count()) > 0) await expect(zile.first().getByRole('listitem')).toHaveCount(3)
+  expect(erori, `Erori de consolă pe Acasă:\n${erori.join('\n')}`).toEqual([])
+})
+
+test('14. clopoțelul: foaia „Notificări” pe kit, titlul o singură dată, „Vezi toate notificările”', async () => {
+  await page.goto('/dashboard', { waitUntil: 'load' })
+  await page.getByRole('button', { name: /^Notificări/ }).first().click()
+  const foaie = page.getByRole('dialog', { name: 'Notificări' })
+  await expect(foaie).toBeVisible()
+  await expect(foaie.getByRole('heading', { name: 'Notificări' })).toHaveCount(1)
+  await expect(foaie.getByRole('link', { name: 'Vezi toate notificările' })).toBeVisible()
+  await foaie.getByRole('link', { name: 'Vezi toate notificările' }).click()
+  await expect(page).toHaveURL(/\/notificari/)
+})
+
+test('15. Stocuri: o filă pe fiecare cultură din parcele, fără „Mix fructe”; „Pierdere” cu motiv (doar cu migrarea)', async () => {
+  await page.goto('/stocuri', { waitUntil: 'load' })
+  const file = page.getByRole('tablist', { name: 'Cultura' })
+  await expect(file).toBeVisible()
+  const nume = await file.getByRole('tab').allInnerTexts()
+  expect(nume.join(' ')).toMatch(/Zmeură/)
+  expect(nume.join(' ')).not.toMatch(/Mix fructe/)
+  const pierdere = page.getByRole('button', { name: 'Pierdere', exact: true })
+  if ((await pierdere.count()) === 0) {
+    test.info().annotations.push({ type: 'netestat', description: '„Pierdere” cere migrarea 20261125100000 (neaplicată).' })
+    return
+  }
+  await pierdere.first().click()
+  const formular = page.getByRole('dialog', { name: 'Pierdere' })
+  await formular.getByRole('radio', { name: /Stricat/ }).click()
+  await apasaTaste(page, 'Tastatură pentru kilograme', '1')
+  await formular.getByRole('button', { name: /Salvează/ }).click()
+  await expect(formular.getByText('Pierdere notată')).toBeVisible()
+  await formular.getByRole('button', { name: 'Gata' }).click()
+  await expect(page.getByText('Pierderi în sezon')).toBeVisible()
+})
+
+test('16. Tratamente: Aplicări, Plan, Capcane, Analize și rândul Magaziei', async () => {
+  await page.goto('/tratamente', { waitUntil: 'load' })
+  for (const tab of ['Aplicări', 'Plan', 'Capcane', 'Analize']) {
+    await expect(page.getByRole('tab', { name: tab, exact: true })).toBeVisible()
+  }
+  await expect(page.getByText(/^Magazia/).first()).toBeVisible()
+  await page.getByRole('tab', { name: 'Plan', exact: true }).click()
+  await expect(page).toHaveURL(/tab=plan/)
+})
+
+test('17. raportul public: fără cookie-uri de sesiune și cu noindex', async ({ browser }) => {
+  test.skip(!caleRaport, 'Pasul 6 n-a găsit raportul public.')
+  const anonim = await browser.newContext()
+  try {
+    const raspuns = await anonim.request.get(caleRaport as string)
+    expect(raspuns.status()).toBe(200)
+    const cookies = raspuns.headersArray().filter((h) => h.name.toLowerCase() === 'set-cookie').map((h) => h.value)
+    expect(cookies.filter((c) => /sb-|supabase/i.test(c) && !/Max-Age=0|expires=Thu, 01 Jan 1970/i.test(c))).toEqual([])
+    const html = await raspuns.text()
+    expect(html).toMatch(/<meta[^>]+name="robots"[^>]+noindex/i)
+  } finally {
+    await anonim.close()
+  }
+})
+
+test('18. Parcele: la Maravilla foaia Stadiul are „Floricane · lăstar an 2 / Primocane · lăstar an 1”', async () => {
+  await page.goto('/parcele', { waitUntil: 'load' })
+  await page.getByRole('button', { name: /^Maravilla/ }).first().click()
+  await expect(page).toHaveURL(/\/parcele\/[^/?]+/)
+  await page.getByRole('button', { name: 'Actualizează' }).click()
+  const foaie = page.getByRole('dialog', { name: /^Stadiul ·/ })
+  await expect(foaie).toBeVisible()
+  await expect(foaie.getByRole('tab', { name: 'Floricane · lăstar an 2' })).toBeVisible()
+  await expect(foaie.getByRole('tab', { name: 'Primocane · lăstar an 1' })).toBeVisible()
+  await page.keyboard.press('Escape')
+})
+
+test('19. Setări se încarcă fără erori', async () => {
+  erori.length = 0
+  await page.goto('/settings', { waitUntil: 'load' })
+  await expect(page.getByRole('heading', { name: 'Setări', level: 1 })).toBeVisible()
+  await page.waitForLoadState('networkidle').catch(() => undefined)
+  expect(erori, `Erori de consolă în Setări:\n${erori.join('\n')}`).toEqual([])
 })
 
 test('10. pe mobil (375 px), bara de jos are 5 taburi', async () => {
