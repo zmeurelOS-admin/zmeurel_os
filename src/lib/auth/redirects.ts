@@ -1,23 +1,16 @@
+import { DEFAULT_APP_URL, originValida } from '@/lib/brand'
+
 const FALLBACK_NEXT_PATH = '/dashboard'
 
+/**
+ * Originea adresei de întoarcere: valoarea dată, dacă trece regula din `originValida` (promptul 33), altfel
+ * originea paginii din browser, altfel adresa platformei. Nu ghicește `https://` în fața unei valori stricate.
+ */
 function normalizeOrigin(candidate: string | undefined | null): string {
-  const raw = (candidate ?? '').trim()
-  if (!raw && typeof window !== 'undefined') {
-    return window.location.origin
-  }
-
-  const trimmed = raw.replace(/\/+$/, '')
-  if (!trimmed) return ''
-
-  try {
-    return new URL(trimmed).origin
-  } catch {
-    try {
-      return new URL(`https://${trimmed}`).origin
-    } catch {
-      return typeof window !== 'undefined' ? window.location.origin : ''
-    }
-  }
+  const valida = originValida(candidate)
+  if (valida) return valida
+  if (typeof window !== 'undefined') return window.location.origin
+  return DEFAULT_APP_URL
 }
 
 export function sanitizeNextPath(next: string | null | undefined, fallback = FALLBACK_NEXT_PATH) {
@@ -29,7 +22,7 @@ export function sanitizeNextPath(next: string | null | undefined, fallback = FAL
 
 export function buildAuthCallbackUrl(next?: string | null, originOverride?: string | null) {
   const origin = normalizeOrigin(originOverride ?? process.env.NEXT_PUBLIC_SITE_URL)
-  const callback = new URL('/auth/callback', origin || 'http://localhost:3000')
+  const callback = new URL('/auth/callback', origin)
   callback.searchParams.set('next', sanitizeNextPath(next))
   return callback.toString()
 }

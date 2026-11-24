@@ -1,4 +1,4 @@
-import { APP_URL, originDinUrl } from '@/lib/brand'
+import { APP_URL, primaOrigineValida } from '@/lib/brand'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getTenantIdByUserId } from '@/lib/tenant/get-tenant'
@@ -46,7 +46,7 @@ export async function getFarmOwnerContext(): Promise<FarmOwnerContext | null> {
 
 /** Originea linkurilor trimise pe WhatsApp: `SITE_URL`, apoi `NEXT_PUBLIC_SITE_URL`, altfel adresa platformei. */
 function originLinkuri(): string {
-  return originDinUrl(process.env.SITE_URL) ?? originDinUrl(process.env.NEXT_PUBLIC_SITE_URL) ?? APP_URL
+  return primaOrigineValida([process.env.SITE_URL, process.env.NEXT_PUBLIC_SITE_URL]) ?? APP_URL
 }
 
 export function farmMemberInviteUrl(token: string): string {

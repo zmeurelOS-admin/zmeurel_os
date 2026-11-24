@@ -13,6 +13,7 @@
  * - Nu se ating: magazinul (`comanda.zmeurel.ro`), preview-urile `*.vercel.app`, `localhost`, `caietulfermei.ro`,
  *   rutele de cron.
  */
+import { originDinUrl } from '@/lib/brand'
 
 export const HOSTURI_VECHI_PLATFORMA = ['zmeurel.ro', 'www.zmeurel.ro', 'app.zmeurel.ro'] as const
 
@@ -64,12 +65,9 @@ export function destinatieRedirect(cerere: CerereRedirect): string | null {
   const host = normalizeazaHost(cerere.host)
   if (!host || esteRutaCron(cerere.pathname)) return null
 
-  let tinta: URL
-  try {
-    tinta = new URL(cerere.appUrl)
-  } catch {
-    return null
-  }
+  // Doar originea validată (promptul 33): o adresă stricată a platformei („value”, „https://valuehttps”) duce la
+  // adresa implicită, niciodată la un host fără punct; `localhost` nu e niciodată o destinație.
+  const tinta = new URL(originDinUrl(cerere.appUrl, { productie: true }))
   const hostPlatforma = tinta.host.toLowerCase()
   const pathname = cerere.pathname.startsWith('/') ? cerere.pathname : `/${cerere.pathname}`
   const search = cerere.search && cerere.search !== '?' ? (cerere.search.startsWith('?') ? cerere.search : `?${cerere.search}`) : ''

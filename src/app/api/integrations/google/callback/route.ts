@@ -2,6 +2,7 @@ import { OAuth2Client } from 'google-auth-library'
 import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { originValida } from '@/lib/brand'
 import { GOOGLE_CONTACTS_TENANT_ID } from '@/lib/integrations/google-contacts-sync'
 import { GOOGLE_OAUTH_STATE_COOKIE } from '@/lib/integrations/google-oauth-state-cookie'
 import { encryptTokenSecret } from '@/lib/integrations/token-secret-crypto'
@@ -43,7 +44,7 @@ async function fetchGoogleUserEmail(accessToken: string): Promise<string | null>
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
-  const origin = process.env.APP_BASE_URL?.trim() || url.origin
+  const origin = originValida(process.env.APP_BASE_URL) ?? url.origin
   const oauthError = url.searchParams.get('error')
   const code = url.searchParams.get('code')
   const state = url.searchParams.get('state')

@@ -3,14 +3,13 @@
 import { FormEvent, useMemo, useState } from 'react'
 
 import { AuthFrame } from '@/components/auth/AuthFrame'
+import { DEFAULT_APP_URL, originValida } from '@/lib/brand'
 import { BigInput, Button, Notice } from '@/components/kit'
 import { isHiddenOperatorEmail } from '@/lib/farm-members/operator-link'
 import { getSupabase } from '@/lib/supabase/client'
 
 function getRedirectBase() {
-  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL
-  if (typeof window !== 'undefined') return window.location.origin
-  return ''
+  return originValida(process.env.NEXT_PUBLIC_SITE_URL) ?? (typeof window !== 'undefined' ? window.location.origin : DEFAULT_APP_URL)
 }
 
 /** „Ai uitat parola?”: trimite pe email linkul pentru o parolă nouă. Logica e cea de dinainte. */

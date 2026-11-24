@@ -8,7 +8,7 @@
  */
 import QRCode from 'qrcode'
 
-import { APP_URL } from '@/lib/brand'
+import { APP_URL, originValida, primaOrigineValida } from '@/lib/brand'
 import { isMissingTableError } from '@/lib/notifications/preferinte'
 import { isMissingColumnError } from '@/lib/schema-features'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
@@ -32,10 +32,10 @@ export function tokenValid(token: string | null | undefined): token is string {
 
 /** Originea linkului public (fără slash la final). */
 export function origineAplicatie(host?: string | null, proto?: string | null): string {
-  const env = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL
-  if (env) return env.replace(/\/$/, '')
-  if (host) return `${proto || 'https'}://${host}`
-  return APP_URL
+  const env = primaOrigineValida([process.env.NEXT_PUBLIC_APP_URL, process.env.NEXT_PUBLIC_SITE_URL])
+  if (env) return env
+  const dinCerere = host ? originValida(`${proto === 'http' ? 'http' : 'https'}://${host}`) : null
+  return dinCerere ?? APP_URL
 }
 
 type AnalizaCuTenant = AnalizaPentruRaport & { id: string; tenant_id: string }

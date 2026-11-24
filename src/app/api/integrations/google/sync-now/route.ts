@@ -1,5 +1,5 @@
 import { validateSameOriginMutation } from '@/lib/api/route-security'
-import { APP_URL } from '@/lib/brand'
+import { APP_URL, primaOrigineValida } from '@/lib/brand'
 import { createServiceRoleClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { isFarmOwner } from '@/lib/tenant/account-deletion'
@@ -30,10 +30,7 @@ function isCronSyncResult(value: unknown): value is CronSyncResult {
 }
 
 function getCronUrl(): URL {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
-    process.env.SITE_URL?.trim() ||
-    APP_URL
+  const baseUrl = primaOrigineValida([process.env.NEXT_PUBLIC_APP_URL, process.env.SITE_URL]) ?? APP_URL
 
   return new URL('/api/cron/sync-google-contacts', baseUrl)
 }

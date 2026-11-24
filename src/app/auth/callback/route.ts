@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { RUTA_FERMA_NOUA, esteFermaNoua } from '@/lib/auth/cont-nou'
+import { DEFAULT_APP_URL, originValida, primaOrigineValida } from '@/lib/brand'
 import { ensureTenantForUser, normalizeFarmName } from '@/lib/auth/ensure-tenant'
 import { acceptFarmInviteForUser } from '@/lib/farm-members/invite-accept'
 import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
@@ -65,31 +66,16 @@ function captureException(error: unknown, payload: Record<string, unknown>) {
   })
 }
 
-function normalizeBaseUrl(candidate: string | undefined, fallbackOrigin: string): string {
-  const trimmed = candidate?.trim()
-  if (!trimmed) return fallbackOrigin
 
-  const noTrailingSlash = trimmed.replace(/\/+$/, '')
-  try {
-    return new URL(noTrailingSlash).origin
-  } catch {
-    try {
-      return new URL(`https://${noTrailingSlash}`).origin
-    } catch {
-      return fallbackOrigin
-    }
-  }
-}
 
+/**
+ * Unde întoarcem omul după login: `SITE_URL`, apoi `NEXT_PUBLIC_SITE_URL`, dacă trec regula din `originValida`
+ * (promptul 33); altfel originea cererii, dacă trece și ea; altfel adresa platformei.
+ */
 function resolveBaseUrl(requestOrigin: string) {
-  const configured =
-    process.env.SITE_URL ??
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    ''
-
-  const baseUrl = normalizeBaseUrl(configured, requestOrigin)
-  const source = configured.trim().length > 0 ? 'env' : 'request_origin'
-  return { baseUrl, source }
+  const configured = primaOrigineValida([process.env.SITE_URL, process.env.NEXT_PUBLIC_SITE_URL])
+  if (configured) return { baseUrl: configured, source: 'env' }
+  return { baseUrl: originValida(requestOrigin) ?? DEFAULT_APP_URL, source: 'request_origin' }
 }
 
 function safeNextPath(nextParam: string | null): string | null {

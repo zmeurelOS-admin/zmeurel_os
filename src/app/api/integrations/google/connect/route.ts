@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
+import { originValida } from '@/lib/brand'
 import { GOOGLE_CONTACTS_TENANT_ID } from '@/lib/integrations/google-contacts-sync'
 import { GOOGLE_OAUTH_STATE_COOKIE } from '@/lib/integrations/google-oauth-state-cookie'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
@@ -65,7 +66,7 @@ export async function GET(request: Request) {
 
   try {
     const url = new URL(request.url)
-    const origin = process.env.APP_BASE_URL?.trim() || url.origin
+    const origin = originValida(process.env.APP_BASE_URL) ?? url.origin
     const redirectUri = resolveRedirectUri(origin)
 
     const state = randomUUID()

@@ -68,9 +68,32 @@ describe('destinatieRedirect', () => {
     expect(destinatieRedirect(cerere('www.zmeurel.ro', '/a/abc', { appUrl: 'https://zmeurel.ro' }))).toBe('https://zmeurel.ro/a/abc')
   })
 
-  it('host lipsă sau adresă invalidă: nimic', () => {
+  it('host lipsă: nimic', () => {
     expect(destinatieRedirect(cerere('', '/a/abc'))).toBeNull()
-    expect(destinatieRedirect(cerere('zmeurel.ro', '/a/abc', { appUrl: 'nu e url' }))).toBeNull()
+  })
+
+  // Promptul 33: în producție, `NEXT_PUBLIC_SITE_URL` stricat a dus la `https://valuehttps/...`.
+  it('adresa platformei stricată: merge pe adresa implicită, niciodată pe un host fără punct', () => {
+    for (const appUrl of ['nu e url', 'value', 'https://value', 'https://valuehttps', 'valuehttps://caietulfermei.ro', 'www.zmeurel.ro:443', '', 'http://localhost:3000', 'ftp://caietulfermei.ro']) {
+      const destinatie = destinatieRedirect(cerere('zmeurel.ro', '/a/test123?x=1', { appUrl }))
+      expect(destinatie).toBe('https://caietulfermei.ro/a/test123?x=1')
+      expect(new URL(destinatie as string).hostname).toContain('.')
+    }
+  })
+
+  it('păstrează calea și query-ul (/a/test123?x=1)', () => {
+    expect(destinatieRedirect(cerere('app.zmeurel.ro', '/a/test123?x=1'))).toBe('https://caietulfermei.ro/a/test123?x=1')
+    expect(destinatieRedirect(cerere('www.caietulfermei.ro', '/a/test123?x=1'))).toBe('https://caietulfermei.ro/a/test123?x=1')
+  })
+
+  it('nicio destinație nu are host fără punct, pentru orice host vechi și orice adresă a platformei', () => {
+    const adrese = [APP, 'https://caietulfermei.ro/', '  https://caietulfermei.ro  ', 'value', 'https://value', 'javascript:alert(1)', 'https://']
+    for (const host of ['zmeurel.ro', 'www.zmeurel.ro', 'app.zmeurel.ro', 'www.caietulfermei.ro']) {
+      for (const appUrl of adrese) {
+        const destinatie = destinatieRedirect(cerere(host, '/x?y=1', { appUrl }))
+        if (destinatie) expect(new URL(destinatie).hostname).toContain('.')
+      }
+    }
   })
 })
 
