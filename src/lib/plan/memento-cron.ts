@@ -50,7 +50,9 @@ export async function deAnuntatFerma(admin: Admin, tenantId: string, azi: string
   const [planuriRes, liniiRes, stadiiRes, aplicariRes, sariteRes, exceptiiRes] = await Promise.all([
     admin.from('planuri_tratament').select('id,nume,cultura_tip,descriere,activ,arhivat').eq('tenant_id', tenantId).in('id', planIds),
     admin.from('planuri_tratament_linii').select(LINIE_SELECT).eq('tenant_id', tenantId).in('plan_id', planIds),
-    admin.from('stadii_fenologice_parcela').select('parcela_id,an,stadiu,cohort,data_observata,created_at,updated_at').eq('tenant_id', tenantId).eq('an', an).in('parcela_id', parcelaIds),
+    // Anul trecut și anul acesta: stadiul de acum se citește peste ani (promptul 33), planul ia din anul trecut doar
+    // `pastrat` / `repaus_vegetativ`.
+    admin.from('stadii_fenologice_parcela').select('parcela_id,an,stadiu,cohort,data_observata,created_at,updated_at').eq('tenant_id', tenantId).in('an', [an - 1, an]).in('parcela_id', parcelaIds),
     admin
       .from('aplicari_tratament')
       .select('id,parcela_id,plan_linie_id,status,data_aplicata,data_planificata')
@@ -79,7 +81,7 @@ export async function deAnuntatFerma(admin: Admin, tenantId: string, azi: string
   const ctx = {
     azi,
     an,
-    stadii: stadiiCurentePeParcele((stadiiRes.data ?? []) as StadiuRand[]),
+    stadii: stadiiCurentePeParcele((stadiiRes.data ?? []) as StadiuRand[], an),
     aplicari,
     sarite: (sariteRes.data ?? []) as SarireLinie[],
     exceptii: (exceptiiRes.data ?? []) as ExceptieLinie[],

@@ -11,7 +11,12 @@ import { grupBiologicParcela, stadiuCurentParcela, type StadiuCurentParcela } fr
 import { queryKeys } from '@/lib/query-keys'
 import { inceputSezon } from '@/lib/sezon'
 import { getLucrari } from '@/lib/supabase/queries/lucrari'
-import { getConfigurariSezonFerma, getStadiiCanoniceFerma, type ParcelaStadiuCanonic } from '@/lib/supabase/queries/parcela-stadii'
+import {
+  getConfigurariSezonFerma,
+  getModLastariFerma,
+  getStadiiCanoniceFermaDoiAni,
+  type ParcelaStadiuCanonic,
+} from '@/lib/supabase/queries/parcela-stadii'
 import { getParcele, type Parcela } from '@/lib/supabase/queries/parcele'
 import { getRecoltari } from '@/lib/supabase/queries/recoltari'
 import { usePauzeActive } from '@/lib/tratamente/hooks'
@@ -28,11 +33,21 @@ export function useParceleStare(azi: string | null) {
   const parceleQuery = useQuery({ queryKey: queryKeys.parcele, queryFn: getParcele, staleTime: 30_000, refetchOnWindowFocus: false })
   const recoltariQuery = useQuery({ queryKey: queryKeys.recoltari, queryFn: getRecoltari, staleTime: 30_000, refetchOnWindowFocus: false })
   const lucrariQuery = useQuery({ queryKey: queryKeys.lucrari, queryFn: getLucrari, staleTime: 30_000, refetchOnWindowFocus: false })
+  // Promptul 33: anul trecut + anul acesta (stadiul unui lăstar se citește peste ani). Cheia e sub `stadiiFerma(an)`,
+  // deci se reîncarcă la orice stadiu salvat; capcanele și planul își țin cererea lor, doar pe anul curent.
   const stadiiQuery = useQuery({
-    queryKey: queryKeys.stadiiFerma(an),
-    queryFn: async () => ({ stadii: await getStadiiCanoniceFerma(an), configurari: await getConfigurariSezonFerma(an) }),
+    queryKey: [...queryKeys.stadiiFerma(an), 'doi-ani'],
+    queryFn: async () => ({ stadii: await getStadiiCanoniceFermaDoiAni(an), configurari: await getConfigurariSezonFerma(an) }),
     staleTime: 30_000,
     refetchOnWindowFocus: false,
+  })
+  // „Cum lucrezi lăstarii” (`parcele.mod_lastari`); `null` = migrarea 20261125110000 nu e aplicată.
+  const modLastariQuery = useQuery({
+    queryKey: [...queryKeys.parcele, 'mod-lastari'],
+    queryFn: getModLastariFerma,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+    retry: false,
   })
   const { pauze, aplicari, activitati, loading: pauzeLoading } = usePauzeActive(azi)
 
@@ -74,11 +89,16 @@ export function useParceleStare(azi: string | null) {
     for (const parcela of parcele) {
       map.set(
         parcela.id,
-        stadiuCurentParcela({ stadii: stadiiPe.get(parcela.id) ?? [], grup: grupBiologicParcela(parcela), config: configPe.get(parcela.id) ?? null }),
+        stadiuCurentParcela({
+          stadii: stadiiPe.get(parcela.id) ?? [],
+          grup: grupBiologicParcela(parcela),
+          config: configPe.get(parcela.id) ?? null,
+          modSalvat: modLastariQuery.data?.get(parcela.id) ?? null,
+        }),
       )
     }
     return map
-  }, [parcele, stadii, stadiiQuery.data?.configurari])
+  }, [modLastariQuery.data, parcele, stadii, stadiiQuery.data?.configurari])
 
   const semnale = useMemo(() => {
     const map = new Map<string, SemnalParcela | null>()
@@ -111,6 +131,8 @@ export function useParceleStare(azi: string | null) {
     kg,
     planificate,
     stadiuPeParcela,
+    /** „Cum lucrezi lăstarii” se poate schimba (migrarea 20261125110000 e aplicată). */
+    modLastariDisponibil: modLastariQuery.data !== null && modLastariQuery.data !== undefined,
     semnale,
     loading: parceleQuery.isLoading || !azi,
     detaliiLoading: recoltariQuery.isLoading || lucrariQuery.isLoading || stadiiQuery.isLoading || pauzeLoading,

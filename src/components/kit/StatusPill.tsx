@@ -20,14 +20,20 @@ export interface StatusPillProps {
   icon?: ReactNode
   children: ReactNode
   className?: string
+  /**
+   * Textul lung trece pe două rânduri, nu se taie (promptul 33: eticheta stadiului de pe cardul parcelei,
+   * „Lăstar an 2: Primele fructe colorate”). Implicit pe un rând.
+   */
+  wrap?: boolean
 }
 
 /** Pastilă de status. Nu e apăsabilă; tonul spune rolul, nu numele statusului. */
-export function StatusPill({ tone = 'neutral', icon, children, className }: StatusPillProps) {
+export function StatusPill({ tone = 'neutral', icon, children, className, wrap = false }: StatusPillProps) {
   return (
     <span
       className={cn(
-        'inline-flex h-[30px] shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-3 font-bold [&_svg]:size-3.5',
+        'inline-flex shrink-0 items-center gap-1 rounded-full border px-3 font-bold [&_svg]:size-3.5',
+        wrap ? 'min-h-[30px] max-w-full py-1 text-left leading-tight' : 'h-[30px] whitespace-nowrap',
         kitText.helper,
         TONE_CLASS[tone],
         className,

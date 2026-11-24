@@ -144,7 +144,7 @@ export function ParceleListClient() {
                           ) : (
                             <StatusPill tone="neutral">{`${formatNumber(kg, 0)} kg în ${an}`}</StatusPill>
                           )}
-                          {semnal ? <StatusPill tone={semnal.ton}>{semnal.text}</StatusPill> : null}
+                          {semnal ? <StatusPill tone={semnal.ton} wrap={semnal.tip === 'stadiu'}>{semnal.text}</StatusPill> : null}
                           {faraCules && !poateScrie ? <StatusPill tone="warning">{ETICHETA_FARA_DATA_CULES}</StatusPill> : null}
                         </span>
                       </span>

@@ -76,7 +76,9 @@ describe('resolveStadiuFenologicCurentParcela', () => {
     expect(current?.stadiu).toBe('inflorit')
   })
 
-  it('permite corecția înapoi: câștigă ultima înregistrare, nu cea fenologic mai avansată', () => {
+  // Promptul 33 (întrebarea 14): ultimul după `data_observata`; o notare cu o zi mai veche nu devine stadiul curent,
+  // chiar dacă e înregistrată mai târziu. Corecția „înapoi” merge cu ziua de azi (vezi testul următor).
+  it('o notare cu o zi mai veche nu devine stadiul curent, chiar dacă e înregistrată mai târziu', () => {
     const stadii = [
       makeRow({
         id: 'stadiu-legare-fruct',
@@ -97,8 +99,16 @@ describe('resolveStadiuFenologicCurentParcela', () => {
     ]
 
     const current = resolveStadiuFenologicCurentParcela(stadii, 'rubus', 'floricane')
-    expect(current?.id).toBe('stadiu-inflorit-corectie')
-    expect(current?.stadiu).toBe('inflorit')
+    expect(current?.id).toBe('stadiu-legare-fruct')
+    expect(current?.stadiu).toBe('legare_fruct')
+  })
+
+  it('„Tăiat” ca ultim rând: lăstarul rămâne fără stadiu', () => {
+    const stadii = [
+      makeRow({ id: 'a', stadiu: 'post_recoltare', cohort: 'floricane', data_observata: '2026-08-01' }),
+      makeRow({ id: 'b', stadiu: 'taiat', cohort: 'floricane', data_observata: '2026-08-10' }),
+    ]
+    expect(resolveStadiuFenologicCurentParcela(stadii, 'rubus', 'floricane')).toBeNull()
   })
 
   it('la aceeași data_observata câștigă created_at mai recent, indiferent de ordinea fenologică', () => {

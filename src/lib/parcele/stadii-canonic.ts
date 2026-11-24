@@ -24,6 +24,10 @@ export type StadiuCod =
   | 'maturitate'
   | 'bolting'
   | 'post_recoltare'
+  /** Promptul 33, zmeură / mur: lăstarii de an 1 păstrați pentru anul viitor; lăstarul de an 2 e „Floricane în repaus”. */
+  | 'pastrat'
+  /** Promptul 33, zmeură / mur: lăstarul a fost tăiat (scos); rămâne fără stadiu până la următorul notat. */
+  | 'taiat'
 
 export type ManagementCategory =
   | 'repaus'
@@ -210,6 +214,18 @@ export const STADII_META: Record<StadiuCod, StadiuMetaEntry> = {
     cod: 'bolting',
     label_ro: 'Înspicuire (bolting)',
     ordine: 10,
+    management_category: 'post_recoltare',
+  },
+  pastrat: {
+    cod: 'pastrat',
+    label_ro: 'Floricane în repaus',
+    ordine: 1,
+    management_category: 'repaus',
+  },
+  taiat: {
+    cod: 'taiat',
+    label_ro: 'Tăiat',
+    ordine: 99,
     management_category: 'post_recoltare',
   },
   post_recoltare: {
@@ -485,6 +501,9 @@ const STADII_LEGACY_ALIAS_MAP: Record<string, StadiuCod> = {
   bolting: 'bolting',
   inspicuire: 'bolting',
   post_recoltare: 'post_recoltare',
+  // Promptul 33: doar ale ciclului lăstarilor (nu sunt în listele de stadii, deci nici plăci în foaia Stadiul).
+  pastrat: 'pastrat',
+  taiat: 'taiat',
 }
 
 function toLookupKey(value: string): string {

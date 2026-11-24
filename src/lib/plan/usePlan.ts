@@ -129,7 +129,9 @@ export function usePlan(azi: string | null, options: { enabled?: boolean } = {})
   const stadiiTrecut = (stadiiTrecutQuery.data?.stadii ?? GOL_STADII) as StadiuRand[]
   const aplicariRows = aplicariQuery.data
 
-  const stadii = useMemo(() => stadiiCurentePeParcele(stadiiAn), [stadiiAn])
+  // Promptul 33: stadiul de acum se citește peste ani (un „Păstrez” din noiembrie e încă stadiul în martie); planul
+  // folosește din anul trecut doar `pastrat` / `repaus_vegetativ` (`stadiuPentruPlan`).
+  const stadii = useMemo(() => stadiiCurentePeParcele([...stadiiTrecut, ...stadiiAn], an), [an, stadiiAn, stadiiTrecut])
   const aplicari = useMemo(() => aplicariPentruPlan(aplicariRows ?? []), [aplicariRows])
   const facute = useMemo(() => produseFacute(aplicariRows ?? []), [aplicariRows])
 

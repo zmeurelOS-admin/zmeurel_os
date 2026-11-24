@@ -1,15 +1,11 @@
 /**
- * Stadiul curent al unei parcele, ca text: „Înflorire” sau, la zmeura remontantă (floricane + primocane),
- * „Floricane: recoltare · Primocane: înflorire”. Regula stadiului curent rămâne cea din
- * `fenofaza-curenta-parcela` (ultima înregistrare validă). Fără React.
+ * Stadiul curent al unei parcele, ca text: „Înflorire” sau, la zmeură / mur cu doi lăstari, „An 2: Înflorit · An 1:
+ * Creștere lăstari” (promptul 33; regula în `src/lib/parcele/lastari.ts`). Fără React.
  */
 import { getCohortaLabel, type Cohorta } from '@/lib/parcele/configurare-sezon'
-import {
-  isParcelaRubusMixtFenologie,
-  resolveStadiiFenologiceCurenteParcela,
-  type StadiuFenologicCurentEntry,
-} from '@/lib/parcele/fenofaza-curenta-parcela'
-import { getGrupBiologicForCropCod, getLabelPentruGrup, normalizeStadiu, type GrupBiologic } from '@/lib/parcele/stadii-canonic'
+import type { StadiuFenologicCurentEntry } from '@/lib/parcele/fenofaza-curenta-parcela'
+import { lastariMod, modLastari, stadiiPeLastari, textStadiiLastari, ultimulRandLastar, type ModLastari } from '@/lib/parcele/lastari'
+import { getGrupBiologicForCropCod, getLabelPentruGrup, normalizeStadiu, type GrupBiologic, type StadiuCod } from '@/lib/parcele/stadii-canonic'
 import { normalizeCropCod } from '@/lib/crops/crop-codes'
 import type { ConfigurareParcelaSezon, ParcelaStadiuCanonic } from '@/lib/supabase/queries/parcela-stadii'
 
@@ -60,27 +56,46 @@ export function grupBiologicParcela(parcela: { cultura?: string | null; tip_fruc
 }
 
 export interface StadiuCurentParcela {
-  /** `null` = niciun stadiu în sezon. */
+  /** `null` = niciun stadiu (nici din anul trecut). */
   text: string | null
-  /** Ultima înregistrare (cea mai nouă dintre cohorte), pentru „actualizat acum 4 zile”. */
+  /** Ultima înregistrare (cea mai nouă dintre lăstari), pentru „actualizat acum 4 zile”. */
   ziua: string | null
-  /** Soi remontant: stadiul se notează pe cohorte. */
+  /** Doi lăstari (an 1 + an 2): foaia Stadiul întreabă „Pentru”. */
   mixt: boolean
+  /** Cum lucrezi lăstarii (zmeură / mur); `null` la celelalte culturi. */
+  mod: ModLastari | null
+  /** Stadiul curent pe fiecare lăstar (codul și ziua notată); la culturile fără lăstari, un singur rând (`lastar: null`). */
+  peLastari: Array<{ lastar: Cohorta | null; stadiu: StadiuCod | null; zi: string | null }>
 }
 
+/**
+ * Stadiul curent al parcelei (promptul 33): pe fiecare lăstar al modului de lucru, ultimul rând după ziua notată,
+ * indiferent de an; `taiat` = fără stadiu. Textul: „An 2: Înflorit · An 1: Creștere lăstari”, „Lăstar an 2: …” sau
+ * eticheta simplă la culturile fără lăstari.
+ */
 export function stadiuCurentParcela(input: {
   stadii: ParcelaStadiuCanonic[]
   grup: GrupBiologic | null
   config: Pick<ConfigurareParcelaSezon, 'sistem_conducere'> | null | undefined
+  /** `parcele.mod_lastari` (după migrarea 20261125110000); lipsă = calculat. */
+  modSalvat?: string | null
 }): StadiuCurentParcela {
-  const mixt = isParcelaRubusMixtFenologie(input.grup, input.config, input.stadii)
-  const entries = resolveStadiiFenologiceCurenteParcela(input.stadii, input.grup, mixt)
-  const cu = entries.filter((entry) => entry.stage)
-  if (cu.length === 0) return { text: null, ziua: null, mixt }
-  const ziua = cu
-    .map((entry) => entry.stage?.data_observata ?? '')
+  const mod = modLastari({ grup: input.grup, salvat: input.modSalvat, sistemConducere: input.config?.sistem_conducere, stadii: input.stadii })
+  const pe = stadiiPeLastari(input.stadii, mod)
+  const peLastari = pe.map(({ lastar, rand }) => ({
+    lastar,
+    stadiu: rand ? normalizeStadiu(rand.stadiu) : null,
+    zi: rand ? String(rand.data_observata ?? '').slice(0, 10) || null : null,
+  }))
+  const text = textStadiiLastari(
+    pe.map(({ lastar, rand }) => ({ lastar, eticheta: rand ? formatStadiuFenologicLabel(rand, input.grup, lastar) : null })),
+  )
+  // „Actualizat”: și un „Tăiat” e o notare, chiar dacă lăstarul rămâne fără stadiu.
+  const zile = (mod ? lastariMod(mod) : [null])
+    .map((lastar) => ultimulRandLastar(input.stadii, lastar, mod)?.data_observata ?? '')
+    .concat(pe.map(({ rand }) => rand?.data_observata ?? ''))
+    .map((zi) => String(zi).slice(0, 10))
     .filter(Boolean)
     .sort()
-    .at(-1) ?? null
-  return { text: formatStadiuFenologicCurentSummary(entries, input.grup), ziua, mixt }
+  return { text, ziua: zile.at(-1) ?? null, mixt: mod === 'an1_an2', mod, peLastari }
 }

@@ -163,3 +163,62 @@ export async function getConfigurariSezonFerma(an = getCurrentSezon()): Promise<
   if (error) throw error
   return data ?? []
 }
+
+/**
+ * Stadiile din anul trecut și din anul `an`, pentru toate parcelele fermei (promptul 33): stadiul curent al unui lăstar
+ * se citește peste ani (un „Păstrez” din noiembrie e stadiul și în martie). Lista de parcele, fișa și foaia Stadiul.
+ * Capcanele („în coacere”) rămân pe `getStadiiCanoniceFerma(an)`, doar anul curent.
+ */
+export async function getStadiiCanoniceFermaDoiAni(an = getCurrentSezon()): Promise<ParcelaStadiuCanonic[]> {
+  const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
+
+  const { data, error } = await supabase
+    .from('stadii_fenologice_parcela')
+    .select(STADIU_SELECT)
+    .eq('tenant_id', tenantId)
+    .in('an', [an - 1, an])
+    .order('data_observata', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(4000)
+
+  if (error) throw error
+  return data ?? []
+}
+
+/** Coloana `parcele.mod_lastari` lipsește (migrarea 20261125110000 încă neaplicată). */
+function lipsaColoanaModLastari(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false
+  if (error.code === '42703' || error.code === 'PGRST204') return true
+  return /mod_lastari/i.test(error.message ?? '') && /column|could not find/i.test(error.message ?? '')
+}
+
+/**
+ * „Cum lucrezi lăstarii” pe parcele (id → valoarea salvată, `null` = nesetat). Întoarce `null` dacă migrarea nu e
+ * aplicată: atunci rândul de pe fișă nu apare, iar modul se calculează mereu.
+ */
+export async function getModLastariFerma(): Promise<Map<string, string | null> | null> {
+  const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
+  const { data, error } = await (supabase
+    .from('parcele')
+    .select('id,mod_lastari' as 'id')
+    .eq('tenant_id', tenantId) as unknown as PromiseLike<{ data: Array<{ id: string; mod_lastari?: string | null }> | null; error: { code?: string; message?: string } | null }>)
+  if (error) {
+    if (lipsaColoanaModLastari(error)) return null
+    throw error
+  }
+  return new Map((data ?? []).map((row) => [row.id, row.mod_lastari ?? null]))
+}
+
+/** Salvează „Cum lucrezi lăstarii” pe parcelă (RLS: proprietarul sau operatorul cu „Scrie” pe Parcele). */
+export async function setModLastari(parcelaId: string, mod: 'an1' | 'an1_an2' | 'an2'): Promise<void> {
+  const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
+  const { error } = await supabase
+    .from('parcele')
+    .update({ mod_lastari: mod } as never)
+    .eq('tenant_id', tenantId)
+    .eq('id', parcelaId)
+  if (error) throw error
+}

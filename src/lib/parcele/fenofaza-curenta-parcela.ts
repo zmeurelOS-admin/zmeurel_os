@@ -5,6 +5,7 @@ import {
   type ParcelaStadiuCanonic,
 } from '@/lib/supabase/queries/parcela-stadii'
 import type { Cohorta } from '@/lib/parcele/configurare-sezon'
+import { STADIU_TAIAT, comparaRanduri } from '@/lib/parcele/lastari'
 import {
   normalizeStadiu,
   type GrupBiologic,
@@ -28,16 +29,10 @@ export function getStadiuRegistrationTimestamp(stadiu: ParcelaStadiuCanonic): nu
   return Math.max(createdSafe, updatedSafe)
 }
 
-function compareByRegistrationMoment(a: ParcelaStadiuCanonic, b: ParcelaStadiuCanonic): number {
-  const momentDiff = getStadiuRegistrationTimestamp(b) - getStadiuRegistrationTimestamp(a)
-  if (momentDiff !== 0) return momentDiff
-
-  return b.id.localeCompare(a.id)
-}
-
 /**
- * Stadiul curent = ultima înregistrare VALIDĂ a utilizatorului (max(created_at, updated_at) desc),
- * indiferent de ordinea fenologică — permite corecții „înapoi”.
+ * Stadiul curent = ultimul rând VALID după ziua notată (`data_observata`), iar la aceeași zi ultimul înregistrat
+ * (max(created_at, updated_at)), indiferent de ordinea fenologică (promptul 33, `comparaRanduri`). Un `taiat` ca ultim
+ * rând înseamnă fără stadiu.
  */
 export function resolveStadiuFenologicCurentParcela(
   stadii: ParcelaStadiuCanonic[],
@@ -47,7 +42,8 @@ export function resolveStadiuFenologicCurentParcela(
   const stadiiValide = filterStadiiByCohort(stadii, cohort).filter(isValidStadiuRow)
   if (stadiiValide.length === 0) return null
 
-  return [...stadiiValide].sort(compareByRegistrationMoment)[0] ?? null
+  const ultim = [...stadiiValide].sort(comparaRanduri)[0] ?? null
+  return ultim && normalizeStadiu(ultim.stadiu) === STADIU_TAIAT ? null : ultim
 }
 
 export function hasCanonicalCohortStages(stadii: ParcelaStadiuCanonic[]): boolean {

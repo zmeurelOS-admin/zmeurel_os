@@ -156,7 +156,8 @@ describe('stadiul curent', () => {
       config: { sistem_conducere: 'mixt_floricane_primocane' },
     })
     expect(result.mixt).toBe(true)
-    expect(result.text).toBe('Recoltare pe floricane · Înflorit pe primocane')
+    // Promptul 33: „An 2: … · An 1: …”, fără cuvântul lăstarului repetat în etichetă.
+    expect(result.text).toBe('An 2: Recoltare · An 1: Înflorit')
     expect(result.text?.split(' · ')).toHaveLength(2)
     expect(result.ziua).toBe('2026-07-14')
   })
@@ -169,7 +170,7 @@ describe('stadiul curent', () => {
   })
 
   it('fără stadii', () => {
-    expect(stadiuCurentParcela({ stadii: [], grup: 'rubus', config: null })).toEqual({ text: null, ziua: null, mixt: false })
+    expect(stadiuCurentParcela({ stadii: [], grup: 'rubus', config: null })).toMatchObject({ text: null, ziua: null, mixt: false, mod: 'an1' })
   })
 })
 
