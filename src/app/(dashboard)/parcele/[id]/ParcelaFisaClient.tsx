@@ -18,6 +18,8 @@ import {
   Notice,
   Segments,
   StatTile,
+  Tile,
+  TileGroup,
   kitText,
 } from '@/components/kit'
 import { LucrareStepForm } from '@/components/lucrari/LucrareStepForm'
@@ -33,6 +35,7 @@ import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { formatNumber } from '@/lib/format-ro'
 import { textCine } from '@/lib/lucrari/formular'
 import { antetParcela, esteParcelaPersonala } from '@/lib/parcele/card'
+import { ETICHETA_MOD_LASTARI, MODURI_LASTARI, etichetaFaraLastar, etichetaLastar, type ModLastari } from '@/lib/parcele/lastari'
 import { jurnalParcela, type TipIntrare } from '@/lib/parcele/jurnal-parcela'
 import { sezonParcela } from '@/lib/parcele/sezon-parcela'
 import { formatStadiuFenologicLabel, grupBiologicParcela } from '@/lib/parcele/stadiu-curent'
@@ -40,7 +43,7 @@ import { IntrebareStadiuParcela } from '@/components/plan/IntrebareStadiuParcela
 import { normalizeUnitateTip } from '@/lib/parcele/unitate'
 import { queryKeys } from '@/lib/query-keys'
 import { desfiinteazaCultura, getCulturiForSolar, type Cultura } from '@/lib/supabase/queries/culturi'
-import { normalizeCohort } from '@/lib/supabase/queries/parcela-stadii'
+import { normalizeCohort, setModLastari } from '@/lib/supabase/queries/parcela-stadii'
 import { deleteParcela } from '@/lib/supabase/queries/parcele'
 import { getVolumeParcele } from '@/lib/supabase/queries/tratamente'
 import { detaliuPauza } from '@/lib/tratamente/texte'
@@ -124,7 +127,7 @@ export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
 
   const [fila, setFila] = useState<'jurnal' | 'sezon'>('jurnal')
   const [meniu, setMeniu] = useState(false)
-  const [foaie, setFoaie] = useState<null | 'sterge' | 'desfiinteaza'>(null)
+  const [foaie, setFoaie] = useState<null | 'sterge' | 'desfiinteaza' | 'lastari'>(null)
   const [form, setForm] = useState<null | 'editeaza' | 'stadiu' | 'lucrare' | 'cultura' | 'microclimat'>(null)
   const [cultura, setCultura] = useState<Cultura | null>(null)
   const [desfiintare, setDesfiintare] = useState({ zi: '', motiv: '' })
@@ -132,7 +135,7 @@ export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
   const [eroareFoaie, setEroareFoaie] = useState<string | null>(null)
 
   const grup = parcela ? grupBiologicParcela(parcela) : null
-  const stadiu = stare.stadiuPeParcela.get(parcelaId) ?? { text: null, ziua: null, mixt: false }
+  const stadiu = stare.stadiuPeParcela.get(parcelaId) ?? { text: null, ziua: null, mod: null, peLastari: [] }
   const pauza = stare.pauze.get(parcelaId) ?? null
   const personala = parcela ? esteParcelaPersonala(parcela) : false
 
@@ -147,8 +150,9 @@ export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
       numeStadiu: (row) => {
         const cohort = normalizeCohort(row.cohort)
         const label = formatStadiuFenologicLabel(row, grup, cohort)
-        if (!cohort || label.toLocaleLowerCase('ro-RO').includes(cohort)) return label
-        return `${cohort === 'floricane' ? 'Floricane' : 'Primocane'}: ${label.toLocaleLowerCase('ro-RO')}`
+        // Promptul 33: „Lăstar an 2: Înflorit”, fără cuvântul lăstarului repetat în etichetă.
+        if (!cohort) return label
+        return `${etichetaLastar(cohort)}: ${etichetaFaraLastar(label)}`
       },
       textCine: (cine) => textCine(cine, vedeProprietarul),
       azi,
@@ -198,6 +202,26 @@ export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
       toast.success('Cultura a fost desființată. Istoricul ei rămâne.')
     } catch (error) {
       setEroareFoaie(error instanceof Error && error.message ? error.message : 'Nu s-a salvat. Încearcă din nou.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const schimbaModLastari = async (mod: ModLastari) => {
+    if (busy) return
+    if (mod === stadiu.mod) {
+      setFoaie(null)
+      return
+    }
+    setBusy(true)
+    setEroareFoaie(null)
+    try {
+      await setModLastari(parcelaId, mod)
+      await queryClient.invalidateQueries({ queryKey: [...queryKeys.parcele, 'mod-lastari'] })
+      setFoaie(null)
+      toast.success(`Lăstarii: ${ETICHETA_MOD_LASTARI[mod].titlu.toLocaleLowerCase('ro-RO')}.`)
+    } catch (error) {
+      setEroareFoaie(/row-level security|42501/i.test(error instanceof Error ? error.message : '') ? 'Nu ai drept de scriere pe parcele.' : 'Nu s-a salvat. Încearcă din nou.')
     } finally {
       setBusy(false)
     }
@@ -311,6 +335,18 @@ export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
               ) : null}
             </div>
 
+            {/* Promptul 33: zmeură / mur, „Cum lucrezi lăstarii” (după migrarea 20261125110000). */}
+            {stadiu.mod && stare.modLastariDisponibil ? (
+              <ListRow
+                avatar={false}
+                leading={<MenuIcon><Sprout aria-hidden /></MenuIcon>}
+                title="Cum lucrezi lăstarii"
+                detail={`${ETICHETA_MOD_LASTARI[stadiu.mod].titlu} · ${ETICHETA_MOD_LASTARI[stadiu.mod].detaliu.toLocaleLowerCase('ro-RO')}`}
+                onClick={poateScrie ? () => setFoaie('lastari') : undefined}
+                chevron={poateScrie}
+              />
+            ) : null}
+
             {!personala ? <IntrebareStadiuParcela parcelaId={parcelaId} azi={azi} poateScrie={poateScrie} /> : null}
 
             {!personala ? <CulesSiAnalizaParcela parcelaId={parcelaId} azi={azi} poateScrie={poateScrie} proprietar={vedeProprietarul} /> : null}
@@ -414,6 +450,29 @@ export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
       </BottomSheet>
 
       {/* Ștergerea parcelei */}
+      <BottomSheet
+        open={foaie === 'lastari'}
+        onOpenChange={(open) => setFoaie(open ? 'lastari' : null)}
+        title="Cum lucrezi lăstarii?"
+        description="Alegi ce lăstari apar în foaia Stadiul."
+      >
+        <div className="space-y-3">
+          {eroareFoaie ? <Notice tone="danger" title={eroareFoaie} /> : null}
+          <TileGroup type="single" aria-label="Cum lucrezi lăstarii" value={stadiu.mod} onValueChange={() => undefined}>
+            {MODURI_LASTARI.map((mod) => (
+              <Tile
+                key={mod}
+                value={mod}
+                title={ETICHETA_MOD_LASTARI[mod].titlu}
+                subtitle={ETICHETA_MOD_LASTARI[mod].detaliu}
+                disabled={busy}
+                onClick={() => void schimbaModLastari(mod)}
+              />
+            ))}
+          </TileGroup>
+        </div>
+      </BottomSheet>
+
       <BottomSheet open={foaie === 'sterge'} onOpenChange={(open) => setFoaie(open ? 'sterge' : null)} title="Ștergi parcela?" description={titlu}>
         <div className="space-y-4">
           {eroareFoaie ? (
@@ -473,8 +532,8 @@ export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
             parcelaId={parcela.id}
             parcelaNume={titlu}
             grup={grup}
-            mixt={stadiu.mixt}
-            an={stare.an}
+            mod={stadiu.mod}
+            peLastari={stadiu.peLastari}
             todayIso={azi}
           />
           <LucrareStepForm

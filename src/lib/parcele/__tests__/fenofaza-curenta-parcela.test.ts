@@ -1,11 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import type { ParcelaStadiuCanonic } from '@/lib/supabase/queries/parcela-stadii'
-import {
-  isParcelaRubusMixtFenologie,
-  resolveStadiiFenologiceCurenteParcela,
-  resolveStadiuFenologicCurentParcela,
-} from '@/lib/parcele/fenofaza-curenta-parcela'
+// Lăstarii pe cohorte și modul de lucru (fostul „mixt”) au testele în `lastari.test.ts` (promptul 33).
+import { resolveStadiuFenologicCurentParcela } from '@/lib/parcele/fenofaza-curenta-parcela'
 
 function makeRow(
   overrides: Partial<ParcelaStadiuCanonic> & Pick<ParcelaStadiuCanonic, 'stadiu' | 'cohort'>
@@ -145,64 +142,5 @@ describe('resolveStadiuFenologicCurentParcela', () => {
     ]
 
     expect(resolveStadiuFenologicCurentParcela(stadii, 'rubus', 'floricane')).toBeNull()
-  })
-})
-
-describe('resolveStadiiFenologiceCurenteParcela', () => {
-  it('returnează câte un stadiu per cohortă pe Rubus mixt', () => {
-    const stadii = [
-      makeRow({
-        id: '1',
-        stadiu: 'repaus_vegetativ',
-        cohort: 'floricane',
-        created_at: '2026-03-01T00:00:00Z',
-      }),
-      makeRow({
-        id: '2',
-        stadiu: 'inflorit',
-        cohort: 'floricane',
-        created_at: '2026-05-01T00:00:00Z',
-      }),
-      makeRow({
-        id: '3',
-        stadiu: 'fruct_verde',
-        cohort: 'primocane',
-        created_at: '2026-04-15T00:00:00Z',
-      }),
-    ]
-
-    const entries = resolveStadiiFenologiceCurenteParcela(stadii, 'rubus', true)
-    expect(entries).toHaveLength(2)
-    expect(entries[0]?.stage?.stadiu).toBe('inflorit')
-    expect(entries[1]?.stage?.stadiu).toBe('fruct_verde')
-  })
-
-  it('mono-cohort returnează o singură intrare fără cohort', () => {
-    const stadii = [
-      makeRow({ id: '1', stadiu: 'buton_verde', cohort: null, created_at: '2026-04-01T00:00:00Z' }),
-    ]
-
-    const entries = resolveStadiiFenologiceCurenteParcela(stadii, 'solanacee', false)
-    expect(entries).toHaveLength(1)
-    expect(entries[0]?.cohort).toBeNull()
-    expect(entries[0]?.stage?.stadiu).toBe('buton_verde')
-  })
-})
-
-describe('isParcelaRubusMixtFenologie', () => {
-  it('detectează mixt din configurare sezon', () => {
-    expect(
-      isParcelaRubusMixtFenologie('rubus', { sistem_conducere: 'mixt_floricane_primocane' }, [])
-    ).toBe(true)
-  })
-
-  it('detectează mixt din stadii pe cohorte chiar fără configurare', () => {
-    expect(
-      isParcelaRubusMixtFenologie(
-        'rubus',
-        null,
-        [makeRow({ stadiu: 'inflorit', cohort: 'floricane' })]
-      )
-    ).toBe(true)
   })
 })

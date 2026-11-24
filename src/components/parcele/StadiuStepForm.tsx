@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { CalendarDays } from 'lucide-react'
+import { CalendarDays, Scissors, Sprout } from 'lucide-react'
 
 import {
   BigTextarea,
+  Button,
   CalendarPanel,
   ListRow,
   Notice,
@@ -19,7 +20,17 @@ import {
   kitText,
   useStepForm,
 } from '@/components/kit'
-import { getCohortaLabel, type Cohorta } from '@/lib/parcele/configurare-sezon'
+import type { Cohorta } from '@/lib/parcele/configurare-sezon'
+import {
+  ETICHETA_ACTIUNE_CICLU,
+  actiuniCiclu,
+  etichetaComutatorLastar,
+  etichetaLastar,
+  lastariMod,
+  randuriActiuneCiclu,
+  type ActiuneCiclu,
+  type ModLastari,
+} from '@/lib/parcele/lastari'
 import { getLabelPentruGrup, listStadiiPentruGrup, type GrupBiologic, type StadiuCod } from '@/lib/parcele/stadii-canonic'
 import { queryKeys } from '@/lib/query-keys'
 import { createParcelaStadiuCanonic } from '@/lib/supabase/queries/parcela-stadii'
@@ -33,28 +44,33 @@ export interface StadiuStepFormProps {
   parcelaId: string
   parcelaNume: string
   grup: GrupBiologic | null
-  /** Soi remontant (floricane + primocane): stadiul se notează pe cohortă. */
-  mixt: boolean
-  an: number
+  /** Cum lucrezi lăstarii (zmeură / mur, `src/lib/parcele/lastari.ts`); `null` la culturile fără lăstari. */
+  mod: ModLastari | null
+  /** Stadiul curent pe fiecare lăstar (`stadiuCurentParcela().peLastari`), pentru butoanele ciclului. */
+  peLastari: ReadonlyArray<{ lastar: Cohorta | null; stadiu: StadiuCod | null }>
   todayIso: string
 }
 
 const STEPS = ['stadiu'] as const
 
+const anulZilei = (zi: string): number => Number(zi.slice(0, 4))
+
 /**
- * „Actualizează stadiul”: la soiurile remontante întâi cohorta (floricane / primocane), apoi stadiul din lista
- * canonică a culturii, pe plăci; data azi, implicit. Se salvează în `stadii_fenologice_parcela` (cu `cohort`),
- * prin aceeași funcție ca până acum.
+ * „Actualizează stadiul” (promptul 33): lăstarii după modul de lucru — la „An 1 + an 2” întâi „Pentru”
+ * (Floricane · lăstar an 2 / Primocane · lăstar an 1), la un singur lăstar direct stadiul. Stadiul din lista culturii,
+ * pe plăci; ziua azi, implicit. După recoltare, în „An 1 + an 2”, foaia oferă ciclul: „Tai tot” / „Păstrez o parte”
+ * pe an 1, „Tăiat” pe an 2. Stadiul îl pune doar omul; aplicația nu-l schimbă singură.
  */
-export function StadiuStepForm({ open, onOpenChange, parcelaId, parcelaNume, grup, mixt, an, todayIso }: StadiuStepFormProps) {
+export function StadiuStepForm({ open, onOpenChange, parcelaId, parcelaNume, grup, mod, peLastari, todayIso }: StadiuStepFormProps) {
   const queryClient = useQueryClient()
   const form = useStepForm({ steps: STEPS, open, analytics: false })
-  const [cohort, setCohort] = useState<Cohorta>('floricane')
+  const lastari = useMemo(() => lastariMod(mod), [mod])
+  const [lastarAles, setLastarAles] = useState<Cohorta>('floricane')
   const [stadiu, setStadiu] = useState<StadiuCod | null>(null)
   const [zi, setZi] = useState(todayIso)
   const [nota, setNota] = useState('')
   const [calendar, setCalendar] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const [saving, setSaving] = useState<null | 'stadiu' | ActiuneCiclu>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saved, setSaved] = useState<string | null>(null)
 
@@ -62,46 +78,87 @@ export function StadiuStepForm({ open, onOpenChange, parcelaId, parcelaNume, gru
   if (!open && sessionKey !== null) setSessionKey(null)
   if (open && sessionKey !== form.clientSyncId) {
     setSessionKey(form.clientSyncId)
-    setCohort('floricane')
+    setLastarAles(lastari[0] ?? 'floricane')
     setStadiu(null)
     setZi(todayIso)
     setNota('')
     setCalendar(false)
-    setSaving(false)
+    setSaving(null)
     setSaveError(null)
     setSaved(null)
   }
 
+  // Lăstarul pe care se notează: cel ales la doi lăstari, singurul la un lăstar, niciunul la alte culturi.
+  const lastar: Cohorta | null = lastari.length === 0 ? null : lastari.length === 1 ? lastari[0] : lastarAles
   const stadii = useMemo(() => listStadiiPentruGrup(grup), [grup])
-  const eticheta = (cod: StadiuCod) => getLabelPentruGrup(cod, grup, { cohort: mixt ? cohort : null })
+  const eticheta = (cod: StadiuCod) => getLabelPentruGrup(cod, grup, { cohort: lastar })
+  const stadiuAcum = peLastari.find((item) => item.lastar === lastar)?.stadiu ?? null
+  const actiuni = lastar ? actiuniCiclu(mod, lastar, stadiuAcum) : []
+
+  const reincarca = () => {
+    // Toate anii (stadiul se citește peste ani): `['stadii-ferma']` acoperă și lista, și fișa, și planul.
+    void queryClient.invalidateQueries({ queryKey: queryKeys.stadiiFerma(anulZilei(zi)).slice(0, 1) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.parcelaCultureStages(parcelaId) })
+  }
+
+  const mesajEroare = (error: unknown) => {
+    const message = error instanceof Error ? error.message : ''
+    return /row-level security|42501/i.test(message) ? 'Nu ai drept de scriere pe parcele.' : message || 'Stadiul nu s-a salvat. Încearcă din nou.'
+  }
 
   const save = async () => {
     if (!stadiu || saving) return
-    setSaving(true)
+    setSaving('stadiu')
     setSaveError(null)
     try {
       await createParcelaStadiuCanonic({
         parcela_id: parcelaId,
-        an,
+        an: anulZilei(zi),
         stadiu,
-        cohort: mixt ? cohort : null,
+        cohort: lastar,
         data_observata: zi,
         observatii: nota.trim() || undefined,
       })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.stadiiFerma(an) })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.parcelaCultureStages(parcelaId) })
+      reincarca()
       hapticSuccess()
       const nume = eticheta(stadiu)
-      const cuCohorta = mixt && !nume.toLocaleLowerCase('ro-RO').includes(cohort) ? `${getCohortaLabel(cohort)}: ${nume}` : nume
-      setSaved(`${cuCohorta} · ${ZiCuDataRo(zi)}`)
+      setSaved(`${lastar && lastari.length > 1 ? `${etichetaLastar(lastar)}: ` : ''}${nume} · ${ZiCuDataRo(zi)}`)
       form.markSuccess()
     } catch (error) {
       hapticError()
-      const message = error instanceof Error ? error.message : ''
-      setSaveError(/row-level security|42501/i.test(message) ? 'Nu ai drept de scriere pe parcele.' : message || 'Stadiul nu s-a salvat. Încearcă din nou.')
+      setSaveError(mesajEroare(error))
       form.markFailed()
     } finally {
-      setSaving(false)
+      setSaving(null)
+    }
+  }
+
+  const ruleazaActiune = async (actiune: ActiuneCiclu) => {
+    if (saving) return
+    setSaving(actiune)
+    setSaveError(null)
+    try {
+      // „Păstrez” scrie două rânduri (an 2 în repaus, an 1 tăiat), în aceeași zi.
+      for (const rand of randuriActiuneCiclu(actiune)) {
+        await createParcelaStadiuCanonic({
+          parcela_id: parcelaId,
+          an: anulZilei(zi),
+          stadiu: rand.stadiu,
+          cohort: rand.cohort,
+          data_observata: zi,
+          observatii: nota.trim() || undefined,
+        })
+      }
+      reincarca()
+      hapticSuccess()
+      setSaved(`${ETICHETA_ACTIUNE_CICLU[actiune]} · ${ZiCuDataRo(zi)}`)
+      form.markSuccess()
+    } catch (error) {
+      hapticError()
+      setSaveError(mesajEroare(error))
+      form.markFailed()
+    } finally {
+      setSaving(null)
     }
   }
 
@@ -126,7 +183,7 @@ export function StadiuStepForm({ open, onOpenChange, parcelaId, parcelaNume, gru
     </div>
   ) : (
     <div className="space-y-5">
-      <StepFormTitle eyebrow={parcelaNume}>Stadiul de acum</StepFormTitle>
+      <StepFormTitle eyebrow={lastar && lastari.length === 1 ? `${parcelaNume} · ${etichetaLastar(lastar)}` : parcelaNume}>Stadiul de acum</StepFormTitle>
 
       {saveError ? (
         <Notice tone="danger" title="Nu s-a salvat">
@@ -134,19 +191,45 @@ export function StadiuStepForm({ open, onOpenChange, parcelaId, parcelaNume, gru
         </Notice>
       ) : null}
 
-      {mixt ? (
+      {lastari.length > 1 ? (
         <div className="space-y-2.5">
           <p className={cn('font-bold text-fg', kitText.base)}>Pentru</p>
           <Segments
-            aria-label="Cohorta"
-            options={[
-              { value: 'floricane', label: 'Floricane' },
-              { value: 'primocane', label: 'Primocane' },
-            ]}
-            value={cohort}
-            onValueChange={setCohort}
+            aria-label="Lăstarul"
+            options={lastari.map((value) => ({ value, label: etichetaComutatorLastar(value) }))}
+            value={lastarAles}
+            onValueChange={(value) => {
+              setLastarAles(value)
+              setStadiu(null)
+            }}
           />
         </div>
+      ) : null}
+
+      {actiuni.length > 0 ? (
+        <section aria-label="După recoltare" className="space-y-2">
+          <p className={cn('font-bold text-fg', kitText.base)}>{lastar === 'primocane' ? 'Ce faci cu lăstarii de an 1?' : 'Lăstarii de an 2'}</p>
+          {actiuni.map((actiune) => (
+            <Button
+              key={actiune}
+              type="button"
+              variant="neutral"
+              size="touch-lg"
+              className="w-full justify-start"
+              loading={saving === actiune}
+              disabled={saving !== null}
+              onClick={() => void ruleazaActiune(actiune)}
+            >
+              {actiune === 'pastrez' ? <Sprout aria-hidden /> : <Scissors aria-hidden />}
+              <span className="min-w-0 whitespace-normal text-left">{ETICHETA_ACTIUNE_CICLU[actiune]}</span>
+            </Button>
+          ))}
+          <p className={cn('text-fg-muted', kitText.secondary)}>
+            {lastar === 'primocane'
+              ? '„Păstrez” pune lăstarii de an 2 pe „Floricane în repaus”; lăstarii noi de an 1 îi notezi de la „Pornire lăstari noi”.'
+              : 'După „Tăiat”, lăstarul de an 2 rămâne fără stadiu până la următorul „Păstrez”.'}
+          </p>
+        </section>
       ) : null}
 
       <TileGroup type="single" aria-label="Stadiul" value={stadiu} onValueChange={(value) => setStadiu((value as StadiuCod | null) ?? null)}>
@@ -184,7 +267,18 @@ export function StadiuStepForm({ open, onOpenChange, parcelaId, parcelaNume, gru
         setCalendar(false)
         return true
       }}
-      footer={calendar ? null : { primary: { label: saving ? 'Se salvează…' : 'Salvează stadiul', onClick: () => void save(), loading: saving, disabled: !stadiu || saving } }}
+      footer={
+        calendar
+          ? null
+          : {
+              primary: {
+                label: saving === 'stadiu' ? 'Se salvează…' : 'Salvează stadiul',
+                onClick: () => void save(),
+                loading: saving === 'stadiu',
+                disabled: !stadiu || saving !== null,
+              },
+            }
+      }
       success={saved ? <SuccessScreen title="Stadiu salvat" description={saved} primaryAction={{ label: 'Gata', onClick: close }} /> : undefined}
     >
       {content}

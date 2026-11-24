@@ -49,7 +49,8 @@ const CE_INCEPE: Partial<Record<StadiuCod, string>> = {
 
 export function textIntrebare(urmator: StadiuCod, cohort: Cohorta | null, culturaTip?: string | null): string {
   const ce = CE_INCEPE[urmator]
-  const pe = cohort ? ` pe ${cohort}` : ''
+  // Promptul 33: lăstarul spus pe nume („pe lăstarii de an 2”), nu „pe floricane”.
+  const pe = cohort ? ` pe lăstarii de ${cohort === 'floricane' ? 'an 2' : 'an 1'}` : ''
   return ce ? `A început ${ce}${pe}?` : `A ajuns${pe} la „${eticheta(urmator, culturaTip, cohort)}”?`
 }
 

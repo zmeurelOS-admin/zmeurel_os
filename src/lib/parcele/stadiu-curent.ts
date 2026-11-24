@@ -2,8 +2,7 @@
  * Stadiul curent al unei parcele, ca text: „Înflorire” sau, la zmeură / mur cu doi lăstari, „An 2: Înflorit · An 1:
  * Creștere lăstari” (promptul 33; regula în `src/lib/parcele/lastari.ts`). Fără React.
  */
-import { getCohortaLabel, type Cohorta } from '@/lib/parcele/configurare-sezon'
-import type { StadiuFenologicCurentEntry } from '@/lib/parcele/fenofaza-curenta-parcela'
+import type { Cohorta } from '@/lib/parcele/configurare-sezon'
 import { lastariMod, modLastari, stadiiPeLastari, textStadiiLastari, ultimulRandLastar, type ModLastari } from '@/lib/parcele/lastari'
 import { getGrupBiologicForCropCod, getLabelPentruGrup, normalizeStadiu, type GrupBiologic, type StadiuCod } from '@/lib/parcele/stadii-canonic'
 import { normalizeCropCod } from '@/lib/crops/crop-codes'
@@ -19,26 +18,6 @@ export function formatStadiuFenologicLabel(
   if (cod) return getLabelPentruGrup(cod, grupBiologic, { cohort: cohort ?? stage.cohort })
   const normalized = stage.stadiu.replaceAll('_', ' ').trim()
   return normalized.charAt(0).toUpperCase() + normalized.slice(1)
-}
-
-export function formatStadiuFenologicCurentSummary(
-  entries: StadiuFenologicCurentEntry[],
-  grupBiologic: GrupBiologic | null,
-  options?: { emptyLabel?: string; includeEmptyCohorts?: boolean },
-): string {
-  const emptyLabel = options?.emptyLabel ?? 'Fără stadiu înregistrat'
-  const parts = entries
-    .filter((entry) => options?.includeEmptyCohorts || entry.stage)
-    .map((entry) => {
-      const label = entry.stage ? formatStadiuFenologicLabel(entry.stage, grupBiologic, entry.cohort) : 'Fără stadiu'
-      if (!entry.cohort) return label
-      // Etichetele de zmeură spun deja cohorta („După recoltare floricane”): nu o mai scriem de două ori.
-      if (label.toLocaleLowerCase('ro-RO').includes(entry.cohort)) return label
-      return `${getCohortaLabel(entry.cohort)}: ${label}`
-    })
-
-  if (parts.length === 0) return emptyLabel
-  return parts.join(' · ')
 }
 
 /**
@@ -60,8 +39,6 @@ export interface StadiuCurentParcela {
   text: string | null
   /** Ultima înregistrare (cea mai nouă dintre lăstari), pentru „actualizat acum 4 zile”. */
   ziua: string | null
-  /** Doi lăstari (an 1 + an 2): foaia Stadiul întreabă „Pentru”. */
-  mixt: boolean
   /** Cum lucrezi lăstarii (zmeură / mur); `null` la celelalte culturi. */
   mod: ModLastari | null
   /** Stadiul curent pe fiecare lăstar (codul și ziua notată); la culturile fără lăstari, un singur rând (`lastar: null`). */
@@ -97,5 +74,5 @@ export function stadiuCurentParcela(input: {
     .map((zi) => String(zi).slice(0, 10))
     .filter(Boolean)
     .sort()
-  return { text, ziua: zile.at(-1) ?? null, mixt: mod === 'an1_an2', mod, peLastari }
+  return { text, ziua: zile.at(-1) ?? null, mod, peLastari }
 }

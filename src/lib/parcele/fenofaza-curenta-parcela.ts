@@ -1,7 +1,6 @@
 import {
   getStadiiCanoniceParcela,
   normalizeCohort,
-  type ConfigurareParcelaSezon,
   type ParcelaStadiuCanonic,
 } from '@/lib/supabase/queries/parcela-stadii'
 import type { Cohorta } from '@/lib/parcele/configurare-sezon'
@@ -48,39 +47,6 @@ export function resolveStadiuFenologicCurentParcela(
 
 export function hasCanonicalCohortStages(stadii: ParcelaStadiuCanonic[]): boolean {
   return stadii.some((entry) => entry.cohort === 'floricane' || entry.cohort === 'primocane')
-}
-
-/** Rubus dual-cohort: configurare sezon mixt sau stadii deja înregistrate pe ambele cohorte. */
-export function isParcelaRubusMixtFenologie(
-  grupBiologic: GrupBiologic | null,
-  seasonConfig: Pick<ConfigurareParcelaSezon, 'sistem_conducere'> | null | undefined,
-  stadii: ParcelaStadiuCanonic[]
-): boolean {
-  return (
-    grupBiologic === 'rubus' &&
-    (seasonConfig?.sistem_conducere === 'mixt_floricane_primocane' || hasCanonicalCohortStages(stadii))
-  )
-}
-
-export type StadiuFenologicCurentEntry = {
-  cohort: Cohorta | null
-  stage: ParcelaStadiuCanonic | null
-}
-
-/** Rezolvă stadiul curent mono-cohort sau câte un stadiu per cohortă (floricane + primocane). */
-export function resolveStadiiFenologiceCurenteParcela(
-  stadii: ParcelaStadiuCanonic[],
-  grupBiologic: GrupBiologic | null,
-  isRubusMixtDisplay: boolean
-): StadiuFenologicCurentEntry[] {
-  if (isRubusMixtDisplay) {
-    return (['floricane', 'primocane'] as const).map((cohort) => ({
-      cohort,
-      stage: resolveStadiuFenologicCurentParcela(stadii, grupBiologic, cohort),
-    }))
-  }
-
-  return [{ cohort: null, stage: resolveStadiuFenologicCurentParcela(stadii, grupBiologic) }]
 }
 
 /** Client: citește toate stadiile sezonului și rezolvă fenofaza curentă (ca header-ul Tratamente). */
