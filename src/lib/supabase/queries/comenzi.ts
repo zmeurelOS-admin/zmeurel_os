@@ -31,6 +31,8 @@ export interface ComandaLinkedVanzare {
   cantitate_kg?: number | null
   pret_lei_kg?: number | null
   suma_incasata_partial_lei?: number | null
+  /** Ziua vânzării (= ziua livrării), pentru „neîncasate de peste 30 de zile”. Lipsește la operator (RPC-ul nu o dă). */
+  data?: string | null
 }
 
 export interface Comanda {
@@ -154,6 +156,7 @@ type ComandaQueryRow = ComandaRow & {
   order_kind?: string | null
   clienti?: Pick<Tables<'clienti'>, 'nume_client'> | null
   vanzare?: {
+    data?: string | null
     status_plata?: string | null
     data_incasare?: string | null
     cantitate_kg?: number | null
@@ -202,6 +205,7 @@ const COMANDA_BASE_SELECT_FIELDS: string = `
     nume_client
   ),
   vanzare:vanzari!comenzi_linked_vanzare_id_fkey (
+    data,
     status_plata,
     data_incasare,
     cantitate_kg,
@@ -371,6 +375,7 @@ function mapComanda(row: ComandaQueryRow): Comanda {
           cantitate_kg: row.vanzare.cantitate_kg ?? null,
           pret_lei_kg: row.vanzare.pret_lei_kg ?? null,
           suma_incasata_partial_lei: row.vanzare.suma_incasata_partial_lei ?? null,
+          data: row.vanzare.data ?? null,
         }
       : null,
     shop_order_id: row.shop_order_link?.shop_order_id ?? null,

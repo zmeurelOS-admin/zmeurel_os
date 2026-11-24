@@ -275,6 +275,45 @@ describe('cronurile verificării zilnice', () => {
     expect(mocks.created.filter((n) => n.type === 'analize_memento')).toHaveLength(1)
   })
 
+  // Promptul 33: „N comenzi neîncasate de peste 30 de zile · total X lei”, o dată pe zi, apoi abia după 7 zile.
+  it('dimineața: neîncasatele de peste 30 de zile, un singur mesaj cumulat, fără dublură la a doua rulare', async () => {
+    vi.setSystemTime(new Date('2026-11-24T05:00:00Z'))
+    const vanzare = (data: string, extra: Row = {}) => ({ data, status_plata: 'neplatit', cantitate_kg: 5, pret_lei_kg: 30, suma_incasata_partial_lei: null, ...extra })
+    mocks.db.comenzi = [
+      { id: 'c1', tenant_id: 't1', status: 'livrata', total: 150, data_livrare: '2026-10-20', linked_vanzare_id: 'v1', vanzare: vanzare('2026-10-20') },
+      { id: 'c2', tenant_id: 't1', status: 'livrata', total: 150, data_livrare: '2026-10-25', linked_vanzare_id: 'v2', vanzare: vanzare('2026-10-25', { suma_incasata_partial_lei: 100 }) },
+      { id: 'c3', tenant_id: 't1', status: 'livrata', total: 150, data_livrare: '2026-11-20', linked_vanzare_id: 'v3', vanzare: vanzare('2026-11-20') },
+      { id: 'c4', tenant_id: 't1', status: 'livrata', total: 150, data_livrare: '2026-09-01', linked_vanzare_id: 'v4', vanzare: vanzare('2026-09-01', { status_plata: 'platit' }) },
+      { id: 'c5', tenant_id: 't-demo', status: 'livrata', total: 150, data_livrare: '2026-09-01', linked_vanzare_id: 'v5', vanzare: vanzare('2026-09-01') },
+    ]
+    const { GET } = await import('@/app/api/cron/notificari-dimineata/route')
+    const first = await (await GET(request('/api/cron/notificari-dimineata'))).json()
+    const trimise = mocks.created.filter((n) => n.type === 'incasari_peste_30')
+    expect(trimise).toHaveLength(1)
+    expect(trimise[0]).toMatchObject({ tenantId: 't1', title: '2 comenzi neîncasate de peste 30 de zile · total 200 lei' })
+    expect(trimise[0].data).toMatchObject({ reminder_key: 'neincasate30:t1:2026-11-24', comanda_ids: ['c1', 'c2'], link: '/comenzi?filter=neincasat30' })
+    expect(first.trimise.incasari_peste_30).toBe(1)
+    expect(first.erori).toBe(0)
+
+    const second = await (await GET(request('/api/cron/notificari-dimineata'))).json()
+    expect(second.trimise.incasari_peste_30).toBe(0)
+    expect(mocks.created.filter((n) => n.type === 'incasari_peste_30')).toHaveLength(1)
+  })
+
+  it('dimineața: neîncasatele de peste 30 de zile nu pleacă din nou mai devreme de 7 zile', async () => {
+    vi.setSystemTime(new Date('2026-11-24T05:00:00Z'))
+    mocks.db.comenzi = [
+      { id: 'c1', tenant_id: 't1', status: 'livrata', total: 150, data_livrare: '2026-10-01', linked_vanzare_id: 'v1', vanzare: { data: '2026-10-01', status_plata: 'neplatit', cantitate_kg: 5, pret_lei_kg: 30, suma_incasata_partial_lei: null } },
+    ]
+    mocks.db.notifications = [
+      { id: 'n-vechi', type: 'incasari_peste_30', created_at: '2026-11-20T05:00:00Z', data: { tenant_id: 't1', reminder_key: 'neincasate30:t1:2026-11-20' } },
+    ]
+    const { GET } = await import('@/app/api/cron/notificari-dimineata/route')
+    const body = await (await GET(request('/api/cron/notificari-dimineata'))).json()
+    expect(body.trimise.incasari_peste_30).toBe(0)
+    expect(mocks.created.filter((n) => n.type === 'incasari_peste_30')).toHaveLength(0)
+  })
+
   it('dimineața: dacă fetch-meteo nu răspunde, încearcă get-meteo; fără niciun răspuns, nicio alertă', async () => {
     vi.setSystemTime(new Date('2027-01-10T05:00:00Z'))
     mocks.db.tenant_settings = [{ tenant_id: 't1', latitudine_default: 47.6, longitudine_default: 26.2 }]

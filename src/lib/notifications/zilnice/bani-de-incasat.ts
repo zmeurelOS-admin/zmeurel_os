@@ -1,11 +1,12 @@
 /**
- * „Bani de încasat”: dimineața, clienții care au de plătit de 7, 14 sau 30 de zile.
+ * „Bani de încasat”: dimineața, clienții care au de plătit de 7 sau 14 zile. De la 30 de zile încolo, comenzile
+ * neîncasate intră în mementoul cumulat „neîncasate de peste 30 de zile” (`neincasate-30.ts`, promptul 33).
  *
  * Restul unei vânzări e cel din Vânzări și din fișa clientului (`vanzareRest` din `lib/vanzari/incasari.ts`):
  * total − plata parțială, 0 pentru vânzările încasate.
  *
  * Pentru fiecare client se socotește de la cea mai veche vânzare (livrare) cu rest. Notificarea pleacă doar
- * în ziua în care aceasta împlinește 7, 14 sau 30 de zile, cu tot restul clientului. Peste 3 clienți în
+ * în ziua în care aceasta împlinește 7 sau 14 zile, cu tot restul clientului. Peste 3 clienți în
  * aceeași zi: o singură notificare pentru toți.
  */
 import { formatLei, round2 } from '@/lib/format-ro'
@@ -28,7 +29,7 @@ export type VanzarePentruIncasare = {
 }
 
 /** Zilele (de la cea mai veche livrare neîncasată) în care te anunțăm. */
-export const ZILE_RESTANTA: readonly number[] = [7, 14, 30]
+export const ZILE_RESTANTA: readonly number[] = [7, 14]
 
 /** Peste atâția clienți în aceeași zi, o singură notificare. */
 export const MAX_CLIENTI_SEPARAT = 3
@@ -91,7 +92,7 @@ export function baniDeIncasat(vanzari: readonly VanzarePentruIncasare[], azi: st
         tenantId,
         type: TIPURI_ZILNICE.incasari_restante,
         title: `${numarRo(deAnuntat.length, 'client are', 'clienți au')} de plătit ${formatLei(lei)}`,
-        body: 'Au trecut 7, 14 sau 30 de zile de la livrare.',
+        body: 'Au trecut 7 sau 14 zile de la livrare.',
         reminderKey: `rest:${tenantId}:grup:${azi}`,
         data: {
           grup: true,

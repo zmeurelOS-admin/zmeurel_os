@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 
 import { AcasaMobile } from '@/components/acasa/AcasaMobile'
 import { MementoAcasa } from '@/components/analize/MementoAcasa'
+import { NeincasatePeste30Acasa } from '@/components/acasa/NeincasatePeste30Acasa'
 import { MementoCapcaneAcasa } from '@/components/capcane/MementoCapcaneAcasa'
 import { AppShell } from '@/components/app/AppShell'
 import { DashboardContentShell } from '@/components/app/DashboardContentShell'
@@ -1708,6 +1709,8 @@ export default function DashboardPage() {
               </Suspense>
               {/* Capcanele: „Verificare azi · N capcane”, până se face verificarea. */}
               <MementoCapcaneAcasa azi={todayIso} />
+              {/* Promptul 33: comenzile neîncasate de peste 30 de zile, doar pentru proprietar. */}
+              <NeincasatePeste30Acasa comenzi={comenzi} azi={todayIso} proprietar={memberRole !== 'operator'} />
             </div>
 
             {/* Telefon (sub 768 px): Acasă pe kit, „ce am de făcut azi”. Grila de pe desktop e mai jos, neschimbată. */}

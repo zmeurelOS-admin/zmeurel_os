@@ -78,6 +78,7 @@ export default defineConfig(({ mode }) => {
         'src/lib/demo/__tests__/demo-gata.test.ts',
         'src/lib/dashboard/__tests__/primii-pasi.test.ts',
         'src/components/acasa/__tests__/PrimiiPasiCard.test.tsx',
+        'src/components/acasa/__tests__/NeincasatePeste30Acasa.test.tsx',
         'src/lib/rapoarte/__tests__/*.test.ts',
         'src/lib/stocuri/__tests__/*.test.ts',
         'src/lib/produse/__tests__/*.test.ts',

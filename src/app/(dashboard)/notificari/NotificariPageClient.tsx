@@ -49,6 +49,7 @@ function iconForType(type: string): { icon: ReactNode; tone: IconTone } {
     case 'comenzi_maine':
       return { icon: <CalendarClock />, tone: 'info' }
     case 'incasari_restante':
+    case 'incasari_peste_30':
       return { icon: <Banknote />, tone: 'warning' }
     case 'order_new':
       return { icon: <ClipboardList />, tone: 'primary' }

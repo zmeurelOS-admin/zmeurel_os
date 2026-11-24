@@ -36,6 +36,7 @@ import {
   type ComenziBucket,
 } from '@/lib/comenzi/day-view'
 import { comandaClientName, comandaNeincasata, comandaRestDeIncasat } from '@/lib/comenzi/display'
+import { esteNeincasataPeste30, textNeincasatePeste30 } from '@/lib/notifications/zilnice/neincasate-30'
 import {
   capitalizeRo,
   formatKg,
@@ -136,7 +137,7 @@ function readPendingFromUrl(searchParams: Pick<URLSearchParams, 'get'>): Pending
 
 // ─── Vederi ────────────────────────────────────────────────────────────────────
 
-type ArchiveFilter = 'toate' | 'active' | 'livrate' | 'neincasate' | 'anulate'
+type ArchiveFilter = 'toate' | 'active' | 'livrate' | 'neincasate' | 'neincasate30' | 'anulate'
 type PageView = { kind: 'zile' } | { kind: 'arhiva'; filter: ArchiveFilter }
 
 const BUCKET_LABEL: Record<ComenziBucket, string> = {
@@ -154,6 +155,8 @@ function initialFromFilter(filter: string | null): { bucket: ComenziBucket; view
   if (filter === 'livrate') return { bucket: 'azi', view: { kind: 'arhiva', filter: 'livrate' } }
   if (filter === 'toate') return { bucket: 'azi', view: { kind: 'arhiva', filter: 'toate' } }
   if (filter === 'neincasat') return { bucket: 'azi', view: { kind: 'arhiva', filter: 'neincasate' } }
+  // Mementoul „neîncasate de peste 30 de zile” (promptul 33, notificarea și rândul din Acasă).
+  if (filter === 'neincasat30') return { bucket: 'azi', view: { kind: 'arhiva', filter: 'neincasate30' } }
   return { bucket: 'azi', view: { kind: 'zile' } }
 }
 
@@ -326,15 +329,20 @@ export function ComenziPageClient() {
     () => comenzi.filter((comanda) => comandaNeincasata(comanda)),
     [comenzi],
   )
+  const neincasate30 = useMemo(
+    () => (todayIso ? neincasate.filter((comanda) => esteNeincasataPeste30(comanda, todayIso)) : []),
+    [neincasate, todayIso],
+  )
   const archiveCounts = useMemo(
     () => ({
       toate: comenzi.length,
       active: comenzi.filter((comanda) => comanda.status !== 'livrata' && comanda.status !== 'anulata').length,
       livrate: comenzi.filter((comanda) => comanda.status === 'livrata').length,
       neincasate: neincasate.length,
+      neincasate30: neincasate30.length,
       anulate: comenzi.filter((comanda) => comanda.status === 'anulata').length,
     }),
-    [comenzi, neincasate],
+    [comenzi, neincasate, neincasate30],
   )
   const archiveFilter = view.kind === 'arhiva' ? view.filter : 'toate'
   const archiveList = useMemo(() => {
@@ -352,6 +360,7 @@ export function ComenziPageClient() {
         ) {
           return false
         }
+        if (archiveFilter === 'neincasate30' && !(todayIso && esteNeincasataPeste30(comanda, todayIso))) return false
         if (!text) return true
         if (searchKey(comandaClientName(comanda, clientMap)).includes(text)) return true
         return digits.length >= 3 && phoneDigits(comanda.telefon).includes(digits)
@@ -361,7 +370,7 @@ export function ComenziPageClient() {
         const rightDay = right.data_livrare ?? right.data_comanda ?? ''
         return rightDay.localeCompare(leftDay) || String(right.created_at).localeCompare(String(left.created_at))
       })
-  }, [archiveFilter, archiveSearch, clientMap, comenzi, view.kind])
+  }, [archiveFilter, archiveSearch, clientMap, comenzi, todayIso, view.kind])
 
   useEffect(() => {
     const query = archiveSearch.trim()
@@ -449,9 +458,17 @@ export function ComenziPageClient() {
             { value: 'active', label: 'Active', count: archiveCounts.active },
             { value: 'livrate', label: 'Livrate', count: archiveCounts.livrate },
             { value: 'neincasate', label: 'Neîncasate', count: archiveCounts.neincasate },
+            ...(archiveCounts.neincasate30 > 0 || archiveFilter === 'neincasate30'
+              ? [{ value: 'neincasate30' as const, label: 'Peste 30 de zile', count: archiveCounts.neincasate30 }]
+              : []),
             { value: 'anulate', label: 'Anulate', count: archiveCounts.anulate },
           ]}
         />
+        {archiveFilter === 'neincasate30' && neincasate30.length > 0 ? (
+          <Notice tone="warning" title={textNeincasatePeste30({ numar: neincasate30.length, lei: neincasate30.reduce((sum, comanda) => sum + comandaRestDeIncasat(comanda), 0) })}>
+            Livrate acum cel puțin 30 de zile și încă neîncasate.
+          </Notice>
+        ) : null}
         {archiveFilter === 'neincasate' && neincasate.length > 0 ? (
           <Notice tone="warning" title={`De încasat: ${formatLei(neincasate.reduce((sum, comanda) => sum + comandaRestDeIncasat(comanda), 0))}`}>
             Din {neincasate.length} {neincasate.length === 1 ? 'comandă livrată' : 'comenzi livrate'}.

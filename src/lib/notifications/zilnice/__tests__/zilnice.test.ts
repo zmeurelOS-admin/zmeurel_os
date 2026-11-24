@@ -141,12 +141,12 @@ describe('baniDeIncasat', () => {
     expect(result[0].body).toBe('Cea mai veche livrare neîncasată e din 6 noiembrie.')
   })
 
-  it('doar în zilele 7, 14 și 30', () => {
+  // Promptul 33: pragul de 30 de zile a ieșit (de la 30 încolo merge mementoul cumulat, `neincasate-30.ts`).
+  it('doar în zilele 7 și 14', () => {
     const zile = (data: string) => baniDeIncasat([vanzare({ data })], azi).map((n) => n.title)
     expect(zile('2026-11-13')).toEqual(['Ioana Rotaru: 120 lei de 7 zile'])
     expect(zile('2026-11-06')).toEqual(['Ioana Rotaru: 120 lei de 14 zile'])
-    expect(zile('2026-10-21')).toEqual(['Ioana Rotaru: 120 lei de 30 de zile'])
-    for (const data of ['2026-11-20', '2026-11-14', '2026-11-12', '2026-11-07', '2026-10-22', '2026-10-20', '2026-09-01']) {
+    for (const data of ['2026-10-21', '2026-11-20', '2026-11-14', '2026-11-12', '2026-11-07', '2026-10-22', '2026-10-20', '2026-09-01']) {
       expect(zile(data)).toEqual([])
     }
   })
@@ -186,7 +186,7 @@ describe('baniDeIncasat', () => {
       [
         vanzare({ client_id: 'a', client_nume: 'A' }),
         vanzare({ client_id: 'b', client_nume: 'B', data: '2026-11-13' }),
-        vanzare({ client_id: 'c', client_nume: 'C', data: '2026-10-21' }),
+        vanzare({ client_id: 'c', client_nume: 'C', data: '2026-11-06' }),
       ],
       azi,
     )
@@ -194,7 +194,7 @@ describe('baniDeIncasat', () => {
     expect(result.map((n) => n.reminderKey).sort()).toEqual([
       'rest:t1:a:14:2026-11-20',
       'rest:t1:b:7:2026-11-20',
-      'rest:t1:c:30:2026-11-20',
+      'rest:t1:c:14:2026-11-20',
     ])
   })
 
@@ -203,7 +203,7 @@ describe('baniDeIncasat', () => {
       [
         vanzare({ client_id: 'a', pret_lei_kg: 50 }), // 200
         vanzare({ client_id: 'b', pret_lei_kg: 50, data: '2026-11-13' }), // 200
-        vanzare({ client_id: 'c', pret_lei_kg: 50, data: '2026-10-21' }), // 200
+        vanzare({ client_id: 'c', pret_lei_kg: 50, data: '2026-11-06' }), // 200
         vanzare({ client_id: 'd', pret_lei_kg: 65 }), // 260
         vanzare({ client_id: 'e', data: '2026-11-10' }), // 10 zile: nu intră
       ],

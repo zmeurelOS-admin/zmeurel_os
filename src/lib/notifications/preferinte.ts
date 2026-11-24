@@ -58,7 +58,7 @@ export const NOTIFICARI_PREFERINTE_IMPLICITE: NotificariPreferinte = {
 export const NOTIFICARI_TEXTE: Record<NotificareCheie, { titlu: string; detaliu: string }> = {
   noi: { titlu: 'Comenzi noi', detaliu: 'Când un client comandă din magazin' },
   maine: { titlu: 'Comenzi de mâine', detaliu: 'Seara la 19:00 (vara la 20:00), dacă nu sunt puse în livrare' },
-  rest: { titlu: 'Bani de încasat', detaliu: 'La 7, 14 și 30 de zile de la livrare' },
+  rest: { titlu: 'Bani de încasat', detaliu: 'La 7 și 14 zile de la livrare, apoi o dată pe săptămână după 30' },
   meteo: { titlu: 'Îngheț și grindină', detaliu: 'Dimineața, pentru {loc}' },
   pauza: { titlu: 'Pauza după tratament', detaliu: 'Când se poate culege din nou din parcelă' },
   tratamente: { titlu: 'Tratamente planificate', detaliu: 'Dimineața, în ziua lor' },
@@ -82,7 +82,8 @@ export const NOTIFICARI_METEO_FARA_LOC = 'Dimineața, după ce salvezi locul fer
  *   nu vrea nici pentru schimbările lor. (Azi push-ul pentru el e oprit oricum din `config.ts`.)
  * - `butasi_delivery_reminder` și `comenzi_maine` → `maine`: mementourile din cron pentru livrările de mâine
  *   (material săditor, respectiv comenzile de fructe încă nepuse în livrare).
- * - `incasari_restante` → `rest`: clienții cu bani de dat de 7, 14 sau 30 de zile.
+ * - `incasari_restante` → `rest`: clienții cu bani de dat de 7 sau 14 zile.
+ * - `incasari_peste_30` → `rest`: comenzile neîncasate de peste 30 de zile, cumulat, cel mult o dată la 7 zile (doar proprietarul).
  * - `tratament_planificat` → `tratamente` (cheie nouă, nu `pauza`): mementoul de dimineață pentru tratamentele
  *   planificate azi. E altceva decât pauza (care anunță când se poate culege din nou), deci are comutatorul lui.
  * - Perechile lui `product_listed` / `producer_approved` (`product_unlisted`, `producer_suspended`)
@@ -104,6 +105,7 @@ const TIP_LA_CHEIE: Record<string, NotificareCheie> = {
   butasi_delivery_reminder: 'maine',
   comenzi_maine: 'maine',
   incasari_restante: 'rest',
+  incasari_peste_30: 'rest',
   tratament_reminder: 'pauza',
   tratament_planificat: 'tratamente',
   analize_memento: 'analize',

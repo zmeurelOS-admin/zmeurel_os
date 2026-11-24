@@ -9,11 +9,13 @@ import {
   alertaMeteo,
   baniDeIncasat,
   esteLuni,
+  notificareNeincasatePeste30,
   produsePeTerminate,
   prognozaDinFetchMeteo,
   tratamentePlanificateAzi,
   ziuaInBucuresti,
   type AplicarePlanificata,
+  type ComandaPentruNeincasate,
   type RaspunsFetchMeteo,
   type VanzarePentruIncasare,
 } from '@/lib/notifications/zilnice'
@@ -61,6 +63,69 @@ async function vanzariFerma(admin: Admin, tenantId: string): Promise<VanzarePent
     }
   }
   return rows.map((row) => ({ ...row, client_nume: row.client_id ? (nume.get(row.client_id) ?? null) : null }))
+}
+
+type ComandaLivrataRow = {
+  id: string
+  tenant_id: string
+  status: string
+  total: number | string | null
+  data_livrare: string | null
+  vanzare: {
+    data: string | null
+    status_plata: string | null
+    cantitate_kg: number | string | null
+    pret_lei_kg: number | string | null
+    suma_incasata_partial_lei: number | string | null
+  } | null
+}
+
+const numarSauNull = (value: number | string | null | undefined): number | null =>
+  value === null || value === undefined || value === '' ? null : Number(value)
+
+/** Comenzile livrate ale fermei, cu vânzarea legată (doar citire), pentru „neîncasate de peste 30 de zile”. */
+async function comenziLivrateFerma(admin: Admin, tenantId: string): Promise<ComandaPentruNeincasate[]> {
+  const rows = await citesteTot<ComandaLivrataRow>((de, pana) =>
+    admin
+      .from('comenzi')
+      .select('id, tenant_id, status, total, data_livrare, vanzare:vanzari!comenzi_linked_vanzare_id_fkey(data, status_plata, cantitate_kg, pret_lei_kg, suma_incasata_partial_lei)')
+      .eq('tenant_id', tenantId)
+      .eq('status', 'livrata')
+      .not('linked_vanzare_id', 'is', null)
+      .order('id', { ascending: true })
+      .range(de, pana) as unknown as PromiseLike<{ data: ComandaLivrataRow[] | null; error: unknown }>,
+  )
+  return rows.map((row) => ({
+    id: row.id,
+    tenant_id: row.tenant_id,
+    status: 'livrata',
+    total: Number(row.total) || 0,
+    data_livrare: row.data_livrare,
+    linked_vanzare: row.vanzare
+      ? {
+          data: row.vanzare.data,
+          status_plata: row.vanzare.status_plata,
+          data_incasare: null,
+          cantitate_kg: numarSauNull(row.vanzare.cantitate_kg),
+          pret_lei_kg: numarSauNull(row.vanzare.pret_lei_kg),
+          suma_incasata_partial_lei: numarSauNull(row.vanzare.suma_incasata_partial_lei),
+        }
+      : null,
+  }))
+}
+
+/** Ziua (București) ultimei notificări „neîncasate de peste 30 de zile” a fermei, sau `null`. */
+async function ultimaNeincasate30(admin: Admin, tenantId: string): Promise<string | null> {
+  const { data, error } = await admin
+    .from('notifications')
+    .select('created_at')
+    .eq('type', TIPURI_ZILNICE.incasari_peste_30)
+    .eq('data->>tenant_id', tenantId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+  if (error) throw error
+  const createdAt = (data ?? [])[0]?.created_at
+  return createdAt ? ziuaInBucuresti(new Date(createdAt)) : null
 }
 
 /** Coloana lipsește (migrarea încă neaplicată): Postgres 42703, PostgREST PGRST204. */
@@ -175,7 +240,9 @@ async function prognozaFerma(admin: Admin, tenantId: string): Promise<RaspunsFet
 /**
  * Dimineața (05:00 UTC: 7:00 iarna, 8:00 vara, ora României), pentru fiecare fermă reală:
  * - „Îngheț și grindină”, doar dacă ferma are locul salvat (Setări › Ferma);
- * - „Bani de încasat”, clienții cu bani de dat de 7, 14 sau 30 de zile;
+ * - „Bani de încasat”, clienții cu bani de dat de 7 sau 14 zile;
+ * - „Neîncasate de peste 30 de zile”, doar proprietarului: un mesaj cumulat, cel mult o dată la 7 zile (cheia
+ *   `neincasate30:<fermă>:<zi>`; `src/lib/notifications/zilnice/neincasate-30.ts`);
  * - „Tratamente planificate”, o notificare pe fermă în ziua lor (cheia `tratament:<fermă>:<zi>`);
  * - „Produse pe terminate”, doar lunea, doar proprietarului (cheia `magazie:<fermă>:<zi>`; fără migrarea Magaziei, nimic);
  * - „Verifică capcanele”, în ziua verificării (și după, până se face), proprietarului și operatorilor activi cu „Scrie”
@@ -202,6 +269,7 @@ export async function GET(request: Request) {
       TIPURI_ZILNICE.meteo_inghet,
       TIPURI_ZILNICE.meteo_grindina,
       TIPURI_ZILNICE.incasari_restante,
+      TIPURI_ZILNICE.incasari_peste_30,
       TIPURI_ZILNICE.tratament_planificat,
       TIPURI_ZILNICE.analize_memento,
       TIPURI_ZILNICE.magazie_pe_terminate,
@@ -251,6 +319,20 @@ export async function GET(request: Request) {
         verificata = false
         contor.erori += 1
         captureApiError(error, { route: ROUTE, tenantId: ferma.id, tags: { pas: 'incasari' } })
+      }
+
+      try {
+        const notificare = notificareNeincasatePeste30({
+          tenantId: ferma.id,
+          azi,
+          comenzi: await comenziLivrateFerma(admin, ferma.id),
+          ultimaTrimitere: await ultimaNeincasate30(admin, ferma.id),
+        })
+        if (notificare) numara(contor, notificare.type, await trimiteNotificareZilnica(admin, notificare))
+      } catch (error) {
+        verificata = false
+        contor.erori += 1
+        captureApiError(error, { route: ROUTE, tenantId: ferma.id, tags: { pas: 'neincasate30' } })
       }
 
       try {

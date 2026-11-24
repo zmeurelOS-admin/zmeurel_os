@@ -76,6 +76,9 @@ export function getNotificationHref(
     case 'analize_memento':
       // Foaia „Analiza dinainte de cules”, în Acasă.
       return '/dashboard?memento=analize'
+    case 'incasari_peste_30':
+      // Lista din Comenzi, filtrată pe neîncasatele de peste 30 de zile.
+      return '/comenzi?filter=neincasat30'
     case 'incasari_restante': {
       // Un client: fișa lui. Mai mulți (varianta grupată): lista de clienți.
       const clientId = typeof d['client_id'] === 'string' && d['client_id'] ? d['client_id'] : null

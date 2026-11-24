@@ -104,7 +104,17 @@ export const NOTIFICATION_CONFIG = {
   incasari_restante: {
     icon: '💰',
     color: '#e6a817',
-    /** Avertizare: bani de încasat de 7, 14 sau 30 de zile. */
+    /** Avertizare: bani de încasat de 7 sau 14 zile (de la 30, `incasari_peste_30`). */
+    ton: 'avertizare',
+    toastDuration: 6000,
+    showToast: true,
+    playSound: false,
+    pushEnabled: true,
+  },
+  incasari_peste_30: {
+    icon: '💰',
+    color: '#e6a817',
+    /** Avertizare: comenzi neîncasate de peste 30 de zile (cumulat, cel mult o dată la 7 zile). */
     ton: 'avertizare',
     toastDuration: 6000,
     showToast: true,

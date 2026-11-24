@@ -5,6 +5,8 @@
 export const TIPURI_ZILNICE = {
   comenzi_maine: 'comenzi_maine',
   incasari_restante: 'incasari_restante',
+  /** Promptul 33: „N comenzi neîncasate de peste 30 de zile · total X lei”, cumulat, cel mult o dată la 7 zile. */
+  incasari_peste_30: 'incasari_peste_30',
   meteo_inghet: 'meteo_inghet',
   meteo_grindina: 'meteo_grindina',
   tratament_planificat: 'tratament_planificat',
