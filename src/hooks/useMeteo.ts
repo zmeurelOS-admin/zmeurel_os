@@ -37,6 +37,10 @@ type MeteoResponse = {
     canSpray: boolean
     reason?: string
   }
+  /** Următoarele 3 zile (promptul 33; după redeploy-ul `fetch-meteo`). */
+  forecastZile?: Array<{ zi: string; tempMin: number | null; tempMax: number | null; ploaieMm: number | null; vantMaxKmh: number | null; icon: string | null }> | null
+  /** `fara_loc` = ferma n-are loc salvat și nicio parcelă n-are coordonate. */
+  motiv?: 'fara_loc'
 }
 
 interface MeteoCoords {

@@ -79,6 +79,7 @@ import {
   STOCK_AUDIT_CRITICAL_STOCK_THRESHOLD_KG,
   STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG,
 } from '@/lib/calculations/stock-audit-thresholds'
+import { useLocFerma } from '@/hooks/useLocFerma'
 import { useMeteo } from '@/hooks/useMeteo'
 import { queryKeys } from '@/lib/query-keys'
 import { useAplicariTratament } from '@/lib/tratamente/hooks'
@@ -316,7 +317,10 @@ export default function DashboardPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const { userId, tenantId, associationShopApproved, memberRole } = useDashboardAuth()
-  const meteo = useMeteo()
+  // Promptul 33: vremea doar pentru o fermă cu loc (Setări › Ferma sau o parcelă cu coordonate).
+  const locFerma = useLocFerma()
+  const meteo = useMeteo({ enabled: locFerma.areLoc === true })
+  const faraLocFerma = locFerma.areLoc === false
   const [editMode, setEditMode] = useState(false)
   const [editableGridReady, setEditableGridReady] = useState(false)
   const [addWidgetOpen, setAddWidgetOpen] = useState(false)
@@ -1626,8 +1630,10 @@ export default function DashboardPage() {
                   <MeteoDashboardCard
                     compact
                     data={meteo.data}
-                    loading={meteo.loading}
+                    loading={meteo.loading || locFerma.areLoc === null}
                     error={meteo.error}
+                    faraLoc={faraLocFerma}
+                    azi={todayIso}
                     primaryContext={farmContext.primaryContext}
                     microclimate={dashboardMicroclimate}
                     className="dashboard-meteo-hero"
@@ -1726,6 +1732,7 @@ export default function DashboardPage() {
                 culturi={culturiFerma}
                 parcelStates={parcelStates}
                 meteo={meteo.data}
+                faraLoc={faraLocFerma}
                 pauze={acasaPauze}
                 tratamenteAzi={acasaTratamenteAzi}
                 lucrariAzi={acasaLucrariAzi}

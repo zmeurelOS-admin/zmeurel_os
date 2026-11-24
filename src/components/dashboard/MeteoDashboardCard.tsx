@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 
+import { PrognozaZile, PuneLoculFermei } from '@/components/acasa/PrognozaZile'
 import { DashboardCard } from '@/components/dashboard/DashboardCard'
+import { zilePrognoza } from '@/lib/dashboard/prognoza'
 import { cn } from '@/lib/utils'
 
 type MeteoData = {
@@ -27,6 +29,8 @@ type MeteoData = {
     canSpray: boolean
     reason?: string
   }
+  forecastZile?: unknown
+  motiv?: 'fara_loc'
 }
 
 function formatNumber(value: number | null | undefined, digits = 1): string {
@@ -118,7 +122,13 @@ export function MeteoDashboardCard({
   microclimate,
   className,
   compact = false,
+  faraLoc = false,
+  azi = null,
 }: {
+  /** Promptul 33: ferma n-are loc (nici în Setări, nici pe parcele): „Pune locul fermei ca să vezi vremea ta”. */
+  faraLoc?: boolean
+  /** Ziua de azi (București), pentru următoarele 3 zile. */
+  azi?: string | null
   data: MeteoData | null
   loading: boolean
   error: string | null
@@ -164,39 +174,17 @@ export function MeteoDashboardCard({
     )
   }
 
-  if (error) {
+  // Promptul 33: fără locul fermei, rândul spre Setări (nicio locație implicită tăcută).
+  if (faraLoc || data?.motiv === 'fara_loc') {
     return (
       <DashboardCard title="Meteo azi" className={cn('overflow-hidden', compact && 'dashboard-meteo-compact', className)}>
-        <p className="text-sm text-[var(--text-secondary)]">Meteo indisponibil. Verifică mai târziu.</p>
+        <PuneLoculFermei />
       </DashboardCard>
     )
   }
 
-  if (!data?.available) {
-    const edgeError = (data?.error ?? '').trim()
-    const isLikelyCoordsHint =
-      !edgeError ||
-      edgeError.toLowerCase().includes('tenant invalid') ||
-      edgeError.toLowerCase().includes('coord')
-
-    return (
-      <DashboardCard title="Meteo azi" className={cn('overflow-hidden', compact && 'dashboard-meteo-compact', className)}>
-        <div className="space-y-2 text-sm text-[var(--text-secondary)]">
-          {edgeError && !isLikelyCoordsHint ? (
-            <>
-              <p>Meteo nu s-a putut încărca: {edgeError}</p>
-              <p className="text-xs">
-                Dacă mesajul menționează serviciul meteo sau cheia API, verifică `OPENWEATHERMAP_API_KEY` și deploy-ul
-                funcțiilor `fetch-meteo` / `get-meteo`.
-              </p>
-            </>
-          ) : (
-            <p>Adaugă coordonate pe un teren comercial sau în Setări pentru a vedea meteo aici.</p>
-          )}
-        </div>
-      </DashboardCard>
-    )
-  }
+  // Serviciul nu răspunde (sau nu e configurat): cardul dispare liniștit.
+  if (error || !data?.available) return null
 
   const sprayStatus = sprayTone(data.spray)
   const isSolarContext = primaryContext === 'solar'
@@ -278,7 +266,12 @@ export function MeteoDashboardCard({
         </div>
       )}
 
-      {data.forecastTomorrow && !isSolarContext ? (
+      {/* Promptul 33: următoarele 3 zile, sub ziua de azi; fără ele (funcția încă nedeployată), rândul vechi „Mâine”. */}
+      {azi && zilePrognoza(data.forecastZile, azi).length > 0 ? (
+        <PrognozaZile zile={zilePrognoza(data.forecastZile, azi)} azi={azi} />
+      ) : null}
+
+      {data.forecastTomorrow && !isSolarContext && !(azi && zilePrognoza(data.forecastZile, azi).length > 0) ? (
         <div className={cn('text-[12px] leading-5 text-[var(--text-secondary)]', compact && 'hidden')}>
           Mâine: {formatNumber(data.forecastTomorrow.tempMin, 1)}° / {formatNumber(data.forecastTomorrow.tempMax, 1)}°
           {' • '}Ploaie {formatPercent(data.forecastTomorrow.pop)}

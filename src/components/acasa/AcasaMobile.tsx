@@ -41,14 +41,19 @@ import { queryKeys } from '@/lib/query-keys'
 import { marcheazaFacut } from '@/lib/supabase/queries/tratamente'
 import { marcheazaLucrariFacute } from '@/lib/supabase/queries/lucrari'
 import type { PauzaParcela } from '@/lib/tratamente/pauza'
+import { zilePrognoza } from '@/lib/dashboard/prognoza'
 import { titluPauza } from '@/lib/tratamente/texte'
 import { toast } from '@/lib/ui/toast'
 import { cn } from '@/lib/utils'
+
+import { PrognozaZile, PuneLoculFermei } from './PrognozaZile'
 
 type MeteoLike = {
   current?: { temp: number | null; windSpeed: number | null } | null
   forecastTomorrow?: { tempMin: number | null; pop: number | null } | null
   spray?: { canSpray: boolean; reason?: string } | null
+  /** Următoarele 3 zile (promptul 33). */
+  forecastZile?: unknown
 } | null
 
 export interface AcasaMobileProps {
@@ -64,6 +69,8 @@ export interface AcasaMobileProps {
   culturi?: readonly CulturaFerma[] | null
   parcelStates: readonly ParcelDashboardState[]
   meteo: MeteoLike
+  /** Promptul 33: ferma n-are loc (nici în Setări, nici pe parcele): „Pune locul fermei ca să vezi vremea ta”. */
+  faraLoc?: boolean
   /** Pauzele active azi (sursa unică din `lib/tratamente/pauza`), cu numele parcelei. */
   pauze?: ReadonlyArray<PauzaParcela & { nume: string }>
   /** Tratamentele planificate azi (modulul Tratamente). */
@@ -106,6 +113,7 @@ export function AcasaMobile({
   stocDisponibilKg,
   parcelStates,
   meteo,
+  faraLoc = false,
   culturi = null,
   pauze = [],
   tratamenteAzi = [],
@@ -258,6 +266,9 @@ export function AcasaMobile({
           </p>
         ) : null}
       </div>
+
+      {/* Vremea pe următoarele 3 zile, sub ziua de azi (promptul 33); fără loc, rândul spre Setări. */}
+      {faraLoc ? <PuneLoculFermei /> : <PrognozaZile zile={zilePrognoza(meteo?.forecastZile, todayIso)} azi={todayIso} />}
 
       {stare.intreaba ? (
         <Notice

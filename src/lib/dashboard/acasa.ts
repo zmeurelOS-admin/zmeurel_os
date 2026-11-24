@@ -89,6 +89,9 @@ type MeteoInput = {
   forecastTomorrow?: { tempMin: number | null; pop: number | null } | null
 } | null
 
+/** De la câți km/h vântul e incomod pentru stropit și cules. */
+export const PRAG_VANT_KMH = 22
+
 export function meteoScurt(meteo: MeteoInput, perioada: Perioada): MeteoScurt {
   const temp = meteo?.current?.temp ?? null
   const tempMin = meteo?.forecastTomorrow?.tempMin ?? null
@@ -102,8 +105,9 @@ export function meteoScurt(meteo: MeteoInput, perioada: Perioada): MeteoScurt {
   }
 
   if (pop !== null && pop >= 0.5) return { temp, nota: `ploaie mâine (${Math.round(pop * 100)}%)`, tone: 'warning' }
-  // Viteza vine în m/s; peste ~6 m/s (22 km/h) stropitul și culesul sunt incomode.
-  if (wind !== null && wind >= 6) return { temp, nota: `vânt ${Math.round(wind * 3.6)} km/h`, tone: 'warning' }
+  // Viteza vine deja în km/h (`fetch-meteo` o înmulțește cu 3,6; promptul 33 a reparat dubla conversie).
+  // Peste ~22 km/h stropitul și culesul sunt incomode.
+  if (wind !== null && wind >= PRAG_VANT_KMH) return { temp, nota: `vânt ${Math.round(wind)} km/h`, tone: 'warning' }
   return { temp, nota: null, tone: 'neutral' }
 }
 

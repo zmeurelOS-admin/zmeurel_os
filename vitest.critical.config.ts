@@ -83,6 +83,7 @@ export default defineConfig(({ mode }) => {
         'src/lib/dashboard/__tests__/primii-pasi.test.ts',
         'src/components/acasa/__tests__/PrimiiPasiCard.test.tsx',
         'src/components/acasa/__tests__/NeincasatePeste30Acasa.test.tsx',
+        'src/components/acasa/__tests__/PrognozaZile.test.tsx',
         'src/lib/rapoarte/__tests__/*.test.ts',
         'src/lib/stocuri/__tests__/*.test.ts',
         'src/components/stocuri/__tests__/*.test.tsx',

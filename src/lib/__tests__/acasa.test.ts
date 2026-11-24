@@ -221,7 +221,9 @@ describe('Acasă — cardurile', () => {
     const meteo = { current: { temp: 12.4, windSpeed: 2 }, forecastTomorrow: { tempMin: -2, pop: 0.7 } }
     expect(meteoScurt(meteo, 'sezon')).toMatchObject({ temp: 12.4, nota: 'ploaie mâine (70%)', tone: 'warning' })
     expect(meteoScurt(meteo, 'extrasezon')).toMatchObject({ nota: 'îngheț mâine (-2°)', tone: 'warning' })
-    expect(meteoScurt({ current: { temp: 20, windSpeed: 8 }, forecastTomorrow: { tempMin: 10, pop: 0.1 } }, 'sezon').nota).toBe('vânt 29 km/h')
+    // Viteza vine în km/h (promptul 33): 8 km/h nu e vânt de avertizat; 29 km/h da, fără altă conversie.
+    expect(meteoScurt({ current: { temp: 20, windSpeed: 8 }, forecastTomorrow: { tempMin: 10, pop: 0.1 } }, 'sezon').nota).toBeNull()
+    expect(meteoScurt({ current: { temp: 20, windSpeed: 29 }, forecastTomorrow: { tempMin: 10, pop: 0.1 } }, 'sezon').nota).toBe('vânt 29 km/h')
     expect(meteoScurt(null, 'sezon')).toEqual({ temp: null, nota: null, tone: 'neutral' })
   })
 })

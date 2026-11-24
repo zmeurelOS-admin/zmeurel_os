@@ -2,16 +2,18 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 
 import {
   EMPTY_TOMORROW,
+  aggregateNextDaysFromForecast5,
   aggregateTomorrowFromForecast5,
   readFurtuniFromRawJson,
+  readForecastZileFromRawJson,
   type IntervalFurtuna,
   type OpenWeatherForecast5Response,
   type TomorrowAgg,
+  type ZiPrognoza,
 } from './meteo-forecast.ts'
 
-/** Ultim resort (Suceava) — aliniat la seed demo, dacă tenantul nu are încă GPS în parcele/setări */
-const DEFAULT_METEO_LAT = 47.6514
-const DEFAULT_METEO_LON = 26.2553
+// Promptul 33: fără locație implicită tăcută. Fără locul fermei (Setări › Ferma) și fără coordonate pe vreo parcelă,
+// răspunsul e `{ available: false, motiv: 'fara_loc' }` și aplicația arată „Pune locul fermei ca să vezi vremea ta”.
 
 type MeteoCacheRow = {
   id: string
@@ -56,7 +58,7 @@ async function fetchOpenWeatherCurrentAndForecast(
   appid: string,
 ): Promise<
   | { ok: false; status: number; body: string }
-  | { ok: true; current: OpenWeather25Response; tomorrow: TomorrowAgg }
+  | { ok: true; current: OpenWeather25Response; tomorrow: TomorrowAgg; zile: ZiPrognoza[] }
 > {
   const currentUrl = new URL('https://api.openweathermap.org/data/2.5/weather')
   currentUrl.searchParams.set('lat', String(lat))
@@ -82,11 +84,13 @@ async function fetchOpenWeatherCurrentAndForecast(
   const current = await currentRes.json() as OpenWeather25Response
 
   let tomorrow: TomorrowAgg = EMPTY_TOMORROW
+  let zile: ZiPrognoza[] = []
   if (forecastRes.ok) {
     try {
       const forecastJson = await forecastRes.json() as OpenWeatherForecast5Response
       const agg = aggregateTomorrowFromForecast5(forecastJson)
       if (agg) tomorrow = agg
+      zile = aggregateNextDaysFromForecast5(forecastJson)
     } catch (e) {
       console.warn('[meteo] forecast JSON parse failed', e)
     }
@@ -95,7 +99,7 @@ async function fetchOpenWeatherCurrentAndForecast(
     console.warn('[meteo] forecast 5d non-OK', { status: forecastRes.status, body: preview.slice(0, 200) })
   }
 
-  return { ok: true, current, tomorrow }
+  return { ok: true, current, tomorrow, zile }
 }
 
 type SprayAdvice = {
@@ -129,7 +133,11 @@ type MeteoPayload = {
      */
     furtuni: IntervalFurtuna[] | null
   }
+  /** Următoarele 3 zile (promptul 33). `null` = rând de cache scris de o versiune veche. */
+  forecastZile?: ZiPrognoza[] | null
   spray?: SprayAdvice
+  /** `fara_loc` = ferma n-are locul salvat și nicio parcelă n-are coordonate. */
+  motiv?: 'fara_loc'
 }
 
 export const meteoCorsHeaders = {
@@ -229,6 +237,7 @@ function formatCacheRow(row: MeteoCacheRow, source: 'cache' | 'fresh'): MeteoPay
       pop: row.forecast_tomorrow_pop,
       furtuni: readFurtuniFromRawJson(row.raw_json),
     },
+    forecastZile: readForecastZileFromRawJson(row.raw_json),
     spray,
   }
 }
@@ -262,6 +271,7 @@ function buildEphemeralMeteoPayload(
   lat: number,
   lon: number,
   tomorrow: TomorrowAgg,
+  zile: ZiPrognoza[],
 ): MeteoPayload {
   const cur = extractCurrentFromOpenWeather25(weatherJson)
   const now = new Date().toISOString()
@@ -292,6 +302,7 @@ function buildEphemeralMeteoPayload(
       pop: tomorrow.pop,
       furtuni: tomorrow.furtuni,
     },
+    forecastZile: zile,
     spray,
   }
 }
@@ -387,7 +398,7 @@ export async function handleMeteoRequest(request: Request): Promise<Response> {
         return jsonOpenWeatherHttpFailure(bundle.status, bundle.body)
       }
       return jsonResponse(
-        buildEphemeralMeteoPayload(bundle.current, bodyLatEarly, bodyLonEarly, bundle.tomorrow),
+        buildEphemeralMeteoPayload(bundle.current, bodyLatEarly, bodyLonEarly, bundle.tomorrow, bundle.zile),
       )
     }
 
@@ -403,7 +414,7 @@ export async function handleMeteoRequest(request: Request): Promise<Response> {
       if (!bundle.ok) {
         return jsonOpenWeatherHttpFailure(bundle.status, bundle.body)
       }
-      return jsonResponse(buildEphemeralMeteoPayload(bundle.current, bodyLat, bodyLon, bundle.tomorrow))
+      return jsonResponse(buildEphemeralMeteoPayload(bundle.current, bodyLat, bodyLon, bundle.tomorrow, bundle.zile))
     }
 
     return jsonResponse({ available: false }, 200)
@@ -441,13 +452,28 @@ export async function handleMeteoRequest(request: Request): Promise<Response> {
     return q
   }
 
-  const { data: parcelaComercial, error: parcelaComErr } = await readParcelCoords(true)
-  if (parcelaComErr) {
-    return jsonResponse({ error: parcelaComErr.message }, 500)
+  // Promptul 33: locul fermei din Setări › Ferma întâi, altfel coordonatele unei parcele (comerciale, apoi oricare).
+  const { data: settingsRow, error: settingsError } = await supabase
+    .from('tenant_settings')
+    .select('latitudine_default,longitudine_default')
+    .eq('tenant_id', resolvedTenantId)
+    .maybeSingle()
+
+  if (settingsError) {
+    return jsonResponse({ error: settingsError.message }, 500)
   }
 
-  let lat = asFiniteNumber(parcelaComercial?.[0]?.latitudine)
-  let lon = asFiniteNumber(parcelaComercial?.[0]?.longitudine)
+  let lat = asFiniteNumber(settingsRow?.latitudine_default)
+  let lon = asFiniteNumber(settingsRow?.longitudine_default)
+
+  if (lat === null || lon === null) {
+    const { data: parcelaComercial, error: parcelaComErr } = await readParcelCoords(true)
+    if (parcelaComErr) {
+      return jsonResponse({ error: parcelaComErr.message }, 500)
+    }
+    lat = asFiniteNumber(parcelaComercial?.[0]?.latitudine)
+    lon = asFiniteNumber(parcelaComercial?.[0]?.longitudine)
+  }
 
   if (lat === null || lon === null) {
     const { data: parcelaOrice, error: parcelaAnyErr } = await readParcelCoords(false)
@@ -459,23 +485,7 @@ export async function handleMeteoRequest(request: Request): Promise<Response> {
   }
 
   if (lat === null || lon === null) {
-    const { data: settingsRow, error: settingsError } = await supabase
-      .from('tenant_settings')
-      .select('latitudine_default,longitudine_default')
-      .eq('tenant_id', resolvedTenantId)
-      .maybeSingle()
-
-    if (settingsError) {
-      return jsonResponse({ error: settingsError.message }, 500)
-    }
-
-    lat = asFiniteNumber(settingsRow?.latitudine_default)
-    lon = asFiniteNumber(settingsRow?.longitudine_default)
-  }
-
-  if (lat === null || lon === null) {
-    lat = DEFAULT_METEO_LAT
-    lon = DEFAULT_METEO_LON
+    return jsonResponse({ available: false, motiv: 'fara_loc' } satisfies MeteoPayload)
   }
 
   const bundle = await fetchOpenWeatherCurrentAndForecast(lat, lon, openWeatherApiKey)
@@ -501,7 +511,7 @@ export async function handleMeteoRequest(request: Request): Promise<Response> {
     forecast_tomorrow_temp_max: tomorrow.tempMax,
     forecast_tomorrow_icon: tomorrow.icon,
     forecast_tomorrow_pop: tomorrow.pop,
-    raw_json: { current: weatherJson, forecast_tomorrow: tomorrow },
+    raw_json: { current: weatherJson, forecast_tomorrow: tomorrow, forecast_zile: bundle.zile },
   }
 
   const { data: insertedRows, error: insertError } = await supabase

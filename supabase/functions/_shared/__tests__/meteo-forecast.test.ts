@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { prognozaDinFetchMeteo, alertaMeteo } from '@/lib/notifications/zilnice'
 
-import { aggregateTomorrowFromForecast5, readFurtuniFromRawJson } from '../meteo-forecast'
+import { aggregateNextDaysFromForecast5, aggregateTomorrowFromForecast5, readForecastZileFromRawJson, readFurtuniFromRawJson } from '../meteo-forecast'
 
 /** 2026-07-10 08:00 în București (05:00 UTC); „mâine” = 2026-07-11. */
 const ACUM = Date.parse('2026-07-10T05:00:00Z')
@@ -74,5 +74,37 @@ describe('alerta de furtună cu prognoza nouă', () => {
       forecastTomorrow: { tempMin: 14, icon: '10d', pop: 0.95 },
     })
     expect(alertaMeteo(prognoza, new Date(ACUM)).some((a) => a.title.includes('furtună'))).toBe(false)
+  })
+})
+
+// Promptul 33: următoarele 3 zile, pe ziua din București.
+describe('aggregateNextDaysFromForecast5', () => {
+  const ACUM_IARNA = Date.parse('2026-11-24T06:00:00Z') // 8:00 în București
+  const la = (zi: string, ora: number) => Date.parse(`${zi}T${String(ora).padStart(2, '0')}:00:00+02:00`) / 1000
+  const prognoza = {
+    list: [
+      { dt: la('2026-11-24', 15), main: { temp_min: 5, temp_max: 8 }, rain: { '3h': 4 }, wind: { speed: 9 } }, // azi: nu intră
+      { dt: la('2026-11-25', 3), main: { temp_min: -2, temp_max: 0 }, wind: { speed: 2 }, pop: 0 },
+      { dt: la('2026-11-25', 12), main: { temp_min: 3, temp_max: 6 }, rain: { '3h': 1.5 }, wind: { speed: 5 }, pop: 0.6, weather: [{ icon: '10d' }] },
+      { dt: la('2026-11-26', 9), main: { temp: 7 }, rain: { '3h': 12 }, wind: { speed: 4 } },
+      { dt: la('2026-11-26', 15), main: { temp: 9 }, rain: { '3h': 10 }, snow: { '3h': 0.4 }, wind: { speed: 6.2 } },
+      { dt: la('2026-11-27', 12), main: { temp_min: 1, temp_max: 4 } },
+      { dt: la('2026-11-28', 12), main: { temp_min: 0, temp_max: 2 } }, // a patra zi: nu intră
+    ],
+  }
+
+  it('min / max, ploaia în mm, vântul maxim în km/h, doar următoarele 3 zile', () => {
+    const zile = aggregateNextDaysFromForecast5(prognoza, ACUM_IARNA)
+    expect(zile.map((z) => z.zi)).toEqual(['2026-11-25', '2026-11-26', '2026-11-27'])
+    expect(zile[0]).toMatchObject({ tempMin: -2, tempMax: 6, ploaieMm: 1.5, vantMaxKmh: 18, icon: '10d' })
+    expect(zile[1]).toMatchObject({ tempMin: 7, tempMax: 9, ploaieMm: 22.4, vantMaxKmh: 22 })
+    expect(zile[2]).toMatchObject({ tempMin: 1, tempMax: 4, ploaieMm: 0, vantMaxKmh: null })
+  })
+
+  it('zilele se citesc înapoi din cache; un rând vechi, fără zile, dă null', () => {
+    const zile = aggregateNextDaysFromForecast5(prognoza, ACUM_IARNA)
+    expect(readForecastZileFromRawJson({ forecast_zile: zile })).toEqual(zile)
+    expect(readForecastZileFromRawJson({ current: {}, forecast_tomorrow: {} })).toBeNull()
+    expect(readForecastZileFromRawJson(null)).toBeNull()
   })
 })
