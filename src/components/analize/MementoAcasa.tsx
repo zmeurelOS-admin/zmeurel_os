@@ -6,7 +6,8 @@ import { CalendarDays, CircleAlert } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 import { BottomSheet, Button, FilterPills, ListRow, Notice, kitText } from '@/components/kit'
-import { MESAJ_FARA_DATA_CULES, nicioParcelaCuDataCules } from '@/lib/analize/cules'
+import { useCulesConteaza } from '@/components/parcele/useStadiiParcele'
+import { MESAJ_FARA_DATA_CULES, lipsaDataCulesConteaza } from '@/lib/analize/cules'
 import { textParceleAnaliza } from '@/lib/analize/lista'
 import { neconformeInSezon } from '@/lib/analize/lista'
 import {
@@ -43,7 +44,14 @@ export function MementoAcasa({ azi, proprietar }: { azi: string | null; propriet
 
   // Atinsă, notificarea deschide foaia (`?memento=analize`).
   const dinNotificare = searchParams.get('memento') === 'analize'
-  const faraNicioData = proprietar && memento.gata && memento.calcul?.motiv === 'fara_data' && nicioParcelaCuDataCules(memento.estimari)
+  // 9.2: mesajul „Pune data culesului…” doar când o parcelă e într-un stadiu în care data contează.
+  const conteaza = useCulesConteaza(azi, { enabled: proprietar })
+  const faraNicioData =
+    proprietar &&
+    memento.gata &&
+    conteaza.gata &&
+    memento.calcul?.motiv === 'fara_data' &&
+    lipsaDataCulesConteaza(memento.estimari, (id) => conteaza.culesConteazaPe.has(id))
   useEffect(() => {
     if (!dinNotificare || !memento.calcul) return
     queueMicrotask(() => {

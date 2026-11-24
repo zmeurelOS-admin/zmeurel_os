@@ -24,8 +24,8 @@ type FiltruTip = 'toate' | UnitateTip
 /**
  * Lista de parcele: un card pe parcelă (cultură + soi, plante, suprafață, kg în sezon, un singur semnal).
  * Parcelele personale: eticheta „Personal”, fără kg. Filtrul pe tip apare doar la mai multe tipuri.
- * O parcelă de vânzare fără dată de cules (nici pusă de mână, nici din anul trecut) are eticheta „fără dată de
- * cules”; atinsă, deschide pe fișă foaia „Când începe culesul?” (`/parcele/<id>?cules=1`).
+ * O parcelă de vânzare fără dată de cules (nici pusă de mână, nici din anul trecut), într-un stadiu de anul acesta
+ * între „Legare fruct” și „Recoltare” (pe oricare lăstar), are eticheta „fără dată de cules”; atinsă, deschide pe fișă foaia „Când începe culesul?” (`/parcele/<id>?cules=1`).
  */
 export function ParceleListClient() {
   useTrackModuleView('parcele')
@@ -127,7 +127,8 @@ export function ParceleListClient() {
               const semnal = stare.semnale.get(parcela.id) ?? null
               const kg = stare.kg.get(parcela.id) ?? 0
               const estimare = cules.estimari.get(parcela.id)
-              const faraCules = cules.gata && Boolean(estimare) && faraDataCules(estimare)
+              // 9.2: eticheta doar când contează (stadiul din anul acesta între „Legare fruct” și „Recoltare”).
+              const faraCules = cules.gata && Boolean(estimare) && faraDataCules(estimare) && stare.culesConteazaPe.has(parcela.id)
               const etichetaApasabila = faraCules && poateScrie
               return (
                 <li key={parcela.id} className="relative">

@@ -6,7 +6,8 @@ import { CalendarDays, CircleAlert, FlaskConical } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import { BottomSheet, Button, CalendarPanel, ListRow, Notice, kitText, longDayRo } from '@/components/kit'
-import { MESAJ_FARA_DATA_CULES, nicioParcelaCuDataCules } from '@/lib/analize/cules'
+import { useCulesConteaza } from '@/components/parcele/useStadiiParcele'
+import { MESAJ_FARA_DATA_CULES, lipsaDataCulesConteaza } from '@/lib/analize/cules'
 import { dataScurtaAnaliza, neconformeInSezon, stareAnalizaParcela } from '@/lib/analize/lista'
 import { dataLungaRo } from '@/lib/analize/memento'
 import { useMementoAnalize } from '@/lib/analize/useMementoAnalize'
@@ -46,6 +47,7 @@ export function CulesSiAnalizaParcela({ parcelaId, azi, poateScrie, proprietar }
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const memento = useMementoAnalize(azi, { proprietar })
+  const conteaza = useCulesConteaza(azi, { enabled: proprietar })
   const [foaie, setFoaie] = useState(false)
   const [zi, setZi] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -85,7 +87,7 @@ export function CulesSiAnalizaParcela({ parcelaId, azi, poateScrie, proprietar }
 
   if (!memento.gata) return null
 
-  const faraNicioData = proprietar && nicioParcelaCuDataCules(memento.estimari)
+  const faraNicioData = proprietar && conteaza.gata && lipsaDataCulesConteaza(memento.estimari, (id) => conteaza.culesConteazaPe.has(id))
 
   const detaliuCules =
     estimare?.sursa === 'manual'

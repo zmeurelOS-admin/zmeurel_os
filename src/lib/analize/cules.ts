@@ -93,3 +93,27 @@ export function nicioParcelaCuDataCules(estimari: ReadonlyMap<string, EstimareCu
   for (const estimare of estimari.values()) if (estimare.data) return false
   return true
 }
+
+// ─── Când contează data culesului (promptul 33, 9.2) ──────────────────────────────────────────────────────────────
+
+/** Stadiile în care lipsa datei culesului contează: de la „Legare fruct” până la „Recoltare” (maturitate), inclusiv. */
+export const STADII_CULES_CONTEAZA: ReadonlySet<string> = new Set(['legare_fruct', 'fruct_verde', 'parga', 'maturitate'])
+
+/**
+ * Lipsa datei de cules contează doar dacă parcela are, pe oricare lăstar, stadiul de acum între „Legare fruct” și
+ * „Recoltare” inclusiv, notat în anul `an`. În repaus, după recoltare, fără stadiu sau cu un stadiu rămas de anul
+ * trecut, eticheta „fără dată de cules” nu apare (stadiul de anul trecut se vede pe card, dar nu pornește nimic aici).
+ */
+export function culesConteaza(peLastari: ReadonlyArray<{ stadiu: string | null; zi: string | null }>, an: number): boolean {
+  return peLastari.some((item) => Boolean(item.stadiu && STADII_CULES_CONTEAZA.has(item.stadiu) && Number(String(item.zi ?? '').slice(0, 4)) === an))
+}
+
+/**
+ * Mesajul „Pune data culesului pe parcele…” (fișa, Acasă, foaia analizei): există parcele de vânzare, niciuna n-are
+ * dată și cel puțin una e într-un stadiu în care data contează (`conteaza`).
+ */
+export function lipsaDataCulesConteaza(estimari: ReadonlyMap<string, EstimareCules>, conteaza: (parcelaId: string) => boolean): boolean {
+  if (!nicioParcelaCuDataCules(estimari)) return false
+  for (const parcelaId of estimari.keys()) if (conteaza(parcelaId)) return true
+  return false
+}

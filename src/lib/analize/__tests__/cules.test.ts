@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  culesConteaza,
   estimeazaCules,
+  lipsaDataCulesConteaza,
   estimeazaCulesParcele,
   faraDataCules,
   mutaInAnul,
@@ -76,5 +78,41 @@ describe('parcelele fără dată de cules (eticheta din listă, mesajul de pe fi
     const fara = estimeazaCulesParcele({ parcelaIds: ['m2', 'd'], an: 2026, manuale: new Map(), recoltari })
     expect(nicioParcelaCuDataCules(fara)).toBe(true)
     expect(nicioParcelaCuDataCules(new Map())).toBe(false)
+  })
+})
+
+// Promptul 33, 9.2: „fără dată de cules” doar când contează.
+describe('culesConteaza: între „Legare fruct” și „Recoltare”, pe oricare lăstar, în anul acesta', () => {
+  const AN = 2026
+  it('legare fruct, fructe verzi, pârgă, recoltare: da', () => {
+    for (const stadiu of ['legare_fruct', 'fruct_verde', 'parga', 'maturitate']) {
+      expect(culesConteaza([{ stadiu, zi: '2026-06-10' }], AN)).toBe(true)
+    }
+  })
+
+  it('repaus, înflorit, după recoltare, tăiat, păstrat sau fără stadiu: nu', () => {
+    for (const stadiu of ['repaus_vegetativ', 'inflorit', 'post_recoltare', 'pastrat', 'umflare_muguri', null]) {
+      expect(culesConteaza([{ stadiu, zi: '2026-06-10' }], AN)).toBe(false)
+    }
+    expect(culesConteaza([], AN)).toBe(false)
+  })
+
+  it('pe oricare lăstar: an 2 în repaus, an 1 cu legare fruct = da', () => {
+    expect(culesConteaza([{ stadiu: 'pastrat', zi: '2025-11-01' }, { stadiu: 'legare_fruct', zi: '2026-07-20' }], AN)).toBe(true)
+  })
+
+  it('un stadiu rămas de anul trecut nu contează (ianuarie, „Recoltare” din vara trecută)', () => {
+    expect(culesConteaza([{ stadiu: 'maturitate', zi: '2025-07-15' }], AN)).toBe(false)
+  })
+
+  it('mesajul „Pune data culesului…”: doar dacă nicio parcelă n-are dată și una e într-un stadiu în care contează', () => {
+    const recoltari: Array<{ parcela_id: string; data: string }> = []
+    const fara = estimeazaCulesParcele({ parcelaIds: ['a', 'b'], an: AN, manuale: new Map(), recoltari })
+    expect(lipsaDataCulesConteaza(fara, (id) => id === 'b')).toBe(true)
+    expect(lipsaDataCulesConteaza(fara, () => false)).toBe(false)
+    // O parcelă cu dată pusă de mână: neschimbat, nu apare mesajul, oricare ar fi stadiul.
+    const cuData = estimeazaCulesParcele({ parcelaIds: ['a', 'b'], an: AN, manuale: new Map([['a', '2026-07-01']]), recoltari })
+    expect(lipsaDataCulesConteaza(cuData, () => true)).toBe(false)
+    expect(faraDataCules(cuData.get('a'))).toBe(false)
   })
 })
