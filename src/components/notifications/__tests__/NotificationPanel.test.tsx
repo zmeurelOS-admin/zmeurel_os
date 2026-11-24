@@ -3,21 +3,15 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { NotificationPanel } from '@/components/notifications/NotificationPanel'
-import type { Database } from '@/types/supabase'
-
+const push = vi.fn()
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push }),
 }))
 
-type NotificationRow = Database['public']['Tables']['notifications']['Row']
+import { NotificationPanel } from '@/components/notifications/NotificationPanel'
+import type { NotificareRand } from '@/components/notifications/RandNotificare'
 
-function notification(
-  id: string,
-  read: boolean,
-  title: string,
-  body = 'Detalii notificare',
-): NotificationRow {
+function notification(id: string, read: boolean, title: string, body = 'Detalii notificare'): NotificareRand {
   return {
     id,
     user_id: '11111111-1111-4111-8111-111111111111',
@@ -32,95 +26,71 @@ function notification(
   }
 }
 
-function renderPanel(notifications: NotificationRow[]) {
+function renderPanel(notifications: NotificareRand[], extra: Partial<React.ComponentProps<typeof NotificationPanel>> = {}) {
   return render(
     <NotificationPanel
       notifications={notifications}
       onMarkAllRead={vi.fn(async () => undefined)}
       onMarkRead={vi.fn(async () => undefined)}
       onClose={vi.fn()}
+      {...extra}
     />,
   )
 }
 
-describe('NotificationPanel', () => {
-  it('evidențiază notificarea necitită cu bară, punct, titlu bold și oră accentuată', () => {
-    renderPanel([notification('unread-1', false, 'Comandă nouă')])
-
-    const title = screen.getByText('Comandă nouă')
-    const row = title.closest('button')
-    expect(row).toHaveClass('border-l-4', 'border-l-[var(--primary)]')
-    expect(row?.querySelector('[data-unread-indicator]')).toBeInTheDocument()
-    expect(title).toHaveClass('font-bold', 'text-[var(--text-primary)]')
-    expect(within(row as HTMLElement).getByText('acum')).toHaveClass(
-      'font-medium',
-      'text-[var(--primary)]',
-    )
+describe('NotificationPanel (promptul 33, pe kit)', () => {
+  it('pe telefon (în foaie) titlul „Notificări” nu se mai repetă în corp; pe desktop apare o dată', () => {
+    const { unmount } = renderPanel([notification('n1', false, 'Comandă nouă')])
+    expect(screen.queryByRole('heading', { name: 'Notificări' })).toBeNull()
+    unmount()
+    renderPanel([notification('n1', false, 'Comandă nouă')], { cuTitlu: true })
+    expect(screen.getAllByRole('heading', { name: 'Notificări' })).toHaveLength(1)
   })
 
-  it('estompează notificarea citită și elimină indicatorii de necitit', () => {
-    renderPanel([notification('read-1', true, 'Comandă procesată')])
-
-    const title = screen.getByText('Comandă procesată')
-    const row = title.closest('button')
-    expect(row).toHaveClass('border-l-4', 'border-l-transparent')
-    expect(row).not.toHaveClass('border-l-[var(--primary)]')
-    expect(row?.querySelector('[data-unread-indicator]')).not.toBeInTheDocument()
-    expect(title).toHaveClass('font-medium', 'text-[var(--text-muted)]')
-    expect(screen.getByText('Detalii notificare')).toHaveClass(
-      'text-[var(--text-muted)]',
-      'opacity-70',
-    )
-    expect(within(row as HTMLElement).getByText('acum')).toHaveClass('text-[var(--text-muted)]')
+  it('rândul comun: necitita are punctul „Necitită”, citita nu', () => {
+    renderPanel([notification('n1', false, 'Comandă nouă'), notification('n2', true, 'Comandă procesată')])
+    const necitita = screen.getByText('Comandă nouă').closest('button') as HTMLElement
+    const citita = screen.getByText('Comandă procesată').closest('button') as HTMLElement
+    expect(within(necitita).getByText('Necitită')).toBeTruthy()
+    expect(within(citita).queryByText('Necitită')).toBeNull()
+    expect(screen.getByText('1 necitită')).toBeTruthy()
   })
 
-  it('calculează subtitlul din notificările vizibile cu pluralizare corectă', () => {
-    renderPanel([
-      notification('unread-1', false, 'Necitită 1'),
-      notification('unread-2', false, 'Necitită 2'),
-      notification('read-1', true, 'Citită'),
-    ])
-
-    expect(screen.getByText('2 necitite · 1 citită')).toBeInTheDocument()
-  })
-
-  it('actualizează subtitlul și stilurile după marcarea tuturor ca citite', async () => {
+  it('„Citește tot” marchează tot; apoi „Le-ai citit pe toate” și butonul dispare', async () => {
     const user = userEvent.setup()
     const onMarkAllRead = vi.fn(async () => undefined)
-    const initialNotifications = [
-      notification('unread-1', false, 'Necitită 1'),
-      notification('unread-2', false, 'Necitită 2'),
-      notification('read-1', true, 'Citită'),
-    ]
-
     function Harness() {
-      const [notifications, setNotifications] = useState(initialNotifications)
-
+      const [lista, setLista] = useState([notification('a', false, 'Unu'), notification('b', false, 'Doi'), notification('c', true, 'Trei')])
       return (
         <NotificationPanel
-          notifications={notifications}
+          notifications={lista}
           onMarkAllRead={async () => {
             await onMarkAllRead()
-            setNotifications((current) =>
-              current.map((notificationItem) => ({ ...notificationItem, read: true })),
-            )
+            setLista((current) => current.map((item) => ({ ...item, read: true })))
           }}
           onMarkRead={vi.fn(async () => undefined)}
           onClose={vi.fn()}
         />
       )
     }
-
     render(<Harness />)
-    await user.click(screen.getByRole('button', { name: 'Marchează toate ca citite' }))
-
+    expect(screen.getByText('2 necitite')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Citește tot' }))
     expect(onMarkAllRead).toHaveBeenCalledOnce()
-    await waitFor(() => {
-      expect(screen.getByText('0 necitite · 3 citite')).toBeInTheDocument()
-    })
-    expect(document.querySelectorAll('[data-unread-indicator]')).toHaveLength(0)
-    for (const title of ['Necitită 1', 'Necitită 2', 'Citită']) {
-      expect(screen.getByText(title)).toHaveClass('font-medium', 'text-[var(--text-muted)]')
-    }
+    await waitFor(() => expect(screen.getByText('Le-ai citit pe toate')).toBeTruthy())
+    expect(screen.queryByRole('button', { name: 'Citește tot' })).toBeNull()
+    expect(screen.queryAllByText('Necitită')).toHaveLength(0)
+  })
+
+  it('atinsă: marchează citit, închide foaia și duce la destinație; „Vezi toate notificările” duce la pagină', async () => {
+    const user = userEvent.setup()
+    const onMarkRead = vi.fn(async () => undefined)
+    const onClose = vi.fn()
+    renderPanel([notification('n1', false, 'Comandă nouă')], { onMarkRead, onClose })
+    await user.click(screen.getByText('Comandă nouă'))
+    await waitFor(() => expect(push).toHaveBeenCalled())
+    expect(onMarkRead).toHaveBeenCalledWith('n1')
+    expect(onClose).toHaveBeenCalled()
+    expect(screen.getByRole('link', { name: 'Vezi toate notificările' }).getAttribute('href')).toBe('/notificari')
   })
 })

@@ -42,10 +42,11 @@ export const KIT_RULE_DIRS = [
   // Mai mult, Notificări, Setări (ecranele; `src/components/setari` e deja mai sus)
   'src/app/(dashboard)/mai-mult',
   'src/app/(dashboard)/notificari',
+  'src/components/notifications',
   'src/app/(dashboard)/settings',
   // Logica din spatele ecranelor refăcute: Recoltări, Setări (profilul fermei, exportul) și Acasă pe telefon.
-  // `src/components/notifications` și `src/lib/notifications/config.ts` rămân afară: clopoțelul și bannerul
-  // de pe desktop nu sunt refăcute, iar culorile hex din config merg în notificările push, nu în CSS.
+  // `src/lib/notifications/config.ts` rămâne afară: culorile hex din config merg în notificările push, nu în CSS.
+  // Clopoțelul și foaia lui sunt pe kit din promptul 33 (`src/components/notifications`, mai jos).
   'src/lib/recoltari',
   'src/lib/setari',
   'src/lib/dashboard',
@@ -113,6 +114,9 @@ export const KIT_RULE_PENDING_FILES = [
   'src/components/produse/ProdusFormSummary.tsx',
   // Confirmarea veche de ștergere, folosită încă de Material săditor (nerefăcut).
   'src/components/parcele/DeleteConfirmDialog.tsx',
+  // Notificările (promptul 33): clopoțelul și foaia sunt pe kit; bannerul push și toast-urile rămân de refăcut.
+  'src/components/notifications/PushPermissionBanner.tsx',
+  'src/components/notifications/NotificationToastProvider.tsx',
 ]
 
 const TEXT_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.css'])

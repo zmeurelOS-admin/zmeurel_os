@@ -62,6 +62,7 @@ export default defineConfig(({ mode }) => {
         'src/lib/notifications/__tests__/create.test.ts',
         'src/lib/notifications/__tests__/navigation.test.ts',
         'src/lib/notifications/zilnice/__tests__/*.test.ts',
+        'src/components/notifications/__tests__/*.test.tsx',
         'supabase/functions/_shared/__tests__/*.test.ts',
         'src/lib/recoltari/__tests__/*.test.ts',
         'src/lib/tratamente/__tests__/*.test.ts',

@@ -3,9 +3,12 @@
 import { Bell } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { AppDrawer } from '@/components/app/AppDrawer'
+import { useQueryClient } from '@tanstack/react-query'
+
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
+import { BottomSheet, kitFocus } from '@/components/kit'
 import { NotificationPanel } from '@/components/notifications/NotificationPanel'
+import { unreadNotificationsQueryKey } from '@/lib/notifications/useUnreadCount'
 import { getSupabase } from '@/lib/supabase/client'
 import type { Database } from '@/types/supabase'
 import { cn } from '@/lib/utils'
@@ -26,8 +29,13 @@ async function patchNotifications(body: { notificationId: string } | { markAll: 
   return j
 }
 
+/**
+ * Clopoțelul din antet (promptul 33, pe kit). Pe telefon deschide o foaie de jos (`BottomSheet`, titlul „Notificări” o
+ * singură dată, în antetul foii); pe desktop, o fereastră mică sub clopoțel. Corpul e `NotificationPanel`.
+ */
 export function NotificationBell() {
   const { userId } = useDashboardAuth()
+  const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
   const [isMd, setIsMd] = useState(true)
   const [unreadCount, setUnreadCount] = useState(0)
@@ -108,15 +116,22 @@ export function NotificationBell() {
     return () => document.removeEventListener('mousedown', onDown)
   }, [open, isMd])
 
+  // Numărul de necitite e și în bara de jos / Mai mult (`useUnreadCount`): îl ținem la fel.
+  const syncUnread = (count: number | undefined) => {
+    if (typeof count !== 'number') return
+    setUnreadCount(count)
+    queryClient.setQueryData(unreadNotificationsQueryKey, count)
+  }
+
   const markRead = async (id: string) => {
     const j = await patchNotifications({ notificationId: id })
-    if (typeof j.unreadCount === 'number') setUnreadCount(j.unreadCount)
+    syncUnread(j.unreadCount)
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
   }
 
   const markAll = async () => {
     const j = await patchNotifications({ markAll: true })
-    if (typeof j.unreadCount === 'number') setUnreadCount(j.unreadCount)
+    syncUnread(j.unreadCount ?? 0)
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
   }
 
@@ -135,18 +150,21 @@ export function NotificationBell() {
           type="button"
           onClick={toggle}
           className={cn(
-            'relative flex h-9 w-9 items-center justify-center rounded-xl border transition',
-            'border-[var(--border-default)] bg-[var(--surface-card-muted)] text-[var(--text-primary)]',
-            'hover:bg-[var(--surface-card)]',
+            'relative flex size-touch items-center justify-center rounded-box border transition',
+            'border-border bg-surface-muted text-fg hover:bg-surface',
+            // Pe desktop clopoțelul stă pe antetul colorat (`agri-hero`): culoarea textului de acolo.
             'lg:border-[color:color-mix(in_srgb,var(--text-on-accent)_35%,transparent)] lg:bg-[color:color-mix(in_srgb,var(--text-on-accent)_16%,transparent)] lg:text-[var(--text-on-accent)] lg:hover:bg-[color:color-mix(in_srgb,var(--text-on-accent)_24%,transparent)]',
-            unreadCount > 0 && 'animate-pulse ring-2 ring-[color:color-mix(in_srgb,var(--danger-text)_35%,transparent)]',
+            kitFocus,
           )}
-          aria-label="Notificări"
+          aria-label={unreadCount > 0 ? `Notificări, ${unreadCount} necitite` : 'Notificări'}
           aria-expanded={open}
         >
-          <Bell className="h-5 w-5" strokeWidth={2} />
+          <Bell className="size-5" strokeWidth={2} aria-hidden />
           {unreadCount > 0 ? (
-            <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border border-[var(--danger-border)] bg-[var(--danger-bg)] px-1 text-[10px] font-bold text-[var(--danger-text)]">
+            <span
+              aria-hidden
+              className="absolute -right-1.5 -top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full border border-danger-border bg-danger-bg px-1 text-[13px] font-bold leading-none text-danger-text"
+            >
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           ) : null}
@@ -155,7 +173,7 @@ export function NotificationBell() {
         {open && isMd ? (
           <div
             ref={panelRef}
-            className="absolute right-0 top-full z-[80] mt-2 w-[380px] max-h-[min(480px,80vh)] overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-elevated)]"
+            className="absolute right-0 top-full z-popover mt-2 flex max-h-[min(560px,80vh)] w-[400px] flex-col overflow-hidden rounded-card border border-border bg-surface p-3 shadow-2"
           >
             <NotificationPanel
               notifications={notifications}
@@ -163,19 +181,14 @@ export function NotificationBell() {
               onMarkAllRead={markAll}
               onMarkRead={markRead}
               onClose={() => setOpen(false)}
+              cuTitlu
             />
           </div>
         ) : null}
       </div>
 
       {!isMd ? (
-        <AppDrawer
-          open={open && !isMd}
-          onOpenChange={setOpen}
-          title="Notificări"
-          showHandle
-          contentClassName="!max-h-[85dvh] !w-full max-w-full p-0 sm:!max-w-lg"
-        >
+        <BottomSheet open={open} onOpenChange={setOpen} title="Notificări">
           <NotificationPanel
             notifications={notifications}
             loading={loading}
@@ -184,7 +197,7 @@ export function NotificationBell() {
             onClose={() => setOpen(false)}
             onItemNavigate={() => setOpen(false)}
           />
-        </AppDrawer>
+        </BottomSheet>
       ) : null}
     </>
   )

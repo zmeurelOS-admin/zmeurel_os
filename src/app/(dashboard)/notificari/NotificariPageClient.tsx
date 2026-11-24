@@ -2,89 +2,25 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import {
-  Banknote,
-  BarChart3,
-  Bug,
-  CalendarClock,
-  Check,
-  ClipboardList,
-  CloudLightning,
-  FileText,
-  FlaskConical,
-  Info,
-  Mail,
-  Package,
-  RefreshCw,
-  SlidersHorizontal,
-  Snowflake,
-  Tag,
-  Timer,
-  Truck,
-  Users,
-} from 'lucide-react'
+import { Check, SlidersHorizontal } from 'lucide-react'
 
 import { AppShell } from '@/components/app/AppShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { Button, Notice, Segments, kitFocus, kitText } from '@/components/kit'
-import { IconBadge, ScreenBody, ScreenHeader, type IconTone } from '@/components/setari/SetariUi'
+import { RandNotificare, type NotificareRand } from '@/components/notifications/RandNotificare'
+import { IconBadge, ScreenBody, ScreenHeader } from '@/components/setari/SetariUi'
 import { getNotificationHref } from '@/lib/notifications/navigation'
 import { unreadNotificationsQueryKey } from '@/lib/notifications/useUnreadCount'
 import { cn } from '@/lib/utils'
-import type { Database } from '@/types/supabase'
 
 import { groupNotificationsByDay, notificationTimeLabel } from './group'
 
-type Row = Database['public']['Tables']['notifications']['Row']
+type Row = NotificareRand
 type Filter = 'toate' | 'necitite'
 
 const PAGE = 50
-
-function iconForType(type: string): { icon: ReactNode; tone: IconTone } {
-  if (type === 'meteo_grindina') return { icon: <CloudLightning />, tone: 'warning' }
-  if (type.startsWith('meteo_')) return { icon: <Snowflake />, tone: 'warning' }
-  switch (type) {
-    case 'comenzi_maine':
-      return { icon: <CalendarClock />, tone: 'info' }
-    case 'incasari_restante':
-    case 'incasari_peste_30':
-      return { icon: <Banknote />, tone: 'warning' }
-    case 'order_new':
-      return { icon: <ClipboardList />, tone: 'primary' }
-    case 'order_status_changed':
-      return { icon: <RefreshCw />, tone: 'primary' }
-    case 'butasi_delivery_reminder':
-      return { icon: <Truck />, tone: 'info' }
-    case 'weekly_sales_summary':
-      return { icon: <BarChart3 />, tone: 'neutral' }
-    case 'tratament_reminder':
-      return { icon: <Timer />, tone: 'warning' }
-    case 'analize_memento':
-      return { icon: <FlaskConical />, tone: 'warning' }
-    case 'magazie_pe_terminate':
-      return { icon: <Package />, tone: 'warning' }
-    case 'capcane_verificare':
-    case 'capcane_peste_prag':
-      return { icon: <Bug />, tone: 'warning' }
-    case 'legal_docs_expiring':
-    case 'legal_docs_expired':
-      return { icon: <FileText />, tone: 'warning' }
-    case 'product_listed':
-    case 'product_unlisted':
-      return { icon: <Tag />, tone: 'neutral' }
-    case 'producer_approved':
-    case 'producer_suspended':
-      return { icon: <Users />, tone: 'neutral' }
-    case 'offer_new':
-    case 'offer_approved':
-    case 'offer_rejected':
-      return { icon: <Mail />, tone: 'neutral' }
-    default:
-      return { icon: <Info />, tone: 'neutral' }
-  }
-}
 
 async function patchNotifications(body: { notificationId: string } | { markAll: true }) {
   const response = await fetch('/api/notifications', {
@@ -94,42 +30,6 @@ async function patchNotifications(body: { notificationId: string } | { markAll: 
     body: JSON.stringify(body),
   })
   return (await response.json().catch(() => ({}))) as { ok?: boolean; unreadCount?: number }
-}
-
-function NotificationRow({ notification, onOpen }: { notification: Row; onOpen: (row: Row) => void }) {
-  const unread = !notification.read
-  const { icon, tone } = iconForType(notification.type)
-  return (
-    <button
-      type="button"
-      onClick={() => onOpen(notification)}
-      className={cn(
-        'flex min-h-[72px] w-full items-start gap-3 rounded-box border px-3 py-2.5 text-left active:bg-surface-muted',
-        kitFocus,
-        unread ? 'border-border-strong bg-primary-soft/40' : 'border-border bg-surface',
-      )}
-    >
-      <IconBadge tone={tone} size="lg">
-        {icon}
-      </IconBadge>
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="flex items-baseline gap-2">
-          <span className={cn('min-w-0 flex-1 text-fg', kitText.base, unread ? 'font-extrabold' : 'font-semibold')}>
-            {notification.title}
-          </span>
-          <span className={cn('shrink-0 text-fg-subtle', kitText.helper)}>{notificationTimeLabel(notification.created_at)}</span>
-        </span>
-        {notification.body ? (
-          <span className={cn('line-clamp-3 text-fg-muted', kitText.secondary)}>{notification.body}</span>
-        ) : null}
-      </span>
-      {unread ? (
-        <span className="mt-2 size-2.5 shrink-0 rounded-full bg-primary">
-          <span className="sr-only">Necitită</span>
-        </span>
-      ) : null}
-    </button>
-  )
 }
 
 export function NotificariPageClient() {
@@ -285,7 +185,7 @@ export function NotificariPageClient() {
                 <section key={section.title} className="space-y-1.5">
                   <h2 className={cn('pb-0.5 pt-2 font-bold text-fg-muted', kitText.secondary)}>{section.title}</h2>
                   {section.items.map((row) => (
-                    <NotificationRow key={row.id} notification={row} onOpen={openRow} />
+                    <RandNotificare key={row.id} notificare={row} ora={notificationTimeLabel(row.created_at)} onOpen={openRow} />
                   ))}
                 </section>
               ))
