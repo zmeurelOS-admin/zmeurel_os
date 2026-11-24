@@ -20,17 +20,18 @@ export const DEFAULT_APP_URL = 'https://caietulfermei.ro'
 
 /** Normalizează o adresă la origine (`https://host`, fără slash la final); `null` dacă nu e validă. */
 export function originDinUrl(value: string | null | undefined): string | null {
-  const text = value?.trim()
+  const text = value?.trim().replace(/^["']+|["']+$/g, '').trim()
   if (!text) return null
-  try {
-    return new URL(text).origin
-  } catch {
+  const httpOrigin = (candidate: string): string | null => {
     try {
-      return new URL(`https://${text.replace(/^\/+|\/+$/g, '')}`).origin
+      const url = new URL(candidate)
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') return null
+      return url.origin && url.origin !== 'null' ? url.origin : null
     } catch {
       return null
     }
   }
+  return httpOrigin(text) ?? httpOrigin(`https://${text.replace(/^\/+|\/+$/g, '')}`)
 }
 
 /** Adresa platformei, fără slash la final. `NEXT_PUBLIC_SITE_URL`, altfel `https://caietulfermei.ro`. */
