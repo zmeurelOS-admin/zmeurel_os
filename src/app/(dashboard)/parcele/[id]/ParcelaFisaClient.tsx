@@ -280,12 +280,13 @@ export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
 
   const bara =
     parcela && poateScrie ? (
-      <div className="flex gap-2.5">
-        <Button type="button" variant="neutral" size="touch-lg" className="flex-1" onClick={() => setForm('lucrare')}>
+      // Cu text mare, cele două butoane trec unul sub altul în loc să iasă din ecran (promptul 34, §6).
+      <div className="flex flex-wrap gap-2.5">
+        <Button type="button" variant="neutral" size="touch-lg" className="flex-1 px-3" onClick={() => setForm('lucrare')}>
           <Plus aria-hidden />
           Lucrare
         </Button>
-        <Button type="button" variant="primary" size="touch-lg" className="flex-1" onClick={() => router.push(`/tratamente?parcela=${encodeURIComponent(parcelaId)}`)}>
+        <Button type="button" variant="primary" size="touch-lg" className="flex-1 px-3" onClick={() => router.push(`/tratamente?parcela=${encodeURIComponent(parcelaId)}`)}>
           <Plus aria-hidden />
           Tratament
         </Button>
@@ -298,13 +299,13 @@ export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
       bottomBarFixed
       bottomBar={
         bara ? (
-          <div className="mx-auto w-full max-w-md pl-18 pr-4">
+          <div className="mx-auto w-full max-w-md px-4">
             <div className="rounded-box bg-page shadow-2">{bara}</div>
           </div>
         ) : undefined
       }
     >
-      <ScreenBody className="space-y-3.5 pb-28">
+      <ScreenBody className="space-y-3.5">
         {!parcela || !azi ? (
           <div className="space-y-2" aria-busy="true" aria-label="Se încarcă parcela">
             <div className="h-6 w-2/3 animate-pulse rounded-box bg-surface-muted" />

@@ -50,6 +50,7 @@ export default defineConfig(({ mode }) => {
         'src/lib/__tests__/*.test.ts',
         // Navigarea operatorului (bara de jos, butonul „+”); restul testelor din folder nu sunt aici.
         'src/components/app/__tests__/BottomTabBar.operator.test.tsx',
+        'src/components/app/__tests__/AppShell.test.tsx',
         'src/lib/comenzi/__tests__/*.test.ts',
         'src/lib/livrari/__tests__/*.test.ts',
         'src/lib/vanzari/__tests__/*.test.ts',
