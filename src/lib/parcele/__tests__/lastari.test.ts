@@ -9,6 +9,7 @@ import {
   modLastari,
   randuriActiuneCiclu,
   stadiuCurentLastar,
+  stadiuPentruCiclu,
   stadiuPentruPlan,
   textStadiiLastari,
 } from '@/lib/parcele/lastari'
@@ -103,14 +104,15 @@ describe('ciclul an 1 + an 2 (promptul 33)', () => {
     expect(stadiuCurentLastar(stadii, 'floricane', mod)?.stadiu).toBe('pastrat')
     // Lăstarii de an 1 din toamnă au devenit lăstari de an 2: an 1 fără stadiu până la „Pornire lăstari noi”.
     expect(stadiuCurentLastar(stadii, 'primocane', mod)).toBeNull()
-    expect(stadiuCurentParcela({ stadii, grup: 'rubus', config: null, modSalvat: mod }).text).toBe('Lăstar an 2: În repaus')
+    // Promptul 34, §2: lăstarul de an 1 tăiat apare pe card cu data.
+    expect(stadiuCurentParcela({ stadii, grup: 'rubus', config: null, modSalvat: mod }).text).toBe('An 2: În repaus · An 1: Tăiat pe 5 nov.')
   })
 
   it('„Tai tot” nu creează lăstar de an 2', () => {
     const stadii = [rand('post_recoltare', '2026-10-01', 'primocane'), ...scrie('tai_tot', '2026-11-05')]
     expect(stadiuCurentLastar(stadii, 'primocane', mod)).toBeNull()
     expect(stadiuCurentLastar(stadii, 'floricane', mod)).toBeNull()
-    expect(stadiuCurentParcela({ stadii, grup: 'rubus', config: null, modSalvat: mod })).toMatchObject({ text: null, ziua: '2026-11-05' })
+    expect(stadiuCurentParcela({ stadii, grup: 'rubus', config: null, modSalvat: mod })).toMatchObject({ text: 'Lăstar an 1: Tăiat pe 5 nov.', ziua: '2026-11-05' })
   })
 
   it('„Tăiat” pe an 2: fără stadiu până la următorul „Păstrez”', () => {
@@ -141,7 +143,8 @@ describe('trecerea de an', () => {
     for (const ziua of ['2027-01-10', '2027-03-20']) {
       const randuri = stadii.filter((r) => r.data_observata <= ziua)
       const curent = stadiuCurentParcela({ stadii: randuri, grup: 'rubus', config: null, modSalvat: mod })
-      expect(curent.text).toBe('Lăstar an 2: În repaus')
+      // Promptul 34, §2: lăstarul de an 1 tăiat la „Păstrez” rămâne pe card, cu data.
+      expect(curent.text).toBe('An 2: În repaus · An 1: Tăiat pe 15 nov.')
       expect(curent.peLastari.find((p) => p.lastar === 'floricane')?.stadiu).toBe('pastrat')
     }
   })
@@ -187,5 +190,64 @@ describe('etichetele', () => {
     expect(normalizeStadiu('taiat')).toBe('taiat')
     expect(listStadiiPentruGrup('rubus')).not.toContain('pastrat')
     expect(listStadiiPentruGrup('rubus')).not.toContain('taiat')
+  })
+})
+
+describe('promptul 34, §1: butoanele ciclului la rândurile vechi fără cohortă', () => {
+  const mod = 'an1_an2' as const
+
+  it('un singur „După recoltare” vechi, fără cohortă: pe an 1 apar „Tai tot” / „Păstrez”, pe an 2 nimic', () => {
+    const stadii = [rand('post_recoltare', '2026-10-01')]
+    const stare = stadiuCurentParcela({ stadii, grup: 'rubus', config: null, modSalvat: mod })
+    expect(stare.ciclu).toEqual({ floricane: null, primocane: 'post_recoltare' })
+    expect(actiuniCiclu(mod, 'primocane', stare.ciclu.primocane ?? null)).toEqual(['tai_tot', 'pastrez'])
+    expect(actiuniCiclu(mod, 'floricane', stare.ciclu.floricane ?? null)).toEqual([])
+    // Cardul rămâne cum era (rândul vechi, fără lăstar), iar datele nu se rescriu.
+    expect(stare.text).toBe('După recoltare')
+    expect(stadii[0].cohort).toBeNull()
+  })
+
+  it('cu rânduri pe floricane și „După recoltare” salvat fără cohortă: la fel', () => {
+    const stadii = [rand('inflorit', '2026-06-01', 'floricane'), rand('post_recoltare', '2026-10-01')]
+    // Fără mod salvat, rândul pe floricane face modul an1_an2.
+    const stare = stadiuCurentParcela({ stadii, grup: 'rubus', config: null })
+    expect(stare.mod).toBe(mod)
+    expect(actiuniCiclu(mod, 'primocane', stare.ciclu.primocane ?? null)).toEqual(['tai_tot', 'pastrez'])
+  })
+
+  it('după „Tai tot” butoanele dispar, iar cardul nu mai arată „După recoltare” de pe rândul vechi', () => {
+    const stadii = [rand('post_recoltare', '2026-10-01'), ...scrie('tai_tot', '2026-11-05')]
+    const stare = stadiuCurentParcela({ stadii, grup: 'rubus', config: null, modSalvat: mod })
+    expect(stadiuPentruCiclu(stadii, mod, 'primocane')).toBeNull()
+    expect(actiuniCiclu(mod, 'primocane', stare.ciclu.primocane ?? null)).toEqual([])
+    expect(stare.text).toBe('Lăstar an 1: Tăiat pe 5 nov.')
+  })
+
+  it('un rând nou cu cohortă câștigă în fața unui rând vechi mai vechi', () => {
+    const stadii = [rand('post_recoltare', '2026-10-01'), rand('umflare_muguri', '2027-04-01', 'primocane')]
+    expect(stadiuPentruCiclu(stadii, mod, 'primocane')).toBe('umflare_muguri')
+  })
+
+  it('în modurile cu un singur lăstar, stadiul obișnuit', () => {
+    const stadii = [rand('post_recoltare', '2026-10-01')]
+    expect(stadiuPentruCiclu(stadii, 'an1', 'primocane')).toBe('post_recoltare')
+    expect(stadiuPentruCiclu(stadii, 'an2', 'floricane')).toBe('post_recoltare')
+  })
+})
+
+describe('promptul 34, §2: „Tăiat” pe card, cu data', () => {
+  const mod = 'an1_an2' as const
+
+  it('lăstarul tăiat apare cu data până la următorul lui stadiu', () => {
+    let stadii = [rand('post_recoltare', '2026-08-01', 'floricane'), ...scrie('taiat_an2', '2026-08-10'), rand('maturitate', '2026-08-10', 'primocane')]
+    expect(stadiuCurentParcela({ stadii, grup: 'rubus', config: null, modSalvat: mod }).text).toBe('An 2: Tăiat pe 10 aug. · An 1: Recoltare')
+    stadii = [...stadii, rand('post_recoltare', '2026-10-01', 'primocane'), ...scrie('pastrez', '2026-11-01')]
+    // După „Păstrez”, lăstarul de an 2 are din nou stadiu; eticheta „Tăiat” a lui dispare.
+    expect(stadiuCurentParcela({ stadii, grup: 'rubus', config: null, modSalvat: mod }).text).toBe('An 2: În repaus · An 1: Tăiat pe 1 nov.')
+  })
+
+  it('planul tratează „Tăiat” ca fără stadiu, ca înainte', () => {
+    const stadii = scrie('tai_tot', '2026-11-05')
+    expect(stadiuCurentParcela({ stadii, grup: 'rubus', config: null, modSalvat: mod }).peLastari.every((item) => item.stadiu === null)).toBe(true)
   })
 })

@@ -135,7 +135,7 @@ export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
   const [eroareFoaie, setEroareFoaie] = useState<string | null>(null)
 
   const grup = parcela ? grupBiologicParcela(parcela) : null
-  const stadiu = stare.stadiuPeParcela.get(parcelaId) ?? { text: null, ziua: null, mod: null, peLastari: [] }
+  const stadiu = stare.stadiuPeParcela.get(parcelaId) ?? { text: null, ziua: null, mod: null, peLastari: [], ciclu: {} }
   const pauza = stare.pauze.get(parcelaId) ?? null
   const personala = parcela ? esteParcelaPersonala(parcela) : false
 
@@ -533,7 +533,7 @@ export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
             parcelaNume={titlu}
             grup={grup}
             mod={stadiu.mod}
-            peLastari={stadiu.peLastari}
+            ciclu={stadiu.ciclu}
             todayIso={azi}
           />
           <LucrareStepForm

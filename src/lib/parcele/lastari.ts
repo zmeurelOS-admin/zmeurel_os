@@ -9,7 +9,8 @@
  *   (păstrez o parte, două recolte), `an2` (soiuri floricane). Fără valoare: `an1_an2` dacă parcela are deja un stadiu pe
  *   floricane (sau sezonul e notat „mixt”), altfel `an1`. Se calculează la citire, fără `update`.
  * - Stadiul curent al unui lăstar = ultimul rând al cohortei după `data_observata`, iar la aceeași zi, ultimul înregistrat;
- *   indiferent de an (un „Păstrez” din noiembrie se vede și în martie). Un `taiat` ca ultim rând = fără stadiu.
+ *   indiferent de an (un „Păstrez” din noiembrie se vede și în martie). Un `taiat` ca ultim rând = fără stadiu (pentru
+ *   plan și notificări); pe card apare „Tăiat pe 12 oct.” până la următorul stadiu al lăstarului (promptul 34, §2).
  * - Rândurile vechi fără cohortă: în modurile cu un singur lăstar sunt ale acelui lăstar; în `an1_an2` se citesc ca
  *   până acum (nu intră pe niciun lăstar).
  *
@@ -136,12 +137,34 @@ export interface StadiuPeLastar<T extends RandStadiuLastar = RandStadiuLastar> {
 export function stadiiPeLastari<T extends RandStadiuLastar>(stadii: readonly T[], mod: ModLastari | null): StadiuPeLastar<T>[] {
   if (mod === null) return [{ lastar: null, rand: stadiuCurentLastar(stadii, null, null) }]
   const pe = lastariMod(mod).map((lastar) => ({ lastar, rand: stadiuCurentLastar(stadii, lastar, mod) }))
-  if (mod === 'an1_an2' && pe.every((item) => item.rand === null)) {
-    const vechi = stadii.filter((rand) => cohorta(rand.cohort) === null)
-    const curent = stadiuCurentLastar(vechi, null, null)
+  // Rândurile vechi fără cohortă se citesc „ca până acum” doar cât parcela n-are niciun rând pe un lăstar (promptul 34):
+  // după „Tai tot”, un „După recoltare” vechi nu mai apare pe card.
+  if (mod === 'an1_an2' && pe.every((item) => item.rand === null) && stadii.every((rand) => cohorta(rand.cohort) === null)) {
+    const curent = stadiuCurentLastar(stadii, null, null)
     if (curent) return [{ lastar: null, rand: curent }]
   }
   return pe
+}
+
+/**
+ * Stadiul după care foaia Stadiul oferă butoanele ciclului (promptul 34, §1). În `an1_an2`, un rând vechi fără cohortă
+ * se citește ca lăstar de an 1 (primocane), doar aici: datele nu se rescriu, iar cardul și planul rămân pe regulile
+ * de mai sus. Pe lăstarul de an 2 contează doar rândurile lui. În celelalte moduri, stadiul obișnuit.
+ */
+export function stadiuPentruCiclu<T extends RandStadiuLastar>(stadii: readonly T[], mod: ModLastari | null, lastar: Cohorta): StadiuCod | null {
+  if (mod !== 'an1_an2') {
+    const curent = stadiuCurentLastar(stadii, lastar, mod)
+    return curent ? normalizeStadiu(String(curent.stadiu ?? '')) : null
+  }
+  const randuri = stadii.filter((rand) => {
+    if (normalizeStadiu(String(rand.stadiu ?? '')) === null) return false
+    const c = cohorta(rand.cohort)
+    return lastar === 'primocane' ? c === 'primocane' || c === null : c === 'floricane'
+  })
+  const ultim = [...randuri].sort(comparaRanduri)[0] ?? null
+  if (!ultim) return null
+  const cod = normalizeStadiu(String(ultim.stadiu ?? ''))
+  return cod === STADIU_TAIAT ? null : cod
 }
 
 // ─── Etichete ─────────────────────────────────────────────────────────────────

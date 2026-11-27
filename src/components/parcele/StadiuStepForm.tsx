@@ -46,8 +46,11 @@ export interface StadiuStepFormProps {
   grup: GrupBiologic | null
   /** Cum lucrezi lăstarii (zmeură / mur, `src/lib/parcele/lastari.ts`); `null` la culturile fără lăstari. */
   mod: ModLastari | null
-  /** Stadiul curent pe fiecare lăstar (`stadiuCurentParcela().peLastari`), pentru butoanele ciclului. */
-  peLastari: ReadonlyArray<{ lastar: Cohorta | null; stadiu: StadiuCod | null }>
+  /**
+   * Stadiul pentru butoanele ciclului, pe lăstar (`stadiuCurentParcela().ciclu`): în „An 1 + an 2”, un rând vechi fără
+   * cohortă se citește ca lăstar de an 1 (promptul 34, §1).
+   */
+  ciclu: Partial<Record<Cohorta, StadiuCod | null>>
   todayIso: string
 }
 
@@ -61,7 +64,7 @@ const anulZilei = (zi: string): number => Number(zi.slice(0, 4))
  * pe plăci; ziua azi, implicit. După recoltare, în „An 1 + an 2”, foaia oferă ciclul: „Tai tot” / „Păstrez o parte”
  * pe an 1, „Tăiat” pe an 2. Stadiul îl pune doar omul; aplicația nu-l schimbă singură.
  */
-export function StadiuStepForm({ open, onOpenChange, parcelaId, parcelaNume, grup, mod, peLastari, todayIso }: StadiuStepFormProps) {
+export function StadiuStepForm({ open, onOpenChange, parcelaId, parcelaNume, grup, mod, ciclu, todayIso }: StadiuStepFormProps) {
   const queryClient = useQueryClient()
   const form = useStepForm({ steps: STEPS, open, analytics: false })
   const lastari = useMemo(() => lastariMod(mod), [mod])
@@ -92,7 +95,7 @@ export function StadiuStepForm({ open, onOpenChange, parcelaId, parcelaNume, gru
   const lastar: Cohorta | null = lastari.length === 0 ? null : lastari.length === 1 ? lastari[0] : lastarAles
   const stadii = useMemo(() => listStadiiPentruGrup(grup), [grup])
   const eticheta = (cod: StadiuCod) => getLabelPentruGrup(cod, grup, { cohort: lastar })
-  const stadiuAcum = peLastari.find((item) => item.lastar === lastar)?.stadiu ?? null
+  const stadiuAcum = lastar ? (ciclu[lastar] ?? null) : null
   const actiuni = lastar ? actiuniCiclu(mod, lastar, stadiuAcum) : []
 
   const reincarca = () => {

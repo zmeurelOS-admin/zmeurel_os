@@ -3,7 +3,8 @@
  * Creștere lăstari” (promptul 33; regula în `src/lib/parcele/lastari.ts`). Fără React.
  */
 import type { Cohorta } from '@/lib/parcele/configurare-sezon'
-import { lastariMod, modLastari, stadiiPeLastari, textStadiiLastari, ultimulRandLastar, type ModLastari } from '@/lib/parcele/lastari'
+import { STADIU_TAIAT, lastariMod, modLastari, stadiiPeLastari, stadiuPentruCiclu, textStadiiLastari, ultimulRandLastar, type ModLastari } from '@/lib/parcele/lastari'
+import { shortDateRo } from '@/lib/format-ro'
 import { getGrupBiologicForCropCod, getLabelPentruGrup, normalizeStadiu, type GrupBiologic, type StadiuCod } from '@/lib/parcele/stadii-canonic'
 import { normalizeCropCod } from '@/lib/crops/crop-codes'
 import type { ConfigurareParcelaSezon, ParcelaStadiuCanonic } from '@/lib/supabase/queries/parcela-stadii'
@@ -43,6 +44,8 @@ export interface StadiuCurentParcela {
   mod: ModLastari | null
   /** Stadiul curent pe fiecare lăstar (codul și ziua notată); la culturile fără lăstari, un singur rând (`lastar: null`). */
   peLastari: Array<{ lastar: Cohorta | null; stadiu: StadiuCod | null; zi: string | null }>
+  /** Stadiul pentru butoanele ciclului din foaia Stadiul (promptul 34, §1): rândurile vechi fără cohortă = an 1. */
+  ciclu: Partial<Record<Cohorta, StadiuCod | null>>
 }
 
 /**
@@ -64,9 +67,18 @@ export function stadiuCurentParcela(input: {
     stadiu: rand ? normalizeStadiu(rand.stadiu) : null,
     zi: rand ? String(rand.data_observata ?? '').slice(0, 10) || null : null,
   }))
-  const text = textStadiiLastari(
-    pe.map(({ lastar, rand }) => ({ lastar, eticheta: rand ? formatStadiuFenologicLabel(rand, input.grup, lastar) : null })),
-  )
+  // Promptul 34, §2: lăstarul al cărui ultim rând e „Tăiat” apare pe card cu data, până la următorul lui stadiu.
+  const etichetaLastar = (lastar: Cohorta | null, rand: (typeof pe)[number]['rand']): string | null => {
+    if (rand) return formatStadiuFenologicLabel(rand, input.grup, lastar)
+    if (!lastar || !mod) return null
+    const ultim = ultimulRandLastar(input.stadii, lastar, mod)
+    if (!ultim || normalizeStadiu(ultim.stadiu) !== STADIU_TAIAT) return null
+    const zi = String(ultim.data_observata ?? '').slice(0, 10)
+    return zi ? `Tăiat pe ${shortDateRo(zi)}` : 'Tăiat'
+  }
+  const text = textStadiiLastari(pe.map(({ lastar, rand }) => ({ lastar, eticheta: etichetaLastar(lastar, rand) })))
+  const ciclu: Partial<Record<Cohorta, StadiuCod | null>> = {}
+  for (const lastar of lastariMod(mod)) ciclu[lastar] = stadiuPentruCiclu(input.stadii, mod, lastar)
   // „Actualizat”: și un „Tăiat” e o notare, chiar dacă lăstarul rămâne fără stadiu.
   const zile = (mod ? lastariMod(mod) : [null])
     .map((lastar) => ultimulRandLastar(input.stadii, lastar, mod)?.data_observata ?? '')
@@ -74,5 +86,5 @@ export function stadiuCurentParcela(input: {
     .map((zi) => String(zi).slice(0, 10))
     .filter(Boolean)
     .sort()
-  return { text, ziua: zile.at(-1) ?? null, mod, peLastari }
+  return { text, ziua: zile.at(-1) ?? null, mod, peLastari, ciclu }
 }
