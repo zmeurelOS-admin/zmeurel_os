@@ -44,6 +44,7 @@ import { MeteoDashboardCard } from '@/components/dashboard/MeteoDashboardCard'
 import { DashboardStaticWidgetGrid } from '@/components/dashboard/DashboardStaticWidgetGrid'
 import type { DashboardTaskItem } from '@/components/dashboard/TaskList'
 import { PrimiiPasi } from '@/components/acasa/PrimiiPasi'
+import { BandaInstalare } from '@/components/pwa/BandaInstalare'
 import { culturileFermei } from '@/lib/parcele/culturi-ferma'
 import { etichetaStocFerma } from '@/lib/stocuri/pe-cultura'
 import { Button } from '@/components/ui/button'
@@ -1718,6 +1719,9 @@ export default function DashboardPage() {
               {/* Promptul 33: comenzile neîncasate de peste 30 de zile, doar pentru proprietar. */}
               <NeincasatePeste30Acasa comenzi={comenzi} azi={todayIso} proprietar={memberRole !== 'operator'} />
             </div>
+
+            {/* Promptul 34, §4: „Pune Caietul pe ecranul telefonului”, doar pe telefon, doar aici. */}
+            <BandaInstalare />
 
             {/* Telefon (sub 768 px): Acasă pe kit, „ce am de făcut azi”. Grila de pe desktop e mai jos, neschimbată. */}
             <div className="mb-[var(--dashboard-stack-gap)] md:hidden">

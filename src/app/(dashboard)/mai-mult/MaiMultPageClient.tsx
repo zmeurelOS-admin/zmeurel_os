@@ -24,6 +24,7 @@ import {
   Package,
   Receipt,
   Settings,
+  Smartphone,
   ShieldCheck,
   SprayCan,
   Sprout,
@@ -38,7 +39,10 @@ import { AppShell } from '@/components/app/AppShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { BottomSheet, Button, StatusPill, kitFocus, kitText } from '@/components/kit'
 import { usePushSubscription } from '@/components/notifications/usePushSubscription'
-import { IconBadge, NavRow, RowGroup, ScreenBody, ScreenHeader, type IconTone } from '@/components/setari/SetariUi'
+import { ActionRow, IconBadge, NavRow, RowGroup, ScreenBody, ScreenHeader, type IconTone } from '@/components/setari/SetariUi'
+import { FoaieInstalare } from '@/components/pwa/FoaieInstalare'
+import { useInstalare } from '@/components/pwa/useInstalare'
+import { cereInstalarea, esteIphone } from '@/lib/pwa/instalare'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { prepareClientBeforeServerSignOut } from '@/lib/auth/server-sign-out-form'
 import { isPathAllowedForAccess, type FarmMemberModuleAccess } from '@/lib/farm-members/access'
@@ -188,6 +192,16 @@ export function MaiMultPageClient({ farmName, localitate }: { farmName: string |
   const signOutFormRef = useRef<HTMLFormElement>(null)
   // Operatorul din link confirmă ieșirea: fără parolă, intră din nou doar cu un link nou.
   const [confirmIesire, setConfirmIesire] = useState(false)
+  // Promptul 34, §4: „Instalează aplicația”, cât nu e instalată (și în demo).
+  const instalare = useInstalare()
+  const [foaieInstalare, setFoaieInstalare] = useState(false)
+  const instaleaza = async () => {
+    if (instalare.arePrompt && !esteIphone(navigator.userAgent)) {
+      await cereInstalarea()
+      return
+    }
+    setFoaieInstalare(true)
+  }
   const iesireConfirmataRef = useRef(false)
 
   const isOperator = memberRole === 'operator'
@@ -351,6 +365,16 @@ export function MaiMultPageClient({ farmName, localitate }: { farmName: string |
         <RowGroup>
           {isOperator ? null : <NavRow href="/planuri" label="Planul tău" sub="Gratuit în beta" icon={<ShieldCheck />} iconTone="primary" />}
           {isOperator ? null : <NavRow href="/settings" label="Setări" icon={<Settings />} iconTone="neutral" />}
+          {instalare.pregatit && !instalare.instalata ? (
+            <ActionRow
+              onClick={() => void instaleaza()}
+              label="Instalează aplicația"
+              sub="Pune Caietul pe ecranul telefonului"
+              icon={<Smartphone />}
+              iconTone="primary"
+              chevron
+            />
+          ) : null}
           {/* Promptul 34, §3: în locul bulei „Ești în beta”. Superadminul (Andrei) nu-și scrie singur. */}
           {isSuperAdmin ? null : (
             <NavRow
@@ -396,6 +420,7 @@ export function MaiMultPageClient({ farmName, localitate }: { farmName: string |
         </RowGroup>
 
       </ScreenBody>
+      <FoaieInstalare open={foaieInstalare} onOpenChange={setFoaieInstalare} />
       <BottomSheet
         open={confirmIesire}
         onOpenChange={setConfirmIesire}

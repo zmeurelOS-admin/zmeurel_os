@@ -44,6 +44,9 @@ export const KIT_RULE_DIRS = [
   'src/app/(dashboard)/notificari',
   'src/components/notifications',
   'src/app/(dashboard)/settings',
+  // Invitația de instalare din platformă (promptul 34, §4). `PWAInstallPrompt` e al magazinului (lista de mai jos).
+  'src/components/pwa',
+  'src/lib/pwa',
   // Logica din spatele ecranelor refăcute: Recoltări, Setări (profilul fermei, exportul) și Acasă pe telefon.
   // `src/lib/notifications/config.ts` rămâne afară: culorile hex din config merg în notificările push, nu în CSS.
   // Clopoțelul și foaia lui sunt pe kit din promptul 33 (`src/components/notifications`, mai jos).
@@ -107,6 +110,9 @@ export const KIT_RULE_DIRS = [
  * Se scot de aici când modulul respectiv e refăcut.
  */
 export const KIT_RULE_PENDING_FILES = [
+  // Invitația de instalare a magazinului (comanda.zmeurel.ro): culorile și aspectul magazinului, neatinse (promptul 34).
+  'src/components/pwa/PWAInstallPrompt.tsx',
+  'src/components/pwa/PWAInstallPromptMount.tsx',
   // Produse: formularele vechi cu poze și blocul de asociație, nefolosite până la magazinul nou (prompt 19).
   'src/components/produse/AddProdusDialog.tsx',
   'src/components/produse/EditProdusDialog.tsx',

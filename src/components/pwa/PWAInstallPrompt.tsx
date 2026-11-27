@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { isPublicNoPwaInstallPath } from '@/lib/pwa/public-install-paths'
+import { esteInstalata } from '@/lib/pwa/instalare'
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>
@@ -38,15 +39,9 @@ function setDismissed() {
   }
 }
 
+/** Aceeași regulă ca invitația din platformă (`src/lib/pwa/instalare.ts`). */
 function isStandaloneMode() {
-  if (typeof window === 'undefined') return false
-
-  const navigatorWithStandalone = window.navigator as Navigator & { standalone?: boolean }
-
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    navigatorWithStandalone.standalone === true
-  )
+  return esteInstalata()
 }
 
 type PWAInstallPromptProps = {

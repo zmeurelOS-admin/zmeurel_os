@@ -1,4 +1,5 @@
 import { BottomTabBar } from '@/components/app/BottomTabBar'
+import { AscultaInstalarea } from '@/components/pwa/BandaInstalare'
 import { DashboardContextSync } from '@/components/app/DashboardContextSync'
 import { DemoBanner } from '@/components/app/DemoBanner'
 import { DashboardSidebarLoader } from '@/components/layout/DashboardSidebarLoader'
@@ -93,6 +94,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <Providers initialAuth={initialAuth}>
       <AiPanelProvider>
         <DashboardContextSync />
+        <AscultaInstalarea />
         <div className="min-h-screen bg-[var(--agri-bg)]">
           <DemoBanner />
           {legalDocsBannerText ? <LegalDocsPersistentBanner mesaj={legalDocsBannerText} /> : null}

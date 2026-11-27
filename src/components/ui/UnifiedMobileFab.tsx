@@ -48,7 +48,8 @@ export default function UnifiedMobileFab() {
       className="z-fab md:hidden"
       style={{
         position: 'fixed',
-        bottom: 'calc(var(--tabbar-h) + var(--safe-b) + 12px)',
+        // Urcă deasupra benzii de instalare din Acasă, cât e vizibilă (promptul 34, §4).
+        bottom: 'calc(var(--tabbar-h) + var(--safe-b) + 12px + var(--banda-instalare-h, 0px))',
         right: 16,
       }}
     >

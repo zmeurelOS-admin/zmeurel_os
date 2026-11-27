@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { generateClientId } from '@/lib/offline/generateClientId'
+import { semnaleazaSalvare } from '@/lib/pwa/instalare'
 import { cn } from '@/lib/utils'
 
 import {
@@ -145,6 +146,8 @@ export function useStepForm({
     editFromSummary: (key) => setSession((prev) => ({ ...prev, nav: navGoTo(prev.nav, config, key, true) })),
     markSuccess: (metadata) => {
       lifecycle.succeeded(metadata)
+      // Prima salvare deschide invitația de instalare din Acasă (promptul 34, §4).
+      semnaleazaSalvare()
       setSession((prev) => ({ ...prev, done: true }))
     },
     markFailed: (metadata) => lifecycle.failed(metadata),
