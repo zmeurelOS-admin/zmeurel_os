@@ -26,6 +26,41 @@ export const ETICHETA_LUCRARE: Record<TipLucrare, string> = {
 /** Ce se scrie în `tip_activitate` la o lucrare nouă (eticheta, ca rândurile vechi scrise din aplicație). */
 export const VALOARE_LUCRARE_DB: Record<TipLucrare, string> = { ...ETICHETA_LUCRARE }
 
+/**
+ * „Altele” cu text (promptul 34, §7): `tip_activitate` = „Altele: Plasă de umbrire: demontat și legat”. Prefixul se
+ * recunoaște înaintea oricărei euristici, deci textul liber nu se reclasifică („curățat” nu devine tăiere).
+ * Fără migrare: coloana n-are listă de valori. Rândurile „Altele” vechi rămân cum sunt.
+ */
+export const PREFIX_ALTELE = 'Altele: '
+/** Cât poate avea textul „Ce ai făcut?”. */
+export const MAX_CE_AI_FACUT = 80
+
+const arePrefixAltele = (value: string | null | undefined) => /^\s*altele\s*:/i.test(String(value ?? ''))
+
+/** Textul de după „Altele: ”, sau `null` (rând fără prefix, sau prefix fără text). */
+export function textAltele(tipActivitate: string | null | undefined): string | null {
+  if (!arePrefixAltele(tipActivitate)) return null
+  const text = String(tipActivitate ?? '').replace(/^\s*altele\s*:/i, '').trim()
+  return text || null
+}
+
+/** Valoarea de scris în `tip_activitate`: „Altele: <text>” la „Altele” cu text, altfel eticheta tipului. */
+export function valoareTipActivitate(tip: TipLucrare, ceAiFacut?: string | null): string {
+  const text = String(ceAiFacut ?? '').trim().slice(0, MAX_CE_AI_FACUT)
+  if (tip === 'altele' && text) return `${PREFIX_ALTELE}${text}`
+  return VALOARE_LUCRARE_DB[tip]
+}
+
+/** Titlul unei lucrări în jurnal: textul scris la „Altele”, altfel eticheta tipului. */
+export function titluLucrare(rand: { tip: TipLucrare; ceAiFacut?: string | null }): string {
+  return rand.ceAiFacut?.trim() || ETICHETA_LUCRARE[rand.tip]
+}
+
+/** Titlul direct din `tip_activitate` (Acasă): „Altele: X” → „X”; altfel textul cum e. */
+export function titluDinTipActivitate(tipActivitate: string | null | undefined): string | null {
+  return textAltele(tipActivitate) ?? (String(tipActivitate ?? '').trim() || null)
+}
+
 const fara = (value: string | null | undefined) =>
   String(value ?? '')
     .normalize('NFD')
@@ -46,6 +81,7 @@ export function esteTratamentVechi(tipActivitate: string | null | undefined): bo
  * („Tăiere lăstari”, „Ciupire/Cârnire”, „Cosire”, „Arat” …) sunt acoperite tot aici.
  */
 export function tipLucrareDin(tipActivitate: string | null | undefined): TipLucrare | null {
+  if (arePrefixAltele(tipActivitate)) return 'altele'
   if (esteTratamentVechi(tipActivitate)) return null
   const tip = fara(tipActivitate)
   if (!tip) return 'altele'
@@ -65,6 +101,8 @@ export function tipLucrareDin(tipActivitate: string | null | undefined): TipLucr
  */
 export function tipOriginalPentruAltele(tipActivitate: string | null | undefined): string | null {
   if (tipLucrareDin(tipActivitate) !== 'altele') return null
+  // „Altele: <text>” are titlul lui (`textAltele`), nu „Notată ca”.
+  if (arePrefixAltele(tipActivitate)) return null
   const text = String(tipActivitate ?? '').trim()
   if (!text || fara(text) === 'altele') return null
   return text.charAt(0).toLocaleUpperCase('ro-RO') + text.slice(1)

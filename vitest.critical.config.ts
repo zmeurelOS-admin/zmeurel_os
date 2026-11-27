@@ -72,6 +72,7 @@ export default defineConfig(({ mode }) => {
         'src/lib/plan/__tests__/*.test.ts',
         'src/lib/analize/__tests__/*.test.ts',
         'src/lib/lucrari/__tests__/*.test.ts',
+        'src/components/lucrari/__tests__/*.test.tsx',
         'src/lib/echipa/__tests__/*.test.ts',
         'src/lib/acte/__tests__/*.test.{ts,tsx}',
         'src/lib/parcele/__tests__/parcela-fisa.test.ts',

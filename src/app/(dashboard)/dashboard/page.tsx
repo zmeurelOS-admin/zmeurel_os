@@ -91,7 +91,7 @@ import { resolveDashboardMicroclimate } from '@/lib/dashboard/microclimate'
 import { getActivitatiAgricole } from '@/lib/supabase/queries/activitati-agricole'
 import { getLucrari } from '@/lib/supabase/queries/lucrari'
 import { construiesteJurnalLucrari, lucrariPlanificateInZi } from '@/lib/lucrari/jurnal'
-import { ETICHETA_LUCRARE } from '@/lib/lucrari/tipuri'
+import { titluLucrare } from '@/lib/lucrari/tipuri'
 import { textCine } from '@/lib/lucrari/formular'
 import { getCheltuieli } from '@/lib/supabase/queries/cheltuieli'
 import { getComenzi } from '@/lib/supabase/queries/comenzi'
@@ -949,7 +949,7 @@ export default function DashboardPage() {
     () =>
       lucrariAzi.map((rand) => ({
         key: rand.key,
-        text: `${ETICHETA_LUCRARE[rand.tip]} planificată: ${textParcele(rand.parcelaIds, numeParceleTratament)}`,
+        text: `${titluLucrare(rand)} planificată: ${textParcele(rand.parcelaIds, numeParceleTratament)}`,
       })),
     [lucrariAzi, numeParceleTratament],
   )
@@ -957,7 +957,7 @@ export default function DashboardPage() {
     () =>
       lucrariAzi.map((rand) => ({
         key: rand.key,
-        titlu: `${ETICHETA_LUCRARE[rand.tip]} planificată`,
+        titlu: `${titluLucrare(rand)} planificată`,
         detaliu: [textParcele(rand.parcelaIds, numeParceleTratament), textCine(rand.cine, memberRole !== 'operator')].filter(Boolean).join(' · '),
         ids: rand.randuri.map((row) => row.id),
       })),

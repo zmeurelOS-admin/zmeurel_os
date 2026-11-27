@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 
 import { construiesteJurnalLucrari } from '@/lib/lucrari/jurnal'
-import { ETICHETA_LUCRARE } from '@/lib/lucrari/tipuri'
+import { titluLucrare } from '@/lib/lucrari/tipuri'
 import { semnalParcela, type PlanificatParcela, type SemnalParcela } from '@/lib/parcele/semnal'
 import { kgPeParcela } from '@/lib/parcele/sezon-parcela'
 import { queryKeys } from '@/lib/query-keys'
@@ -51,7 +51,7 @@ export function useParceleStare(azi: string | null) {
     }
     for (const rand of construiesteJurnalLucrari(lucrari, azi).planificate) {
       if (!rand.zi) continue
-      for (const parcelaId of rand.parcelaIds) push(parcelaId, { zi: rand.zi, tip: 'lucrare', eticheta: ETICHETA_LUCRARE[rand.tip] })
+      for (const parcelaId of rand.parcelaIds) push(parcelaId, { zi: rand.zi, tip: 'lucrare', eticheta: titluLucrare(rand) })
     }
     return map
   }, [aplicari, azi, lucrari])

@@ -2,6 +2,7 @@
  * Acasă pe telefon: în ce perioadă e ferma (sezon / extrasezon), cifrele cardurilor și lista „De făcut”.
  * Funcții pure, peste datele pe care dashboardul le încarcă deja.
  */
+import { titluDinTipActivitate } from '@/lib/lucrari/tipuri'
 import { bucketOfComanda, isComandaDeschisa } from '@/lib/comenzi/day-view'
 import type { FarmSettings } from '@/lib/farm-settings'
 import { round2, shiftIso } from '@/lib/format-ro'
@@ -256,7 +257,7 @@ export function lucrariPlanificate(
       id: activitate.id,
       data: dayOf(activitate.data_aplicare),
       titlu:
-        [activitate.tip_activitate?.trim(), activitate.produs_utilizat?.trim()].filter(Boolean).join(' · ') || 'Lucrare planificată',
+        [titluDinTipActivitate(activitate.tip_activitate), activitate.produs_utilizat?.trim()].filter(Boolean).join(' · ') || 'Lucrare planificată',
     }))
 }
 

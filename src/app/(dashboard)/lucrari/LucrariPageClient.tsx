@@ -26,7 +26,7 @@ import { ScreenBody, ScreenHeader } from '@/components/setari/SetariUi'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { textCine } from '@/lib/lucrari/formular'
 import { construiesteJurnalLucrari, type RandLucrare } from '@/lib/lucrari/jurnal'
-import { ETICHETA_LUCRARE, tipLucrareDin } from '@/lib/lucrari/tipuri'
+import { ETICHETA_LUCRARE, tipLucrareDin, titluLucrare } from '@/lib/lucrari/tipuri'
 import { queryKeys } from '@/lib/query-keys'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { getLucrari, marcheazaLucrariFacute, stergeLucrare } from '@/lib/supabase/queries/lucrari'
@@ -187,7 +187,7 @@ export function LucrariPageClient() {
         <ListRow
           avatar={false}
           leading={<TipLucrareIcon tip={rand.tip} />}
-          title={rand.tipOriginal ? `${ETICHETA_LUCRARE[rand.tip]} · ${rand.tipOriginal}` : ETICHETA_LUCRARE[rand.tip]}
+          title={rand.ceAiFacut ? rand.ceAiFacut : rand.tipOriginal ? `${ETICHETA_LUCRARE[rand.tip]} · ${rand.tipOriginal}` : ETICHETA_LUCRARE[rand.tip]}
           detail={
             <span className="flex flex-col gap-1.5">
               <span>{[textParcele(rand.parcelaIds, numeParcele, parcele.length), cine].filter(Boolean).join(' · ')}</span>
@@ -214,7 +214,7 @@ export function LucrariPageClient() {
   const loadingAll = lucrariQuery.isLoading || parceleQuery.isLoading || !azi
   const eroare = lucrariQuery.isError
 
-  const sheetTitle = deschis ? `${ETICHETA_LUCRARE[deschis.tip]}${deschis.zi ? ` · ${ZiCuDataRo(deschis.zi)}` : ''}` : 'Lucrare'
+  const sheetTitle = deschis ? `${titluLucrare(deschis)}${deschis.zi ? ` · ${ZiCuDataRo(deschis.zi)}` : ''}` : 'Lucrare'
 
   return (
     <AppShell
@@ -297,7 +297,7 @@ export function LucrariPageClient() {
           sheetVedere === 'sterge' ? (
             <div className="space-y-4">
               <p className={cn('text-fg', kitText.base)}>
-                {ETICHETA_LUCRARE[deschis.tip]} · {textParcele(deschis.parcelaIds, numeParcele)}. Se șterge de pe toate parcelele ei.
+                {titluLucrare(deschis)} · {textParcele(deschis.parcelaIds, numeParcele)}. Se șterge de pe toate parcelele ei.
               </p>
               <Button type="button" variant="danger" size="touch-lg" className="w-full" loading={busy === 'sterge'} onClick={() => void sterge(deschis)}>
                 Șterge lucrarea

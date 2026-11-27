@@ -2,7 +2,7 @@
  * Formularul „Lucrare nouă”, fără React: ce a ales omul și rândurile de salvat în `activitati_agricole`
  * (un rând pe parcelă, fiecare cu `client_sync_id` propriu; toate cu același lot = cheia formularului).
  */
-import { VALOARE_LUCRARE_DB, type TipLucrare } from './tipuri'
+import { valoareTipActivitate, type TipLucrare } from './tipuri'
 
 export type CandLucrare = { tip: 'azi' } | { tip: 'alta_zi'; zi: string } | { tip: 'planifica'; zi: string }
 
@@ -11,12 +11,14 @@ export const CINE_PROPRIETAR = 'Proprietarul'
 
 export interface CiornaLucrare {
   tip: TipLucrare | null
+  /** „Ce ai făcut?” la „Altele” (promptul 34, §7): obligatoriu, devine titlul lucrării. */
+  ceAiFacut: string
   parcelaIds: string[]
   cine: string
   nota: string
 }
 
-export const CIORNA_GOALA: CiornaLucrare = { tip: null, parcelaIds: [], cine: '', nota: '' }
+export const CIORNA_GOALA: CiornaLucrare = { tip: null, ceAiFacut: '', parcelaIds: [], cine: '', nota: '' }
 
 export interface RandLucrareDeSalvat {
   client_sync_id: string
@@ -37,8 +39,9 @@ export function dataAplicare(cand: CandLucrare, now: Date = new Date()): string 
   return `${cand.zi}T12:00:00.000Z`
 }
 
-export function ceLipsesteLucrare(ciorna: CiornaLucrare): 'tip' | 'parcele' | null {
+export function ceLipsesteLucrare(ciorna: CiornaLucrare): 'tip' | 'ceAiFacut' | 'parcele' | null {
   if (!ciorna.tip) return 'tip'
+  if (ciorna.tip === 'altele' && !ciorna.ceAiFacut.trim()) return 'ceAiFacut'
   if (ciorna.parcelaIds.length === 0) return 'parcele'
   return null
 }
@@ -57,6 +60,7 @@ export function randuriLucrareDeSalvat(input: {
 }): RandLucrareDeSalvat[] {
   const { ciorna, cand, chei, lotId, cuMigrare } = input
   if (!ciorna.tip) return []
+  if (ciorna.tip === 'altele' && !ciorna.ceAiFacut.trim()) return []
   if (cand.tip === 'planifica' && !cuMigrare) return []
   const data = dataAplicare(cand, input.now)
   const cine = ciorna.cine.trim() || null
@@ -68,7 +72,7 @@ export function randuriLucrareDeSalvat(input: {
       client_sync_id: cheie,
       parcela_id: parcelaId,
       data_aplicare: data,
-      tip_activitate: VALOARE_LUCRARE_DB[ciorna.tip as TipLucrare],
+      tip_activitate: valoareTipActivitate(ciorna.tip as TipLucrare, ciorna.ceAiFacut),
       operator: cine,
       observatii: nota,
       timp_pauza_zile: 0,

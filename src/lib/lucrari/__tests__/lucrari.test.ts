@@ -117,7 +117,7 @@ describe('formularul de lucrare', () => {
 
   it('un rând pe parcelă, fiecare cu cheia lui, același lot', () => {
     const rows = randuriLucrareDeSalvat({
-      ciorna: { tip: 'palisare', parcelaIds: ['p1', 'p2'], cine: ' Ana Pavel ', nota: '' },
+      ciorna: { tip: 'palisare', ceAiFacut: '', parcelaIds: ['p1', 'p2'], cine: ' Ana Pavel ', nota: '' },
       cand: { tip: 'azi' },
       chei,
       lotId: 'L1',
@@ -131,24 +131,24 @@ describe('formularul de lucrare', () => {
   })
 
   it('fără migrare: nu trimite status / lot și nu planifică', () => {
-    const [rand] = randuriLucrareDeSalvat({ ciorna: { tip: 'copilit', parcelaIds: ['p1'], cine: '', nota: 'rândul 3' }, cand: { tip: 'alta_zi', zi: '2026-07-10' }, chei, lotId: 'L1', cuMigrare: false })
+    const [rand] = randuriLucrareDeSalvat({ ciorna: { tip: 'copilit', ceAiFacut: '', parcelaIds: ['p1'], cine: '', nota: 'rândul 3' }, cand: { tip: 'alta_zi', zi: '2026-07-10' }, chei, lotId: 'L1', cuMigrare: false })
     expect(rand).not.toHaveProperty('status')
     expect(rand).not.toHaveProperty('lot_id')
     expect(rand.data_aplicare).toBe('2026-07-10T12:00:00.000Z')
     expect(rand.observatii).toBe('rândul 3')
-    expect(randuriLucrareDeSalvat({ ciorna: { tip: 'copilit', parcelaIds: ['p1'], cine: '', nota: '' }, cand: { tip: 'planifica', zi: '2026-07-20' }, chei, lotId: 'L1', cuMigrare: false })).toEqual([])
+    expect(randuriLucrareDeSalvat({ ciorna: { tip: 'copilit', ceAiFacut: '', parcelaIds: ['p1'], cine: '', nota: '' }, cand: { tip: 'planifica', zi: '2026-07-20' }, chei, lotId: 'L1', cuMigrare: false })).toEqual([])
   })
 
   it('planificată: status și ziua', () => {
-    const [rand] = randuriLucrareDeSalvat({ ciorna: { tip: 'irigatie', parcelaIds: ['p1'], cine: '', nota: '' }, cand: { tip: 'planifica', zi: '2026-07-20' }, chei, lotId: 'L1', cuMigrare: true })
+    const [rand] = randuriLucrareDeSalvat({ ciorna: { tip: 'irigatie', ceAiFacut: '', parcelaIds: ['p1'], cine: '', nota: '' }, cand: { tip: 'planifica', zi: '2026-07-20' }, chei, lotId: 'L1', cuMigrare: true })
     expect(rand.status).toBe('planificata')
     expect(rand.data_aplicare).toBe('2026-07-20T12:00:00.000Z')
   })
 
   it('ce lipsește, ziua salvată, „Tu”', () => {
-    expect(ceLipsesteLucrare({ tip: null, parcelaIds: [], cine: '', nota: '' })).toBe('tip')
-    expect(ceLipsesteLucrare({ tip: 'legat', parcelaIds: [], cine: '', nota: '' })).toBe('parcele')
-    expect(ceLipsesteLucrare({ tip: 'legat', parcelaIds: ['p1'], cine: '', nota: '' })).toBeNull()
+    expect(ceLipsesteLucrare({ tip: null, ceAiFacut: '', parcelaIds: [], cine: '', nota: '' })).toBe('tip')
+    expect(ceLipsesteLucrare({ tip: 'legat', ceAiFacut: '', parcelaIds: [], cine: '', nota: '' })).toBe('parcele')
+    expect(ceLipsesteLucrare({ tip: 'legat', ceAiFacut: '', parcelaIds: ['p1'], cine: '', nota: '' })).toBeNull()
     expect(dataAplicare({ tip: 'alta_zi', zi: '2026-01-05' })).toBe('2026-01-05T12:00:00.000Z')
     expect(textCine(CINE_PROPRIETAR, true)).toBe('Tu')
     expect(textCine(CINE_PROPRIETAR, false)).toBe('Proprietarul')

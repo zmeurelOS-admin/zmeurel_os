@@ -10,7 +10,7 @@
  */
 import { ziuaRo } from '@/lib/tratamente/zile'
 
-import { tipLucrareDin, tipOriginalPentruAltele, type TipLucrare } from './tipuri'
+import { textAltele, tipLucrareDin, tipOriginalPentruAltele, type TipLucrare } from './tipuri'
 
 export type StareLucrare = 'facuta' | 'planificata'
 
@@ -34,6 +34,8 @@ export interface RandLucrare {
   tip: TipLucrare
   /** Textul vechi când tipul e „Altele” și rândul spune mai mult („Recoltare”). */
   tipOriginal: string | null
+  /** „Altele: <text>” (promptul 34, §7): textul, care e titlul lucrării. */
+  ceAiFacut: string | null
   /** Ziua lucrării (făcute) sau ziua planificată, în ora României. */
   zi: string | null
   parcelaIds: string[]
@@ -133,6 +135,7 @@ export function randuriLucrari(rows: readonly LucrareRow[], azi?: string | null)
       stare: stareLucrare(prima, azi),
       tip,
       tipOriginal: tipOriginalPentruAltele(prima.tip_activitate),
+      ceAiFacut: textAltele(prima.tip_activitate),
       zi: ziuaRo(prima.data_aplicare),
       parcelaIds: [...new Set(grup.map((row) => row.parcela_id).filter((id): id is string => Boolean(id)))],
       cine: text(prima.operator),

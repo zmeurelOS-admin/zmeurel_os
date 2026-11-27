@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarDays } from 'lucide-react'
 
 import {
@@ -34,10 +34,11 @@ import {
   type CiornaLucrare,
 } from '@/lib/lucrari/formular'
 import type { RandLucrare } from '@/lib/lucrari/jurnal'
-import { ETICHETA_LUCRARE, TIPURI_LUCRARE, VALOARE_LUCRARE_DB, type TipLucrare } from '@/lib/lucrari/tipuri'
+import { alegeriRapideAltele } from '@/lib/lucrari/altele'
+import { ETICHETA_LUCRARE, MAX_CE_AI_FACUT, TIPURI_LUCRARE, titluLucrare, valoareTipActivitate, type TipLucrare } from '@/lib/lucrari/tipuri'
 import { queryKeys } from '@/lib/query-keys'
 import { useSchemaFeatures } from '@/lib/schema-features'
-import { creeazaLucrari, modificaLucrare } from '@/lib/supabase/queries/lucrari'
+import { creeazaLucrari, getLucrari, modificaLucrare } from '@/lib/supabase/queries/lucrari'
 import { textParcele } from '@/lib/tratamente/jurnal'
 import { ZiCuDataRo, ziCuDataRo } from '@/lib/tratamente/zile'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
@@ -86,7 +87,14 @@ function startFrom(editing: RandLucrare | null | undefined, precompletare: Preco
     const zi = editing.zi ?? todayIso
     const cand: CandTip = editing.stare === 'planificata' ? 'planifica' : zi === todayIso ? 'azi' : 'alta_zi'
     return {
-      ciorna: { tip: editing.tip, parcelaIds: [...editing.parcelaIds], cine: editing.cine ?? '', nota: editing.nota ?? '' } satisfies CiornaLucrare,
+      ciorna: {
+        tip: editing.tip,
+        // „Altele” vechi: textul vechi, dacă există („Recoltare”), ca punct de plecare.
+        ceAiFacut: editing.tip === 'altele' ? (editing.ceAiFacut ?? editing.tipOriginal ?? '') : '',
+        parcelaIds: [...editing.parcelaIds],
+        cine: editing.cine ?? '',
+        nota: editing.nota ?? '',
+      } satisfies CiornaLucrare,
       cand,
       zi: cand === 'azi' ? null : zi,
     }
@@ -125,6 +133,9 @@ export function LucrareStepForm({ open, onOpenChange, parcele, todayIso, editing
   })
 
   const [ciorna, setCiorna] = useState<CiornaLucrare>(CIORNA_GOALA)
+  // Alegerile rapide de la „Altele”: din lucrările fermei (aceeași cheie ca Lucrări, deci de obicei deja în memorie).
+  const lucrariQuery = useQuery({ queryKey: queryKeys.lucrari, queryFn: getLucrari, enabled: open && !editing, staleTime: 30_000 })
+  const alegeriRapide = useMemo(() => alegeriRapideAltele(lucrariQuery.data ?? []), [lucrariQuery.data])
   const [initialJson, setInitialJson] = useState('')
   const [cand, setCand] = useState<CandTip>('azi')
   const [zi, setZi] = useState<string | null>(null)
@@ -195,7 +206,7 @@ export function LucrareStepForm({ open, onOpenChange, parcele, todayIso, editing
         await modificaLucrare({
           randuri: editing.randuri,
           patch: {
-            tip_activitate: VALOARE_LUCRARE_DB[ciorna.tip],
+            tip_activitate: valoareTipActivitate(ciorna.tip, ciorna.ceAiFacut),
             operator: ciorna.cine.trim() || null,
             observatii: ciorna.nota.trim() || null,
             data_aplicare: dataAplicare(candObj),
@@ -222,8 +233,8 @@ export function LucrareStepForm({ open, onOpenChange, parcele, todayIso, editing
       const unde = textParcele(ciorna.parcelaIds, numeParcele)
       setSaved(
         candObj.tip === 'planifica'
-          ? { titlu: 'Planificată', detaliu: `${ETICHETA_LUCRARE[ciorna.tip]} ${ziCuDataRo(candObj.zi)} · ${unde}. Apare în Acasă în ziua ei.` }
-          : { titlu: editing ? 'Modificată' : 'Salvată', detaliu: `${ETICHETA_LUCRARE[ciorna.tip]} · ${unde}` },
+          ? { titlu: 'Planificată', detaliu: `${titluLucrare({ tip: ciorna.tip, ceAiFacut: ciorna.ceAiFacut })} ${ziCuDataRo(candObj.zi)} · ${unde}. Apare în Acasă în ziua ei.` }
+          : { titlu: editing ? 'Modificată' : 'Salvată', detaliu: `${titluLucrare({ tip: ciorna.tip, ceAiFacut: ciorna.ceAiFacut })} · ${unde}` },
       )
       form.markSuccess({ tip: ciorna.tip, parcele: ciorna.parcelaIds.length, cand: candObj.tip, cine: Boolean(ciorna.cine.trim()) })
     } catch (error) {
@@ -322,6 +333,30 @@ export function LucrareStepForm({ open, onOpenChange, parcele, todayIso, editing
             <Tile key={tip} value={tip} size="sm" leading={ICON_LUCRARE[tip]} title={ETICHETA_LUCRARE[tip]} />
           ))}
         </TileGroup>
+        {alegeriRapide.length > 0 ? (
+          <section className="space-y-2" aria-labelledby="lucrare-folosite-des">
+            <h3 id="lucrare-folosite-des" className={cn('font-bold text-fg', kitText.base)}>
+              Folosite des la „Altele”
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {alegeriRapide.map((text) => (
+                <Button
+                  key={text}
+                  type="button"
+                  variant="neutral"
+                  size="touch"
+                  className="h-auto min-h-touch max-w-full whitespace-normal py-2 text-left"
+                  onClick={() => {
+                    setCiorna((previous) => ({ ...previous, tip: 'altele', ceAiFacut: text }))
+                    form.next()
+                  }}
+                >
+                  {text}
+                </Button>
+              ))}
+            </div>
+          </section>
+        ) : null}
         <p className={cn('text-fg-muted', kitText.helper)}>Stropirile și fertirigarea se notează în Tratamente.</p>
       </div>
     )
@@ -334,6 +369,19 @@ export function LucrareStepForm({ open, onOpenChange, parcele, todayIso, editing
           <Notice tone="danger" title="Nu s-a salvat">
             {saveError}
           </Notice>
+        ) : null}
+
+        {ciorna.tip === 'altele' ? (
+          <BigInput
+            label="Ce ai făcut?"
+            value={ciorna.ceAiFacut}
+            onChange={(event) => setCiorna((previous) => ({ ...previous, ceAiFacut: event.target.value }))}
+            placeholder="ex. Plasă de umbrire: demontat și legat"
+            autoComplete="off"
+            maxLength={MAX_CE_AI_FACUT}
+            required
+            aria-required
+          />
         ) : null}
 
         <section className="space-y-2.5" aria-labelledby="lucrare-unde">

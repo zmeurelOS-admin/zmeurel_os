@@ -135,7 +135,7 @@ export function jurnalParcela(input: {
   // Lucrările făcute.
   for (const rand of randuriLucrari(input.activitati.filter((row) => row.parcela_id === parcelaId), input.azi)) {
     if (rand.stare !== 'facuta' || !rand.zi) continue
-    const eticheta = rand.tipOriginal ?? ETICHETA_LUCRARE[rand.tip]
+    const eticheta = rand.ceAiFacut ?? rand.tipOriginal ?? ETICHETA_LUCRARE[rand.tip]
     const cine = input.textCine ? input.textCine(rand.cine) : rand.cine
     intrari.push({
       key: `lucrare:${rand.key}`,
