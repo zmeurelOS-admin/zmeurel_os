@@ -21,7 +21,7 @@ export function SummaryRow({ label, value, amount, onChange, changeLabel = 'Schi
     <>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className={cn('font-medium text-fg-muted', kitText.secondary)}>{label}</span>
-        <span className={cn('truncate font-bold text-fg', kitText.base)}>{value}</span>
+        <span className={cn('break-words font-bold text-fg', kitText.base)}>{value}</span>
       </span>
       {amount ? <span className={cn('shrink-0 whitespace-nowrap font-bold text-fg', kitText.base)}>{amount}</span> : null}
       {onChange ? <span className={cn('shrink-0 font-semibold text-primary', kitText.secondary)}>{changeLabel}</span> : null}

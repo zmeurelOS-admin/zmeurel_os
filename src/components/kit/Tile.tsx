@@ -199,7 +199,7 @@ export function Tile({
         </span>
       ) : null}
       <span className={cn('flex min-w-0 max-w-full flex-col', size === 'sm' && 'items-center')}>
-        <span className={cn('max-w-full font-bold', kitText.base, size === 'lg' && 'break-words')}>{title}</span>
+        <span className={cn('max-w-full break-words font-bold', kitText.base)}>{title}</span>
         {subtitle ? (
           <span className={cn('max-w-full font-medium', kitText.secondary, selected ? 'opacity-90' : 'text-fg-muted')}>
             {subtitle}
@@ -213,7 +213,7 @@ export function Tile({
             kitText.secondary,
           )}
         >
-          <span className="truncate">{badge}</span>
+          <span className="break-words">{badge}</span>
         </span>
       ) : null}
     </button>

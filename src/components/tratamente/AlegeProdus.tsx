@@ -231,7 +231,7 @@ export function ProdusNou({
       <BigInput label="Numele produsului" value={nume} onChange={(event) => setNume(event.target.value)} autoFocus maxLength={120} placeholder="ex. Serenade ASO" />
       <div className="space-y-2">
         <p className={cn('font-bold text-fg', kitText.secondary)}>Ce fel de produs</p>
-        <TileGroup type="single" value={tip} onValueChange={(value) => value && setTip(value as TipProdusNou)} aria-label="Tipul produsului" columns={3}>
+        <TileGroup type="single" value={tip} onValueChange={(value) => value && setTip(value as TipProdusNou)} aria-label="Tipul produsului" columns={2}>
           {TIPURI_NOI.map((item) => (
             <Tile key={item.value} value={item.value} size="sm" title={item.label} />
           ))}

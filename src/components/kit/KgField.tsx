@@ -84,6 +84,17 @@ export function kgFieldLabel(label: string, value: string, unit: string, active:
  * Pentru cititoarele de ecran e un buton apăsat / neapăsat, cu eticheta „câmp, valoare, stare”, iar valoarea
  * se anunță la fiecare schimbare (`aria-live` politicos).
  */
+/**
+ * Mărimea cifrelor la câmpul `md` (promptul 34, §9): o valoare lungă (846.488) nu iese din câmp într-o coloană
+ * îngustă; cifrele se micșorează după câte caractere are valoarea.
+ */
+export function pasTextValoareMd(value: string): 'section' | 'card' | 'base' {
+  const lungime = value.length
+  if (lungime <= 6) return 'section'
+  if (lungime <= 8) return 'card'
+  return 'base'
+}
+
 export function KgField({ label, value, unit = 'kg', active, onActivate, size = 'hero', className }: KgFieldProps) {
   const empty = value === ''
   const hero = size === 'hero'
@@ -98,18 +109,18 @@ export function KgField({ label, value, unit = 'kg', active, onActivate, size = 
         className={cn(
           'flex w-full rounded-box border-2 bg-surface transition-[border-color,box-shadow]',
           kitFocus,
-          hero ? 'flex-col items-center gap-1 px-4 py-4' : 'min-h-touch-lg items-center justify-between gap-3 px-4 py-2',
+          hero ? 'flex-col items-center gap-1 px-4 py-4' : 'min-h-touch-lg flex-wrap items-center justify-between gap-x-3 gap-y-0.5 px-4 py-2',
           active ? 'border-primary ring-[3px] ring-primary/20' : 'border-border',
         )}
       >
-        <span className={cn('font-semibold', hero ? kitText.secondary : kitText.base, active ? 'text-fg' : 'text-fg-muted')}>
+        <span className={cn('min-w-0 break-words font-semibold', hero ? kitText.secondary : kitText.base, active ? 'text-fg' : 'text-fg-muted')}>
           {label}
         </span>
-        <span className="flex items-baseline gap-2">
+        <span className="flex min-w-0 max-w-full flex-wrap items-baseline justify-end gap-x-2">
           <span
             className={cn(
-              'flex items-center font-extrabold',
-              hero ? kitText.figure : kitText.section,
+              'flex min-w-0 items-center font-extrabold',
+              hero ? kitText.figure : kitText[pasTextValoareMd(value)],
               hero && 'min-h-16',
               empty ? 'text-fg-muted' : 'text-fg',
             )}

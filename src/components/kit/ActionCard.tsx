@@ -148,7 +148,7 @@ export function ActionCard({
                   className={cn('min-w-0 gap-1.5 px-2 has-[>svg]:px-2', kitText.secondary)}
                 >
                   {item.icon}
-                  <span className="truncate">{item.label}</span>
+                  <span className="min-w-0 whitespace-normal break-words text-center leading-tight">{item.label}</span>
                 </Button>
               ))}
             </div>

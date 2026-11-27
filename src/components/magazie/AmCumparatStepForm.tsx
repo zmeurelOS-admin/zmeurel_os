@@ -26,6 +26,7 @@ import { BON_UNREADABLE_MESSAGE, prepareBonImage } from '@/lib/bonuri'
 import { formatLei, relativeDayRo } from '@/lib/format-ro'
 import { categorieCheltuiala, cheieDerivata, pretPeUnitate, textPretPeUnitate } from '@/lib/magazie/bani'
 import { formatCantitateStoc, UNITATI_STOC, type UnitateStoc } from '@/lib/magazie/unitati'
+import { cereConfirmare } from '@/lib/magazie/praguri'
 import { queryKeys } from '@/lib/query-keys'
 import { inregistreazaIntrare, type StocMagazie } from '@/lib/supabase/queries/magazie'
 import { creeazaProdusFerma, type TipProdusNou } from '@/lib/supabase/queries/tratamente'
@@ -37,7 +38,7 @@ const STEPS = ['produs', 'cantitate'] as const
 const FIELDS = ['cantitate', 'pret'] as const
 const NETWORK_ERROR = /failed to fetch|networkerror|network request failed|load failed|fetch failed/i
 
-type Vedere = null | 'produs-nou' | 'data' | 'furnizor' | 'renunta'
+type Vedere = null | 'produs-nou' | 'data' | 'furnizor' | 'renunta' | 'sigur'
 type Bon = { blob: Blob; previewUrl: string } | null
 
 function mesajEroare(error: unknown): string {
@@ -175,8 +176,14 @@ export function AmCumparatStepForm({ open, onOpenChange, todayIso, catalog, stoc
     }
   }
 
-  const save = async () => {
+  const save = async (confirmat = false) => {
     if (!canSave || !produs || cantitate === null) return
+    // Promptul 34, §9: peste prag (kg > 2.000, l > 500, buc > 500), întâi „Sigur?”.
+    if (!confirmat && cereConfirmare(cantitate, unitateEfectiva)) {
+      setVedere('sigur')
+      return
+    }
+    setVedere(null)
     const key = form.clientSyncId
     setSaving(true)
     setSaveError(null)
@@ -241,7 +248,26 @@ export function AmCumparatStepForm({ open, onOpenChange, todayIso, catalog, stoc
 
   let content: React.ReactNode = null
   let stepLabel: string | undefined
-  if (vedere === 'renunta') {
+  if (vedere === 'sigur' && produs && cantitate !== null) {
+    stepLabel = 'Verifică'
+    content = (
+      <div className="flex min-h-full flex-col justify-center gap-3 py-6 text-center">
+        <StepFormTitle>Sigur?</StepFormTitle>
+        <p className={cn('break-words text-fg', kitText.base)}>
+          {`${formatCantitateStoc(cantitate, unitateEfectiva, true)} de ${produs.nume_comercial}`}
+        </p>
+        <p className={cn('text-fg-muted', kitText.secondary)}>E mai mult decât se cumpără de obicei. Verifică cifra înainte să intre în magazie.</p>
+        <div className="mt-3 flex flex-col gap-2.5">
+          <Button type="button" variant="primary" size="touch-lg" className="w-full" loading={saving} onClick={() => void save(true)}>
+            Da, salvez
+          </Button>
+          <Button type="button" variant="neutral" size="touch-lg" className="w-full" onClick={() => setVedere(null)}>
+            Corectez
+          </Button>
+        </div>
+      </div>
+    )
+  } else if (vedere === 'renunta') {
     stepLabel = 'Nesalvat'
     content = (
       <div className="flex min-h-full flex-col justify-center gap-3 py-6 text-center">

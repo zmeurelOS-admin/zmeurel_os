@@ -69,13 +69,14 @@ export function Segments<T extends string = string>({
             tabIndex={selected ? 0 : -1}
             onClick={() => onValueChange(option.value)}
             className={cn(
-              'flex h-touch min-w-0 items-center justify-center gap-1 rounded-control px-1 font-bold',
+              // Eticheta lungă trece pe două rânduri, nu se taie (promptul 34, §9): fila crește pe înălțime.
+              'flex min-h-touch min-w-0 flex-wrap items-center justify-center gap-x-1 rounded-control px-1 py-1 text-center font-bold leading-tight',
               kitText.secondary,
               kitFocus,
               selected ? 'bg-surface text-fg shadow-1' : 'text-fg-muted',
             )}
           >
-            <span className="truncate">{option.label}</span>
+            <span className="min-w-0 break-words">{option.label}</span>
             {option.count !== undefined ? <span className="font-semibold opacity-70">{option.count}</span> : null}
           </button>
         )

@@ -21,8 +21,8 @@ export interface StatusPillProps {
   children: ReactNode
   className?: string
   /**
-   * Textul lung trece pe două rânduri, nu se taie (promptul 33: eticheta stadiului de pe cardul parcelei,
-   * „Lăstar an 2: Primele fructe colorate”). Implicit pe un rând.
+   * Textul aliniat la stânga când trece pe mai multe rânduri (promptul 33: eticheta stadiului de pe cardul parcelei).
+   * Din promptul 34 (§9), orice pastilă care nu încape trece pe rândul următor, nu iese din chenar.
    */
   wrap?: boolean
 }
@@ -33,7 +33,8 @@ export function StatusPill({ tone = 'neutral', icon, children, className, wrap =
     <span
       className={cn(
         'inline-flex shrink-0 items-center gap-1 rounded-full border px-3 font-bold [&_svg]:size-3.5',
-        wrap ? 'min-h-[30px] max-w-full py-1 text-left leading-tight' : 'h-[30px] whitespace-nowrap',
+        'min-h-[30px] max-w-full py-1 leading-tight',
+        wrap && 'text-left',
         kitText.helper,
         TONE_CLASS[tone],
         className,

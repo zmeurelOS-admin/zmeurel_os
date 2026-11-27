@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
-import { KgField, kgFieldLabel, useKeypadFields } from '@/components/kit/KgField'
+import { KgField, kgFieldLabel, pasTextValoareMd, useKeypadFields } from '@/components/kit/KgField'
 import { NumericKeypad } from '@/components/kit/NumericKeypad'
 
 function Cantar() {
@@ -173,5 +173,20 @@ describe('KgField — accesibilitate', () => {
   it('câmpul nu e un <input>, deci tastatura telefonului nu se deschide', () => {
     const { container } = render(<Cantar />)
     expect(container.querySelector('input')).toBeNull()
+  })
+})
+
+describe('KgField md — valori lungi (promptul 34, §9)', () => {
+  it('cifrele se micșorează după lungime, ca valoarea să rămână în câmp', () => {
+    expect(pasTextValoareMd('12,5')).toBe('section')
+    expect(pasTextValoareMd('846488')).toBe('section')
+    expect(pasTextValoareMd('846488,5')).toBe('card')
+    expect(pasTextValoareMd('846488,99')).toBe('base')
+  })
+
+  it('câmpul md poate trece pe două rânduri (eticheta, apoi valoarea)', () => {
+    render(<KgField label="Cantitate" size="md" value="846488,99" active={false} onActivate={() => undefined} />)
+    const buton = screen.getByRole('button', { name: /Cantitate/ })
+    expect(buton.className).toContain('flex-wrap')
   })
 })

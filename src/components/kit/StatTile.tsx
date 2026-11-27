@@ -27,7 +27,7 @@ export function StatTile({ value, label, unit, tone = 'neutral', className }: St
     >
       <span
         className={cn(
-          'truncate font-extrabold',
+          'break-words font-extrabold',
           kitText.section,
           'leading-none',
           tone === 'neutral' && 'text-fg',
@@ -75,7 +75,7 @@ export function StatHero({ label, value, unit, items, footer, className }: StatH
           {items.map((item, index) => (
             <div key={index} className="flex min-w-0 flex-col-reverse gap-0.5">
               <dt className={cn('font-medium opacity-85', kitText.helper)}>{item.label}</dt>
-              <dd className={cn('truncate font-extrabold', kitText.card)}>{item.value}</dd>
+              <dd className={cn('break-words font-extrabold', kitText.card)}>{item.value}</dd>
             </div>
           ))}
         </dl>
