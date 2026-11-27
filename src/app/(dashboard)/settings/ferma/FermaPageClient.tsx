@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Crosshair, FileText, MapPin } from 'lucide-react'
+import { Crosshair, ExternalLink, FileText, MapPin, Store } from 'lucide-react'
 
 import { AppShell } from '@/components/app/AppShell'
+import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { BigInput, Button, Notice, kitText } from '@/components/kit'
 import { IconBadge, NavRow, PanelCard, RowGroup, ScreenBody, ScreenHeader } from '@/components/setari/SetariUi'
 import { SAVE_ERROR_MESSAGE, saveTenantSettingsRow } from '@/lib/farm-settings'
@@ -47,6 +48,9 @@ export function FermaPageClient({
   savedLocation: { lat: number; lng: number } | null
 }) {
   const router = useRouter()
+  const { tenantId, associationShopApproved, memberRole } = useDashboardAuth()
+  // Promptul 34, §10: linkul spre magazinul public al fermei (era doar pe cardul vechi de desktop „Magazinul meu”).
+  const magazinHref = associationShopApproved ? '/magazin/asociatie' : tenantId ? `/magazin/${tenantId}` : null
   const [saved, setSaved] = useState({
     name: farm?.numeFerma ?? '',
     phone: farm?.contactPhone ?? '',
@@ -195,6 +199,20 @@ export function FermaPageClient({
         <RowGroup title="Acte">
           <NavRow href="/settings/ferma/acte" label="Actele fermei" sub="Formă juridică, atestat de producător, contact" icon={<FileText />} iconTone="neutral" />
         </RowGroup>
+
+        {magazinHref && memberRole !== 'operator' ? (
+          <RowGroup title="Magazin">
+            <NavRow
+              href={magazinHref}
+              external
+              label="Magazinul tău online"
+              sub={associationShopApproved ? 'Vitrina asociației, cu produsele tale' : 'Pagina publică unde clienții comandă de la tine'}
+              icon={<Store />}
+              iconTone="primary"
+              trailing={<ExternalLink className="size-4 text-fg-subtle" aria-hidden />}
+            />
+          </RowGroup>
+        ) : null}
 
         <Button
           type="button"
