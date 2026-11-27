@@ -1,9 +1,8 @@
-/** Placeholder când sidebar-ul se încarcă doar pe client (evită mismatch Radix Collapsible + useId la hidratare). */
+/** Locul barei laterale cât se încarcă (doar pe client): aceeași lățime și culoare, fără conținut. */
 export function DashboardSidebarSkeleton() {
   return (
     <aside
-      className="fixed left-0 top-0 z-40 hidden w-[var(--sidebar-width)] border-r border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)] md:flex"
-      style={{ height: '100vh' }}
+      className="fixed left-0 top-0 z-nav hidden h-screen w-[var(--sidebar-width)] border-r border-border bg-surface md:flex"
       aria-label="Navigare desktop"
       aria-busy="true"
     />

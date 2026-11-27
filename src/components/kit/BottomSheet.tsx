@@ -32,7 +32,7 @@ export interface BottomSheetProps {
  *
  * Rădăcina e `Dialog` din `ui/dialog` (ascunde butonul plutitor prin `data-modal-open` și închide foaia
  * la „înapoi” pe Android), iar conținutul e `SheetContent` din `ui/sheet` (portal, capcană de focus, Esc).
- * Se deschide peste bara de jos, pe stratul `z-modal`.
+ * Se deschide peste bara de jos, pe stratul `z-modal`. Pe desktop e un dialog centrat (promptul 34, §10).
  */
 export function BottomSheet({
   open,
@@ -54,10 +54,12 @@ export function BottomSheet({
         {...(description ? {} : { 'aria-describedby': undefined })}
         className={cn(
           'mx-auto flex max-h-[90dvh] w-full max-w-md flex-col gap-0 overflow-hidden rounded-t-sheet border-0 bg-surface p-0 text-fg shadow-overlay',
+          // Pe desktop (promptul 34, §10): dialog centrat pe ecran, cu colțurile rotunjite peste tot.
+          'md:right-auto md:bottom-auto md:left-1/2 md:top-1/2 md:max-h-[min(85dvh,760px)] md:w-[min(92vw,32rem)] md:max-w-none md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-card md:border md:border-border',
           className,
         )}
       >
-        <div className="mx-auto mt-3 h-1.5 w-11 shrink-0 rounded-full bg-border-strong" aria-hidden />
+        <div className="mx-auto mt-3 h-1.5 w-11 shrink-0 rounded-full bg-border-strong md:hidden" aria-hidden />
 
         <div className={cn('flex shrink-0 items-start gap-3 px-4', hideTitle && !showClose ? 'pt-2' : 'pb-2 pt-2')}>
           <div className={cn('flex min-w-0 flex-1 flex-col gap-1', !hideTitle && 'pt-2.5')}>

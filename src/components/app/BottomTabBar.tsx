@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo } from 'react'
 
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
-import { operatorTabs } from '@/lib/farm-members/nav'
+import { meniuPrincipal } from '@/lib/navigatie/meniu'
 
 type TabDef = {
   label: string
@@ -13,12 +13,19 @@ type TabDef = {
   emoji: string
 }
 
-const TABS: TabDef[] = [
-  { label: 'Acasă', href: '/dashboard', emoji: '🏡' },
-  { label: 'Livrări', href: '/livrari', emoji: '🚚' },
-  { label: 'Recoltări', href: '/recoltari', emoji: '🧺' },
-  { label: 'Comenzi', href: '/comenzi', emoji: '📦' },
-]
+/** Semnele barei de jos, pe adresă; numele și ordinea vin din navigația comună (`src/lib/navigatie/meniu.ts`). */
+const EMOJI_TAB: Record<string, string> = {
+  '/dashboard': '🏡',
+  '/livrari': '🚚',
+  '/recoltari': '🧺',
+  '/comenzi': '📦',
+  '/parcele': '🌿',
+  '/lucrari': '🌱',
+  '/tratamente': '🧪',
+  '/clienti': '👥',
+  '/culegatori': '👷',
+  '/produse': '🛒',
+}
 
 /** Fermieri și Setări sunt în „Mai mult” — 4 taburi egale pe mobil. */
 const ASOCIATIE_TABS: TabDef[] = [
@@ -42,9 +49,9 @@ export function BottomTabBar() {
   // Operatorul: doar modulele lui (Citește / Scrie), cel mult 4, plus „Mai mult”. Proprietarul: bara de azi.
   const tabs = useMemo<TabDef[]>(() => {
     if (showAssociationTabs) return ASOCIATIE_TABS
-    if (isOperator) return operatorTabs(memberAccess)
-    return TABS
-  }, [isOperator, memberAccess, showAssociationTabs])
+    // Aceeași sursă ca bara laterală de pe desktop: proprietarul, Acasă · Livrări · Recoltări · Comenzi; operatorul, modulele lui.
+    return meniuPrincipal({ memberRole, memberAccess }).map((intrare) => ({ label: intrare.label, href: intrare.href, emoji: EMOJI_TAB[intrare.href] ?? '•' }))
+  }, [memberAccess, memberRole, showAssociationTabs])
   const moreHref = showAssociationTabs ? '/mai-mult?spatiu=asociatie' : '/mai-mult'
 
   useEffect(() => {

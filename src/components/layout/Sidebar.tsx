@@ -1,645 +1,267 @@
-"use client"
+'use client'
 
-import Image from "next/image"
-import Link from "next/link"
-import { usePathname, useSearchParams } from "next/navigation"
-import { useEffect, useMemo, useState, type ReactNode } from "react"
-import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react"
+import Image from 'next/image'
+import Link from 'next/link'
+import { usePathname, useSearchParams } from 'next/navigation'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react'
 
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Separator } from "@/components/ui/separator"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { AssociationContextSwitcher } from "@/components/association/AssociationContextSwitcher"
-import { AssociationSidebar } from "@/components/association/AssociationSidebar"
+import { AssociationContextSwitcher } from '@/components/association/AssociationContextSwitcher'
+import { AssociationSidebar } from '@/components/association/AssociationSidebar'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
+import { ICONITE_MENIU } from '@/components/app/navigatie-iconite'
+import { UserProfileMenu } from '@/components/app/UserProfileMenu'
 import { LogoCuNume } from '@/components/brand/LogoCuNume'
+import { kitFocus, kitText } from '@/components/kit'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
+import { useDemoBannerVisible } from '@/hooks/useDemoBannerVisible'
 import { APP_NAME } from '@/lib/brand'
-import { operatorSeesHref } from '@/lib/farm-members/nav'
-import { useDemoBannerVisible } from "@/hooks/useDemoBannerVisible"
-import { useShopOrdersInLivrareCount, ShopOrdersInLivrareNavBadge } from "@/lib/shop/useShopOrdersInLivrareCount"
-import { cn } from "@/lib/utils"
+import { ASOCIATIE, grupuriMeniu, hrefActiv, meniuAdmin, meniuFinal, meniuPrincipal, type IntrareMeniu } from '@/lib/navigatie/meniu'
+import { useShopOrdersInLivrareCount, ShopOrdersInLivrareNavBadge } from '@/lib/shop/useShopOrdersInLivrareCount'
+import { cn } from '@/lib/utils'
 
-const STORAGE_KEY = "sidebar-collapsed"
+const STORAGE_KEY = 'sidebar-collapsed'
 const EXPANDED_WIDTH = 240
 const COLLAPSED_WIDTH = 64
 const DEMO_BANNER_HEIGHT = 48
 
-type GroupKey = "ferma" | "comercial" | "finante" | "administrare"
-
-type SidebarAccordionKey = GroupKey | "admin"
-
+/** Rândul vechi al zonei asociației (`AssociationSidebar`): emoji + nume. */
 export type SidebarNavItem = {
   href: string
   label: string
   emoji: string
-  /** Dacă true, ruta e activă doar la potrivire exactă (ex. hub /admin fără sub-rute). */
+  /** Activ doar la potrivire exactă (ex. hub fără sub-rute). */
   exact?: boolean
   /** Prefixe suplimentare care marchează itemul ca activ. */
   activePrefixes?: string[]
-  /** Doar pentru operator (proprietarul vede bara laterală de azi, fără acest rând). */
-  operatorOnly?: boolean
 }
 
-type NavItem = SidebarNavItem
-
-type Group = {
-  key: GroupKey
-  label: string
-  items: NavItem[]
+function isActiveHref(href: string, pathname: string, searchString: string, hash: string, exactPath = false) {
+  const [beforeHash, hashPart = ''] = href.split('#')
+  const [base, search = ''] = beforeHash.split('?')
+  const pathNorm = pathname.replace(/\/$/, '') || '/'
+  const baseNorm = base.replace(/\/$/, '') || '/'
+  if (exactPath ? pathNorm !== baseNorm : !pathname.startsWith(base)) return false
+  if (search && search !== searchString) return false
+  if (hashPart && `#${hashPart}` !== hash) return false
+  return true
 }
 
-const TOP_ITEM: NavItem = { href: "/dashboard", label: "Dashboard", emoji: "🏡" }
-
-const GROUPS: Group[] = [
-  {
-    key: "ferma",
-    label: "Fermă",
-    items: [
-      { href: "/parcele", label: "Parcele", emoji: "🌿" },
-      { href: "/recoltari", label: "Recoltări", emoji: "🧺" },
-      { href: "/lucrari", label: "Lucrări", emoji: "🌱" },
-      { href: "/tratamente", label: "Tratamente", emoji: "🧪", operatorOnly: true },
-      { href: "/culegatori", label: "Culegători", emoji: "👷" },
-    ],
-  },
-  {
-    key: "comercial",
-    label: "Comercial",
-    items: [
-      { href: "/comenzi", label: "Comenzi", emoji: "📋" },
-      { href: "/livrari", label: "Livrări", emoji: "🚚" },
-      { href: "/vanzari", label: "Vânzări", emoji: "💰" },
-      { href: "/clienti", label: "Clienți", emoji: "👥", exact: true },
-      { href: "/produse", label: "Produse", emoji: "🛒" },
-      { href: "/stocuri", label: "Stocuri", emoji: "📦" },
-      { href: "/vanzari-butasi", label: "Material săditor", emoji: "🛍️" },
-    ],
-  },
-  {
-    key: "finante",
-    label: "Finanțe",
-    items: [
-      { href: "/cheltuieli", label: "Cheltuieli", emoji: "💸" },
-      { href: "/investitii", label: "Investiții", emoji: "💼" },
-    ],
-  },
-  {
-    key: "administrare",
-    label: "Administrare",
-    items: [{ href: "/rapoarte", label: "Rapoarte", emoji: "📈" }],
-  },
-]
-
-const FOOTER_ITEMS: NavItem[] = [{ href: "/settings", label: "Setări", emoji: "⚙️" }]
-/** Operatorul nu are Setări (rută blocată); de pe „Mai mult” iese din cont și vede notificările. */
-const OPERATOR_FOOTER_ITEMS: NavItem[] = [{ href: "/mai-mult", label: "Mai mult", emoji: "•••" }]
-
-/** Zonă superadmin — același guard ca `admin/layout.tsx` (`useDashboardAuth().isSuperAdmin`). */
-const ADMIN_DESKTOP_NAV: NavItem[] = [
-  { href: "/admin", label: "Panou admin", emoji: "🛡️", exact: true },
-  { href: "/admin/analytics", label: "Analytics", emoji: "📈" },
-  { href: "/admin/audit", label: "Audit", emoji: "📜" },
-  { href: "/admin/kit", label: "Kit de componente", emoji: "🧩" },
-]
-
-function stripHashAndSearch(href: string) {
-  return href.split(/[?#]/)[0]
-}
-
-function getSearchString(href: string) {
-  const queryIndex = href.indexOf("?")
-  if (queryIndex === -1) return ""
-  const hashIndex = href.indexOf("#")
-  return href.slice(queryIndex + 1, hashIndex === -1 ? undefined : hashIndex)
-}
-
-function getHashValue(href: string) {
-  const hashIndex = href.indexOf("#")
-  return hashIndex === -1 ? "" : href.slice(hashIndex)
-}
-
-function deriveOpenSectionFromPath(pathname: string, isSuperAdmin: boolean): SidebarAccordionKey | null {
-  if (isSuperAdmin && pathname.startsWith("/admin")) return "admin"
-  return getGroupForPath(pathname)
-}
-
-function getGroupForPath(pathname: string): GroupKey | null {
-  if (
-    pathname.startsWith("/parcele") ||
-    pathname.startsWith("/recoltari") ||
-    pathname.startsWith("/activitati-agricole") ||
-    pathname.startsWith("/lucrari") ||
-    pathname.startsWith("/tratamente") ||
-    pathname.startsWith("/culegatori")
-  ) {
-    return "ferma"
-  }
-  if (
-    pathname.startsWith("/comenzi") ||
-    pathname.startsWith("/livrari") ||
-    pathname.startsWith("/vanzari") ||
-    pathname.startsWith("/clienti") ||
-    pathname.startsWith("/clienti-magazin") ||
-    pathname.startsWith("/analytics-magazin") ||
-    pathname.startsWith("/produse") ||
-    pathname.startsWith("/stocuri") ||
-    pathname.startsWith("/vanzari-butasi")
-  ) {
-    return "comercial"
-  }
-  if (pathname.startsWith("/cheltuieli") || pathname.startsWith("/investitii")) {
-    return "finante"
-  }
-  if (pathname.startsWith("/rapoarte")) {
-    return "administrare"
-  }
-  return null
+export function isNavItemActive(item: SidebarNavItem, pathname: string, searchString: string, hash: string) {
+  if (item.activePrefixes?.some((prefix) => pathname.startsWith(prefix))) return true
+  return isActiveHref(item.href, pathname, searchString, hash, item.exact === true)
 }
 
 type SidebarLinkProps = {
   href: string
   label: string
-  emoji: string
+  emoji?: string
+  icon?: ReactNode
   collapsed: boolean
   active: boolean
+  extern?: boolean
   onNavigate?: () => void
-  /** Badge opțional (ex. număr oferte în așteptare). */
   badge?: ReactNode
 }
 
-export function SidebarLink({ href, label, emoji, collapsed, active, onNavigate, badge }: SidebarLinkProps) {
-  const link = (
-    <Link
-      href={href}
-      aria-current={active ? "page" : undefined}
-      aria-label={label}
-      onClick={onNavigate}
-      className={cn(
-        "group flex items-center rounded-2xl text-sm transition-all duration-200",
-        collapsed ? "justify-center px-2 py-[10px]" : "gap-3 px-3 py-[11px]",
-        active
-          ? cn(
-              "border border-[var(--border-default)] bg-[var(--surface-card)] font-bold text-[var(--success-text)]",
-              "shadow-[inset_3px_0_0_0_var(--success-text),var(--shadow-soft)]",
-              collapsed &&
-                "shadow-[var(--shadow-soft)] ring-2 ring-[color:color-mix(in_srgb,var(--success-text)_22%,transparent)]"
-            )
-          : cn(
-              "font-semibold text-[var(--text-secondary)]",
-              "hover:bg-[var(--surface-card-muted)] hover:text-[var(--text-primary)]"
-            )
-      )}
-    >
+/** Un rând al barei laterale (folosit și de zona asociației). */
+export function SidebarLink({ href, label, emoji, icon, collapsed, active, extern, onNavigate, badge }: SidebarLinkProps) {
+  const continut = (
+    <>
       <span
         className={cn(
-          "flex h-10 w-10 items-center justify-center rounded-xl text-[22px] transition-transform duration-200",
-          collapsed ? "h-10 w-10" : "h-10 w-10",
-          active
-            ? "border border-[color:color-mix(in_srgb,var(--success-border)_38%,var(--border-default))] bg-[var(--surface-card)]"
-            : "bg-transparent opacity-90 group-hover:bg-[var(--surface-card-muted)] group-hover:opacity-100"
+          'flex size-9 shrink-0 items-center justify-center rounded-control [&_svg]:size-5',
+          active ? 'bg-primary text-primary-contrast' : 'text-fg-muted',
         )}
+        aria-hidden
       >
-        {emoji}
+        {icon ?? <span className="text-[19px] leading-none">{emoji}</span>}
       </span>
-      {!collapsed ? (
+      {collapsed ? null : (
         <span className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="truncate">{label}</span>
+          <span className="min-w-0 break-words">{label}</span>
           {badge ? <span className="shrink-0">{badge}</span> : null}
+          {extern ? <ExternalLink className="ml-auto size-4 shrink-0 text-fg-subtle" aria-hidden /> : null}
         </span>
-      ) : null}
-      <span className="sr-only">{label}</span>
+      )}
+    </>
+  )
+  const className = cn(
+    'flex min-h-touch items-center rounded-control font-semibold transition-colors',
+    collapsed ? 'justify-center px-1' : 'gap-2.5 px-2 py-1',
+    active ? 'bg-primary-soft text-fg' : 'text-fg-muted hover:bg-surface-muted hover:text-fg',
+    kitText.secondary,
+    kitFocus,
+  )
+  if (extern) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" aria-label={label} title={collapsed ? label : undefined} className={className}>
+        {continut}
+      </a>
+    )
+  }
+  return (
+    <Link href={href} aria-current={active ? 'page' : undefined} aria-label={label} title={collapsed ? label : undefined} onClick={onNavigate} className={className}>
+      {continut}
     </Link>
   )
+}
 
-  if (!collapsed) return link
-
+function Grup({ titlu, separat = false, collapsed, children }: { titlu?: string; separat?: boolean; collapsed: boolean; children: ReactNode }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>{link}</TooltipTrigger>
-      <TooltipContent side="right" sideOffset={12}>
-        {label}
-      </TooltipContent>
-    </Tooltip>
+    <div className="space-y-0.5">
+      {titlu && !collapsed ? <h2 className={cn('px-2 pb-1 pt-3 font-bold text-fg-subtle', kitText.helper)}>{titlu}</h2> : null}
+      {(titlu && collapsed) || separat ? <div className="mx-2 my-2 h-px bg-border" aria-hidden /> : null}
+      {children}
+    </div>
   )
 }
 
-type SidebarGroupProps = {
-  group: Group
-  collapsed: boolean
-  activeGroup: GroupKey | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  pathname: string
-  searchString: string
-  hash: string
-  onNavigate?: () => void
-  itemBadges?: Record<string, ReactNode>
-}
-
-function SidebarGroup({
-  group,
-  collapsed,
-  activeGroup,
-  open,
-  onOpenChange,
-  pathname,
-  searchString,
-  hash,
-  onNavigate,
-  itemBadges,
-}: SidebarGroupProps) {
-  if (collapsed) {
-    return (
-      <div className="space-y-1">
-        {group.items.map((item) => (
-          <SidebarLink
-            key={item.href}
-            href={item.href}
-            label={item.label}
-            emoji={item.emoji}
-            collapsed
-            active={isNavItemActive(item, pathname, searchString, hash)}
-            onNavigate={onNavigate}
-            badge={itemBadges?.[item.href]}
-          />
-        ))}
-      </div>
-    )
-  }
-
-  return (
-    <Collapsible open={open} onOpenChange={onOpenChange}>
-      <div className="space-y-1">
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className={cn(
-              "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--text-tertiary)] transition-colors",
-              "hover:bg-[var(--surface-card-muted)] hover:text-[var(--text-secondary)]",
-              group.key === activeGroup ? "text-[var(--success-text)]" : ""
-            )}
-          >
-            <span>{group.label}</span>
-            <ChevronDown
-              className={cn(
-                "h-4 w-4 transition-transform duration-200",
-                open ? "rotate-180" : "rotate-0"
-              )}
-            />
-          </button>
-        </CollapsibleTrigger>
-
-        <CollapsibleContent className="space-y-1">
-          <div className="space-y-1">
-            {group.items.map((item) => (
-              <SidebarLink
-                key={item.href}
-                href={item.href}
-                label={item.label}
-                emoji={item.emoji}
-                collapsed={false}
-                active={isNavItemActive(item, pathname, searchString, hash)}
-                onNavigate={onNavigate}
-                badge={itemBadges?.[item.href]}
-              />
-            ))}
-          </div>
-        </CollapsibleContent>
-      </div>
-    </Collapsible>
-  )
-}
-
-function isActiveHref(
-  href: string,
-  pathname: string,
-  searchString: string,
-  hash: string,
-  exactPath = false
-) {
-  const base = stripHashAndSearch(href)
-  const expectedSearch = getSearchString(href)
-  const expectedHash = getHashValue(href)
-
-  const pathNorm = (pathname.replace(/\/$/, "") || "/") as string
-  const baseNorm = (base.replace(/\/$/, "") || "/") as string
-  if (exactPath) {
-    if (pathNorm !== baseNorm) return false
-  } else if (!pathname.startsWith(base)) {
-    return false
-  }
-  if (expectedSearch && expectedSearch !== searchString) return false
-  if (expectedHash && expectedHash !== hash) return false
-  return true
-}
-
-export function isNavItemActive(item: NavItem, pathname: string, searchString: string, hash: string) {
-  if (item.activePrefixes?.some((prefix) => pathname.startsWith(prefix))) {
-    return true
-  }
-  return isActiveHref(item.href, pathname, searchString, hash, item.exact === true)
-}
-
-type AdminDesktopNavProps = {
-  collapsed: boolean
-  pathname: string
-  searchString: string
-  hash: string
-}
-
-function AdminDesktopNav({
-  collapsed,
-  pathname,
-  searchString,
-  hash,
-  open,
-  onOpenChange,
-}: AdminDesktopNavProps & { open: boolean; onOpenChange: (open: boolean) => void }) {
-  if (collapsed) {
-    return (
-      <div className="space-y-1">
-        {ADMIN_DESKTOP_NAV.map((item) => (
-          <SidebarLink
-            key={item.href}
-            href={item.href}
-            label={item.label}
-            emoji={item.emoji}
-            collapsed
-            active={isNavItemActive(item, pathname, searchString, hash)}
-          />
-        ))}
-      </div>
-    )
-  }
-
-  const inAdminZone = pathname.startsWith("/admin")
-
-  return (
-    <Collapsible open={open} onOpenChange={onOpenChange}>
-      <div className="space-y-1">
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className={cn(
-              "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--text-tertiary)] transition-colors",
-              "hover:bg-[var(--surface-card-muted)] hover:text-[var(--text-secondary)] data-[state=open]:[&>svg]:rotate-180",
-              inAdminZone ? "text-[var(--success-text)]" : ""
-            )}
-          >
-            <span>Administrare</span>
-            <ChevronDown className="h-4 w-4 transition-transform duration-200" />
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="space-y-1">
-          {ADMIN_DESKTOP_NAV.map((item) => (
-            <SidebarLink
-              key={item.href}
-              href={item.href}
-              label={item.label}
-              emoji={item.emoji}
-              collapsed={false}
-              active={isNavItemActive(item, pathname, searchString, hash)}
-            />
-          ))}
-        </CollapsibleContent>
-      </div>
-    </Collapsible>
-  )
-}
-
+/**
+ * Bara laterală de pe desktop (promptul 34, §10): aceeași navigație și aceleași nume ca pe telefon — Acasă · Livrări ·
+ * Recoltări · Comenzi, apoi rândurile din „Mai mult” (`src/lib/navigatie/meniu.ts`). Sus logo-ul „Caietul Fermei” și
+ * clopoțelul, jos contul. În zona asociației (`/asociatie/*`), lista asociației.
+ */
 export function Sidebar() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const {
-    isSuperAdmin: isSuperAdminUser,
-    associationRole,
-    memberRole,
-    memberAccess,
-  } = useDashboardAuth()
+  const { isSuperAdmin, associationRole, memberRole, memberAccess } = useDashboardAuth()
   const bannerVisible = useDemoBannerVisible()
-  const [collapsed, setCollapsed] = useState<boolean>(false)
-  const [hash, setHash] = useState("")
-  const [openSection, setOpenSection] = useState<SidebarAccordionKey | null>(null)
-  const [openSectionPath, setOpenSectionPath] = useState("")
-
-  const currentGroup = useMemo(() => getGroupForPath(pathname), [pathname])
-  const searchString = searchParams.toString()
-  const inAssociationWorkspace = pathname.startsWith("/asociatie")
-
+  const [collapsed, setCollapsed] = useState(false)
+  const [hash, setHash] = useState('')
   const { data: shopInLivrareCount = 0 } = useShopOrdersInLivrareCount()
 
-  const comercialItemBadges = useMemo(
-    () =>
-      shopInLivrareCount > 0
-        ? {
-            "/livrari": <ShopOrdersInLivrareNavBadge count={shopInLivrareCount} />,
-          }
-        : undefined,
-    [shopInLivrareCount],
+  const searchString = searchParams.toString()
+  const inAssociationWorkspace = pathname.startsWith('/asociatie')
+  const ctx = useMemo(() => ({ memberRole, memberAccess, isSuperAdmin, associationRole }), [associationRole, isSuperAdmin, memberAccess, memberRole])
+  const operator = memberRole === 'operator'
+
+  const principale = useMemo(() => meniuPrincipal(ctx), [ctx])
+  const grupuri = useMemo(() => {
+    // Operatorul are în bara de jos (și aici, sus) modulele lui; nu le repetăm în grupuri.
+    const sus = new Set(principale.map((intrare) => intrare.href))
+    return grupuriMeniu(ctx)
+      .map((grup) => ({ ...grup, intrari: grup.intrari.filter((intrare) => !sus.has(intrare.href)) }))
+      .filter((grup) => grup.intrari.length > 0)
+  }, [ctx, principale])
+  const admin = useMemo(() => meniuAdmin(ctx), [ctx])
+  const final = useMemo<IntrareMeniu[]>(() => {
+    const randuri = meniuFinal(ctx)
+    // Operatorul nu are Setări; „Mai mult” îi dă notificările și ieșirea din cont, ca pe telefon.
+    return operator ? [{ href: '/mai-mult', label: 'Mai mult', iconita: 'mai-mult', ton: 'neutral' }, ...randuri] : randuri
+  }, [ctx, operator])
+
+  const toateHref = useMemo(
+    () => [...principale, ...grupuri.flatMap((grup) => grup.intrari), ...admin, ...final, ASOCIATIE].map((intrare) => intrare.href),
+    [admin, final, grupuri, principale],
   )
-  const isOperator = memberRole === 'operator'
-  // Operatorul vede doar modulele lui (Citește / Scrie) și „Mai mult”; proprietarul, bara de azi.
-  const visibleGroups = useMemo(
-    () =>
-      GROUPS.map((group) => ({
-        ...group,
-        items: group.items.filter((item) =>
-          isOperator ? operatorSeesHref(item.href, memberAccess) : !item.operatorOnly,
-        ),
-      })).filter((group) => group.items.length > 0),
-    [isOperator, memberAccess],
-  )
-  const footerItems = isOperator ? OPERATOR_FOOTER_ITEMS : FOOTER_ITEMS
+  const activ = hrefActiv(pathname, toateHref, searchString)
 
   useEffect(() => {
-    const syncTimer = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       try {
-        setCollapsed(window.localStorage.getItem(STORAGE_KEY) === "1")
+        setCollapsed(window.localStorage.getItem(STORAGE_KEY) === '1')
       } catch {
         setCollapsed(false)
       }
     }, 0)
-    return () => window.clearTimeout(syncTimer)
+    return () => window.clearTimeout(timer)
   }, [])
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(STORAGE_KEY, collapsed ? "1" : "0")
+      window.localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0')
     } catch {
-      // Ignore storage failures
+      // Fără acces la stocare: rămâne lățimea din sesiune.
     }
-
-    document.documentElement.style.setProperty(
-      "--sidebar-width",
-      `${collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH}px`
-    )
+    document.documentElement.style.setProperty('--sidebar-width', `${collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH}px`)
   }, [collapsed])
 
   useEffect(() => {
-    const updateHash = () => setHash(window.location.hash || "")
+    const updateHash = () => setHash(window.location.hash || '')
     updateHash()
-    window.addEventListener("hashchange", updateHash)
-    return () => window.removeEventListener("hashchange", updateHash)
+    window.addEventListener('hashchange', updateHash)
+    return () => window.removeEventListener('hashchange', updateHash)
   }, [])
 
-  const pathnameOpenSection = useMemo(
-    () => deriveOpenSectionFromPath(pathname, isSuperAdminUser),
-    [pathname, isSuperAdminUser]
-  )
-  const activeOpenSection =
-    collapsed || inAssociationWorkspace
-      ? null
-      : openSectionPath === pathname
-        ? openSection
-        : pathnameOpenSection
-
   const bannerOffset = bannerVisible ? DEMO_BANNER_HEIGHT : 0
+  const rand = (intrare: IntrareMeniu) => (
+    <SidebarLink
+      key={intrare.href}
+      href={intrare.href}
+      label={intrare.label}
+      icon={ICONITE_MENIU[intrare.iconita]}
+      collapsed={collapsed}
+      active={activ === intrare.href}
+      extern={intrare.extern}
+      badge={intrare.href === '/livrari' && shopInLivrareCount > 0 ? <ShopOrdersInLivrareNavBadge count={shopInLivrareCount} /> : undefined}
+    />
+  )
 
   return (
-    <>
-      <aside
-        className="fixed left-0 top-0 z-40 hidden border-r border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-primary)] shadow-[var(--shadow-soft)] transition-[width] duration-300 ease-in-out md:flex"
-        style={{
-          top: bannerOffset,
-          height: `calc(100vh - ${bannerOffset}px)`,
-          width: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH,
-        }}
-        aria-label="Navigare desktop"
-      >
-        <TooltipProvider delayDuration={150}>
-          <div className="relative flex h-full w-full flex-col overflow-hidden">
-            <button
-              type="button"
-              aria-label={collapsed ? "Extinde sidebar" : "Restrânge sidebar"}
-              onClick={() => setCollapsed((current) => !current)}
-              className="absolute right-2 top-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-card-muted)]"
-            >
-              {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-            </button>
+    <aside
+      className="fixed left-0 top-0 z-nav hidden border-r border-border bg-surface text-fg transition-[width] duration-300 ease-in-out md:flex"
+      style={{ top: bannerOffset, height: `calc(100vh - ${bannerOffset}px)`, width: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH }}
+      aria-label="Navigare desktop"
+    >
+      <div className="flex h-full w-full flex-col">
+        <div className={cn('flex items-center gap-2 border-b border-border py-3', collapsed ? 'flex-col px-2' : 'px-3')}>
+          <Link href="/dashboard" aria-label={`${APP_NAME}: Acasă`} className={cn('min-w-0 flex-1 rounded-control py-1', kitFocus)}>
+            {collapsed ? (
+              <Image src="/icons/icon.svg" alt={APP_NAME} width={40} height={40} className="mx-auto size-10" />
+            ) : (
+              <LogoCuNume className="h-10" />
+            )}
+          </Link>
+          <NotificationBell deschidere="dreapta" />
+        </div>
 
-            <div
-              className={cn(
-                "border-b border-[var(--border-default)] px-3 pb-4 pt-4",
-                collapsed ? "px-2" : "pr-12"
-              )}
-            >
-              <Link href="/dashboard" className="flex items-center gap-3 rounded-2xl px-2 py-1.5 transition-colors hover:bg-[var(--surface-card-muted)]">
-                {collapsed ? (
-                  <Image src="/icons/icon.svg" alt={APP_NAME} width={44} height={44} className="h-11 w-11 shrink-0" />
-                ) : (
-                  <LogoCuNume className="h-11" />
-                )}
-              </Link>
-            </div>
-
-            {associationRole ? (
-              <div
-                className={cn(
-                  "border-b border-[var(--border-default)] px-2 pb-3",
-                  collapsed ? "px-1.5" : ""
-                )}
-              >
-                <AssociationContextSwitcher collapsed={collapsed} />
-              </div>
-            ) : null}
-
-            <nav className="flex-1 space-y-3 overflow-y-auto px-2 py-3">
-              {inAssociationWorkspace ? (
-                <AssociationSidebar
-                  collapsed={collapsed}
-                  pathname={pathname}
-                  searchString={searchString}
-                  hash={hash}
-                />
-              ) : (
-                <>
-                  {isOperator ? null : (
-                    <SidebarLink
-                      href={TOP_ITEM.href}
-                      label={TOP_ITEM.label}
-                      emoji={TOP_ITEM.emoji}
-                      collapsed={collapsed}
-                      active={isNavItemActive(TOP_ITEM, pathname, searchString, hash)}
-                    />
-                  )}
-
-                  <div className="space-y-2 pt-1">
-                    {visibleGroups.map((group) => (
-                      <SidebarGroup
-                        key={group.key}
-                        group={group}
-                        collapsed={collapsed}
-                        activeGroup={currentGroup}
-                        open={activeOpenSection === group.key}
-                        onOpenChange={(next) => {
-                          setOpenSectionPath(pathname)
-                          if (next) setOpenSection(group.key)
-                          else setOpenSection(null)
-                        }}
-                        pathname={pathname}
-                        searchString={searchString}
-                        hash={hash}
-                        itemBadges={group.key === "comercial" ? comercialItemBadges : undefined}
-                      />
-                    ))}
-                  </div>
-
-                  {isSuperAdminUser ? (
-                    <div className="space-y-2 pt-1">
-                      <AdminDesktopNav
-                        collapsed={collapsed}
-                        pathname={pathname}
-                        searchString={searchString}
-                        hash={hash}
-                        open={activeOpenSection === "admin"}
-                        onOpenChange={(next) => {
-                          setOpenSectionPath(pathname)
-                          if (next) setOpenSection("admin")
-                          else setOpenSection(null)
-                        }}
-                      />
-                    </div>
-                  ) : null}
-                </>
-              )}
-
-              {inAssociationWorkspace && isSuperAdminUser ? (
-                <div className="space-y-2 pt-1">
-                  <AdminDesktopNav
-                    collapsed={collapsed}
-                    pathname={pathname}
-                    searchString={searchString}
-                    hash={hash}
-                    open={activeOpenSection === "admin"}
-                    onOpenChange={(next) => {
-                      setOpenSectionPath(pathname)
-                      if (next) setOpenSection("admin")
-                      else setOpenSection(null)
-                    }}
-                  />
-                </div>
-              ) : null}
-
-              <div className="pt-2">
-                <Separator />
-              </div>
-
-              <div className="space-y-2 pt-2">
-                {footerItems.map((item) => (
-                  <SidebarLink
-                    key={item.href}
-                    href={item.href}
-                    label={item.label}
-                    emoji={item.emoji}
-                    collapsed={collapsed}
-                    active={isNavItemActive(item, pathname, searchString, hash)}
-                  />
-                ))}
-              </div>
-            </nav>
+        {associationRole ? (
+          <div className={cn('border-b border-border px-2 py-2', collapsed && 'px-1.5')}>
+            <AssociationContextSwitcher collapsed={collapsed} />
           </div>
-        </TooltipProvider>
-      </aside>
-    </>
+        ) : null}
+
+        <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-2" aria-label="Module">
+          {inAssociationWorkspace ? (
+            <AssociationSidebar collapsed={collapsed} pathname={pathname} searchString={searchString} hash={hash} />
+          ) : (
+            <>
+              <Grup collapsed={collapsed}>{principale.map(rand)}</Grup>
+              {associationRole ? <Grup collapsed={collapsed}>{rand(ASOCIATIE)}</Grup> : null}
+              {grupuri.map((grup) => (
+                <Grup key={grup.titlu} titlu={grup.titlu} collapsed={collapsed}>
+                  {grup.intrari.map(rand)}
+                </Grup>
+              ))}
+            </>
+          )}
+          {admin.length > 0 ? (
+            <Grup titlu={`Admin (${APP_NAME})`} collapsed={collapsed}>
+              {admin.map(rand)}
+            </Grup>
+          ) : null}
+          {inAssociationWorkspace ? null : (
+            <Grup separat collapsed={collapsed}>
+              {final.map(rand)}
+            </Grup>
+          )}
+        </nav>
+
+        <div className={cn('flex items-center gap-1 border-t border-border p-2', collapsed && 'flex-col')}>
+          <div className="min-w-0 flex-1">
+            <UserProfileMenu restrans={collapsed} />
+          </div>
+          <button
+            type="button"
+            aria-label={collapsed ? 'Lărgește bara laterală' : 'Strânge bara laterală'}
+            onClick={() => setCollapsed((current) => !current)}
+            className={cn('flex size-touch shrink-0 items-center justify-center rounded-control text-fg-muted hover:bg-surface-muted', kitFocus)}
+          >
+            {collapsed ? <ChevronRight className="size-5" aria-hidden /> : <ChevronLeft className="size-5" aria-hidden />}
+          </button>
+        </div>
+      </div>
+    </aside>
   )
 }

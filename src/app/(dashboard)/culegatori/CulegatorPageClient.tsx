@@ -398,7 +398,7 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
         ) : undefined
       }
     >
-      <div className="mx-auto w-full max-w-xl space-y-4 pt-3">{body}</div>
+      <div className="mx-auto w-full max-w-modul space-y-4 pt-3">{body}</div>
 
       <CulegatorStepForm open={formOpen} onOpenChange={setFormOpen} editing={editing} />
 

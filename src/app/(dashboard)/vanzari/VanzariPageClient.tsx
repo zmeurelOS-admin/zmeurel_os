@@ -227,7 +227,7 @@ export function VanzariPageClient() {
         ) : undefined
       }
     >
-      <div className="mx-auto w-full max-w-xl space-y-4 pt-3">
+      <div className="mx-auto w-full max-w-modul space-y-4 pt-3">
         {/* Luna: schimbă cardul „Încasat” și lista „Toate”. */}
         <div className="flex items-center gap-2">
           <Button type="button" variant="neutral" size="icon-touch" aria-label="Luna dinainte" onClick={() => setMonthOffset((value) => value - 1)}>

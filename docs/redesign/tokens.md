@@ -87,6 +87,12 @@ Variabila se numește `--elevation-*`, clasa `shadow-*` (în `@theme`, `--shadow
 
 Clasele vechi `rounded-sm` (12), `rounded-md` (14), `rounded-lg` (16), `rounded-xl` (20) rămân neschimbate pentru modulele nerefăcute. În cod nou se folosesc doar cele patru de mai sus. Corespondență la migrare: 10 și 14 → 12; 18 → 16; 20 → 22; 24 și 26 → 28.
 
+### Lățimea coloanei (promptul 34)
+
+| Token | Valoare | Clasă | Folosit pentru |
+|---|---|---|---|
+| `--container-modul` | 45rem (720px) | `max-w-modul` | coloana modulelor refăcute (antet, corp, Acasă), pe telefon și pe desktop |
+
 ### Atingere
 
 | Clasă | Valoare | Sursă |

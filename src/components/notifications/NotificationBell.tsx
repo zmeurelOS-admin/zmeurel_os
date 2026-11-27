@@ -33,7 +33,11 @@ async function patchNotifications(body: { notificationId: string } | { markAll: 
  * Clopoțelul din antet (promptul 33, pe kit). Pe telefon deschide o foaie de jos (`BottomSheet`, titlul „Notificări” o
  * singură dată, în antetul foii); pe desktop, o fereastră mică sub clopoțel. Corpul e `NotificationPanel`.
  */
-export function NotificationBell() {
+/**
+ * `deschidere`: încotro se deschide fereastra pe desktop. Implicit spre stânga (clopoțelul din antet, la dreapta);
+ * în bara laterală (promptul 34, §10), spre dreapta.
+ */
+export function NotificationBell({ deschidere = 'stanga' }: { deschidere?: 'stanga' | 'dreapta' } = {}) {
   const { userId } = useDashboardAuth()
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
@@ -152,8 +156,6 @@ export function NotificationBell() {
           className={cn(
             'relative flex size-touch items-center justify-center rounded-box border transition',
             'border-border bg-surface-muted text-fg hover:bg-surface',
-            // Pe desktop clopoțelul stă pe antetul colorat (`agri-hero`): culoarea textului de acolo.
-            'lg:border-[color:color-mix(in_srgb,var(--text-on-accent)_35%,transparent)] lg:bg-[color:color-mix(in_srgb,var(--text-on-accent)_16%,transparent)] lg:text-[var(--text-on-accent)] lg:hover:bg-[color:color-mix(in_srgb,var(--text-on-accent)_24%,transparent)]',
             kitFocus,
           )}
           aria-label={unreadCount > 0 ? `Notificări, ${unreadCount} necitite` : 'Notificări'}
@@ -173,7 +175,10 @@ export function NotificationBell() {
         {open && isMd ? (
           <div
             ref={panelRef}
-            className="absolute right-0 top-full z-popover mt-2 flex max-h-[min(560px,80vh)] w-[400px] flex-col overflow-hidden rounded-card border border-border bg-surface p-3 shadow-2"
+            className={cn(
+              'absolute top-full z-popover mt-2 flex max-h-[min(560px,80vh)] w-[400px] flex-col overflow-hidden rounded-card border border-border bg-surface p-3 shadow-2',
+              deschidere === 'dreapta' ? 'left-0' : 'right-0',
+            )}
           >
             <NotificationPanel
               notifications={notifications}

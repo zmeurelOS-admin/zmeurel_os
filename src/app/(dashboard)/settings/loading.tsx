@@ -1,6 +1,6 @@
 export default function Loading() {
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-5 px-[var(--shell-content-px)] pt-[max(var(--safe-t),8px)]" aria-busy="true" aria-label="Se încarcă">
+    <div className="mx-auto w-full max-w-modul space-y-5 px-[var(--shell-content-px)] pt-[max(var(--safe-t),8px)]" aria-busy="true" aria-label="Se încarcă">
       <div className="h-12 w-40 animate-pulse rounded-box bg-surface-muted" />
       {[3, 2, 2, 2].map((rows, index) => (
         <div key={index} className="space-y-2">

@@ -73,7 +73,7 @@ export function ScreenHeader({
 
   return (
     <header className="bg-page pt-[max(var(--safe-t),8px)]">
-      <div className={cn('mx-auto flex w-full max-w-2xl items-center gap-1 pb-2 pt-1', backHref ? 'px-3' : 'px-5')}>
+      <div className={cn('mx-auto flex w-full max-w-modul items-center gap-1 pb-2 pt-1', backHref ? 'px-3' : 'px-5')}>
         {backHref ? (
           <Link
             href={backHref}
@@ -98,7 +98,7 @@ export function ScreenHeader({
 
 /** Conținutul unui ecran: lat cât un telefon, centrat pe desktop. */
 export function ScreenBody({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn('mx-auto w-full max-w-2xl space-y-5 pb-6 pt-1', className)}>{children}</div>
+  return <div className={cn('mx-auto w-full max-w-modul space-y-5 pb-6 pt-1', className)}>{children}</div>
 }
 
 /** Grup cu titlu (15 px) și rândurile lipite într-un card. */

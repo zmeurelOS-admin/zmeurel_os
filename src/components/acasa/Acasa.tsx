@@ -56,7 +56,7 @@ type MeteoLike = {
   forecastZile?: unknown
 } | null
 
-export interface AcasaMobileProps {
+export interface AcasaProps {
   todayIso: string
   comenzi: readonly Comanda[]
   recoltari: readonly Recoltare[]
@@ -103,7 +103,7 @@ export interface TratamentAzi {
  * Acasă pe telefon: „ce am de făcut azi”, nu o grilă de widget-uri. Conținutul se schimbă după perioadă
  * (sezon / extrasezon), iar fiecare rând duce în modulul lui. Grila editabilă de pe desktop e în pagina de dashboard.
  */
-export function AcasaMobile({
+export function Acasa({
   todayIso,
   comenzi,
   recoltari,
@@ -119,7 +119,7 @@ export function AcasaMobile({
   tratamenteAzi = [],
   lucrariAzi = [],
   lucrari,
-}: AcasaMobileProps) {
+}: AcasaProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
   const { settings } = useFarmSettings()
@@ -247,7 +247,7 @@ export function AcasaMobile({
     : null
 
   return (
-    <div className="mx-auto w-full max-w-xl space-y-4 pt-3">
+    <div className="mx-auto w-full max-w-modul space-y-4 pt-3">
       {/* Perioada și vremea, pe un rând. */}
       <div className="flex items-center justify-between gap-3">
         <StatusPill tone={perioada === 'sezon' ? 'success' : 'info'} icon={perioada === 'sezon' ? <Sprout aria-hidden /> : <Snowflake aria-hidden />}>

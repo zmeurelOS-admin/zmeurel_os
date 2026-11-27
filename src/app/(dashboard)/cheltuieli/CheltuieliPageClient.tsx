@@ -296,7 +296,7 @@ export function CheltuieliPageClient({ initialCheltuieli, initialInvestitii, par
         ) : undefined
       }
     >
-      <div className="mx-auto w-full max-w-xl space-y-4 pt-3">
+      <div className="mx-auto w-full max-w-modul space-y-4 pt-3">
         <Segments<Tab>
           aria-label="Ce arăt"
           panelId="cheltuieli-lista"

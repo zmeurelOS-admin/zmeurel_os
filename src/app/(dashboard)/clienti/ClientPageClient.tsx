@@ -598,7 +598,7 @@ export function ClientPageClient({ initialClienți, googleSync }: ClientPageClie
         ) : undefined
       }
     >
-      <div className="mx-auto w-full max-w-xl space-y-4 pt-3">{body}</div>
+      <div className="mx-auto w-full max-w-modul space-y-4 pt-3">{body}</div>
 
       <ClientStepForm open={formOpen} onOpenChange={setFormOpen} clienti={clienti} editing={editing} prefill={prefill} />
 

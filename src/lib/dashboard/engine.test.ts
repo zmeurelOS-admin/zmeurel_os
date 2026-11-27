@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  buildDashboardAlerts,
-  buildDashboardTasks,
-  buildParcelDashboardStates,
-  type DashboardRawData,
-} from '@/lib/dashboard/engine'
+import { buildParcelDashboardStates, type IntrareStariParcele } from '@/lib/dashboard/engine'
 import type { Parcela } from '@/lib/supabase/queries/parcele'
 
 function makeParcela(overrides: Partial<Parcela> = {}): Parcela {
@@ -48,16 +43,10 @@ function makeParcela(overrides: Partial<Parcela> = {}): Parcela {
 }
 
 function makeRawData(
-  overrides: Partial<DashboardRawData> = {},
-): DashboardRawData {
+  overrides: Partial<IntrareStariParcele> = {},
+): IntrareStariParcele {
   return {
     currentDay: new Date('2026-05-02T09:00:00.000Z'),
-    todayIso: '2026-05-02',
-    yesterdayIso: '2026-05-01',
-    tomorrowIso: '2026-05-03',
-    seasonStartIso: '2026-03-01',
-    previousSeasonStartIso: '2025-03-01',
-    previousSeasonEndIso: '2025-05-02',
     parceleDashboard: [makeParcela()],
     activitatiDashboard: [
       {
@@ -83,11 +72,6 @@ function makeRawData(
       },
     ],
     recoltariDashboard: [],
-    comenzi: [],
-    stocuri: [],
-    vanzari: [],
-    cheltuieli: [],
-    meteo: null,
     treatmentIntervalByParcela: new Map([['parcela-1', 7]]),
     ...overrides,
   }
@@ -98,11 +82,7 @@ describe('dashboard engine treatment priority', () => {
     const raw = makeRawData()
 
     const states = buildParcelDashboardStates(raw)
-    const tasks = buildDashboardTasks(raw, states)
-    const alerts = buildDashboardAlerts(raw, states)
 
     expect(states[0]?.attentionFlags).toContain('treatment_overdue')
-    expect(tasks.some((task) => task.id.startsWith('tratament:'))).toBe(true)
-    expect(alerts.some((alert) => alert.id === 'alert:tratamente-depasite')).toBe(true)
   })
 })

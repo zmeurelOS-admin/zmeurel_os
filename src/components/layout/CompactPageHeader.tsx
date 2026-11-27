@@ -1,121 +1,60 @@
 'use client'
 
-import {
-  type DashboardContentShellVariant,
-  getDashboardContentInnerClassName,
-  getDashboardHeaderBleedClassName,
-} from '@/components/app/DashboardContentShell'
+import { kitText } from '@/components/kit'
 import { cn } from '@/lib/utils'
 
 interface CompactPageHeaderProps {
   title?: string
-  /** Titlul afișat sub 768 px în locul lui `title` (ex. „Acasă” în loc de salut). */
+  /** Titlul afișat sub 768 px în locul lui `title`. */
   phoneTitle?: string
   subtitle?: string
   rightSlot?: React.ReactNode
   summary?: React.ReactNode
   className?: string
-  /** Afișează rightSlot pe mobil (ex. acțiuni dashboard), lângă titlu. */
-  showMobileRightSlot?: boolean
-  /** Pe mobil, rightSlot pe rând separat sub titlu (evită înghesuirea). */
+  /** Pe telefon, `rightSlot` pe rând separat sub titlu (evită înghesuirea). */
   stackMobileRightSlotBelow?: boolean
-  /** Aliniază header-ul cu variantele standardizate de content shell. */
-  contentVariant?: DashboardContentShellVariant
 }
 
-export function CompactPageHeader({
-  title,
-  phoneTitle,
-  subtitle,
-  rightSlot,
-  summary,
-  className,
-  showMobileRightSlot,
-  stackMobileRightSlotBelow,
-  contentVariant,
-}: CompactPageHeaderProps) {
-  const content = (
-    <>
-      {(title || subtitle) && (
-        <>
-          <div
-            className={cn(
-              'flex min-h-[42px] items-start lg:hidden',
-              stackMobileRightSlotBelow && showMobileRightSlot && rightSlot
-                ? 'flex-col gap-2'
-                : 'flex-wrap justify-between gap-x-2 gap-y-2'
-            )}
-          >
-            <div
-              className={cn(
-                'min-w-0',
-                !(stackMobileRightSlotBelow && showMobileRightSlot && rightSlot) && 'flex-1 basis-[min(100%,280px)]'
-              )}
-            >
-              {title ? (
-                <h1 className="text-[clamp(1.12rem,4.4vw,1.3rem)] leading-[1.12] tracking-[-0.02em] text-[var(--text-primary)] [font-weight:750]">
-                  {phoneTitle ? (
-                    // Ales din CSS, nu din JavaScript: titlul de telefon e corect de la prima randare.
-                    <>
-                      <span className="md:hidden">{phoneTitle}</span>
-                      <span className="hidden md:inline">{title}</span>
-                    </>
-                  ) : (
-                    title
-                  )}
-                </h1>
-              ) : null}
-              {subtitle ? (
-                <p className="mt-0.5 line-clamp-2 text-[12px] leading-[1.3] text-[var(--text-secondary)]">{subtitle}</p>
-              ) : null}
-            </div>
-            {showMobileRightSlot && rightSlot ? (
-              <div
-                className={cn(
-                  'text-[var(--text-primary)] lg:text-[var(--text-on-accent)] [&_button]:text-[11px] [&_button]:sm:text-sm',
-                  stackMobileRightSlotBelow
-                    ? 'flex w-full flex-wrap items-center justify-end gap-x-1.5 gap-y-2 border-t border-[var(--divider)] lg:border-white/10 pt-2'
-                    : 'shrink-0'
-                )}
-              >
-                {rightSlot}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="hidden items-start justify-between gap-3 lg:flex lg:items-center">
-            <div className="min-w-0 space-y-0.5">
-              {title ? <h1 className="truncate text-[1.55rem] text-[var(--text-on-accent)] [font-weight:750]">{title}</h1> : null}
-              {subtitle ? <p className="line-clamp-2 text-[13px] text-[color:color-mix(in_srgb,var(--text-on-accent)_84%,transparent)]">{subtitle}</p> : null}
-            </div>
-            {rightSlot ? (
-              <div className="flex shrink-0 items-center justify-end text-[var(--text-on-accent)] lg:items-center">{rightSlot}</div>
-            ) : null}
-          </div>
-        </>
-      )}
-
-      {summary ? <div className="mt-2 lg:mt-3">{summary}</div> : null}
-    </>
-  )
-
+/**
+ * Antetul ecranelor cu `PageHeader` (promptul 34, §10): același pe telefon și pe desktop — titlu, subtitlu și ce e în
+ * dreapta, pe lățimea coloanei modulelor (`max-w-modul`). Fără fundalul verde și fără scurtăturile de pe desktop:
+ * navigarea e în bara laterală, cu clopoțelul și contul.
+ */
+export function CompactPageHeader({ title, phoneTitle, subtitle, rightSlot, summary, className, stackMobileRightSlotBelow }: CompactPageHeaderProps) {
   return (
     <header
       className={cn(
-        'agri-hero sticky top-0 z-bar overflow-hidden border-b border-[var(--divider)] px-[var(--shell-content-px)] pb-1.5 pt-[calc(var(--safe-t)+7px)] shadow-[var(--shadow-soft)] backdrop-blur-sm sm:px-5 md:px-6 lg:static lg:overflow-visible lg:border-b-0 lg:px-8 lg:pb-5 lg:pt-4 lg:shadow-none lg:backdrop-blur-none xl:px-10',
-        className
+        'sticky top-0 z-bar border-b border-border-subtle bg-page/95 px-[var(--shell-content-px)] pb-1.5 pt-[calc(var(--safe-t)+7px)] backdrop-blur-sm sm:px-5 md:px-6 md:pb-3 md:pt-4',
+        className,
       )}
     >
-      <div className="absolute inset-0 bg-[color:color-mix(in_srgb,var(--surface-page)_95%,transparent)] lg:hidden" />
-      <div className="absolute inset-0 hidden bg-[var(--agri-hero-bg)] lg:block" />
-
-      {contentVariant ? (
-        <div className={cn('relative', getDashboardHeaderBleedClassName())}>
-          <div className={cn('relative', getDashboardContentInnerClassName(contentVariant))}>{content}</div>
-        </div>
-      ) : (
-        <div className="relative mx-auto w-full max-w-7xl">{content}</div>
-      )}
+      <div
+        className={cn(
+          'mx-auto flex w-full max-w-modul min-h-[42px]',
+          stackMobileRightSlotBelow && rightSlot ? 'flex-col gap-2 md:flex-row md:items-center md:justify-between' : 'items-center justify-between gap-x-2 gap-y-2',
+        )}
+      >
+        {title || subtitle ? (
+          <div className="min-w-0 flex-1">
+            {title ? (
+              <h1 className={cn('break-words font-extrabold text-fg', kitText.section)}>
+                {phoneTitle ? (
+                  // Ales din CSS, nu din JavaScript: titlul de telefon e corect de la prima randare.
+                  <>
+                    <span className="md:hidden">{phoneTitle}</span>
+                    <span className="hidden md:inline">{title}</span>
+                  </>
+                ) : (
+                  title
+                )}
+              </h1>
+            ) : null}
+            {subtitle ? <p className={cn('mt-0.5 break-words text-fg-muted', kitText.helper)}>{subtitle}</p> : null}
+          </div>
+        ) : null}
+        {rightSlot ? <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 text-fg">{rightSlot}</div> : null}
+      </div>
+      {summary ? <div className="mx-auto mt-2 w-full max-w-modul">{summary}</div> : null}
     </header>
   )
 }

@@ -1,60 +1,21 @@
 import { compareActivityRecency } from '@/lib/activitati/timeline'
 import { getPauseRemainingDays, getPauseUrgency, isPauseActive } from '@/lib/pause-helpers'
-import {
-  STOCK_AUDIT_CRITICAL_STOCK_THRESHOLD_KG,
-  STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG,
-} from '@/lib/calculations/stock-audit-thresholds'
-import type { DashboardWidgetId } from '@/lib/dashboard/layout'
 import { formatUnitateDisplayName } from '@/lib/parcele/unitate'
 import type { ActivitateAgricola } from '@/lib/supabase/queries/activitati-agricole'
-import type { Cheltuiala } from '@/lib/supabase/queries/cheltuieli'
-import type { Comanda } from '@/lib/supabase/queries/comenzi'
 import type { Parcela } from '@/lib/supabase/queries/parcele'
 import type { Recoltare } from '@/lib/supabase/queries/recoltari'
-import type { StocLocationRow } from '@/lib/supabase/queries/miscari-stoc'
-import type { Vanzare } from '@/lib/supabase/queries/vanzari'
 import type { PauzaParcela } from '@/lib/tratamente/pauza'
-import type { DashboardTaskItem } from '@/components/dashboard/TaskList'
 
-export interface MeteoData {
-  available: boolean
-  source?: 'cache' | 'fresh'
-  current?: {
-    temp: number | null
-    icon: string | null
-    description: string | null
-    windSpeed: number | null
-    humidity: number | null
-  }
-  forecastTomorrow?: {
-    tempMin: number | null
-    tempMax: number | null
-    icon: string | null
-    pop: number | null
-  }
-  spray?: {
-    canSpray: boolean
-    reason?: string
-  }
-}
-
-export interface DashboardRawData {
+/**
+ * Starea parcelelor pentru Acasă (promptul 34, §10: din vechiul „motor” al dashboard-ului de desktop a rămas doar
+ * asta; sarcinile, alertele și widgeturile au ieșit odată cu cardurile vechi).
+ */
+export interface IntrareStariParcele {
   /** Data de referință pentru calcule (azi în zona utilizatorului). */
   currentDay: Date
-  todayIso: string
-  yesterdayIso: string
-  tomorrowIso: string
-  seasonStartIso: string
-  previousSeasonStartIso: string
-  previousSeasonEndIso: string
   parceleDashboard: Parcela[]
   activitatiDashboard: ActivitateAgricola[]
   recoltariDashboard: Recoltare[]
-  comenzi: Comanda[]
-  stocuri: StocLocationRow[]
-  vanzari: Vanzare[]
-  cheltuieli: Cheltuiala[]
-  meteo: MeteoData | null
   /** Interval minim de tratament per parcelă comercială (zile). */
   treatmentIntervalByParcela: Map<string, number>
   /**
@@ -62,10 +23,6 @@ export interface DashboardRawData {
    * Lipsă = calculul vechi, doar din `activitati_agricole`.
    */
   pauzePeParcela?: ReadonlyMap<string, PauzaParcela>
-  /** Tratamentele planificate azi (modulul Tratamente), pentru lista de sarcini de pe desktop. */
-  tratamentePlanificateAzi?: ReadonlyArray<{ key: string; text: string }>
-  /** Lucrările planificate azi (modulul Lucrări), tot în lista de sarcini. */
-  lucrariPlanificateAzi?: ReadonlyArray<{ key: string; text: string }>
 }
 
 export type TreatmentAttention =
@@ -100,45 +57,6 @@ export interface ParcelDashboardState {
   attentionFlags: ParcelAttentionFlag[]
 }
 
-export type DashboardAlertSeverity = 'info' | 'warning' | 'critical'
-
-export type DashboardAlertCategory =
-  | 'comenzi'
-  | 'stoc'
-  | 'parcele'
-  | 'tratamente'
-  | 'meteo'
-
-export interface DashboardAlert {
-  id: string
-  category: DashboardAlertCategory
-  severity: DashboardAlertSeverity
-  message: string
-}
-
-export interface DailySummary {
-  greeting: string
-  todayLabel: string
-  /** Mesaj scurt de tip „headline” pentru ziua curentă. */
-  headline: string | null
-  /** Motiv meteo / spray, când e relevant. */
-  meteoReason: string | null
-}
-
-export interface WeatherWindowDay {
-  canSpray: boolean | null
-  reason: string | null
-}
-
-export interface WeatherWindow {
-  today: WeatherWindowDay
-  tomorrow: {
-    tempMin: number | null
-    tempMax: number | null
-    pop: number | null
-  } | null
-}
-
 function toDateOnly(value: string | null | undefined): string {
   return (value ?? '').slice(0, 10)
 }
@@ -164,21 +82,7 @@ function normalizeText(value: string | null | undefined): string {
     .replace(/[\u0300-\u036f]/g, '')
 }
 
-function formatStockAttentionText(criticalCount: number, warningCount: number): string {
-  if (criticalCount > 0 && warningCount > 0) {
-    return `${criticalCount} ${criticalCount === 1 ? 'critic' : 'critice'} · ${warningCount} ${
-      warningCount === 1 ? 'în atenție' : 'în atenție'
-    }`
-  }
-
-  if (criticalCount > 0) {
-    return `${criticalCount} ${criticalCount === 1 ? 'produs critic' : 'produse critice'}`
-  }
-
-  return `${warningCount} ${warningCount === 1 ? 'produs în atenție' : 'produse în atenție'}`
-}
-
-export function buildParcelDashboardStates(raw: DashboardRawData): ParcelDashboardState[] {
+export function buildParcelDashboardStates(raw: IntrareStariParcele): ParcelDashboardState[] {
   const byParcelaActivities = new Map<string, ActivitateAgricola[]>()
   const byParcelaHarvests = new Map<string, Recoltare[]>()
 
@@ -320,235 +224,3 @@ export function buildParcelDashboardStates(raw: DashboardRawData): ParcelDashboa
     }
   })
 }
-
-export function buildDashboardTasks(
-  raw: DashboardRawData,
-  parcelStates: ParcelDashboardState[],
-): DashboardTaskItem[] {
-  const tasks: DashboardTaskItem[] = []
-
-  for (const parcel of parcelStates) {
-    if (parcel.treatmentAttention === 'overdue') {
-      tasks.push({
-        id: `tratament:${parcel.parcelaId}`,
-        icon: '🧪',
-        text: `Tratament necesar ${parcel.displayName}`,
-        tag: 'URGENT',
-        tone: 'urgent',
-      })
-    }
-  }
-
-  for (const planificat of raw.tratamentePlanificateAzi ?? []) {
-    tasks.push({
-      id: `tratament-planificat:${planificat.key}`,
-      icon: '🧪',
-      text: planificat.text,
-      tag: 'AZI',
-      tone: 'warning',
-    })
-  }
-
-  for (const planificat of raw.lucrariPlanificateAzi ?? []) {
-    tasks.push({
-      id: `lucrare-planificata:${planificat.key}`,
-      icon: '🛠️',
-      text: planificat.text,
-      tag: 'AZI',
-      tone: 'warning',
-    })
-  }
-
-  const parcelsWithActivePause = parcelStates.filter(
-    (p) => p.pauseStatus === 'active' || p.pauseStatus === 'urgent',
-  )
-  if (parcelsWithActivePause.length > 0) {
-    tasks.push({
-      id: 'pauza:activa',
-      icon: '⏸️',
-      text: `${parcelsWithActivePause.length} parcele în pauză de tratament`,
-      tag: 'PAUZĂ',
-      tone: 'warning',
-    })
-  }
-
-  const overdueOrders = raw.comenzi.filter((row) => {
-    const deliveryDate = toDateOnly(row.data_livrare)
-    if (!deliveryDate) return false
-    return deliveryDate < raw.todayIso && row.status !== 'livrata' && row.status !== 'anulata'
-  })
-  if (overdueOrders.length > 0) {
-    tasks.push({
-      id: 'comenzi:restante',
-      icon: '📦',
-      text: `${overdueOrders.length} ${overdueOrders.length === 1 ? 'comandă restantă' : 'comenzi restante'}`,
-      tag: 'AZI',
-      tone: 'urgent',
-    })
-  }
-
-  const ordersToday = raw.comenzi.filter((row) => {
-    const deliveryDate = toDateOnly(row.data_livrare)
-    return deliveryDate === raw.todayIso && row.status !== 'livrata' && row.status !== 'anulata'
-  })
-  if (ordersToday.length > 0) {
-    tasks.push({
-      id: 'comenzi:azi',
-      icon: '🚚',
-      text: `${ordersToday.length} de livrat azi`,
-      tag: 'AZI',
-      tone: 'warning',
-    })
-  }
-
-  const ordersTomorrow = raw.comenzi.filter((row) => {
-    const deliveryDate = toDateOnly(row.data_livrare)
-    return deliveryDate === raw.tomorrowIso && row.status !== 'livrata' && row.status !== 'anulata'
-  })
-  if (ordersTomorrow.length > 0) {
-    tasks.push({
-      id: 'comenzi:maine',
-      icon: '📅',
-      text: `${ordersTomorrow.length} pregătite pentru mâine`,
-      tag: 'MÂINE',
-      tone: 'info',
-    })
-  }
-
-  const criticalStocks = raw.stocuri.filter((row) => row.total_kg <= STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG)
-  if (criticalStocks.length > 0) {
-    const criticalCount = criticalStocks.filter(
-      (row) => row.total_kg < STOCK_AUDIT_CRITICAL_STOCK_THRESHOLD_KG,
-    ).length
-    const warningCount = criticalStocks.length - criticalCount
-    tasks.push({
-      id: 'stoc:critic',
-      icon: '📉',
-      text: formatStockAttentionText(criticalCount, warningCount),
-      tag: 'STOC',
-      tone: 'info',
-    })
-  }
-
-  const inactiveParcels = parcelStates.filter((parcel) => {
-    if (parcel.daysSinceAnyActivity == null) return false
-    return parcel.daysSinceAnyActivity > 30
-  })
-  if (inactiveParcels.length > 0) {
-    tasks.push({
-      id: 'parcele:fara-activitate',
-      icon: '🪴',
-      text: `${inactiveParcels.length} parcele fără activitate în ultima lună`,
-      tag: 'ATENȚIE',
-      tone: 'info',
-    })
-  }
-
-  const seen = new Set<string>()
-  return tasks.filter((task) => {
-    if (seen.has(task.id)) return false
-    seen.add(task.id)
-    return true
-  })
-}
-
-export function buildDashboardAlerts(
-  raw: DashboardRawData,
-  parcelStates: ParcelDashboardState[],
-): DashboardAlert[] {
-  const alerts: DashboardAlert[] = []
-
-  const overdueOrders = raw.comenzi.filter((row) => {
-    const deliveryDate = toDateOnly(row.data_livrare)
-    if (!deliveryDate) return false
-    return deliveryDate < raw.todayIso && row.status !== 'livrata' && row.status !== 'anulata'
-  })
-  if (overdueOrders.length > 0) {
-    alerts.push({
-      id: 'alert:comenzi-restante',
-      category: 'comenzi',
-      severity: 'warning',
-      message: `${overdueOrders.length} ${overdueOrders.length === 1 ? 'comandă restantă' : 'comenzi restante'}`,
-    })
-  }
-
-  const criticalStocks = raw.stocuri.filter((row) => row.total_kg <= STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG)
-  if (criticalStocks.length > 0) {
-    const criticalCount = criticalStocks.filter(
-      (row) => row.total_kg < STOCK_AUDIT_CRITICAL_STOCK_THRESHOLD_KG,
-    ).length
-    const warningCount = criticalStocks.length - criticalCount
-    alerts.push({
-      id: 'alert:stoc-critic',
-      category: 'stoc',
-      severity: criticalCount > 0 ? 'critical' : 'warning',
-      message: formatStockAttentionText(criticalCount, warningCount),
-    })
-  }
-
-  const parcelsWithOverdueTreatment = parcelStates.filter(
-    (p) => p.treatmentAttention === 'overdue',
-  )
-  if (parcelsWithOverdueTreatment.length > 0) {
-    alerts.push({
-      id: 'alert:tratamente-depasite',
-      category: 'tratamente',
-      severity: 'warning',
-      message: `Tratamente depășite pe ${parcelsWithOverdueTreatment.length} parcele`,
-    })
-  }
-
-  const parcelsWithActivePause = parcelStates.filter(
-    (p) => p.pauseStatus === 'active' || p.pauseStatus === 'urgent',
-  )
-  if (parcelsWithActivePause.length > 0) {
-    alerts.push({
-      id: 'alert:pauza-activa',
-      category: 'parcele',
-      severity: 'info',
-      message: `${parcelsWithActivePause.length} parcele în pauză de tratament`,
-    })
-  }
-
-  if (raw.meteo?.spray && raw.meteo.spray.canSpray === false) {
-    alerts.push({
-      id: 'alert:meteo-tratament-prost',
-      category: 'meteo',
-      severity: 'info',
-      message: raw.meteo.spray.reason || 'Condiții mai puțin bune pentru tratamente azi',
-    })
-  }
-
-  return alerts
-}
-
-export function isWidgetEmpty(
-  widgetId: DashboardWidgetId,
-  params: {
-    kpiItemsCount: number
-    recentOrdersCount: number
-    plannedActivitiesCount: number
-    recentHarvestsCount: number
-    criticalStocksCount: number
-    venitSezon: number
-    revenueSeries: number[]
-  },
-): boolean {
-  switch (widgetId) {
-    case 'kpi-summary':
-      return params.kpiItemsCount === 0
-    case 'comenzi-recente':
-      return params.recentOrdersCount === 0
-    case 'activitati-planificate':
-      return params.plannedActivitiesCount === 0
-    case 'recoltari-recente':
-      return params.recentHarvestsCount === 0
-    case 'stocuri-critice':
-      return params.criticalStocksCount === 0
-    case 'sumar-venituri':
-      return params.venitSezon <= 0 && params.revenueSeries.every((value) => value <= 0)
-    default:
-      return false
-  }
-}
-

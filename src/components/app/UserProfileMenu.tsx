@@ -2,19 +2,20 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, CircleHelp, Download, Settings, ShieldCheck } from 'lucide-react'
+import { ChevronUp, Download, Settings, ShieldCheck } from 'lucide-react'
 
 import LogoutButton from '@/components/LogoutButton'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
+import { kitFocus, kitText } from '@/components/kit'
 import { isHiddenOperatorEmail } from '@/lib/farm-members/operator-link'
+import { cn } from '@/lib/utils'
 
 function formatUserName(email: string | null): string {
-  if (!email) return 'Popa Andrei'
-  if (email.endsWith('@demo.zmeurel.local')) return 'Demo'
+  if (!email) return 'Contul tău'
+  if (email.endsWith('@demo.zmeurel.local')) return 'Cont demo'
   if (isHiddenOperatorEmail(email)) return 'Operator'
   const local = email.split('@')[0] ?? ''
-  if (!local) return 'Popa Andrei'
-
+  if (!local) return 'Contul tău'
   return local
     .split(/[._-]+/)
     .filter(Boolean)
@@ -29,25 +30,25 @@ function getAvatarInitials(name: string): string {
   return `${parts[0].slice(0, 1)}${parts[1].slice(0, 1)}`.toUpperCase()
 }
 
-export function UserProfileMenu() {
-  const { email } = useDashboardAuth()
+/**
+ * Contul, jos în bara laterală (promptul 34, §10): numele, apoi Setări, exportul, „Planul tău” și ieșirea din cont.
+ * Fereastra se deschide în sus. `restrans` = bara laterală strânsă (doar inițialele).
+ */
+export function UserProfileMenu({ restrans = false }: { restrans?: boolean }) {
+  const { email, memberRole } = useDashboardAuth()
   const [open, setOpen] = useState(false)
   const wrapperRef = useRef<HTMLDivElement | null>(null)
-
   const userName = useMemo(() => formatUserName(email), [email])
   const initials = useMemo(() => getAvatarInitials(userName), [userName])
+  const operator = memberRole === 'operator'
 
   useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
-      if (!wrapperRef.current?.contains(event.target as Node)) {
-        setOpen(false)
-      }
+      if (!wrapperRef.current?.contains(event.target as Node)) setOpen(false)
     }
-
     const onEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false)
     }
-
     document.addEventListener('mousedown', onPointerDown)
     document.addEventListener('keydown', onEscape)
     return () => {
@@ -56,72 +57,48 @@ export function UserProfileMenu() {
     }
   }, [])
 
-  const itemClassName =
-    'flex items-center gap-2 rounded-md px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-card-muted)]'
+  const itemClassName = cn('flex min-h-touch items-center gap-2.5 rounded-control px-3 font-semibold text-fg hover:bg-surface-muted [&_svg]:size-4', kitText.secondary, kitFocus)
 
   return (
-    <div ref={wrapperRef} className="relative hidden md:z-[60] md:flex">
+    <div ref={wrapperRef} className="relative">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="cursor-pointer items-center gap-2 rounded-xl border border-[color:color-mix(in_srgb,var(--text-on-accent)_35%,transparent)] bg-[color:color-mix(in_srgb,var(--text-on-accent)_16%,transparent)] px-2.5 py-1.5 text-sm font-semibold text-[var(--text-on-accent)] backdrop-blur transition-colors hover:bg-[color:color-mix(in_srgb,var(--text-on-accent)_24%,transparent)] md:inline-flex"
+        className={cn('flex min-h-touch w-full items-center gap-2.5 rounded-control px-2 text-left hover:bg-surface-muted', kitFocus)}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label={`Contul: ${userName}`}
       >
-        <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--success-border)] bg-[var(--success-bg)] font-medium text-[var(--success-text)]">
+        <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-soft font-extrabold text-primary', kitText.helper)} aria-hidden>
           {initials}
         </span>
-        <span className="max-w-[160px] truncate">{userName}</span>
-        <ChevronDown className="h-4 w-4" />
+        {restrans ? null : (
+          <>
+            <span className={cn('min-w-0 flex-1 break-words font-semibold text-fg', kitText.secondary)}>{userName}</span>
+            <ChevronUp className="size-4 shrink-0 text-fg-muted" aria-hidden />
+          </>
+        )}
       </button>
-
       {open ? (
-        <div
-          className="absolute right-0 top-full z-[70] mt-2 w-64 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] py-2 shadow-[var(--shadow-elevated)]"
-          role="menu"
-        >
-          <div className="px-3 py-2">
-            <div className="flex items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--success-border)] bg-[var(--success-bg)] font-medium text-[var(--success-text)]">
-                {initials}
-              </span>
-              <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{userName}</p>
-            </div>
-          </div>
-
-          <div className="my-1 h-px bg-[var(--divider)]" />
-
-          <Link href="/settings" onClick={() => setOpen(false)} className={itemClassName}>
-            <Settings className="h-4 w-4" />
-            Setări
-          </Link>
-          <Link href="/settings/cont" onClick={() => setOpen(false)} className={itemClassName}>
-            <Download className="h-4 w-4" />
-            Export date
-          </Link>
-
-          <div className="my-1 h-px bg-[var(--divider)]" />
-
-          <Link href="/planuri" onClick={() => setOpen(false)} className={itemClassName}>
-            <ShieldCheck className="h-4 w-4" />
-            Planul tău
-          </Link>
-
-          <div className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
-            Ajutor
-          </div>
-          <Link href="/termeni" onClick={() => setOpen(false)} className={itemClassName}>
-            <CircleHelp className="h-4 w-4" />
-            Ajutor
-          </Link>
-
-          <div className="my-1 h-px bg-[var(--divider)]" />
-
-          <LogoutButton
-            variant="ghost"
-            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-[var(--danger-text)] hover:bg-[var(--danger-bg)]"
-            label="Deconectare"
-          />
+        <div className="absolute bottom-full left-0 z-popover mb-2 w-64 rounded-card border border-border bg-surface p-2 shadow-2" role="menu">
+          {operator ? null : (
+            <>
+              <Link href="/settings" onClick={() => setOpen(false)} className={itemClassName}>
+                <Settings aria-hidden />
+                Setări
+              </Link>
+              <Link href="/settings/cont" onClick={() => setOpen(false)} className={itemClassName}>
+                <Download aria-hidden />
+                Exportă datele
+              </Link>
+              <Link href="/planuri" onClick={() => setOpen(false)} className={itemClassName}>
+                <ShieldCheck aria-hidden />
+                Planul tău
+              </Link>
+              <div className="my-1 h-px bg-border" />
+            </>
+          )}
+          <LogoutButton variant="ghost" className={cn(itemClassName, 'w-full justify-start text-danger-text hover:bg-danger-bg')} label="Ieși din cont" />
         </div>
       ) : null}
     </div>

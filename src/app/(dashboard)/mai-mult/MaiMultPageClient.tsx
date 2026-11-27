@@ -2,35 +2,19 @@
 
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Archive,
   ArrowLeft,
-  BarChart3,
-  Banknote,
   Bell,
   Building2,
   ChevronRight,
   ExternalLink,
-  FileSearch,
-  HandCoins,
-  LayoutGrid,
-  Leaf,
   LogOut,
   Mail,
-  Map,
-  MessageCircle,
-  Package,
-  Receipt,
   Settings,
   Smartphone,
-  ShieldCheck,
-  SprayCan,
-  Sprout,
   Store,
-  Tag,
-  TrendingUp,
   Users,
   UsersRound,
 } from 'lucide-react'
@@ -39,13 +23,14 @@ import { AppShell } from '@/components/app/AppShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { BottomSheet, Button, StatusPill, kitFocus, kitText } from '@/components/kit'
 import { usePushSubscription } from '@/components/notifications/usePushSubscription'
-import { ActionRow, IconBadge, NavRow, RowGroup, ScreenBody, ScreenHeader, type IconTone } from '@/components/setari/SetariUi'
+import { ActionRow, IconBadge, NavRow, RowGroup, ScreenBody, ScreenHeader } from '@/components/setari/SetariUi'
+import { ICONITE_MENIU } from '@/components/app/navigatie-iconite'
+import { grupuriMeniu, meniuAdmin, meniuFinal, type IntrareMeniu } from '@/lib/navigatie/meniu'
 import { FoaieInstalare } from '@/components/pwa/FoaieInstalare'
 import { useInstalare } from '@/components/pwa/useInstalare'
 import { cereInstalarea, esteIphone } from '@/lib/pwa/instalare'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { prepareClientBeforeServerSignOut } from '@/lib/auth/server-sign-out-form'
-import { isPathAllowedForAccess, type FarmMemberModuleAccess } from '@/lib/farm-members/access'
 import { isHiddenOperatorEmail, mesajIesireOperatorLink } from '@/lib/farm-members/operator-link'
 import { useUnreadNotificationsCount } from '@/lib/notifications/useUnreadCount'
 import { queryKeys } from '@/lib/query-keys'
@@ -57,57 +42,11 @@ import { usePauzeActive } from '@/lib/tratamente/hooks'
 import { pauzeOrdonate } from '@/lib/tratamente/pauza'
 import { pastilaPauza } from '@/lib/tratamente/texte'
 import { aziRo } from '@/lib/tratamente/zile'
-import { SUPPORT_WHATSAPP_URL } from '@/lib/support'
 import { cn } from '@/lib/utils'
 import { APP_NAME } from '@/lib/brand'
 
-type TileDef = { href: string; label: string; icon: ReactNode; tone: IconTone }
-type TileGroupDef = { title: string; items: TileDef[] }
-
-const FARM_GROUPS: TileGroupDef[] = [
-  {
-    title: 'Ferma',
-    items: [
-      { href: '/parcele', label: 'Parcele', icon: <Map />, tone: 'primary' },
-      { href: '/lucrari', label: 'Lucrări', icon: <Sprout />, tone: 'primary' },
-      { href: '/stocuri', label: 'Stocuri', icon: <Archive />, tone: 'primary' },
-      { href: '/produse', label: 'Produse', icon: <Tag />, tone: 'primary' },
-      { href: '/vanzari-butasi', label: 'Material săditor', icon: <Leaf />, tone: 'primary' },
-      { href: '/rapoarte', label: 'Rapoarte', icon: <BarChart3 />, tone: 'primary' },
-    ],
-  },
-  {
-    title: 'Bani și oameni',
-    items: [
-      { href: '/vanzari', label: 'Vânzări', icon: <Banknote />, tone: 'info' },
-      { href: '/cheltuieli', label: 'Cheltuieli', icon: <Receipt />, tone: 'info' },
-      { href: '/investitii', label: 'Investiții', icon: <TrendingUp />, tone: 'info' },
-      { href: '/clienti', label: 'Clienți', icon: <Users />, tone: 'neutral' },
-      { href: '/culegatori', label: 'Culegători', icon: <HandCoins />, tone: 'neutral' },
-    ],
-  },
-]
-
-const ADMIN_ROWS = [
-  { href: '/admin', label: 'Panou admin', icon: <ShieldCheck /> },
-  { href: '/admin/analytics', label: 'Analytics global', icon: <BarChart3 /> },
-  { href: '/admin/audit', label: 'Audit', icon: <FileSearch /> },
-  { href: '/admin/kit', label: 'Kit de componente', icon: <LayoutGrid /> },
-] as const
-
-/** Ce e deja în bara de jos nu se repetă pe plăci (aceeași regulă ca foaia de dinainte). */
-const MOBILE_NAV_PRIMARY = new Set(['/dashboard', '/livrari', '/recoltari', '/comenzi'])
-
-/** Tratamentele au dreptul lor (`tratamente`); cine avea doar Lucrări le citește (regula din `resolveFarmMemberAccess`). */
-function canOperatorSeeTratamente(memberRole: 'operator' | null | undefined, access: FarmMemberModuleAccess[] | undefined) {
-  if (memberRole !== 'operator') return true
-  return (access ?? []).some((item) => item.module === 'tratamente')
-}
-
-function canOperatorSeeParcele(memberRole: 'operator' | null | undefined, access: FarmMemberModuleAccess[] | undefined) {
-  if (memberRole !== 'operator') return true
-  return (access ?? []).some((item) => item.module === 'parcele')
-}
+/** O placă din „Mai mult”: o intrare a navigației comune (`src/lib/navigatie/meniu.ts`). */
+type TileDef = IntrareMeniu
 
 function initialsOf(name: string): string {
   const parts = name
@@ -154,6 +93,7 @@ function useParcelNames(ids: readonly string[], enabled: boolean): string[] {
 }
 
 function NavTile({ item, badge }: { item: TileDef; badge?: number }) {
+  const icon = ICONITE_MENIU[item.iconita]
   return (
     <Link
       href={item.href}
@@ -162,8 +102,8 @@ function NavTile({ item, badge }: { item: TileDef; badge?: number }) {
         kitFocus,
       )}
     >
-      <IconBadge tone={item.tone} size="sm">
-        {item.icon}
+      <IconBadge tone={item.ton} size="sm">
+        {icon}
       </IconBadge>
       <span className={cn('font-semibold leading-tight text-fg', kitText.secondary)}>{item.label}</span>
       {badge && badge > 0 ? <CountBadge count={badge} className="absolute right-1.5 top-1.5" /> : null}
@@ -205,8 +145,8 @@ export function MaiMultPageClient({ farmName, localitate }: { farmName: string |
   const iesireConfirmataRef = useRef(false)
 
   const isOperator = memberRole === 'operator'
-  const canSeeParcele = canOperatorSeeParcele(memberRole, memberAccess)
-  const canSeeTratamente = canOperatorSeeTratamente(memberRole, memberAccess)
+  const ctxMeniu = { memberRole, memberAccess, isSuperAdmin, associationRole }
+  const canSeeTratamente = !isOperator || (memberAccess ?? []).some((item) => item.module === 'tratamente')
   // Semnalul de pauză de pe rândul „Tratamente” (aceeași sursă ca Acasă și Recoltări).
   const [azi] = useState(aziRo)
   const { pauze } = usePauzeActive(azi, { enabled: canSeeTratamente })
@@ -218,19 +158,10 @@ export function MaiMultPageClient({ farmName, localitate }: { farmName: string |
   // Deschisă din bara asociației (`/mai-mult?spatiu=asociatie`): aceeași listă ca foaia de dinainte.
   const inAssociationWorkspace = searchParams.get('spatiu') === 'asociatie' && Boolean(associationRole)
 
+  // Navigația comună cu bara laterală (promptul 34, §10): fără ce e deja în bara de jos.
   const groups = useMemo(
-    () =>
-      FARM_GROUPS.map((group) => ({
-        ...group,
-        items: group.items.filter(
-          (item) =>
-            !MOBILE_NAV_PRIMARY.has(item.href) &&
-            (item.href !== '/parcele' || canSeeParcele) &&
-            // Operatorul vede doar modulele date (celelalte l-ar întoarce la primul modul permis).
-            (!isOperator || isPathAllowedForAccess(item.href, memberAccess ?? [])),
-        ),
-      })).filter((group) => group.items.length > 0),
-    [canSeeParcele, isOperator, memberAccess],
+    () => grupuriMeniu({ memberRole, memberAccess }, { faraPrincipale: true }),
+    [memberAccess, memberRole],
   )
 
   const name = farmName ?? contextFarmName ?? 'Ferma ta'
@@ -312,23 +243,19 @@ export function MaiMultPageClient({ farmName, localitate }: { farmName: string |
             ) : null}
 
             {groups.map((group) => (
-              <section key={group.title} className="space-y-2">
-                <h2 className={cn('font-bold text-fg-muted', kitText.secondary)}>{group.title}</h2>
-                {group.title === 'Ferma' && canSeeTratamente ? (
+              <section key={group.titlu} className="space-y-2">
+                <h2 className={cn('font-bold text-fg-muted', kitText.secondary)}>{group.titlu}</h2>
+                {group.intrari.some((item) => item.rand) ? (
                   <div className="overflow-hidden rounded-box border border-border bg-surface">
-                    <NavRow
-                      href="/tratamente"
-                      label="Tratamente"
-                      sub="Stropiri, fertirigare, pauză"
-                      icon={<SprayCan />}
-                      iconTone="primary"
-                      trailing={pastila ? <StatusPill tone="warning">{pastila}</StatusPill> : undefined}
-                    />
-                    <div className="border-t border-border">
-                      <NavRow
-                        href="/tratamente/magazie"
-                        label="Magazia"
-                        sub={
+                    {group.intrari
+                      .filter((item) => item.rand)
+                      .map((item, index) => (
+                        <div key={item.href} className={index > 0 ? 'border-t border-border' : undefined}>
+                          {item.href === '/tratamente/magazie' ? (
+                            <NavRow
+                              href={item.href}
+                              label={item.label}
+                              sub={
                           rezumatMag
                             ? rezumatMag.produse > 0
                               ? rezumatMag.text
@@ -336,16 +263,27 @@ export function MaiMultPageClient({ farmName, localitate }: { farmName: string |
                             : magazieQuery.isLoading
                               ? 'Produsele de tratament și cât mai ai'
                               : 'După actualizarea bazei de date'
-                        }
-                        icon={<Package />}
-                        iconTone="primary"
-                        trailing={rezumatMag && rezumatMag.peTerminate > 0 ? <StatusPill tone="warning">{`${rezumatMag.peTerminate} pe terminate`}</StatusPill> : undefined}
-                      />
-                    </div>
+                              }
+                              icon={ICONITE_MENIU[item.iconita]}
+                              iconTone={item.ton}
+                              trailing={rezumatMag && rezumatMag.peTerminate > 0 ? <StatusPill tone="warning">{`${rezumatMag.peTerminate} pe terminate`}</StatusPill> : undefined}
+                            />
+                          ) : (
+                            <NavRow
+                              href={item.href}
+                              label={item.label}
+                              sub={item.sub}
+                              icon={ICONITE_MENIU[item.iconita]}
+                              iconTone={item.ton}
+                              trailing={item.href === '/tratamente' && pastila ? <StatusPill tone="warning">{pastila}</StatusPill> : undefined}
+                            />
+                          )}
+                        </div>
+                      ))}
                   </div>
                 ) : null}
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
-                  {group.items.map((item) => (
+                  {group.intrari.filter((item) => !item.rand).map((item) => (
                     <NavTile key={item.href} item={item} badge={item.href === '/livrari' ? shopInLivrareCount : undefined} />
                   ))}
                 </div>
@@ -356,15 +294,18 @@ export function MaiMultPageClient({ farmName, localitate }: { farmName: string |
 
         {isSuperAdmin ? (
           <RowGroup title={`Admin (${APP_NAME})`}>
-            {ADMIN_ROWS.map((row) => (
-              <NavRow key={row.href} href={row.href} label={row.label} icon={row.icon} iconTone="neutral" />
+            {meniuAdmin(ctxMeniu).map((row) => (
+              <NavRow key={row.href} href={row.href} label={row.label} icon={ICONITE_MENIU[row.iconita]} iconTone={row.ton} />
             ))}
           </RowGroup>
         ) : null}
 
         <RowGroup>
-          {isOperator ? null : <NavRow href="/planuri" label="Planul tău" sub="Gratuit în beta" icon={<ShieldCheck />} iconTone="primary" />}
-          {isOperator ? null : <NavRow href="/settings" label="Setări" icon={<Settings />} iconTone="neutral" />}
+          {meniuFinal(ctxMeniu)
+            .filter((row) => !row.extern)
+            .map((row) => (
+              <NavRow key={row.href} href={row.href} label={row.label} sub={row.sub} icon={ICONITE_MENIU[row.iconita]} iconTone={row.ton} />
+            ))}
           {instalare.pregatit && !instalare.instalata ? (
             <ActionRow
               onClick={() => void instaleaza()}
@@ -376,16 +317,11 @@ export function MaiMultPageClient({ farmName, localitate }: { farmName: string |
             />
           ) : null}
           {/* Promptul 34, §3: în locul bulei „Ești în beta”. Superadminul (Andrei) nu-și scrie singur. */}
-          {isSuperAdmin ? null : (
-            <NavRow
-              href={SUPPORT_WHATSAPP_URL}
-              external
-              label="Scrie-mi o problemă sau o sugestie"
-              sub="pe WhatsApp"
-              icon={<MessageCircle />}
-              iconTone="neutral"
-            />
-          )}
+          {meniuFinal(ctxMeniu)
+            .filter((row) => row.extern)
+            .map((row) => (
+              <NavRow key={row.href} href={row.href} external label={row.label} sub={row.sub} icon={ICONITE_MENIU[row.iconita]} iconTone={row.ton} />
+            ))}
           <form
             ref={signOutFormRef}
             action="/api/auth/sign-out"
