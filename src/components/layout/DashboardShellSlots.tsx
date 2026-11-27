@@ -12,11 +12,6 @@ const PushPermissionBanner = dynamic(
   { ssr: false, loading: () => null }
 )
 
-const BetaWidget = dynamic(() => import('@/components/beta-widget'), {
-  ssr: false,
-  loading: () => null,
-})
-
 const AiPanel = dynamic(() => import('@/components/ai/AiPanel').then((mod) => mod.AiPanel), {
   ssr: false,
   loading: () => null,
@@ -31,7 +26,6 @@ export function DashboardShellFloatingOverlays() {
 
   return (
     <>
-      <BetaWidget />
       {isAiPanelOpen ? <AiPanel /> : null}
     </>
   )

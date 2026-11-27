@@ -46,6 +46,7 @@ export default defineConfig(({ mode }) => {
         'src/components/kit/__tests__/*.test.{ts,tsx}',
         // Parantezele din `(dashboard)` se scriu ca `[(]` și `[)]`: altfel modelul le ia drept grup și nu găsește nimic.
         'src/app/[(]dashboard[)]/comenzi/__tests__/*.test.tsx',
+        'src/app/[(]dashboard[)]/mai-mult/__tests__/*.test.tsx',
         'src/components/comenzi/__tests__/*.test.tsx',
         'src/lib/__tests__/*.test.ts',
         // Navigarea operatorului (bara de jos, butonul „+”); restul testelor din folder nu sunt aici.

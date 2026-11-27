@@ -146,7 +146,7 @@ export function ProdusMagazieClient({ produsId }: { produsId: string }) {
       bottomBarFixed
       bottomBar={
         poateScrie && !indisponibila && !stocQuery.isLoading ? (
-          <div className="mx-auto w-full max-w-md pl-18 pr-4">
+          <div className="mx-auto w-full max-w-md px-4">
             <div className="grid grid-cols-2 gap-2.5 rounded-box bg-surface shadow-2">
               <Button type="button" variant="primary" size="touch-lg" onClick={() => setCumparatOpen(true)}>
                 <Plus aria-hidden />

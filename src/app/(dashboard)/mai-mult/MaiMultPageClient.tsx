@@ -351,14 +351,17 @@ export function MaiMultPageClient({ farmName, localitate }: { farmName: string |
         <RowGroup>
           {isOperator ? null : <NavRow href="/planuri" label="Planul tău" sub="Gratuit în beta" icon={<ShieldCheck />} iconTone="primary" />}
           {isOperator ? null : <NavRow href="/settings" label="Setări" icon={<Settings />} iconTone="neutral" />}
-          <NavRow
-            href={SUPPORT_WHATSAPP_URL}
-            external
-            label="Ajutor"
-            sub="Scrie-mi pe WhatsApp"
-            icon={<MessageCircle />}
-            iconTone="neutral"
-          />
+          {/* Promptul 34, §3: în locul bulei „Ești în beta”. Superadminul (Andrei) nu-și scrie singur. */}
+          {isSuperAdmin ? null : (
+            <NavRow
+              href={SUPPORT_WHATSAPP_URL}
+              external
+              label="Scrie-mi o problemă sau o sugestie"
+              sub="pe WhatsApp"
+              icon={<MessageCircle />}
+              iconTone="neutral"
+            />
+          )}
           <form
             ref={signOutFormRef}
             action="/api/auth/sign-out"

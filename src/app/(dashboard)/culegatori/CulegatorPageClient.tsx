@@ -390,9 +390,9 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
       }
       bottomBarFixed
       bottomBar={
-        // Butonul mare ține locul butonului plutitor (+). Loc liber în stânga pentru bula „beta”.
+        // Butonul mare ține locul butonului plutitor (+).
         bottomButton ? (
-          <div className="mx-auto w-full max-w-md pl-18 pr-4">
+          <div className="mx-auto w-full max-w-md px-4">
             <div className="rounded-box shadow-2">{bottomButton}</div>
           </div>
         ) : undefined

@@ -279,9 +279,8 @@ export function RecoltariPageClient() {
       bottomBarFixed
       bottomBar={
         // Butonul mare ține locul butonului plutitor (+) pe această pagină.
-        // Loc liber în stânga pentru bula „beta” (40 px, fixă la 16 px de margine, pe același rând).
         canWriteRecoltari && hasRows && !loading && !isError ? (
-          <div className="mx-auto w-full max-w-md pl-18 pr-4">
+          <div className="mx-auto w-full max-w-md px-4">
             <div className="rounded-box shadow-2">{addButton}</div>
           </div>
         ) : undefined

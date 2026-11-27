@@ -122,7 +122,7 @@ export function GrupCapcaneClient({ grupId }: { grupId: string }) {
       bottomBarFixed
       bottomBar={
         grup && poateScrie ? (
-          <div className="mx-auto w-full max-w-md pl-18 pr-4">
+          <div className="mx-auto w-full max-w-md px-4">
             <div className="rounded-box shadow-2">
               <Button type="button" variant="primary" size="touch-lg" className="w-full" onClick={() => router.push(`/tratamente?parcela=${encodeURIComponent(grup.parcela_id)}`)}>
                 <Droplets aria-hidden />

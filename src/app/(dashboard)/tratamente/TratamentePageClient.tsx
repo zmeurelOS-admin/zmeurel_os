@@ -450,7 +450,7 @@ export function TratamentePageClient() {
       bottomBarFixed
       bottomBar={
         !loadingAll && poateScrie && !(tab === 'analize' && analizeIndisponibile) && !(tab === 'capcane' && (capcane.indisponibil || capcane.loading)) && !(tab === 'plan' && plan.loading) ? (
-          <div className={cn('mx-auto w-full max-w-md pr-4', tab === 'capcane' ? 'pl-4' : 'pl-18')}>
+          <div className="mx-auto w-full max-w-md px-4">
             <div className={cn('rounded-box', tab === 'capcane' ? 'bg-surface p-2 shadow-2' : 'shadow-2')}>{addButton}</div>
           </div>
         ) : undefined
