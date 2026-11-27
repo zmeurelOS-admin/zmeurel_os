@@ -2,6 +2,7 @@
  * Jurnalul de tratamente: aplicările noi, grupate pe lot (salvate împreună pe mai multe parcele), plus
  * activitățile vechi de tip tratament, „Importat”, doar citire, netransformate.
  */
+import { afisareSol } from './sol'
 import { citesteTextFertirigare, formatCantitate, formatKgTratament, type UnitateProdus } from './doze'
 import {
   tipDinActivitateVeche,
@@ -48,7 +49,7 @@ const formatG = (g: number) => new Intl.NumberFormat('ro-RO', { maximumFractionD
 
 /** Produsele unui lot: același produs (după ordine și nume) se adună de pe toate parcelele. */
 export function produseLot(aplicari: readonly AplicareRow[], tip: TipJurnal): ProdusJurnal[] {
-  type Acc = { nume: string; unitate: string | null; total: number | null; text: string | null; g: number | null; rezervor: string | null }
+  type Acc = { nume: string; unitate: string | null; total: number | null; text: string | null; g: number | null; rezervor: string | null; dozaHa: number | null }
   const map = new Map<string, Acc>()
 
   for (const aplicare of aplicari) {
@@ -92,6 +93,7 @@ export function produseLot(aplicari: readonly AplicareRow[], tip: TipJurnal): Pr
           text: produs.cantitate_text?.trim() || null,
           g,
           rezervor,
+          dozaHa: numar(produs.doza_l_per_ha),
         })
       } else {
         acc.total = acc.total !== null && cantitate !== null && acc.unitate === produs.unitate_cantitate ? acc.total + cantitate : acc.total
@@ -102,6 +104,11 @@ export function produseLot(aplicari: readonly AplicareRow[], tip: TipJurnal): Pr
   return [...map.values()].map((acc) => {
     if (tip === 'fertirigare' && acc.g !== null) {
       return { nume: acc.nume, cantitate: `${formatG(acc.g)} g/pl${acc.rezervor ? ` (${acc.rezervor})` : ''}` }
+    }
+    // La sol, în unitatea aleasă la salvare (t sau kg, pe parcele sau la ha), promptul 34, §8.
+    if (tip === 'sol') {
+      const sol = afisareSol({ cantitateBaza: acc.total, unitateBaza: acc.unitate, cantitateText: acc.text, dozaHaBaza: acc.dozaHa })
+      if (sol.cantitate) return { nume: acc.nume, cantitate: sol.doza ? `${sol.cantitate} (${sol.doza})` : sol.cantitate }
     }
     if (acc.total !== null && acc.total > 0) {
       if (acc.unitate === 'ml' || acc.unitate === 'g') return { nume: acc.nume, cantitate: formatCantitate(acc.total, acc.unitate as UnitateProdus) }

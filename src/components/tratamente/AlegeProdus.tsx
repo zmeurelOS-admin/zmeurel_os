@@ -43,6 +43,9 @@ const potrivit = (produs: ProdusCatalog, cautare: string) => {
   return searchKey(`${produs.nume_comercial} ${produs.substanta_activa}`).includes(cautare)
 }
 
+/** Alegerile rapide la sol: ce se pune de obicei fără catalog. */
+const SUGESTII_SOL = ['Gunoi de grajd', 'Compost']
+
 /**
  * Alegerea produsului: căutare după nume sau substanță, „Folosite recent”, catalogul (filtrat „pentru zmeur”
  * când parcela e de zmeură, cu „Arată toate”) și „Nu e în listă”. Ține locul conținutului pasului.
@@ -54,6 +57,7 @@ export function AlegeProdus({
   dejaAlese,
   onAlege,
   onProdusNou,
+  numeManual = false,
 }: {
   catalog: readonly ProdusCatalog[]
   recente: readonly ProdusRecent[]
@@ -63,6 +67,11 @@ export function AlegeProdus({
   dejaAlese: ReadonlySet<string>
   onAlege: (produs: ProdusCatalog | null, numeManual?: string) => void
   onProdusNou: () => void
+  /**
+   * La sol (promptul 34, §8): produsul se poate scrie de mână doar pentru tratamentul acesta (gunoi de grajd),
+   * fără catalog și fără magazie.
+   */
+  numeManual?: boolean
 }) {
   const [text, setText] = useState('')
   const [toate, setToate] = useState(false)
@@ -79,8 +88,40 @@ export function AlegeProdus({
     (item) => !dejaAlese.has(item.nume) && (!cautare || searchKey(`${item.nume} ${item.produs?.substanta_activa ?? ''}`).includes(cautare)),
   )
 
+  const [manual, setManual] = useState('')
+  const alegeManual = (nume: string) => {
+    const curat = nume.trim()
+    if (curat && !dejaAlese.has(curat)) onAlege(null, curat)
+  }
+
   return (
     <div className="space-y-4">
+      {numeManual ? (
+        <section className="space-y-2.5 rounded-box border-2 border-border bg-surface p-3" aria-labelledby="produs-scris">
+          <h3 id="produs-scris" className={cn('font-bold text-fg', kitText.base)}>
+            Scrie ce ai pus
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {SUGESTII_SOL.filter((nume) => !dejaAlese.has(nume)).map((nume) => (
+              <Button key={nume} type="button" variant="neutral" size="touch" onClick={() => alegeManual(nume)}>
+                {nume}
+              </Button>
+            ))}
+          </div>
+          <BigInput
+            label="Numele (fără catalog)"
+            placeholder="ex. Gunoi de grajd de vită"
+            value={manual}
+            onChange={(event) => setManual(event.target.value)}
+            autoComplete="off"
+            maxLength={120}
+          />
+          <Button type="button" variant="primary" size="touch" className="w-full" disabled={!manual.trim()} onClick={() => alegeManual(manual)}>
+            Folosește numele scris
+          </Button>
+        </section>
+      ) : null}
+
       <BigInput
         label="Caută produsul"
         leading={<Search aria-hidden />}

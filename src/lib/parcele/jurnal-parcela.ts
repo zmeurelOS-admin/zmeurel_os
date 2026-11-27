@@ -5,7 +5,7 @@
  */
 import { ETICHETA_LUCRARE } from '@/lib/lucrari/tipuri'
 import { randuriLucrari, type LucrareRow } from '@/lib/lucrari/jurnal'
-import { produseLot } from '@/lib/tratamente/jurnal'
+import { produseLot, textProduse } from '@/lib/tratamente/jurnal'
 import { ETICHETA_TIP, tipDinActivitateVeche, tipDinAplicare, type ActivitateVeche, type AplicareRow } from '@/lib/tratamente/model'
 import { pauzaAplicarii } from '@/lib/tratamente/pauza'
 import { zileText, ziuaRo } from '@/lib/tratamente/zile'
@@ -101,14 +101,17 @@ export function jurnalParcela(input: {
     const zi = ziuaRo(aplicare.data_aplicata)
     if (!zi) continue
     const tip = tipDinAplicare(aplicare)
-    const produse = produseLot([aplicare], tip).map((produs) => produs.nume)
+    const lot = produseLot([aplicare], tip)
+    const produse = lot.map((produs) => produs.nume)
     const pauza = pauzaAplicarii(aplicare).zile
+    // La sol, cantitatea în unitatea aleasă („Gunoi de grajd 0,75 t (3 t/ha)”), promptul 34, §8.
+    const cantitati = tip === 'sol' ? textProduse(lot.filter((produs) => produs.cantitate)) : ''
     intrari.push({
       key: `aplicare:${aplicare.id}`,
       tip: 'tratament',
       zi,
       titlu: produse.length > 0 ? `${ETICHETA_TIP[tip]}: ${produse.join(' + ')}` : ETICHETA_TIP[tip],
-      detaliu: pauza > 0 ? `pauză ${zileText(pauza)}` : 'fără pauză',
+      detaliu: [cantitati || null, pauza > 0 ? `pauză ${zileText(pauza)}` : 'fără pauză'].filter(Boolean).join(' · '),
       moment: aplicare.created_at,
     })
   }

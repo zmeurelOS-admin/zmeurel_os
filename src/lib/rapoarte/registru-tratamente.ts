@@ -6,6 +6,7 @@
  * Pauza și ziua de la care se poate recolta: aceeași regulă ca peste tot (`lib/tratamente/pauza`, zile întregi).
  */
 import { formatCantitate, formatKgTratament, type UnitateProdus } from '@/lib/tratamente/doze'
+import { afisareSol } from '@/lib/tratamente/sol'
 import {
   ETICHETA_TIP,
   tipDinActivitateVeche,
@@ -43,13 +44,14 @@ const zilePozitive = (value: unknown) => {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0
 }
 
-function dozaProdus(produs: Pick<AplicareProdusRow, 'doza_ml_per_hl' | 'doza_l_per_ha' | 'doza_g_per_planta'>): string {
+function dozaProdus(produs: Pick<AplicareProdusRow, 'doza_ml_per_hl' | 'doza_l_per_ha' | 'doza_g_per_planta' | 'unitate_cantitate'>): string {
   const parti: string[] = []
   const hl = numar(produs.doza_ml_per_hl)
   const ha = numar(produs.doza_l_per_ha)
   const gpl = numar(produs.doza_g_per_planta)
   if (hl !== null) parti.push(`${fmt(hl)} ml/hl`)
-  if (ha !== null) parti.push(`${fmt(ha)} l/ha`)
+  // La ha, pulberea se scrie în kg/ha (aceeași coloană): eticheta după unitatea produsului (promptul 34, §8).
+  if (ha !== null) parti.push(`${fmt(ha)} ${produs.unitate_cantitate === 'g' || produs.unitate_cantitate === 'kg' ? 'kg' : 'l'}/ha`)
   if (gpl !== null) parti.push(`${fmt(gpl)} g/plantă`)
   return parti.join(' · ')
 }
@@ -63,6 +65,17 @@ function cantitateProdus(produs: Pick<AplicareProdusRow, 'cantitate_totala' | 'u
     return `${fmt(total)}${produs.unitate_cantitate ? ` ${produs.unitate_cantitate}` : ''}`
   }
   return produs.cantitate_text?.trim() || ''
+}
+
+/** La sol: cantitatea și doza în unitatea aleasă la salvare (t sau kg, pe parcele sau la ha), promptul 34, §8. */
+function dozaSiCantitateSol(produs: AplicareProdusRow): { doza: string; cantitate: string } {
+  const sol = afisareSol({
+    cantitateBaza: numar(produs.cantitate_totala),
+    unitateBaza: produs.unitate_cantitate,
+    cantitateText: produs.cantitate_text,
+    dozaHaBaza: numar(produs.doza_l_per_ha),
+  })
+  return { doza: sol.doza ?? '', cantitate: sol.cantitate ?? (produs.cantitate_text?.trim() || '') }
 }
 
 /** Produsele unei aplicări; aplicările vechi din plan au produsul doar în antet. */
@@ -108,18 +121,20 @@ export function registruTratamente(input: {
     if (aplicare.status !== 'aplicata') continue
     const data = ziuaRo(aplicare.data_aplicata) ?? ziuaRo(aplicare.data_planificata)
     if (!data || data < start || data > end) continue
-    const metoda = ETICHETA_TIP[tipDinAplicare(aplicare)]
+    const tip = tipDinAplicare(aplicare)
+    const metoda = ETICHETA_TIP[tip]
     const produse = produseAplicare(aplicare)
     for (const produs of produse.length > 0 ? produse : [null]) {
       const pauzaZile = produs ? zilePozitive(produs.phi_zile_snapshot) : 0
+      const sol = produs && tip === 'sol' ? dozaSiCantitateSol(produs) : null
       randuri.push({
         data,
         parcela: parcela(aplicare.parcela_id),
         metoda,
         produs: produs ? produs.produs_nume_snapshot?.trim() || produs.produs_nume_manual?.trim() || 'Produs' : '',
         substanta: produs ? substanta(produs) : '',
-        doza: produs ? dozaProdus(produs) : '',
-        cantitate: produs ? cantitateProdus(produs) : '',
+        doza: sol ? sol.doza : produs ? dozaProdus(produs) : '',
+        cantitate: sol ? sol.cantitate : produs ? cantitateProdus(produs) : '',
         pauzaZile,
         recoltarePermisa: pauzaZile > 0 ? adaugaZile(data, pauzaZile) : '',
         importat: false,

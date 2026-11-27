@@ -34,11 +34,14 @@ import {
   pauzaCiorna,
   produsDinCatalog,
   cheieNoua,
+  modSolProdus,
+  unitateSolProdus,
   type CandTratament,
   type CiornaTratament,
   type ParcelaFormular,
   type ProdusCiorna,
 } from '@/lib/tratamente/formular'
+import { dozaHaSolBaza, formatCantitateSol, formatDozaHaSol, totalSolBaza } from '@/lib/tratamente/sol'
 import { construiesteJurnal, textParcele, textProduse, type RandJurnal } from '@/lib/tratamente/jurnal'
 import { ETICHETA_TIP, type AplicareRow, type MetodaFormular, type ProdusCatalog } from '@/lib/tratamente/model'
 import { adaugaZile, ziCuDataRo, ziRelativaRo, ziuaRo } from '@/lib/tratamente/zile'
@@ -327,13 +330,16 @@ export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplica
             substanta: null,
             tip: null,
             frac: null,
-            phi: null,
+            // La sol, un produs scris de mână (gunoi de grajd) n-are pauză (promptul 34, §8).
+            phi: previous.metoda === 'sol' ? 0 : null,
             nrMaxPeSezon: null,
             intervalMinZile: null,
             unitate: previous.metoda === 'sol' || previous.metoda === 'fertirigare' ? 'g' : 'ml',
             doza: null,
             gPePlanta: null,
             rezervor,
+            // Gunoiul de grajd și compostul se pun la tonă.
+            ...(previous.metoda === 'sol' && /gunoi|compost|mr[ăa]ni[țt][ăa]/i.test(numeManual ?? '') ? { unitateSol: 't' as const } : {}),
           }
       // Primul produs al unei stropiri alege modul dozei după etichetă (la ha dacă eticheta are doar doza pe hectar).
       const mod = previous.metoda === 'stropire' && previous.produse.length === 0 && produs ? modImplicit(produs) : previous.mod
@@ -363,7 +369,14 @@ export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplica
         const kg = alese.reduce((sum, parcela) => sum + (kgFertirigare(produs.gPePlanta, parcela.nr_plante) ?? 0), 0)
         return `${produs.nume} ${formatKgTratament(kg)} (${produs.rezervor})`
       }
-      if (ciorna.metoda === 'sol') return `${produs.nume} ${produs.doza ?? '—'} ${produs.unitate === 'ml' ? 'l' : 'kg'}`
+      if (ciorna.metoda === 'sol') {
+        const unitateSol = unitateSolProdus(produs)
+        const modSol = modSolProdus(produs)
+        const total = totalSolBaza({ doza: produs.doza, mod: modSol, unitate: unitateSol, ha })
+        if (total === null) return `${produs.nume} —`
+        const dozaHa = modSol === 'ha' ? dozaHaSolBaza({ doza: produs.doza, mod: modSol, unitate: unitateSol, ha }) : null
+        return `${produs.nume} ${formatCantitateSol(total, unitateSol)}${dozaHa !== null ? ` (${formatDozaHaSol(dozaHa, unitateSol)})` : ''}`
+      }
       const total = cantitateStropire({ doza: produs.doza, mod: ciorna.mod, volumL, suprafataHa: ha })
       return `${produs.nume} ${total !== null ? formatCantitate(total, produs.unitate) : '—'}`
     })
@@ -580,6 +593,7 @@ export function TratamentStepForm({ open, onOpenChange, parcele, catalog, aplica
         dejaAlese={dejaAlese}
         onAlege={adaugaProdus}
         onProdusNou={() => setVedere('produs-nou')}
+        numeManual={ciorna.metoda === 'sol'}
       />
     )
   } else if (vedere === 'produs-nou') {

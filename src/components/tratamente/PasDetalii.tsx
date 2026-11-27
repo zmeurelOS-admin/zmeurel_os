@@ -13,7 +13,8 @@ import {
   type ModDoza,
   type UnitateProdus,
 } from '@/lib/tratamente/doze'
-import { pauzaCiorna, type CiornaTratament, type ParcelaFormular, type ProdusCiorna } from '@/lib/tratamente/formular'
+import { modSolProdus, pauzaCiorna, unitateSolProdus, type CiornaTratament, type ParcelaFormular, type ProdusCiorna } from '@/lib/tratamente/formular'
+import { textConversieSol, type ModSol, type UnitateSol } from '@/lib/tratamente/sol'
 import { zileText } from '@/lib/tratamente/zile'
 import { cn } from '@/lib/utils'
 
@@ -297,6 +298,8 @@ function DetaliiFertirigare({ ciorna, parcele, onParcele, onProdus, onScoate, on
 }
 
 function DetaliiSol({ ciorna, parcele, onParcele, onProdus, onScoate, onAdauga, lipsa }: PasDetaliiProps) {
+  const alese = parcele.filter((parcela) => ciorna.parcelaIds.includes(parcela.id))
+  const ha = suprafataHa(alese)
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -304,38 +307,60 @@ function DetaliiSol({ ciorna, parcele, onParcele, onProdus, onScoate, onAdauga, 
         <ParcelePills parcele={parcele} value={ciorna.parcelaIds} onChange={onParcele} />
       </div>
       <div className="space-y-2">
-        <Eticheta>Cu ce · cât în total</Eticheta>
-        {ciorna.produse.map((produs) => (
-          <div key={produs.key} className="space-y-2 rounded-box border-2 border-border bg-surface p-3">
-            <div className="flex items-start gap-2">
-              <div className="min-w-0 flex-1">
-                <p className={cn('font-bold text-fg', kitText.base)}>{produs.nume}</p>
-                <p className={cn('text-fg-muted', kitText.helper)}>{metaProdus(produs)}</p>
+        <Eticheta>Cu ce · cât</Eticheta>
+        {ciorna.produse.map((produs) => {
+          const unitate = unitateSolProdus(produs)
+          const mod = modSolProdus(produs)
+          const conversie = ha > 0 ? textConversieSol({ doza: produs.doza, mod, unitate, ha }) : null
+          return (
+            <div key={produs.key} className="space-y-2.5 rounded-box border-2 border-border bg-surface p-3">
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className={cn('break-words font-bold text-fg', kitText.base)}>{produs.nume}</p>
+                  <p className={cn('text-fg-muted', kitText.helper)}>{metaProdus(produs)}</p>
+                </div>
+                <ScoateProdus nume={produs.nume} onClick={() => onScoate(produs.key)} />
               </div>
-              <ScoateProdus nume={produs.nume} onClick={() => onScoate(produs.key)} />
+              <Segments
+                aria-label={`Cum scrii cantitatea pentru ${produs.nume}`}
+                options={[
+                  { value: 'total', label: 'Pe parcele' },
+                  { value: 'ha', label: 'La ha' },
+                ]}
+                value={mod}
+                onValueChange={(value) => onProdus(produs.key, { modSol: value as ModSol })}
+              />
+              <Segments
+                aria-label={`Unitatea pentru ${produs.nume}`}
+                options={[
+                  { value: 'kg', label: 'kg' },
+                  { value: 't', label: 'tone' },
+                  { value: 'l', label: 'litri' },
+                ]}
+                value={unitate}
+                onValueChange={(value) => onProdus(produs.key, { unitateSol: value as UnitateSol, unitate: value === 'l' ? 'ml' : 'g' })}
+              />
+              <NumberStepper
+                size="compact"
+                label={`Cantitate ${produs.nume}`}
+                value={produs.doza}
+                onChange={(doza) => onProdus(produs.key, { doza })}
+                step={unitate === 't' ? 0.5 : 1}
+                min={0}
+                max={100000}
+                decimals={unitate === 't' ? 3 : 2}
+                unit={mod === 'ha' ? `${unitate === 't' ? 't' : unitate}/ha` : unitate === 't' ? 't' : unitate}
+              />
+              {mod === 'ha' && !(ha > 0) && ciorna.parcelaIds.length > 0 ? (
+                <p className={cn('text-warning-text', kitText.helper)}>Parcelele alese nu au suprafața completată: scrie cantitatea pe parcele.</p>
+              ) : conversie ? (
+                <p className={cn('text-fg-muted', kitText.helper)} aria-label={`Conversia pentru ${produs.nume}`}>
+                  {conversie}
+                </p>
+              ) : null}
             </div>
-            <NumberStepper
-              size="compact"
-              label={`Cantitate ${produs.nume}`}
-              value={produs.doza}
-              onChange={(doza) => onProdus(produs.key, { doza })}
-              step={1}
-              min={0}
-              max={100000}
-              decimals={2}
-              unit={produs.unitate === 'ml' ? 'l' : 'kg'}
-            />
-            <Segments
-              aria-label={`Unitatea pentru ${produs.nume}`}
-              options={[
-                { value: 'g', label: 'Kilograme' },
-                { value: 'ml', label: 'Litri' },
-              ]}
-              value={produs.unitate}
-              onValueChange={(unitate) => onProdus(produs.key, { unitate })}
-            />
-          </div>
-        ))}
+          )
+        })}
         <AdaugaProdus onClick={onAdauga} primul={ciorna.produse.length === 0} />
       </div>
       {ciorna.produse.length > 0 ? <LiniePauza produse={ciorna.produse} /> : null}

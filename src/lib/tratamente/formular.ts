@@ -4,6 +4,7 @@
  */
 import { citesteTextFertirigare, cantitateStropire, kgFertirigare, partiPeParcele, suprafataHa, textFertirigare, imparteProportional, type ModDoza, type UnitateProdus } from './doze'
 import { METODA_DB, TIP_INTERVENTIE_DB, tipDinAplicare, type AplicareRow, type MetodaFormular, type ProdusCatalog } from './model'
+import { citesteTextSol, dozaHaSolBaza, factorSol, textSol, totalSolBaza, unitateBazaSol, type ModSol, type UnitateSol } from './sol'
 
 export interface ProdusCiorna {
   /** Cheie locală (React). */
@@ -17,8 +18,15 @@ export interface ProdusCiorna {
   nrMaxPeSezon: number | null
   intervalMinZile: number | null
   unitate: UnitateProdus
-  /** Stropire: doza în modul ales (ml/g la 100 l sau l/kg la ha). Sol: cantitatea totală (kg sau l). */
+  /**
+   * Stropire: doza în modul ales (ml/g la 100 l sau l/kg la ha). Sol: cantitatea în unitatea și modul alese
+   * (`unitateSol`, `modSol`): totalul pe parcele sau cât la ha.
+   */
   doza: number | null
+  /** La sol (promptul 34, §8): kg, t sau l. Lipsă = kg (sau l, pentru un produs lichid). */
+  unitateSol?: UnitateSol
+  /** La sol: „pe parcele (total)” sau „la ha”. Lipsă = total. */
+  modSol?: ModSol
   /** Fertirigare. */
   gPePlanta: number | null
   rezervor: 'A' | 'B'
@@ -65,6 +73,16 @@ export function produsDinCatalog(produs: ProdusCatalog, unitate: UnitateProdus, 
   }
 }
 
+/** Unitatea „La sol” a unui produs din formular. */
+export function unitateSolProdus(produs: Pick<ProdusCiorna, 'unitateSol' | 'unitate'>): UnitateSol {
+  return produs.unitateSol ?? (produs.unitate === 'ml' ? 'l' : 'kg')
+}
+
+/** Modul „La sol” al unui produs din formular. */
+export function modSolProdus(produs: Pick<ProdusCiorna, 'modSol'>): ModSol {
+  return produs.modSol ?? 'total'
+}
+
 /** Pauza tratamentului = cea mai lungă dintre produse. */
 export function pauzaCiorna(produse: readonly ProdusCiorna[]): { zile: number; produs: string | null } {
   let best = { zile: 0, produs: null as string | null }
@@ -94,7 +112,7 @@ export function ciornaDinTratament(grup: readonly AplicareRow[], parcelaIdsExist
     const dinCatalog = produs.produs_id ? catalog.get(produs.produs_id) : undefined
     const unitate: UnitateProdus = produs.unitate_cantitate === 'g' || produs.unitate_cantitate === 'kg' ? 'g' : 'ml'
     const fert = citesteTextFertirigare(produs.cantitate_text)
-    // La sol se repetă cantitatea totală a lotului.
+    // La sol se repetă cantitatea lotului, în unitatea și modul de atunci (citite din `cantitate_text`).
     const totalSol =
       metoda === 'sol'
         ? grup.reduce((sum, aplicare) => {
@@ -102,6 +120,17 @@ export function ciornaDinTratament(grup: readonly AplicareRow[], parcelaIdsExist
             return sum + (Number(rand?.cantitate_totala) || 0)
           }, 0)
         : 0
+    const sol = metoda === 'sol' ? citesteTextSol(produs.cantitate_text) : null
+    const unitateSol: UnitateSol = sol?.unitate ?? (produs.unitate_cantitate === 'l' ? 'l' : 'kg')
+    const modSol: ModSol = sol?.mod === 'ha' && Number(produs.doza_l_per_ha) > 0 ? 'ha' : 'total'
+    const dozaSol =
+      metoda !== 'sol'
+        ? null
+        : modSol === 'ha'
+          ? Number(produs.doza_l_per_ha) / factorSol(unitateSol)
+          : totalSol > 0
+            ? totalSol / factorSol(unitateSol)
+            : null
     return {
       key: cheieNoua(),
       produsId: produs.produs_id,
@@ -112,13 +141,16 @@ export function ciornaDinTratament(grup: readonly AplicareRow[], parcelaIdsExist
       phi: produs.phi_zile_snapshot ?? dinCatalog?.phi_zile ?? null,
       nrMaxPeSezon: dinCatalog?.nr_max_aplicari_per_sezon ?? null,
       intervalMinZile: dinCatalog?.interval_min_aplicari_zile ?? null,
-      unitate: metoda === 'sol' ? (produs.unitate_cantitate === 'l' ? 'ml' : 'g') : unitate,
+      unitate: metoda === 'sol' ? (unitateSol === 'l' ? 'ml' : 'g') : unitate,
       doza:
         metoda === 'stropire'
           ? (mod === 'ha' ? Number(produs.doza_l_per_ha) : Number(produs.doza_ml_per_hl)) || null
           : metoda === 'sol'
-            ? totalSol || null
+            ? dozaSol !== null && Number.isFinite(dozaSol) && dozaSol > 0
+              ? Math.round(dozaSol * 1000) / 1000
+              : null
             : null,
+      ...(metoda === 'sol' ? { unitateSol, modSol } : {}),
       gPePlanta: Number(produs.doza_g_per_planta) || fert?.gPePlanta || null,
       rezervor: produs.rezervor === 'B' || fert?.rezervor === 'B' ? 'B' : 'A',
     }
@@ -190,6 +222,10 @@ export function ceLipseste(ciorna: CiornaTratament, parcele: readonly ParcelaFor
   }
   if (ciorna.metoda === 'sol') {
     if (ciorna.produse.some((produs) => !(Number(produs.doza) > 0))) return 'Scrie cantitatea pentru fiecare produs.'
+    if (ciorna.produse.some((produs) => modSolProdus(produs) === 'ha')) {
+      const alese = parcele.filter((parcela) => ciorna.parcelaIds.includes(parcela.id))
+      if (!(suprafataHa(alese) > 0)) return 'Parcelele alese nu au suprafața completată: scrie cantitatea pe parcele.'
+    }
   }
   if (ciorna.metoda === 'stropire') {
     if (ciorna.produse.some((produs) => !(Number(produs.doza) > 0))) return 'Scrie doza pentru fiecare produs.'
@@ -230,8 +266,8 @@ export function aplicariDeSalvat(input: {
       return total === null ? alese.map(() => null) : partiPeParcele({ mod: ciorna.mod, total }, alese)
     }
     if (ciorna.metoda === 'sol') {
-      const total = Number(produs.doza) || 0
-      return total > 0 ? imparteProportional(total, alese.map((parcela) => Number(parcela.suprafata_m2) || 0)) : alese.map(() => null)
+      const total = totalSolBaza({ doza: produs.doza, mod: modSolProdus(produs), unitate: unitateSolProdus(produs), ha }) ?? 0
+      return total > 0 ? imparteProportional(total, alese.map((parcela) => Number(parcela.suprafata_m2) || 0), 3) : alese.map(() => null)
     }
     return alese.map((parcela) => kgFertirigare(produs.gPePlanta, parcela.nr_plante))
   })
@@ -276,14 +312,17 @@ export function aplicariDeSalvat(input: {
         }
       }
       if (ciorna.metoda === 'sol') {
-        const unitate = produs.unitate === 'ml' ? 'l' : 'kg'
+        // Promptul 34, §8: în bază kg (sau l); unitatea aleasă (t / kg, pe parcele / la ha) rămâne în `cantitate_text`.
+        const unitateSol = unitateSolProdus(produs)
+        const modSol = modSolProdus(produs)
+        const dozaHa = modSol === 'ha' ? dozaHaSolBaza({ doza: produs.doza, mod: modSol, unitate: unitateSol, ha }) : null
         return {
           ...base,
           doza_ml_per_hl: null,
-          doza_l_per_ha: null,
+          doza_l_per_ha: dozaHa,
           cantitate_totala: parte,
-          unitate_cantitate: parte === null ? null : unitate,
-          cantitate_text: parte === null ? null : `${formatNr(parte)} ${unitate}`,
+          unitate_cantitate: parte === null ? null : unitateBazaSol(unitateSol),
+          cantitate_text: parte === null ? null : textSol({ parteBaza: parte, unitate: unitateSol, mod: modSol, dozaHaBaza: dozaHa }),
           rezervor: null,
           doza_g_per_planta: null,
         }
