@@ -11,7 +11,6 @@ interface AppDrawerProps {
   children: React.ReactNode
   footer?: React.ReactNode
   contentClassName?: string
-  disableHistory?: boolean
   hideHeader?: boolean
   showHandle?: boolean
   showCloseButton?: boolean
@@ -29,7 +28,6 @@ export function AppDrawer({
   children,
   footer,
   contentClassName,
-  disableHistory,
   hideHeader,
   showHandle,
   showCloseButton,
@@ -37,7 +35,7 @@ export function AppDrawer({
   desktopFormCompact,
 }: AppDrawerProps) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} disableHistory={disableHistory}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <FormDialogLayout
         title={title}
         description={description}

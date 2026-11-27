@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { generateClientId } from '@/lib/offline/generateClientId'
-import { DIALOG_HISTORY_MARKER, stripDialogHistoryMarker } from '@/lib/ui/dialog-history'
 import { cn } from '@/lib/utils'
 
 import {
@@ -324,66 +323,20 @@ export interface StepFormProps extends Omit<StepFormFrameProps, 'onClose' | 'cla
 }
 
 /**
- * Trece cererile de închidere prin `closeGuard` și ține istoricul în ordine când o închidere prin „înapoi”
- * e oprită: `ui/dialog` și-a consumat deja intrarea din istoric și nu mai ascultă, așa că punem alta la loc
- * și ascultăm noi următorul „înapoi”. Întoarce o funcție stabilă (altfel `ui/dialog` își pierde ascultătorul).
+ * Trece cererile de închidere (X, Esc, „înapoi” pe Android) prin `closeGuard`. Istoricul nu se atinge
+ * (promptul 34, §5): dacă garda oprește un „înapoi”, `ui/dialog` reface singur ascultătorul, ca următorul
+ * „înapoi” să ajungă tot aici. Întoarce o funcție stabilă.
  */
-function useGuardedOpenChange(open: boolean, onOpenChange: (open: boolean) => void, closeGuard?: () => boolean) {
+function useGuardedOpenChange(onOpenChange: (open: boolean) => void, closeGuard?: () => boolean) {
   const latest = useRef({ onOpenChange, closeGuard })
   useEffect(() => {
     latest.current = { onOpenChange, closeGuard }
   })
 
-  // „Înapoi” și închiderea oprită se întâmplă în aceeași tură de evenimente, dar ordinea ascultătorilor
-  // (al nostru și al lui `ui/dialog`) nu e garantată. Le notăm pe amândouă și hotărâm după ce s-a terminat tura.
-  const sawPopState = useRef(false)
-  const blockedClose = useRef(false)
-  const ownsHistoryEntry = useRef(false)
-
-  const settle = useCallback(() => {
-    if (sawPopState.current && blockedClose.current && !ownsHistoryEntry.current) {
-      window.history.pushState({ ...(window.history.state ?? {}), [DIALOG_HISTORY_MARKER]: true }, '')
-      ownsHistoryEntry.current = true
-    }
-    sawPopState.current = false
-    blockedClose.current = false
+  return useCallback((next: boolean) => {
+    const current = latest.current
+    if (next || !current.closeGuard?.()) current.onOpenChange(next)
   }, [])
-
-  const requestOpenChange = useCallback(
-    (next: boolean) => {
-      const current = latest.current
-      if (next || !current.closeGuard?.()) {
-        current.onOpenChange(next)
-        return
-      }
-      blockedClose.current = true
-      window.setTimeout(settle, 0)
-    },
-    [settle],
-  )
-
-  useEffect(() => {
-    if (!open) return
-    const handlePopState = () => {
-      sawPopState.current = true
-      window.setTimeout(settle, 0)
-      // Intrarea pusă de noi a fost consumată: `ui/dialog` nu mai ascultă, deci cerem noi închiderea.
-      if (!ownsHistoryEntry.current) return
-      ownsHistoryEntry.current = false
-      requestOpenChange(false)
-    }
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [open, requestOpenChange, settle])
-
-  useEffect(() => {
-    if (open || !ownsHistoryEntry.current) return
-    // Închis de modul cât intrarea pusă de noi e încă în istoric: scoatem doar marcajul, fără navigare.
-    ownsHistoryEntry.current = false
-    stripDialogHistoryMarker()
-  }, [open])
-
-  return requestOpenChange
 }
 
 /**
@@ -391,7 +344,7 @@ function useGuardedOpenChange(open: boolean, onOpenChange: (open: boolean) => vo
  * Peste `ui/dialog` (portal, capcană de focus, Esc, ascunderea butonului plutitor, „înapoi” pe Android).
  */
 export function StepForm({ open, onOpenChange, title, description, closeGuard, ...frameProps }: StepFormProps) {
-  const requestOpenChange = useGuardedOpenChange(open, onOpenChange, closeGuard)
+  const requestOpenChange = useGuardedOpenChange(onOpenChange, closeGuard)
 
   return (
     <Dialog open={open} onOpenChange={requestOpenChange}>

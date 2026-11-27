@@ -1,26 +1,35 @@
 import { useState } from 'react'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { BottomSheet } from '@/components/kit/BottomSheet'
-import { DIALOG_HISTORY_MARKER } from '@/lib/ui/dialog-history'
+import { CloseWatcherSimulat, apasaInapoi, dezinstaleazaCloseWatcher, instaleazaCloseWatcher } from '@/test/helpers/close-watcher'
 
-function Harness({ initialOpen = false }: { initialOpen?: boolean }) {
+function Harness({ initialOpen = false, inline = false }: { initialOpen?: boolean; inline?: boolean }) {
   const [open, setOpen] = useState(initialOpen)
+  const [, setTick] = useState(0)
   return (
     <>
       <button type="button" onClick={() => setOpen(true)}>
         Deschide
       </button>
-      <BottomSheet open={open} onOpenChange={setOpen} title="Confirmă livrarea" footer={<button type="button">Da, livrat</button>}>
+      <button type="button" onClick={() => setTick((value) => value + 1)}>
+        Redesenează
+      </button>
+      <BottomSheet open={open} onOpenChange={inline ? (next) => setOpen(next) : setOpen} title="Confirmă livrarea" footer={<button type="button">Da, livrat</button>}>
         <p>Conținutul foii</p>
       </BottomSheet>
     </>
   )
 }
 
+beforeEach(() => {
+  instaleazaCloseWatcher()
+})
+
 afterEach(() => {
+  dezinstaleazaCloseWatcher()
   window.history.replaceState(null, '')
   document.documentElement.removeAttribute('data-modal-open')
   document.documentElement.removeAttribute('data-modal-count')
@@ -53,32 +62,70 @@ describe('BottomSheet', () => {
     expect(document.documentElement).not.toHaveAttribute('data-modal-open')
   })
 
-  it('pune un marcaj în istoric, iar „înapoi” închide foaia', async () => {
+  it('nu scrie în istoric, iar „înapoi” (CloseWatcher) închide foaia', async () => {
     const user = userEvent.setup()
     render(<Harness />)
+    const lungime = window.history.length
 
     await user.click(screen.getByRole('button', { name: 'Deschide' }))
     await screen.findByRole('dialog')
-    expect(window.history.state?.[DIALOG_HISTORY_MARKER]).toBe(true)
+    expect(window.history.length).toBe(lungime)
+    expect(CloseWatcherSimulat.active).toHaveLength(1)
 
     act(() => {
-      window.dispatchEvent(new PopStateEvent('popstate'))
+      apasaInapoi()
+    })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(window.history.length).toBe(lungime)
+  })
+
+  it('închiderea din buton nu atinge istoricul și scoate watcher-ul', async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+    const lungime = window.history.length
+
+    await user.click(screen.getByRole('button', { name: 'Deschide' }))
+    await screen.findByRole('dialog')
+    await user.click(screen.getByRole('button', { name: 'Închide' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(window.history.length).toBe(lungime)
+    expect(CloseWatcherSimulat.active).toHaveLength(0)
+  })
+
+  it('„înapoi” merge și când pagina dă o funcție nouă la fiecare desenare', async () => {
+    const user = userEvent.setup()
+    render(<Harness inline />)
+
+    await user.click(screen.getByRole('button', { name: 'Deschide' }))
+    await screen.findByRole('dialog')
+    // Redesenarea dă foii alt `onOpenChange`; înainte, ascultătorul se pierdea aici.
+    act(() => {
+      ;(screen.getByRole('button', { name: 'Redesenează', hidden: true }) as HTMLButtonElement).click()
+    })
+    expect(CloseWatcherSimulat.active).toHaveLength(1)
+    act(() => {
+      apasaInapoi()
     })
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
-  it('la închiderea din buton, marcajul din istoric e scos fără navigare înapoi', async () => {
+  it('fără CloseWatcher (Safari, Firefox): nimic în istoric, Esc și X închid normal', async () => {
+    dezinstaleazaCloseWatcher()
     const user = userEvent.setup()
     render(<Harness />)
+    const lungime = window.history.length
 
     await user.click(screen.getByRole('button', { name: 'Deschide' }))
     await screen.findByRole('dialog')
-    const lengthWhileOpen = window.history.length
+    expect(window.history.length).toBe(lungime)
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 
+    await user.click(screen.getByRole('button', { name: 'Deschide' }))
+    await screen.findByRole('dialog')
     await user.click(screen.getByRole('button', { name: 'Închide' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    expect(window.history.state?.[DIALOG_HISTORY_MARKER]).toBeUndefined()
-    expect(window.history.length).toBe(lengthWhileOpen)
+    expect(window.history.length).toBe(lungime)
   })
 
   it('Esc închide foaia', async () => {

@@ -15,6 +15,7 @@ import {
   stepProgressPercent,
   type FormTrackEvent,
 } from '@/components/kit/lib/step-form'
+import { CloseWatcherSimulat, apasaInapoi, dezinstaleazaCloseWatcher, instaleazaCloseWatcher } from '@/test/helpers/close-watcher'
 
 const mocks = vi.hoisted(() => ({
   trackEvent: vi.fn(),
@@ -32,6 +33,7 @@ vi.mock('@/lib/offline/generateClientId', () => ({
 const eventNames = () => mocks.trackEvent.mock.calls.map((call) => (call[0] as FormTrackEvent).eventName)
 
 beforeEach(() => {
+  instaleazaCloseWatcher()
   mocks.trackEvent.mockClear()
   mocks.idCounter.value = 0
 })
@@ -41,6 +43,7 @@ afterEach(async () => {
   // o lăsăm să treacă aici, ca să nu ajungă în testul următor.
   cleanup()
   await new Promise((resolve) => setTimeout(resolve, 5))
+  dezinstaleazaCloseWatcher()
   window.history.replaceState(null, '')
 })
 
@@ -495,7 +498,7 @@ function FormularCuGarda({ guard }: { guard: () => boolean }) {
 
 const pressBack = () =>
   act(() => {
-    window.dispatchEvent(new PopStateEvent('popstate'))
+    apasaInapoi()
   })
 
 describe('StepForm — garda de închidere', () => {
@@ -512,18 +515,17 @@ describe('StepForm — garda de închidere', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
-  it('X oprit de gardă nu atinge istoricul (intrarea lui ui/dialog e încă acolo)', async () => {
+  it('X oprit de gardă nu atinge istoricul', async () => {
     const user = userEvent.setup()
     render(<FormularCuGarda guard={() => true} />)
+    const lungime = window.history.length
 
     await user.click(screen.getByRole('button', { name: 'Adaugă kg' }))
     await screen.findByRole('dialog')
-    const lengthWhileOpen = window.history.length
-
     await user.click(screen.getByRole('button', { name: 'Închide' }))
     await new Promise((resolve) => setTimeout(resolve, 20))
 
-    expect(window.history.length).toBe(lengthWhileOpen)
+    expect(window.history.length).toBe(lungime)
   })
 
   it('fără nimic nesalvat, X închide direct', async () => {
@@ -538,25 +540,23 @@ describe('StepForm — garda de închidere', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
-  it('„înapoi” oprit de gardă lasă formularul deschis și pune la loc intrarea din istoric', async () => {
+  it('„înapoi” oprit de gardă lasă formularul deschis, fără nimic în istoric, și reface watcher-ul', async () => {
     const user = userEvent.setup()
     const guard = vi.fn(() => true)
     render(<FormularCuGarda guard={guard} />)
+    const lungime = window.history.length
 
     await user.click(screen.getByRole('button', { name: 'Adaugă kg' }))
     await screen.findByRole('dialog')
-    const lengthWhileOpen = window.history.length
-
     pressBack()
 
     expect(guard).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('dialog')).toBeInTheDocument()
-    // Intrarea se pune la loc după ce s-a terminat tura de evenimente a lui „înapoi”.
-    await waitFor(() => expect(window.history.length).toBe(lengthWhileOpen + 1))
-    expect(window.history.state?.__zmeurelDialog).toBe(true)
+    await waitFor(() => expect(CloseWatcherSimulat.active).toHaveLength(1))
+    expect(window.history.length).toBe(lungime)
   })
 
-  it('al doilea „înapoi” întreabă din nou garda (ui/dialog nu mai ascultă după primul)', async () => {
+  it('al doilea „înapoi” întreabă din nou garda, iar când nu mai e nimic nesalvat închide', async () => {
     const user = userEvent.setup()
     const guard = vi.fn(() => true)
     render(<FormularCuGarda guard={guard} />)
@@ -564,34 +564,32 @@ describe('StepForm — garda de închidere', () => {
     await user.click(screen.getByRole('button', { name: 'Adaugă kg' }))
     await screen.findByRole('dialog')
 
-    const lengthWhileOpen = window.history.length
     pressBack()
-    await waitFor(() => expect(window.history.length).toBe(lengthWhileOpen + 1))
+    await waitFor(() => expect(CloseWatcherSimulat.active).toHaveLength(1))
     pressBack()
     expect(guard).toHaveBeenCalledTimes(2)
     expect(screen.getByRole('dialog')).toBeInTheDocument()
-    await waitFor(() => expect(window.history.length).toBe(lengthWhileOpen + 2))
+    await waitFor(() => expect(CloseWatcherSimulat.active).toHaveLength(1))
 
-    // Când nu mai e nimic nesalvat, „înapoi” închide.
     guard.mockReturnValue(false)
     pressBack()
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
-  it('închiderea hotărâtă de modul după un „înapoi” oprit scoate marcajul din istoric', async () => {
+  it('închiderea hotărâtă de modul după un „înapoi” oprit scoate watcher-ul', async () => {
     const user = userEvent.setup()
     render(<FormularCuGarda guard={() => true} />)
+    const lungime = window.history.length
 
     await user.click(screen.getByRole('button', { name: 'Adaugă kg' }))
     await screen.findByRole('dialog')
-    const lengthWhileOpen = window.history.length
     pressBack()
-    await waitFor(() => expect(window.history.length).toBe(lengthWhileOpen + 1))
-    expect(window.history.state?.__zmeurelDialog).toBe(true)
+    await waitFor(() => expect(CloseWatcherSimulat.active).toHaveLength(1))
 
     await user.click(screen.getByRole('button', { name: 'Renunță' }))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    expect(window.history.state?.__zmeurelDialog).toBeUndefined()
+    expect(CloseWatcherSimulat.active).toHaveLength(0)
+    expect(window.history.length).toBe(lungime)
   })
 })

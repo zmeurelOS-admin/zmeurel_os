@@ -1,0 +1,9 @@
+§5 — testul e2e/smoke/inapoi-foi.spec.ts pe codul de dinainte (build local din origin/main a5b60e1, demo nou, Pixel 7):
+history.length pe fișa Maravilla înainte de foi: 5
+  meniul „⋯” deschis: 6 (așteptat 5)
+  meniul închis din X: 6
+  meniul închis cu Esc (după a doua deschidere): 7
+  „⋯” → „Editează” → X: 9
+  Stadiul închis cu Esc: 10
+  Stadiul salvat → „Gata”: 11
+page.goBack() o dată: adresa rămâne /parcele/<id> (așteptat /parcele)

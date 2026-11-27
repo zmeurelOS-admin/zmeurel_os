@@ -5,59 +5,47 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { DIALOG_HISTORY_MARKER, stripDialogHistoryMarker } from "@/lib/ui/dialog-history"
+import { useInchideLaInapoi } from "@/lib/ui/useInchideLaInapoi"
 import { MODAL_OVERLAY_CLASSES } from "@/lib/ui/modal-overlay-classes"
 import { useDocumentModalState } from "@/components/ui/modal-layer"
 
-type DialogProps = React.ComponentProps<typeof DialogPrimitive.Root> & {
-  disableHistory?: boolean
-}
+type DialogProps = React.ComponentProps<typeof DialogPrimitive.Root>
 
-const Dialog = ({ open, onOpenChange, disableHistory = false, ...props }: DialogProps) => {
-  const addedHistoryEntryRef = React.useRef(false)
-  const closingFromBackRef = React.useRef(false)
-  useDocumentModalState(Boolean(open))
-
-  React.useEffect(() => {
-    if (disableHistory || typeof window === "undefined" || !open || addedHistoryEntryRef.current) return
-
-    window.history.pushState(
-      {
-        ...(window.history.state ?? {}),
-        [DIALOG_HISTORY_MARKER]: true,
-      },
-      ""
-    )
-    addedHistoryEntryRef.current = true
-
-    const handlePopState = () => {
-      if (!addedHistoryEntryRef.current) return
-      closingFromBackRef.current = true
-      addedHistoryEntryRef.current = false
-      onOpenChange?.(false)
-    }
-
-    window.addEventListener("popstate", handlePopState)
-    return () => window.removeEventListener("popstate", handlePopState)
-  }, [open, onOpenChange, disableHistory])
+/**
+ * Rădăcina ferestrelor (și a lui `BottomSheet` / `StepForm` din kit). Nu scrie în istoric (promptul 34, §5):
+ * „înapoi” pe Android închide fereastra de deasupra prin `CloseWatcher` (`useInchideLaInapoi`), unde există.
+ * Esc vine pe două căi (Radix și `CloseWatcher`, în aceeași tură de evenimente); a doua cerere se ignoră.
+ */
+const Dialog = ({ open, defaultOpen, onOpenChange, ...props }: DialogProps) => {
+  const [openIntern, setOpenIntern] = React.useState(defaultOpen ?? false)
+  const controlat = open !== undefined
+  const deschis = controlat ? Boolean(open) : openIntern
+  const latest = React.useRef(onOpenChange)
+  const inchidereInCurs = React.useRef(false)
+  useDocumentModalState(deschis)
 
   React.useEffect(() => {
-    if (disableHistory || typeof window === "undefined" || open) return
+    latest.current = onOpenChange
+  })
 
-    if (closingFromBackRef.current) {
-      closingFromBackRef.current = false
-      return
-    }
+  const schimba = React.useCallback(
+    (next: boolean) => {
+      if (!next) {
+        if (inchidereInCurs.current) return
+        inchidereInCurs.current = true
+        window.setTimeout(() => {
+          inchidereInCurs.current = false
+        }, 0)
+      }
+      if (!controlat) setOpenIntern(next)
+      latest.current?.(next)
+    },
+    [controlat],
+  )
 
-    if (addedHistoryEntryRef.current) {
-      addedHistoryEntryRef.current = false
-      // Programmatic close (Cancel / X): strip marker only — do not history.back(),
-      // which would pop parent parcel sheet or leave the parcel route.
-      stripDialogHistoryMarker()
-    }
-  }, [open, disableHistory])
+  useInchideLaInapoi(deschis, () => schimba(false))
 
-  return <DialogPrimitive.Root open={open} onOpenChange={onOpenChange} {...props} />
+  return <DialogPrimitive.Root open={deschis} onOpenChange={schimba} {...props} />
 }
 
 const DialogTrigger = DialogPrimitive.Trigger
