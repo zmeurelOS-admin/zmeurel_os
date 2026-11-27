@@ -380,7 +380,8 @@ test('16. Tratamente: Aplicări, Plan, Capcane, Analize și rândul Magaziei', a
   for (const tab of ['Aplicări', 'Plan', 'Capcane', 'Analize']) {
     await expect(page.getByRole('tab', { name: tab, exact: true })).toBeVisible()
   }
-  await expect(page.getByText(/^Magazia/).first()).toBeVisible()
+  // În conținutul paginii (din promptul 34, „Magazia” e și în bara laterală de pe desktop).
+  await expect(page.locator('main').getByText(/^Magazia/).first()).toBeVisible()
   await page.getByRole('tab', { name: 'Plan', exact: true }).click()
   await expect(page).toHaveURL(/tab=plan/)
 })

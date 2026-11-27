@@ -112,7 +112,7 @@ Nu există coadă offline: o salvare fără internet pică, iar formularul păst
 
 ### UI Layout
 
-- Desktop: sidebar (`src/components/layout/Sidebar.tsx`) + scrollable main area
+- Desktop: sidebar (`src/components/layout/Sidebar.tsx`) + scrollable main area. Din promptul 34, bara laterală, bara de jos și „Mai mult” iau navigația dintr-un singur loc, `src/lib/navigatie/meniu.ts` (aceleași nume și reguli pentru operator / superadmin; o pagină nouă se adaugă acolo). Clopoțelul și contul stau în bara laterală pe desktop. `/dashboard` e Acasă (`src/components/acasa/Acasa.tsx`) pe orice ecran; coloana modulelor e `max-w-modul` (720 px).
 - Mobile: full-width content + bottom tab bar (`src/components/app/BottomTabBar.tsx`). E2E care deschide meniul „Mai mult”: după `goto` folosește `waitUntil: 'load'` (sau echivalent) ca să nu se facă click înainte de hidratarea React pe tab bar.
 - Pages wrap content in `<AppShell header={<PageHeader ... />}>` from `src/components/app/`
 - KPI cards use `<KpiCard>` from `src/components/app/KpiCard.tsx`
@@ -188,7 +188,7 @@ Baza modulelor refăcute (Recoltări, apoi Comenzi + Livrări). Totul se import�
 - Doar tokenii canonici din `tokens.md`: fără hex, fără `dark:`, fără `--agri-*` / `--text-primary` / `--surface-card` / `--status-*` / `--soft-*`, fără `text-[...]` sub 13 px și fără `text-xs`, fără z-index numeric (`z-[...]`, `z-40` și mai mari, `zIndex` în `style`); doar clasele de strat.
 - Scara de text 26 / 22 / 19 / 17 / 15 / 13 (+ 64 cifra mare), din `kitText` (`kit/text.ts`). 13 e doar text ajutător, niciodată textul unui element apăsabil. Câmpurile au minimum 16 px (folosim 17).
 - Ținte de atingere de cel puțin 48 px, acțiunea principală 56 px, prin `h-touch` / `h-touch-lg` (citesc `--touch-control-h*`: densitate, vizibilitate ridicată). Excepție: tastele `NumericKeypad` au 60 px, fix.
-- Foile și ferestrele se deschid în portal, peste bara de jos (`z-modal`): `BottomSheet` și `StepForm`, nu `createPortal` și nu `ui/sheet` direct (`ui/sheet` singur nu ascunde butonul plutitor și nu ascultă „înapoi” pe Android).
+- Foile și ferestrele se deschid în portal, peste bara de jos (`z-modal`): `BottomSheet` și `StepForm`, nu `createPortal` și nu `ui/sheet` direct (`ui/sheet` singur nu ascunde butonul plutitor și nu ascultă „înapoi” pe Android). Ferestrele nu scriu în istoric (promptul 34): „înapoi” pe Android le închide prin `CloseWatcher` (`src/lib/ui/useInchideLaInapoi.ts`, în `ui/dialog`); nu adăuga `history.pushState` pentru o foaie. Pe desktop, `BottomSheet` e un dialog centrat.
 - Text în română; ARIA corect: roluri `radio` / `checkbox` / `switch` / `tablist`, `aria-pressed` / `aria-checked`, etichete pe butoanele doar-iconiță.
 - Fiecare componentă e exportată din `src/components/kit/index.ts`.
 
