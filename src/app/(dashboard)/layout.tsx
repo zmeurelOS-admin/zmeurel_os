@@ -1,4 +1,5 @@
 import { BottomTabBar } from '@/components/app/BottomTabBar'
+import { CautareGlobala } from '@/components/app/CautareGlobala'
 import { AscultaInstalarea } from '@/components/pwa/BandaInstalare'
 import { DashboardContextSync } from '@/components/app/DashboardContextSync'
 import { DemoBanner } from '@/components/app/DemoBanner'
@@ -104,6 +105,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
             {children}
           </main>
           <DashboardShellFloatingOverlays />
+          {/* Căutarea globală (Ctrl K / ⌘ K), doar pe desktop (promptul 35, §2). */}
+          <CautareGlobala />
           <Suspense fallback={null}>
             <BottomTabBar />
           </Suspense>
