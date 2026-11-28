@@ -30,7 +30,9 @@ test.afterAll(async ({ baseURL }) => {
 test('Acasă nouă pe /dashboard, fără cardurile vechi', async () => {
   await page.goto('/dashboard', { waitUntil: 'load' })
   await expect(page.getByRole('heading', { name: 'Acasă', level: 1 })).toBeVisible()
-  await expect(page.getByText(/De livrat azi|Extrasezon · butași și lucrări/).first()).toBeVisible()
+  // Promptul 35, §3: pe desktop Acasă e tabloul de bord (cifrele sezonului și „De făcut”).
+  await expect(page.getByRole('region', { name: 'Cifrele sezonului' })).toBeVisible()
+  await expect(page.getByText(/^De făcut( azi)?$/).first()).toBeVisible()
   await page.waitForLoadState('networkidle').catch(() => undefined)
   for (const vechi of ['Operațional și recent', 'Recomandări pentru azi', 'Ce ai de făcut azi', 'Meteo azi', 'Magazinul meu']) {
     await expect(page.getByText(vechi, { exact: false }), `pe Acasă mai apare „${vechi}”`).toHaveCount(0)

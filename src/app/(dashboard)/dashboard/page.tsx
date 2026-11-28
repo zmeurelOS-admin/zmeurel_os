@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 
 import { Acasa } from '@/components/acasa/Acasa'
+import { AcasaDesktop } from '@/components/acasa/AcasaDesktop'
 import { NeincasatePeste30Acasa } from '@/components/acasa/NeincasatePeste30Acasa'
 import { PrimiiPasi } from '@/components/acasa/PrimiiPasi'
 import { MementoAcasa } from '@/components/analize/MementoAcasa'
@@ -26,6 +27,9 @@ import { isParcelaDashboardRelevant } from '@/lib/parcele/dashboard-relevance'
 import { queryKeys } from '@/lib/query-keys'
 import { getSupabase } from '@/lib/supabase/client'
 import { getActivitatiAgricole } from '@/lib/supabase/queries/activitati-agricole'
+import { getCheltuieli } from '@/lib/supabase/queries/cheltuieli'
+import { isPathAllowedForAccess } from '@/lib/farm-members/access'
+import { useEsteDesktop } from '@/lib/ui/useEsteDesktop'
 import { getComenzi } from '@/lib/supabase/queries/comenzi'
 import { getLucrari } from '@/lib/supabase/queries/lucrari'
 import { getSellableCal1StockSummary } from '@/lib/supabase/queries/miscari-stoc'
@@ -59,7 +63,10 @@ function capitalizeaza(text: string): string {
  */
 export default function DashboardPage() {
   const router = useRouter()
-  const { memberRole } = useDashboardAuth()
+  const { memberRole, memberAccess } = useDashboardAuth()
+  const proprietar = memberRole !== 'operator'
+  // Promptul 35, §3: pe desktop (de la 1024 px) Acasă e tabloul de bord; sub, coloana de telefon, neschimbată.
+  const esteDesktop = useEsteDesktop()
   // Promptul 33: vremea doar pentru o fermă cu loc (Setări › Ferma sau o parcelă cu coordonate).
   const locFerma = useLocFerma()
   const meteo = useMeteo({ enabled: locFerma.areLoc === true })
@@ -95,9 +102,12 @@ export default function DashboardPage() {
   // Lucrările, cu planificatele (Acasă: „De făcut azi” și „Planificată: …” din extrasezon).
   const lucrariQuery = useQuery({ queryKey: queryKeys.lucrari, queryFn: getLucrari, staleTime: 30_000, refetchOnWindowFocus: false })
   const activitatiQuery = useQuery({ queryKey: queryKeys.activitati, queryFn: getActivitatiAgricole, placeholderData: (previous) => previous })
-  const vanzariQuery = useQuery({ queryKey: queryKeys.vanzari, queryFn: getVanzari, placeholderData: (previous) => previous })
+  // Banii doar la proprietar (promptul 35): pentru operator, interogările de bani nu pornesc deloc.
+  const vanzariQuery = useQuery({ queryKey: queryKeys.vanzari, queryFn: getVanzari, placeholderData: (previous) => previous, enabled: proprietar })
   // Material săditor livrat = venit (la data livrării).
-  const vanzariButasiQuery = useQuery({ queryKey: queryKeys.vanzariButasi, queryFn: getVanzariButasi, placeholderData: (previous) => previous })
+  const vanzariButasiQuery = useQuery({ queryKey: queryKeys.vanzariButasi, queryFn: getVanzariButasi, placeholderData: (previous) => previous, enabled: proprietar })
+  // Cheltuielile: doar pentru placa „Cheltuieli sezon · profit” din Acasă pe desktop, doar la proprietar.
+  const cheltuieliQuery = useQuery({ queryKey: queryKeys.cheltuieli, queryFn: getCheltuieli, enabled: proprietar && esteDesktop })
   const comenziQuery = useQuery({ queryKey: queryKeys.comenzi, queryFn: getComenzi, placeholderData: (previous) => previous })
   const stocuriQuery = useQuery({ queryKey: queryKeys.stocGlobalCal1, queryFn: getSellableCal1StockSummary, placeholderData: (previous) => previous })
 
@@ -126,7 +136,7 @@ export default function DashboardPage() {
     refetchOnWindowFocus: false,
   })
 
-  const coreQueries = [recoltariQuery, parceleQuery, activitatiQuery, vanzariQuery, comenziQuery, stocuriQuery]
+  const coreQueries = [recoltariQuery, parceleQuery, activitatiQuery, ...(proprietar ? [vanzariQuery] : []), comenziQuery, stocuriQuery]
   const hasResolvedCoreData = coreQueries.some((query) => query.data !== undefined)
   const isLoading = !hasResolvedCoreData && coreQueries.some((query) => query.isLoading)
   const hasError = coreQueries.some((query) => query.isError)
@@ -223,7 +233,17 @@ export default function DashboardPage() {
     [activitatiRelevante, currentDay, parceleRelevante, pauzePeParcela, recoltariRelevante, treatmentIntervalByParcela],
   )
 
-  const proprietar = memberRole !== 'operator'
+  const vede = useMemo(() => {
+    const poate = (href: string) => proprietar || isPathAllowedForAccess(href, memberAccess ?? [])
+    return {
+      recoltari: poate('/recoltari'),
+      comenzi: poate('/comenzi'),
+      stocuri: proprietar,
+      parcele: proprietar || (memberAccess ?? []).some((item) => item.module === 'parcele'),
+      tratamente: proprietar || (memberAccess ?? []).some((item) => item.module === 'tratamente'),
+      lucrari: poate('/lucrari'),
+    }
+  }, [memberAccess, proprietar])
 
   return (
     <AppShell header={<PageHeader title="Acasă" subtitle={todayLabel} />}>
@@ -239,6 +259,58 @@ export default function DashboardPage() {
 
         {!isLoading && !hasError ? (
           <>
+            {esteDesktop ? (
+              <AcasaDesktop
+                todayIso={todayIso}
+                proprietar={proprietar}
+                vede={vede}
+                comenzi={comenzi}
+                recoltari={recoltari}
+                vanzari={proprietar ? vanzari : EMPTY_LIST}
+                vanzariButasi={proprietar ? vanzariButasi : EMPTY_LIST}
+                cheltuieli={proprietar ? (cheltuieliQuery.data ?? EMPTY_LIST) : EMPTY_LIST}
+                parcele={parcele}
+                aplicari={aplicariTratament}
+                lucrari={lucrariQuery.data ?? EMPTY_LIST}
+                stocKg={stocuriQuery.data ? stocuriQuery.data.disponibilCal1Kg : null}
+                culturi={culturiFerma}
+                meteoZile={meteo.data?.forecastZile}
+                faraLoc={faraLocFerma}
+                deFacut={
+                  <>
+                    <div className="empty:hidden">
+                      <PrimiiPasi />
+                    </div>
+                    <div className="space-y-3 empty:hidden">
+                      <Suspense fallback={null}>
+                        <MementoAcasa azi={todayIso} proprietar={proprietar} />
+                      </Suspense>
+                      <MementoCapcaneAcasa azi={todayIso} />
+                      <NeincasatePeste30Acasa comenzi={comenzi} azi={todayIso} proprietar={proprietar} />
+                    </div>
+                    <Acasa
+                      doarDeFacut
+                      todayIso={todayIso}
+                      comenzi={comenzi}
+                      recoltari={recoltari}
+                      activitati={activitati}
+                      vanzari={vanzari}
+                      vanzariButasi={vanzariButasi}
+                      stocDisponibilKg={stocuriQuery.data ? stocuriQuery.data.disponibilCal1Kg : null}
+                      culturi={culturiFerma}
+                      parcelStates={parcelStates}
+                      meteo={meteo.data}
+                      faraLoc={faraLocFerma}
+                      pauze={acasaPauze}
+                      tratamenteAzi={acasaTratamenteAzi}
+                      lucrariAzi={acasaLucrariAzi}
+                      lucrari={lucrariQuery.data}
+                    />
+                  </>
+                }
+              />
+            ) : (
+            <>
             {/* „Primii pași” (promptul 31): doar fermă reală, proprietar. */}
             <div className="empty:hidden">
               <PrimiiPasi />
@@ -273,6 +345,8 @@ export default function DashboardPage() {
               lucrariAzi={acasaLucrariAzi}
               lucrari={lucrariQuery.data}
             />
+            </>
+            )}
           </>
         ) : null}
 

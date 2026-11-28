@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
@@ -79,6 +79,11 @@ export interface AcasaProps {
   lucrariAzi?: ReadonlyArray<LucrareAzi>
   /** Rândurile din Lucrări (cu planificatele), pentru „Planificată: …” din extrasezon. Lipsă = `activitati`. */
   lucrari?: ReadonlyArray<Pick<ActivitateAgricola, 'id' | 'data_aplicare' | 'tip_activitate' | 'produs_utilizat'> & { status?: string | null }>
+  /**
+   * Desktop (promptul 35, §3): doar „De făcut azi” (cu întrebarea despre extrasezon, lipsa din stoc, pauzele și
+   * înghețul), aceleași rânduri și aceleași acțiuni ca pe telefon, pentru coloana din Acasă pe desktop.
+   */
+  doarDeFacut?: boolean
 }
 
 export interface LucrareAzi {
@@ -119,7 +124,9 @@ export function Acasa({
   tratamenteAzi = [],
   lucrariAzi = [],
   lucrari,
+  doarDeFacut = false,
 }: AcasaProps) {
+  const idTitlu = `${useId()}-de-facut`
   const router = useRouter()
   const queryClient = useQueryClient()
   const { settings } = useFarmSettings()
@@ -246,6 +253,199 @@ export function Acasa({
       : meteo.spray.reason?.trim() || 'Azi vremea nu permite stropitul.'
     : null
 
+  // Bucățile paginii, puse în variabile (promptul 35, §3): telefonul le arată ca înainte, desktopul doar „De făcut”.
+  const intrebareExtrasezon = stare.intreaba ? (
+    <Notice
+      tone="info"
+      title="Începem extrasezonul?"
+      action={
+        <div className="flex flex-col gap-2.5">
+          <Button type="button" variant="primary" size="touch-lg" loading={answering === 'da'} onClick={() => void answer('da')}>
+            Da, începem
+          </Button>
+          <Button type="button" variant="neutral" size="touch" loading={answering === 'amana'} onClick={() => void answer('amana')}>
+            Mai am de cules
+          </Button>
+        </div>
+      }
+    >
+      {stare.ultimaRecoltare
+        ? `Ultima recoltare: ${weekdayDateRo(stare.ultimaRecoltare)}. Acasă va arăta butașii și lucrările.`
+        : 'Acasă va arăta butașii și lucrările.'}
+    </Notice>
+  ) : null
+  const lipsaStoc = sezon.lipsaKg > 0 ? (
+        <Notice tone="warning" title={`Lipsesc ${formatKg(sezon.lipsaKg)}`}>
+          Notează recoltarea de azi sau mută comenzi pe altă zi.
+        </Notice>
+      ) : null
+  const pauzeLink = pauze.length > 0 ? (
+        <Link
+          href="/tratamente"
+          className={cn('block rounded-box', kitFocus)}
+          aria-label={`${pauze.length === 1 ? titluPauza(pauze[0].nume, pauze[0]) : `${pauze.length} parcele în pauză`}. Deschide Tratamente`}
+        >
+          <PauzeNotice pauze={pauze} azi={todayIso} />
+        </Link>
+      ) : null
+  const inghetNotice = afiseaza.inghet && vreme.nota ? (
+        <Notice tone="warning" icon={<Snowflake aria-hidden />} title={capitalize(vreme.nota)}>
+          Protejează butașii și instalația de apă.
+        </Notice>
+      ) : null
+  const deFacutSezon = (
+    <section aria-labelledby={idTitlu} className="space-y-2">
+      <h2 id={idTitlu} className={cn('px-1 font-extrabold text-fg', kitText.card)}>
+        De făcut azi
+      </h2>
+      <ul className="space-y-2">
+        {randuriTratamenteAzi}
+        {randuriLucrariAzi}
+        {sezon.inLivrareCount > 0 ? (
+          <li>
+            <ListRow
+              avatar={false}
+              leading={<RowIcon><Truck aria-hidden /></RowIcon>}
+              title={`${sezon.inLivrareCount} ${sezon.inLivrareCount === 1 ? 'livrare în drum' : 'livrări în drum'}`}
+              detail="Deschide traseul de azi"
+              onClick={go('/livrari')}
+            />
+          </li>
+        ) : null}
+        {sezon.dePusInLivrareCount > 0 ? (
+          <li>
+            <ListRow
+              avatar={false}
+              leading={<RowIcon><ClipboardList aria-hidden /></RowIcon>}
+              title={`${sezon.dePusInLivrareCount} ${sezon.dePusInLivrareCount === 1 ? 'comandă de pus în livrare' : 'comenzi de pus în livrare'}`}
+              detail="Din Comenzi, cu „Pune în livrare azi”"
+              onClick={go('/comenzi')}
+            />
+          </li>
+        ) : null}
+        <li>
+          <ListRow
+            avatar={false}
+            leading={<RowIcon tone={sezon.recoltatAziKg > 0 ? 'success' : 'neutral'}><Scale aria-hidden /></RowIcon>}
+            title={sezon.recoltatAziKg > 0 ? `Recoltarea de azi: ${formatKg(sezon.recoltatAziKg)}` : 'Recoltarea de azi: nenotată'}
+            detail={sezon.recoltatAziKg > 0 ? 'Notată. Adaugă dacă mai sunt cântăriri.' : 'Notează kilogramele culese'}
+            onClick={go('/recoltari')}
+          />
+        </li>
+        {sezon.parceleTratament.map((parcel) => (
+          <li key={`tratament-${parcel.id}`}>
+            <ListRow
+              avatar={false}
+              leading={<RowIcon tone={parcel.intarziat ? 'warning' : 'neutral'}><SprayCan aria-hidden /></RowIcon>}
+              title={`Tratament: ${parcel.name}`}
+              detail={[parcel.intarziat ? 'Întârziat' : 'Urmează în curând', sprayNote].filter(Boolean).join(' · ')}
+              onClick={go('/tratamente')}
+            />
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+  const deFacutExtrasezon = (
+    <section aria-labelledby={idTitlu} className="space-y-2">
+      <h2 id={idTitlu} className={cn('px-1 font-extrabold text-fg', kitText.card)}>
+        De făcut
+      </h2>
+      <ul className="space-y-2">
+        {randuriTratamenteAzi}
+        {randuriLucrariAzi}
+        {afiseaza.comenzi_butasi && extrasezon.butasiDeschiseCount > 0 ? (
+          <li>
+            <ListRow
+              avatar={false}
+              leading={<RowIcon><Sprout aria-hidden /></RowIcon>}
+              title={`${extrasezon.butasiDeschiseCount} ${extrasezon.butasiDeschiseCount === 1 ? 'comandă de butași de pregătit' : 'comenzi de butași de pregătit'}`}
+              detail="Deschide Material săditor"
+              onClick={go('/vanzari-butasi')}
+            />
+          </li>
+        ) : null}
+        {afiseaza.rest_incasat && extrasezon.restCount > 0 ? (
+          <li>
+            <ListRow
+              avatar={false}
+              leading={<RowIcon tone="warning"><Banknote aria-hidden /></RowIcon>}
+              title={`${extrasezon.restCount} ${extrasezon.restCount === 1 ? 'încasare restantă' : 'încasări restante'}`}
+              detail={`${formatLei(extrasezon.restLei)} de primit`}
+              onClick={go('/vanzari?fila=neincasate')}
+            />
+          </li>
+        ) : null}
+        {comenziFructe > 0 ? (
+          <li>
+            <ListRow
+              avatar={false}
+              leading={<RowIcon><ClipboardList aria-hidden /></RowIcon>}
+              title={`${comenziFructe} ${comenziFructe === 1 ? 'comandă de fructe deschisă' : 'comenzi de fructe deschise'}`}
+              detail="Deschide Comenzi"
+              onClick={go('/comenzi')}
+            />
+          </li>
+        ) : null}
+        {afiseaza.lucrari
+          ? extrasezon.lucrari.map((lucrare) => (
+              <li key={lucrare.id}>
+                <ListRow
+                  avatar={false}
+                  leading={<RowIcon><CalendarClock aria-hidden /></RowIcon>}
+                  title={lucrare.titlu}
+                  detail={`Planificată: ${weekdayDateRo(lucrare.data)}`}
+                  onClick={go('/lucrari?fila=planificate')}
+                />
+              </li>
+            ))
+          : null}
+        {sezon.parceleTratament.map((parcel) => (
+          <li key={`tratament-${parcel.id}`}>
+            <ListRow
+              avatar={false}
+              leading={<RowIcon tone={parcel.intarziat ? 'warning' : 'neutral'}><SprayCan aria-hidden /></RowIcon>}
+              title={`Tratament: ${parcel.name}`}
+              detail={[parcel.intarziat ? 'Întârziat' : 'Urmează în curând', sprayNote].filter(Boolean).join(' · ')}
+              onClick={go('/tratamente')}
+            />
+          </li>
+        ))}
+      </ul>
+      {(!afiseaza.comenzi_butasi || extrasezon.butasiDeschiseCount === 0) &&
+      (!afiseaza.rest_incasat || extrasezon.restCount === 0) &&
+      comenziFructe === 0 &&
+      (!afiseaza.lucrari || extrasezon.lucrari.length === 0) &&
+      sezon.parceleTratament.length === 0 &&
+      tratamenteAzi.length === 0 &&
+      lucrariAzi.length === 0 ? (
+        <Notice tone="success" title="Nimic urgent">
+          Lucrările planificate în Lucrări apar aici în ziua lor.
+        </Notice>
+      ) : null}
+    </section>
+  )
+
+  if (doarDeFacut) {
+    return (
+      <div className="space-y-3">
+        {intrebareExtrasezon}
+        {perioada === 'sezon' ? (
+          <>
+            {lipsaStoc}
+            {pauzeLink}
+            {deFacutSezon}
+          </>
+        ) : (
+          <>
+            {inghetNotice}
+            {deFacutExtrasezon}
+          </>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="mx-auto w-full max-w-modul space-y-4 pt-3">
       {/* Perioada și vremea, pe un rând. */}
@@ -270,26 +470,7 @@ export function Acasa({
       {/* Vremea pe următoarele 3 zile, sub ziua de azi (promptul 33); fără loc, rândul spre Setări. */}
       {faraLoc ? <PuneLoculFermei /> : <PrognozaZile zile={zilePrognoza(meteo?.forecastZile, todayIso)} azi={todayIso} />}
 
-      {stare.intreaba ? (
-        <Notice
-          tone="info"
-          title="Începem extrasezonul?"
-          action={
-            <div className="flex flex-col gap-2.5">
-              <Button type="button" variant="primary" size="touch-lg" loading={answering === 'da'} onClick={() => void answer('da')}>
-                Da, începem
-              </Button>
-              <Button type="button" variant="neutral" size="touch" loading={answering === 'amana'} onClick={() => void answer('amana')}>
-                Mai am de cules
-              </Button>
-            </div>
-          }
-        >
-          {stare.ultimaRecoltare
-            ? `Ultima recoltare: ${weekdayDateRo(stare.ultimaRecoltare)}. Acasă va arăta butașii și lucrările.`
-            : 'Acasă va arăta butașii și lucrările.'}
-        </Notice>
-      ) : null}
+      {intrebareExtrasezon}
 
       {perioada === 'sezon' ? (
         <>
@@ -314,73 +495,11 @@ export function Acasa({
             )}
           </div>
 
-          {sezon.lipsaKg > 0 ? (
-            <Notice tone="warning" title={`Lipsesc ${formatKg(sezon.lipsaKg)}`}>
-              Notează recoltarea de azi sau mută comenzi pe altă zi.
-            </Notice>
-          ) : null}
+          {lipsaStoc}
 
-          {pauze.length > 0 ? (
-            <Link
-              href="/tratamente"
-              className={cn('block rounded-box', kitFocus)}
-              aria-label={`${pauze.length === 1 ? titluPauza(pauze[0].nume, pauze[0]) : `${pauze.length} parcele în pauză`}. Deschide Tratamente`}
-            >
-              <PauzeNotice pauze={pauze} azi={todayIso} />
-            </Link>
-          ) : null}
+          {pauzeLink}
 
-          <section aria-labelledby="acasa-de-facut" className="space-y-2">
-            <h2 id="acasa-de-facut" className={cn('px-1 font-extrabold text-fg', kitText.card)}>
-              De făcut azi
-            </h2>
-            <ul className="space-y-2">
-              {randuriTratamenteAzi}
-              {randuriLucrariAzi}
-              {sezon.inLivrareCount > 0 ? (
-                <li>
-                  <ListRow
-                    avatar={false}
-                    leading={<RowIcon><Truck aria-hidden /></RowIcon>}
-                    title={`${sezon.inLivrareCount} ${sezon.inLivrareCount === 1 ? 'livrare în drum' : 'livrări în drum'}`}
-                    detail="Deschide traseul de azi"
-                    onClick={go('/livrari')}
-                  />
-                </li>
-              ) : null}
-              {sezon.dePusInLivrareCount > 0 ? (
-                <li>
-                  <ListRow
-                    avatar={false}
-                    leading={<RowIcon><ClipboardList aria-hidden /></RowIcon>}
-                    title={`${sezon.dePusInLivrareCount} ${sezon.dePusInLivrareCount === 1 ? 'comandă de pus în livrare' : 'comenzi de pus în livrare'}`}
-                    detail="Din Comenzi, cu „Pune în livrare azi”"
-                    onClick={go('/comenzi')}
-                  />
-                </li>
-              ) : null}
-              <li>
-                <ListRow
-                  avatar={false}
-                  leading={<RowIcon tone={sezon.recoltatAziKg > 0 ? 'success' : 'neutral'}><Scale aria-hidden /></RowIcon>}
-                  title={sezon.recoltatAziKg > 0 ? `Recoltarea de azi: ${formatKg(sezon.recoltatAziKg)}` : 'Recoltarea de azi: nenotată'}
-                  detail={sezon.recoltatAziKg > 0 ? 'Notată. Adaugă dacă mai sunt cântăriri.' : 'Notează kilogramele culese'}
-                  onClick={go('/recoltari')}
-                />
-              </li>
-              {sezon.parceleTratament.map((parcel) => (
-                <li key={`tratament-${parcel.id}`}>
-                  <ListRow
-                    avatar={false}
-                    leading={<RowIcon tone={parcel.intarziat ? 'warning' : 'neutral'}><SprayCan aria-hidden /></RowIcon>}
-                    title={`Tratament: ${parcel.name}`}
-                    detail={[parcel.intarziat ? 'Întârziat' : 'Urmează în curând', sprayNote].filter(Boolean).join(' · ')}
-                    onClick={go('/tratamente')}
-                  />
-                </li>
-              ))}
-            </ul>
-          </section>
+          {deFacutSezon}
 
           <SezonSumar titlu={`Sezonul ${peScurt.an}, până azi`} recoltatKg={peScurt.recoltatKg} incasatLei={peScurt.incasatLei} />
         </>
@@ -418,89 +537,9 @@ export function Acasa({
             </p>
           ) : null}
 
-          {afiseaza.inghet && vreme.nota ? (
-            <Notice tone="warning" icon={<Snowflake aria-hidden />} title={capitalize(vreme.nota)}>
-              Protejează butașii și instalația de apă.
-            </Notice>
-          ) : null}
+          {inghetNotice}
 
-          <section aria-labelledby="acasa-de-facut" className="space-y-2">
-            <h2 id="acasa-de-facut" className={cn('px-1 font-extrabold text-fg', kitText.card)}>
-              De făcut
-            </h2>
-            <ul className="space-y-2">
-              {randuriTratamenteAzi}
-              {randuriLucrariAzi}
-              {afiseaza.comenzi_butasi && extrasezon.butasiDeschiseCount > 0 ? (
-                <li>
-                  <ListRow
-                    avatar={false}
-                    leading={<RowIcon><Sprout aria-hidden /></RowIcon>}
-                    title={`${extrasezon.butasiDeschiseCount} ${extrasezon.butasiDeschiseCount === 1 ? 'comandă de butași de pregătit' : 'comenzi de butași de pregătit'}`}
-                    detail="Deschide Material săditor"
-                    onClick={go('/vanzari-butasi')}
-                  />
-                </li>
-              ) : null}
-              {afiseaza.rest_incasat && extrasezon.restCount > 0 ? (
-                <li>
-                  <ListRow
-                    avatar={false}
-                    leading={<RowIcon tone="warning"><Banknote aria-hidden /></RowIcon>}
-                    title={`${extrasezon.restCount} ${extrasezon.restCount === 1 ? 'încasare restantă' : 'încasări restante'}`}
-                    detail={`${formatLei(extrasezon.restLei)} de primit`}
-                    onClick={go('/vanzari?fila=neincasate')}
-                  />
-                </li>
-              ) : null}
-              {comenziFructe > 0 ? (
-                <li>
-                  <ListRow
-                    avatar={false}
-                    leading={<RowIcon><ClipboardList aria-hidden /></RowIcon>}
-                    title={`${comenziFructe} ${comenziFructe === 1 ? 'comandă de fructe deschisă' : 'comenzi de fructe deschise'}`}
-                    detail="Deschide Comenzi"
-                    onClick={go('/comenzi')}
-                  />
-                </li>
-              ) : null}
-              {afiseaza.lucrari
-                ? extrasezon.lucrari.map((lucrare) => (
-                    <li key={lucrare.id}>
-                      <ListRow
-                        avatar={false}
-                        leading={<RowIcon><CalendarClock aria-hidden /></RowIcon>}
-                        title={lucrare.titlu}
-                        detail={`Planificată: ${weekdayDateRo(lucrare.data)}`}
-                        onClick={go('/lucrari?fila=planificate')}
-                      />
-                    </li>
-                  ))
-                : null}
-              {sezon.parceleTratament.map((parcel) => (
-                <li key={`tratament-${parcel.id}`}>
-                  <ListRow
-                    avatar={false}
-                    leading={<RowIcon tone={parcel.intarziat ? 'warning' : 'neutral'}><SprayCan aria-hidden /></RowIcon>}
-                    title={`Tratament: ${parcel.name}`}
-                    detail={[parcel.intarziat ? 'Întârziat' : 'Urmează în curând', sprayNote].filter(Boolean).join(' · ')}
-                    onClick={go('/tratamente')}
-                  />
-                </li>
-              ))}
-            </ul>
-            {(!afiseaza.comenzi_butasi || extrasezon.butasiDeschiseCount === 0) &&
-            (!afiseaza.rest_incasat || extrasezon.restCount === 0) &&
-            comenziFructe === 0 &&
-            (!afiseaza.lucrari || extrasezon.lucrari.length === 0) &&
-            sezon.parceleTratament.length === 0 &&
-            tratamenteAzi.length === 0 &&
-            lucrariAzi.length === 0 ? (
-              <Notice tone="success" title="Nimic urgent">
-                Lucrările planificate în Lucrări apar aici în ziua lor.
-              </Notice>
-            ) : null}
-          </section>
+          {deFacutExtrasezon}
 
           <SezonSumar
             titlu={`Sezonul ${peScurt.an} încheiat`}
