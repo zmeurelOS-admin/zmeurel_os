@@ -52,6 +52,9 @@ export {
   type ActiuneAntet,
   type AntetDesktopProps,
 } from './AntetDesktop'
+export { AntetFisa, OPTIUNI_VEDERE, SectiuneFisa, type AntetFisaProps } from './AntetFisa'
+export { VedereListaDetaliu, elementAles, type VedereListaDetaliuProps } from './VedereListaDetaliu'
+export { TabelDate, randuriCsv, type ColoanaTabel, type TabelDateProps } from './TabelDate'
 
 // Compuse (Etapa B)
 export { BottomSheet, type BottomSheetProps } from './BottomSheet'

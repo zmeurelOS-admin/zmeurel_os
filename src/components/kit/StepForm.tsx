@@ -275,7 +275,9 @@ export function StepFormFrame({
         {showSuccess ? success : children}
       </div>
 
-      {dock && !showSuccess ? <div className="shrink-0 px-4 pb-3">{dock}</div> : null}
+      {/* Pe desktop (de la 1024 px) tastatura din aplicație nu se desenează; tastele fizice ajung în același câmp
+          (`NumericKeypad` ascultă tastatura cât e montată). Promptul 35, §9. */}
+      {dock && !showSuccess ? <div className="shrink-0 px-4 pb-3 lg:hidden">{dock}</div> : null}
 
       {footer && !showSuccess ? (
         <div className="flex shrink-0 flex-col gap-2.5 border-t border-border-subtle bg-surface px-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] pt-3">
@@ -343,7 +345,8 @@ function useGuardedOpenChange(onOpenChange: (open: boolean) => void, closeGuard?
 }
 
 /**
- * Formular pe pași într-o fereastră: ecran plin pe telefon, card de 480 px pe desktop.
+ * Formular pe pași într-o fereastră: ecran plin pe telefon, card de 480 px între 768 și 1023 px, panou de 480 px lipit
+ * de marginea dreaptă de la 1024 px (promptul 35, §9).
  * Peste `ui/dialog` (portal, capcană de focus, Esc, ascunderea butonului plutitor, „înapoi” pe Android).
  */
 export function StepForm({ open, onOpenChange, title, description, closeGuard, ...frameProps }: StepFormProps) {
@@ -354,7 +357,9 @@ export function StepForm({ open, onOpenChange, title, description, closeGuard, .
       <DialogContent
         showCloseButton={false}
         mobileFullHeight
-        className="flex h-dvh max-h-dvh w-screen max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 bg-surface p-0 text-fg shadow-overlay sm:max-w-none sm:p-0 md:h-[min(90dvh,860px)] md:max-h-[min(90dvh,860px)] md:w-[min(96vw,480px)] md:rounded-card md:border md:border-border"
+        panouDreapta
+        data-panou-formular=""
+        className="flex h-dvh max-h-dvh w-screen max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 bg-surface p-0 text-fg shadow-overlay sm:max-w-none sm:p-0 md:h-[min(90dvh,860px)] md:max-h-[min(90dvh,860px)] md:w-[min(96vw,480px)] md:rounded-card md:border md:border-border lg:h-dvh lg:max-h-dvh lg:w-[480px] lg:rounded-none lg:border-y-0 lg:border-r-0 lg:border-l lg:data-[state=open]:zoom-in-100 lg:data-[state=open]:slide-in-from-right-8"
       >
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <DialogDescription className="sr-only">{description ?? 'Completezi pas cu pas.'}</DialogDescription>

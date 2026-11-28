@@ -71,14 +71,17 @@ const DialogContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
     showCloseButton?: boolean
     mobileFullHeight?: boolean
+    /** De la 1024 px: panou lipit de marginea dreaptă, cât tot ecranul (formularele, promptul 35, §9). */
+    panouDreapta?: boolean
   }
->(({ className, children, showCloseButton = true, mobileFullHeight = false, ...props }, ref) => (
+>(({ className, children, showCloseButton = true, mobileFullHeight = false, panouDreapta = false, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <div
       className={cn(
         "fixed inset-0 z-modal flex items-center justify-center",
         mobileFullHeight ? "p-0 md:p-4" : "p-4",
+        panouDreapta && "lg:justify-end lg:p-0",
       )}
     >
       <DialogPrimitive.Content
