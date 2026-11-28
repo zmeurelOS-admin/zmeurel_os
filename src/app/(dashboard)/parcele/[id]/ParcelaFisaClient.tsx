@@ -9,8 +9,11 @@ import { AppShell } from '@/components/app/AppShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { CulesSiAnalizaParcela } from '@/components/analize/CulesSiAnalizaParcela'
 import {
+  AntetFisa,
   BigInput,
   BigTextarea,
+  GraficBare,
+  SectiuneFisa,
   BottomSheet,
   Button,
   EmptyState,
@@ -32,6 +35,9 @@ import { useParceleStare } from '@/components/parcele/useParceleStare'
 import { ScreenBody, ScreenHeader } from '@/components/setari/SetariUi'
 import { useAziRo } from '@/hooks/useAziRo'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
+import { recoltaPeSaptamani } from '@/lib/dashboard/acasa-desktop'
+import { useEsteDesktop } from '@/lib/ui/useEsteDesktop'
+import { ParceleDesktop } from '@/components/parcele/ParceleDesktop'
 import { formatNumber } from '@/lib/format-ro'
 import { textCine } from '@/lib/lucrari/formular'
 import { antetParcela, esteParcelaPersonala } from '@/lib/parcele/card'
@@ -101,8 +107,7 @@ function MenuIcon({ children, danger = false }: { children: React.ReactNode; dan
  * și Sezon; jos „+ Lucrare” și „+ Tratament”. La solarii: culturile și microclimatul, pliate.
  * Meniul ⋯: Editează, Microclimat (solarii), Desființează cultura, Șterge parcela.
  */
-export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
-  useTrackModuleView('parcele')
+export function ParcelaFisa({ parcelaId, inPanou = false }: { parcelaId: string; inPanou?: boolean }) {
   const router = useRouter()
   const queryClient = useQueryClient()
   const azi = useAziRo()
@@ -244,6 +249,7 @@ export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
   }
 
   const titlu = parcela?.nume_parcela?.trim() || 'Parcelă'
+  const saptamani = useMemo(() => (inPanou && azi ? recoltaPeSaptamani(stare.recoltari, azi, parcelaId) : []), [azi, inPanou, parcelaId, stare.recoltari])
 
   const header = (
     <ScreenHeader
@@ -260,9 +266,7 @@ export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
   )
 
   if (!stare.loading && !parcela) {
-    return (
-      <AppShell header={header}>
-        <ScreenBody>
+    const negasita = (
           <EmptyState
             icon={<Sprout />}
             title={stare.error ? 'Parcela nu s-a încărcat' : 'Parcela nu există'}
@@ -273,7 +277,11 @@ export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
               </Button>
             }
           />
-        </ScreenBody>
+    )
+    if (inPanou) return negasita
+    return (
+      <AppShell header={header}>
+        <ScreenBody>{negasita}</ScreenBody>
       </AppShell>
     )
   }
@@ -293,20 +301,8 @@ export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
       </div>
     ) : null
 
-  return (
-    <AppShell
-      header={header}
-      bottomBarFixed
-      bottomBar={
-        bara ? (
-          <div className="mx-auto w-full max-w-md px-4">
-            <div className="rounded-box bg-page shadow-2">{bara}</div>
-          </div>
-        ) : undefined
-      }
-    >
-      <ScreenBody className="space-y-3.5">
-        {!parcela || !azi ? (
+  const corp =
+        !parcela || !azi ? (
           <div className="space-y-2" aria-busy="true" aria-label="Se încarcă parcela">
             <div className="h-6 w-2/3 animate-pulse rounded-box bg-surface-muted" />
             <div className="h-[76px] animate-pulse rounded-box bg-surface-muted" />
@@ -314,12 +310,14 @@ export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
           </div>
         ) : (
           <>
-            <p className={cn('-mt-2 text-fg-muted', kitText.secondary)}>
-              {antetParcela(parcela)}
-              {personala ? ' · Personal' : ''}
-            </p>
+            {inPanou ? null : (
+              <p className={cn('-mt-2 text-fg-muted', kitText.secondary)}>
+                {antetParcela(parcela)}
+                {personala ? ' · Personal' : ''}
+              </p>
+            )}
 
-            {bara ? <div className="hidden md:block">{bara}</div> : null}
+            {bara && !inPanou ? <div className="hidden md:block">{bara}</div> : null}
 
             <div className="flex min-h-[68px] flex-wrap items-center gap-3 rounded-box border-2 border-border bg-surface px-4 py-2.5">
               <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-success-bg text-success-text [&_svg]:size-5" aria-hidden>
@@ -413,9 +411,9 @@ export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
               </div>
             ) : null}
           </>
-        )}
-      </ScreenBody>
-
+        )
+  const ferestre = (
+    <>
       {/* Meniul ⋯ */}
       <BottomSheet open={meniu} onOpenChange={setMeniu} title={titlu}>
         <ul className="space-y-2">
@@ -552,6 +550,104 @@ export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
           <MicroclimatStepForm open={form === 'microclimat'} onOpenChange={(open) => setForm(open ? 'microclimat' : null)} parcelaId={parcela.id} parcelaNume={titlu} tipUnitate={parcela.tip_unitate} />
         </>
       ) : null}
+    </>
+  )
+
+  // Desktop (promptul 35, §6): aceeași fișă în dreapta listei, cu acțiunile în cap; fără carcasa paginii.
+  if (inPanou) {
+    return (
+      <div className="space-y-4">
+        <AntetFisa
+          titlu={stare.loading ? 'Parcelă' : titlu}
+          context={parcela ? `${antetParcela(parcela)}${personala ? ' · Personal' : ''}` : undefined}
+          actiuni={
+            parcela ? (
+              <>
+                {poateScrie ? (
+                  <>
+                    <Button type="button" variant="primary" size="touch" onClick={() => router.push(`/tratamente?parcela=${encodeURIComponent(parcelaId)}`)}>
+                      <Plus aria-hidden />
+                      Tratament
+                    </Button>
+                    <Button type="button" variant="neutral" size="touch" onClick={() => setForm('lucrare')}>
+                      <Plus aria-hidden />
+                      Lucrare
+                    </Button>
+                    <Button type="button" variant="neutral" size="touch" onClick={() => router.push(`/recoltari?add=1&parcela_id=${encodeURIComponent(parcelaId)}`)}>
+                      <Plus aria-hidden />
+                      Recoltare
+                    </Button>
+                    <Button type="button" variant="neutral" size="touch" onClick={() => setForm('stadiu')}>
+                      <Sprout aria-hidden />
+                      Stadiul
+                    </Button>
+                  </>
+                ) : null}
+                {poateScrie || poateSterge ? (
+                  <Button type="button" variant="quiet" size="icon-touch" aria-label="Mai multe acțiuni: editează, desființează, șterge" onClick={() => setMeniu(true)}>
+                    <Ellipsis aria-hidden />
+                  </Button>
+                ) : null}
+              </>
+            ) : null
+          }
+        />
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="min-w-0 space-y-3.5">{corp}</div>
+          <div className="min-w-0 space-y-4">
+            {saptamani.length > 0 ? (
+              <SectiuneFisa titlu={`Recolta pe săptămâni · ${azi?.slice(0, 4) ?? ''}`}>
+                <GraficBare
+                  eticheta={`Recolta parcelei ${titlu} pe săptămâni, în kilograme`}
+                  bare={saptamani.map((item) => ({ cheie: item.cheie, eticheta: item.eticheta, valoare: item.kg, comparatie: item.kgAnTrecut }))}
+                  formatare={(valoare) => `${formatNumber(valoare, 0)} kg`}
+                  legenda={[azi?.slice(0, 4) ?? '', String(Number(azi?.slice(0, 4) ?? 0) - 1)]}
+                  inaltime={160}
+                />
+              </SectiuneFisa>
+            ) : null}
+            {vedeProprietarul && !personala ? (
+              <SectiuneFisa titlu="Profit pe parcelă (estimat)">
+                <p className={cn('text-fg-muted', kitText.secondary)}>
+                  Estimarea (kg × prețul mediu încasat, minus culesul și tratamentele din Magazie, cu rândul „Comune, neîmpărțite pe parcele”) e în Bani și rapoarte.
+                </p>
+                <Button type="button" variant="neutral" size="touch" onClick={() => router.push('/rapoarte')}>
+                  Deschide Bani și rapoarte
+                </Button>
+              </SectiuneFisa>
+            ) : null}
+          </div>
+        </div>
+        {ferestre}
+      </div>
+    )
+  }
+
+  return (
+    <AppShell
+      header={header}
+      bottomBarFixed
+      bottomBar={
+        bara ? (
+          <div className="mx-auto w-full max-w-md px-4">
+            <div className="rounded-box bg-page shadow-2">{bara}</div>
+          </div>
+        ) : undefined
+      }
+    >
+      <ScreenBody className="space-y-3.5">
+        {corp}
+      </ScreenBody>
+
+      {ferestre}
     </AppShell>
   )
+}
+
+/** Fișa parcelei ca pagină: pe telefon ca înainte; pe desktop (de la 1024 px) lista parcelelor cu fișa în dreapta. */
+export function ParcelaFisaClient({ parcelaId }: { parcelaId: string }) {
+  useTrackModuleView('parcele')
+  const esteDesktop = useEsteDesktop()
+  if (esteDesktop) return <ParceleDesktop idAles={parcelaId} />
+  return <ParcelaFisa parcelaId={parcelaId} />
 }

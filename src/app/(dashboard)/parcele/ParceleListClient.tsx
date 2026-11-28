@@ -8,6 +8,8 @@ import { AppShell } from '@/components/app/AppShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { Button, EmptyState, FilterPills, ListRow, Notice, StatusPill, kitFocus, kitText } from '@/components/kit'
 import { ParcelaStepForm } from '@/components/parcele/ParcelaStepForm'
+import { ParceleDesktop } from '@/components/parcele/ParceleDesktop'
+import { useEsteDesktop } from '@/lib/ui/useEsteDesktop'
 import { useParceleStare } from '@/components/parcele/useParceleStare'
 import { ScreenBody, ScreenHeader } from '@/components/setari/SetariUi'
 import { useAziRo } from '@/hooks/useAziRo'
@@ -29,6 +31,13 @@ type FiltruTip = 'toate' | UnitateTip
  */
 export function ParceleListClient() {
   useTrackModuleView('parcele')
+  // Promptul 35, §6: pe desktop, lista cu fișa primei parcele în dreapta.
+  const esteDesktop = useEsteDesktop()
+  if (esteDesktop) return <ParceleDesktop idAles={null} />
+  return <ParceleListTelefon />
+}
+
+function ParceleListTelefon() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const azi = useAziRo()
