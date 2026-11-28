@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
-import { kitFocus, kitText } from '@/components/kit'
+import { AntetDesktop, kitFocus, kitText, type AntetDesktopProps } from '@/components/kit'
 import { cn } from '@/lib/utils'
 
 /**
@@ -61,8 +61,14 @@ export function ScreenHeader({
   backHref,
   right,
   large = false,
+  subtitle,
+  desktop,
 }: {
   title: string
+  /** Rândul de context de sub titlu; pe telefon apare doar dacă e dat (promptul 35, §1). */
+  subtitle?: string
+  /** Partea din dreapta a antetului pe desktop (căutarea, comutatoarele, acțiunea principală). */
+  desktop?: AntetDesktopProps
   /** Fără `backHref`: fără buton „Înapoi” (ecranul de sus, ex. Mai mult). */
   backHref?: string
   right?: ReactNode
@@ -84,13 +90,22 @@ export function ScreenHeader({
                 router.back()
               }
             }}
-            className={cn('flex size-touch shrink-0 items-center justify-center rounded-box text-fg active:bg-surface-muted', kitFocus)}
+            className={cn(
+              'flex size-touch shrink-0 items-center justify-center rounded-box text-fg active:bg-surface-muted',
+              // Pe desktop modulele sunt în bara laterală: „înapoi” spre „Mai mult” nu are sens (promptul 35, §1).
+              backHref === '/mai-mult' && 'lg:hidden',
+              kitFocus,
+            )}
           >
             <ChevronLeft className="size-6" strokeWidth={2.2} aria-hidden />
           </Link>
         ) : null}
-        <h1 className={cn('min-w-0 flex-1 truncate font-extrabold text-fg', large ? kitText.screen : kitText.section)}>{title}</h1>
+        <div className="min-w-0 flex-1">
+          <h1 className={cn('truncate font-extrabold text-fg', large ? kitText.screen : kitText.section)}>{title}</h1>
+          {subtitle ? <p className={cn('mt-0.5 break-words text-fg-muted', kitText.helper)}>{subtitle}</p> : null}
+        </div>
         {right ? <div className="flex shrink-0 items-center gap-2">{right}</div> : null}
+        <AntetDesktop {...desktop} className="ml-2" />
       </div>
     </header>
   )

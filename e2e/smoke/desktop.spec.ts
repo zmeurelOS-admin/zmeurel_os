@@ -3,9 +3,9 @@ import { expect, test, type Browser, type BrowserContext, type Page } from '@pla
 import { iesiDinCont, pornesteDemoNou } from './demo'
 
 /**
- * Promptul 34, §10: desktopul pe interfața nouă, la 1440 × 900, într-un demo nou.
- *   - pe /dashboard, Acasă nouă (aceeași ca pe telefon), fără cardurile vechi și fără „Editează”;
- *   - bara laterală are aceleași nume ca telefonul și duce în fiecare modul;
+ * Promptul 34, §10 (actualizat la 35): desktopul pe interfața nouă, la 1440 × 900, într-un demo nou.
+ *   - pe /dashboard, Acasă nouă, fără cardurile vechi și fără „Editează”;
+ *   - bara laterală e grupată după treabă (promptul 35, §1) și duce în fiecare modul;
  *   - clopoțelul și contul se deschid din bara laterală;
  *   - o foaie (BottomSheet) se deschide centrată pe ecran.
  * Nu scrie nimic în demo.
@@ -45,8 +45,23 @@ test('bara laterală: aceleași nume ca pe telefon și duce în fiecare modul', 
   await expect(bara).toBeVisible()
   const linkuri = bara.getByRole('navigation', { name: 'Module' }).getByRole('link')
   const nume = (await linkuri.evaluateAll((elemente) => elemente.map((el) => el.getAttribute('aria-label') ?? ''))).filter(Boolean)
-  expect(nume.slice(0, 4)).toEqual(['Acasă', 'Livrări', 'Recoltări', 'Comenzi'])
-  for (const asteptat of ['Tratamente', 'Magazia', 'Parcele', 'Lucrări', 'Stocuri', 'Produse', 'Material săditor', 'Rapoarte', 'Vânzări', 'Cheltuieli', 'Investiții', 'Clienți', 'Culegători', 'Setări']) {
+  // Promptul 35, §1: grupată după treabă — Acasă, Vânzări, Ferma, Bani, apoi Setări jos.
+  expect(nume.slice(0, 13)).toEqual([
+    'Acasă',
+    'Comenzi și livrări',
+    'Clienți',
+    'Stocuri',
+    'Vânzări',
+    'Produse',
+    'Material săditor',
+    'Parcele',
+    'Tratamente',
+    'Recoltări',
+    'Lucrări',
+    'Culegători',
+    'Bani și rapoarte',
+  ])
+  for (const asteptat of ['Cheltuieli', 'Investiții', 'Setări']) {
     expect(nume, `lipsește „${asteptat}” din bara laterală`).toContain(asteptat)
   }
 

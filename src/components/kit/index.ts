@@ -43,6 +43,16 @@ export {
   type ActionCardSecondaryAction,
 } from './ActionCard'
 
+// Desktop (promptul 35)
+export {
+  AntetDesktop,
+  CampCautare,
+  EVENIMENT_CAUTARE,
+  deschideCautarea,
+  type ActiuneAntet,
+  type AntetDesktopProps,
+} from './AntetDesktop'
+
 // Compuse (Etapa B)
 export { BottomSheet, type BottomSheetProps } from './BottomSheet'
 export {

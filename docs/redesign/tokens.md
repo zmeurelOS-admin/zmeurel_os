@@ -91,7 +91,8 @@ Clasele vechi `rounded-sm` (12), `rounded-md` (14), `rounded-lg` (16), `rounded-
 
 | Token | Valoare | Clasă | Folosit pentru |
 |---|---|---|---|
-| `--container-modul` | 45rem (720px) | `max-w-modul` | coloana modulelor refăcute (antet, corp, Acasă), pe telefon și pe desktop |
+| `--container-modul` | 45rem (720px); de la 1024 px = `--container-desktop` | `max-w-modul` | coloana modulelor refăcute (antet, corp, Acasă); de la 1024 px toată lățimea (promptul 35) |
+| `--container-desktop` | 100rem (1600px) | `max-w-desktop` | lățimea maximă a conținutului pe desktop (promptul 35) |
 
 ### Atingere
 

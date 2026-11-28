@@ -3,6 +3,7 @@
 import { type DashboardContentShellVariant } from '@/components/app/DashboardContentShell'
 import { CompactPageHeader } from '@/components/layout/CompactPageHeader'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
+import { AntetDesktop, type ActiuneAntet } from '@/components/kit'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { cn } from '@/lib/utils'
 
@@ -20,12 +21,21 @@ interface PageHeaderProps {
   stackMobileRightSlotBelowTitle?: boolean
   /** Fără efect din promptul 34 (§10): antetul are lățimea coloanei modulelor. Rămâne pentru paginile vechi. */
   contentVariant?: DashboardContentShellVariant
+  /** Desktop (de la 1024 px, promptul 35): acțiunea principală a paginii, în dreapta antetului. */
+  actiune?: ActiuneAntet | null
+  /** Desktop: comutatoarele paginii („Listă / Tabel”, „Comenzi / Livrări azi”). */
+  comutatoare?: React.ReactNode
+  /** Desktop: butoane în plus, înaintea acțiunii principale. */
+  alteActiuni?: React.ReactNode
+  /** Desktop: fără câmpul de căutare globală. */
+  faraCautare?: boolean
 }
 
 /**
  * Antetul unui ecran (promptul 34, §10): același pe telefon și pe desktop. Clopoțelul stă aici doar pe telefon; pe
  * desktop, clopoțelul și contul sunt în bara laterală. Butonul de adăugare al paginii (`useAddAction`, Material
- * săditor) apare în dreapta de la 768 px.
+ * săditor) apare în dreapta de la 768 px. De la 1024 px (promptul 35, §1), în dreapta mai stau căutarea globală,
+ * comutatoarele paginii și acțiunea principală (`AntetDesktop`), în locul barei fixe de jos.
  */
 export function PageHeader({
   title,
@@ -36,6 +46,10 @@ export function PageHeader({
   headerClassName,
   expandRightSlotOnMobile,
   stackMobileRightSlotBelowTitle,
+  actiune,
+  comutatoare,
+  alteActiuni,
+  faraCautare,
 }: PageHeaderProps) {
   const { triggerAddAction, currentLabel, hasAction } = useAddAction()
 
@@ -66,6 +80,7 @@ export function PageHeader({
               {rightSlot}
             </div>
           ) : null}
+          <AntetDesktop actiune={actiune} comutatoare={comutatoare} alte={alteActiuni} faraCautare={faraCautare} />
         </>
       }
     />

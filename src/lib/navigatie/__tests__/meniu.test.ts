@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
-import { grupuriMeniu, hrefActiv, meniuAdmin, meniuFinal, meniuPrincipal } from '@/lib/navigatie/meniu'
+import {
+  comenziSiLivrari,
+  grupuriMeniu,
+  hrefActiv,
+  hrefActivDesktop,
+  intrariMeniuDesktop,
+  meniuAdmin,
+  meniuDesktop,
+  meniuFinal,
+  meniuPrincipal,
+  vedeBanii,
+} from '@/lib/navigatie/meniu'
 
 const href = (lista: ReadonlyArray<{ href: string }>) => lista.map((intrare) => intrare.href)
 const toate = (grupuri: ReturnType<typeof grupuriMeniu>) => grupuri.flatMap((grup) => href(grup.intrari))
@@ -66,5 +77,77 @@ describe('navigația comună (promptul 34, §10)', () => {
     expect(hrefActiv('/notificari', hrefs)).toBeNull()
     expect(hrefActiv('/cheltuieli', ['/cheltuieli', '/investitii'], 'fila=investitii')).toBe('/investitii')
     expect(hrefActiv('/cheltuieli', ['/cheltuieli', '/investitii'], '')).toBe('/cheltuieli')
+  })
+})
+
+describe('bara laterală pe desktop, grupată (promptul 35, §1)', () => {
+  const grupuri = (ctx: Parameters<typeof meniuDesktop>[0]) =>
+    Object.fromEntries(meniuDesktop(ctx).grupuri.map((grup) => [grup.titlu, grup.intrari.map((intrare) => intrare.label)]))
+
+  it('proprietarul: Acasă sus, apoi Vânzări · Ferma · Bani, Setări jos', () => {
+    const meniu = meniuDesktop({})
+    expect(meniu.sus.map((intrare) => intrare.label)).toEqual(['Acasă'])
+    expect(meniu.grupuri.map((grup) => grup.titlu)).toEqual(['Vânzări', 'Ferma', 'Bani'])
+    expect(grupuri({})).toEqual({
+      Vânzări: ['Comenzi și livrări', 'Clienți', 'Stocuri', 'Vânzări', 'Produse', 'Material săditor'],
+      Ferma: ['Parcele', 'Tratamente', 'Recoltări', 'Lucrări', 'Culegători'],
+      Bani: ['Bani și rapoarte', 'Cheltuieli', 'Investiții'],
+    })
+    expect(meniu.jos.map((intrare) => intrare.label)).toEqual(['Planul tău', 'Setări', 'Scrie-mi o problemă sau o sugestie'])
+    expect(meniu.admin).toEqual([])
+    expect(comenziSiLivrari({})).toBe(true)
+  })
+
+  it('bara de jos și „Mai mult” de pe telefon rămân neschimbate', () => {
+    expect(meniuPrincipal({}).map((intrare) => intrare.label)).toEqual(['Acasă', 'Livrări', 'Recoltări', 'Comenzi'])
+    expect(grupuriMeniu({}).map((grup) => grup.titlu)).toEqual(['Ferma', 'Bani și oameni'])
+  })
+
+  it('operatorul nu vede grupul „Bani”, nici Vânzări, Stocuri, Material săditor; are „Mai mult” jos', () => {
+    const ctx = {
+      memberRole: 'operator' as const,
+      memberAccess: [
+        { module: 'comenzi' as const, level: 'write' as const },
+        { module: 'livrari' as const, level: 'write' as const },
+        { module: 'tratamente' as const, level: 'read' as const },
+        { module: 'recoltari' as const, level: 'write' as const },
+      ],
+    }
+    const meniu = meniuDesktop(ctx)
+    expect(meniu.grupuri.map((grup) => grup.titlu)).toEqual(['Vânzări', 'Ferma'])
+    expect(grupuri(ctx)).toEqual({ Vânzări: ['Comenzi și livrări'], Ferma: ['Tratamente', 'Recoltări'] })
+    const hrefuri = intrariMeniuDesktop(meniu).map((intrare) => intrare.href)
+    for (const bani of ['/rapoarte', '/vanzari', '/cheltuieli', '/investitii', '/stocuri', '/vanzari-butasi']) expect(hrefuri).not.toContain(bani)
+    expect(meniu.jos.map((intrare) => intrare.label)).toEqual(['Mai mult', 'Scrie-mi o problemă sau o sugestie'])
+    expect(vedeBanii(ctx)).toBe(false)
+  })
+
+  it('operatorul doar cu Livrări vede „Livrări” (spre /livrari), fără comutator', () => {
+    const ctx = { memberRole: 'operator' as const, memberAccess: [{ module: 'livrari' as const, level: 'write' as const }] }
+    expect(meniuDesktop(ctx).grupuri[0].intrari.map((intrare) => [intrare.label, intrare.href])).toEqual([['Livrări', '/livrari']])
+    expect(comenziSiLivrari(ctx)).toBe(false)
+  })
+
+  it('operatorul fără Parcele și fără Tratamente nu le vede', () => {
+    const ctx = { memberRole: 'operator' as const, memberAccess: [{ module: 'recoltari' as const, level: 'read' as const }] }
+    expect(grupuri(ctx)).toEqual({ Ferma: ['Recoltări'] })
+  })
+
+  it('superadminul: zona Admin', () => {
+    expect(meniuDesktop({ isSuperAdmin: true }).admin.map((intrare) => intrare.href)).toEqual(['/admin', '/admin/analytics', '/admin/audit', '/admin/kit'])
+  })
+
+  it('contul de asociație: grupul „Asociația”; altfel lipsește', () => {
+    expect(meniuDesktop({ associationRole: 'admin' }).grupuri.map((grup) => grup.titlu)).toEqual(['Vânzări', 'Ferma', 'Bani', 'Asociația'])
+    expect(grupuri({ associationRole: 'admin' }).Asociația).toEqual(['Gustă din Bucovina'])
+    expect(meniuDesktop({}).grupuri.some((grup) => grup.titlu === 'Asociația')).toBe(false)
+  })
+
+  it('intrarea activă: Livrări sub „Comenzi și livrări”, Magazia sub Tratamente', () => {
+    const hrefs = intrariMeniuDesktop(meniuDesktop({})).map((intrare) => intrare.href)
+    expect(hrefActivDesktop('/livrari', hrefs)).toBe('/comenzi')
+    expect(hrefActivDesktop('/tratamente/magazie/1', hrefs)).toBe('/tratamente')
+    expect(hrefActivDesktop('/cheltuieli', hrefs, 'fila=investitii')).toBe('/investitii')
+    expect(hrefActivDesktop('/notificari', hrefs)).toBeNull()
   })
 })

@@ -16,12 +16,12 @@ import { kitFocus, kitText } from '@/components/kit'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { useDemoBannerVisible } from '@/hooks/useDemoBannerVisible'
 import { APP_NAME } from '@/lib/brand'
-import { ASOCIATIE, grupuriMeniu, hrefActiv, meniuAdmin, meniuFinal, meniuPrincipal, type IntrareMeniu } from '@/lib/navigatie/meniu'
+import { hrefActivDesktop, intrariMeniuDesktop, meniuDesktop, type IntrareMeniu } from '@/lib/navigatie/meniu'
 import { useShopOrdersInLivrareCount, ShopOrdersInLivrareNavBadge } from '@/lib/shop/useShopOrdersInLivrareCount'
 import { cn } from '@/lib/utils'
 
 const STORAGE_KEY = 'sidebar-collapsed'
-const EXPANDED_WIDTH = 240
+const EXPANDED_WIDTH = 232
 const COLLAPSED_WIDTH = 64
 const DEMO_BANNER_HEIGHT = 48
 
@@ -118,9 +118,9 @@ function Grup({ titlu, separat = false, collapsed, children }: { titlu?: string;
 }
 
 /**
- * Bara laterală de pe desktop (promptul 34, §10): aceeași navigație și aceleași nume ca pe telefon — Acasă · Livrări ·
- * Recoltări · Comenzi, apoi rândurile din „Mai mult” (`src/lib/navigatie/meniu.ts`). Sus logo-ul „Caietul Fermei” și
- * clopoțelul, jos contul. În zona asociației (`/asociatie/*`), lista asociației.
+ * Bara laterală (de la 768 px): grupată după treabă (promptul 35, §1) — Acasă, apoi Vânzări · Ferma · Bani ·
+ * Asociația, cu aceleași reguli de acces ca telefonul (`meniuDesktop` din `src/lib/navigatie/meniu.ts`). Sus logo-ul
+ * „Caietul Fermei” și clopoțelul, jos Setări și contul. În zona asociației (`/asociatie/*`), lista asociației.
  */
 export function Sidebar() {
   const pathname = usePathname()
@@ -134,28 +134,10 @@ export function Sidebar() {
   const searchString = searchParams.toString()
   const inAssociationWorkspace = pathname.startsWith('/asociatie')
   const ctx = useMemo(() => ({ memberRole, memberAccess, isSuperAdmin, associationRole }), [associationRole, isSuperAdmin, memberAccess, memberRole])
-  const operator = memberRole === 'operator'
-
-  const principale = useMemo(() => meniuPrincipal(ctx), [ctx])
-  const grupuri = useMemo(() => {
-    // Operatorul are în bara de jos (și aici, sus) modulele lui; nu le repetăm în grupuri.
-    const sus = new Set(principale.map((intrare) => intrare.href))
-    return grupuriMeniu(ctx)
-      .map((grup) => ({ ...grup, intrari: grup.intrari.filter((intrare) => !sus.has(intrare.href)) }))
-      .filter((grup) => grup.intrari.length > 0)
-  }, [ctx, principale])
-  const admin = useMemo(() => meniuAdmin(ctx), [ctx])
-  const final = useMemo<IntrareMeniu[]>(() => {
-    const randuri = meniuFinal(ctx)
-    // Operatorul nu are Setări; „Mai mult” îi dă notificările și ieșirea din cont, ca pe telefon.
-    return operator ? [{ href: '/mai-mult', label: 'Mai mult', iconita: 'mai-mult', ton: 'neutral' }, ...randuri] : randuri
-  }, [ctx, operator])
-
-  const toateHref = useMemo(
-    () => [...principale, ...grupuri.flatMap((grup) => grup.intrari), ...admin, ...final, ASOCIATIE].map((intrare) => intrare.href),
-    [admin, final, grupuri, principale],
-  )
-  const activ = hrefActiv(pathname, toateHref, searchString)
+  // Promptul 35, §1: grupată după treabă (Vânzări · Ferma · Bani · Asociația), din aceeași sursă ca telefonul.
+  const meniu = useMemo(() => meniuDesktop(ctx), [ctx])
+  const toateHref = useMemo(() => intrariMeniuDesktop(meniu).map((intrare) => intrare.href), [meniu])
+  const activ = hrefActivDesktop(pathname, toateHref, searchString)
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -194,7 +176,7 @@ export function Sidebar() {
       collapsed={collapsed}
       active={activ === intrare.href}
       extern={intrare.extern}
-      badge={intrare.href === '/livrari' && shopInLivrareCount > 0 ? <ShopOrdersInLivrareNavBadge count={shopInLivrareCount} /> : undefined}
+      badge={(intrare.href === '/livrari' || intrare.href === '/comenzi') && shopInLivrareCount > 0 ? <ShopOrdersInLivrareNavBadge count={shopInLivrareCount} /> : undefined}
     />
   )
 
@@ -227,23 +209,22 @@ export function Sidebar() {
             <AssociationSidebar collapsed={collapsed} pathname={pathname} searchString={searchString} hash={hash} />
           ) : (
             <>
-              <Grup collapsed={collapsed}>{principale.map(rand)}</Grup>
-              {associationRole ? <Grup collapsed={collapsed}>{rand(ASOCIATIE)}</Grup> : null}
-              {grupuri.map((grup) => (
+              <Grup collapsed={collapsed}>{meniu.sus.map(rand)}</Grup>
+              {meniu.grupuri.map((grup) => (
                 <Grup key={grup.titlu} titlu={grup.titlu} collapsed={collapsed}>
                   {grup.intrari.map(rand)}
                 </Grup>
               ))}
             </>
           )}
-          {admin.length > 0 ? (
+          {meniu.admin.length > 0 ? (
             <Grup titlu={`Admin (${APP_NAME})`} collapsed={collapsed}>
-              {admin.map(rand)}
+              {meniu.admin.map(rand)}
             </Grup>
           ) : null}
           {inAssociationWorkspace ? null : (
             <Grup separat collapsed={collapsed}>
-              {final.map(rand)}
+              {meniu.jos.map(rand)}
             </Grup>
           )}
         </nav>

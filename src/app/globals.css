@@ -128,10 +128,14 @@
 
   /* Coloana modulelor (promptul 34, §10): `max-w-modul` = 720 px, aceeași pe telefon (lățimea ecranului) și pe desktop. */
   --container-modul: 45rem;
+  /* Lățimea maximă a conținutului pe desktop (promptul 35, §1): 1600 px. */
+  --container-desktop: 100rem;
 }
 
 @media (min-width: 1024px) {
   :root {
+    /* Promptul 35, §1: de la 1024 px modulele refăcute folosesc toată lățimea (până la 1600 px), nu coloana de 720 px. */
+    --container-modul: var(--container-desktop);
     --app-nav-clearance: 0px;
     --mobile-scroll-padding: 0px;
   }

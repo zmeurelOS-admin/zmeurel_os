@@ -163,6 +163,98 @@ export function meniuFinal(ctx: ContextMeniu): IntrareMeniu[] {
   return randuri
 }
 
+// ─── Bara laterală pe desktop (promptul 35, §1) ─────────────────────────────────────────────────────────────────
+// Grupată după treabă. Bara de jos și „Mai mult” de pe telefon nu folosesc nimic de aici.
+
+export interface MeniuDesktop {
+  /** Sus: Acasă. */
+  sus: IntrareMeniu[]
+  /** Vânzări · Ferma · Bani (doar proprietarul) · Asociația (doar conturile de asociație). */
+  grupuri: GrupMeniu[]
+  /** Admin (superadmin). */
+  admin: IntrareMeniu[]
+  /** Jos: Setări, „Planul tău”, „Scrie-mi…” (operatorul: „Mai mult” în loc de Setări). */
+  jos: IntrareMeniu[]
+}
+
+const ACASA: IntrareMeniu = { href: '/dashboard', label: 'Acasă', iconita: 'acasa', ton: 'primary' }
+
+const intrare = (href: string, label: string, iconita: IconitaMeniu, ton: TonMeniu = 'primary'): IntrareMeniu => ({ href, label, iconita, ton })
+
+/** Comenzile și livrările sunt o singură intrare pe desktop; operatorul cu doar unul dintre module îl vede pe acela. */
+function intrareComenzi(ctx: ContextMeniu): IntrareMeniu | null {
+  const comenzi = vedeIntrarea(intrare('/comenzi', 'Comenzi', 'comenzi'), ctx)
+  const livrari = vedeIntrarea(intrare('/livrari', 'Livrări', 'livrari'), ctx)
+  if (comenzi && livrari) return intrare('/comenzi', 'Comenzi și livrări', 'comenzi')
+  if (comenzi) return intrare('/comenzi', 'Comenzi', 'comenzi')
+  if (livrari) return intrare('/livrari', 'Livrări', 'livrari')
+  return null
+}
+
+/** Ambele pagini (Comenzi, Livrări azi) sunt permise: atunci antetul arată comutatorul dintre ele. */
+export function comenziSiLivrari(ctx: ContextMeniu): boolean {
+  return vedeIntrarea(intrare('/comenzi', 'Comenzi', 'comenzi'), ctx) && vedeIntrarea(intrare('/livrari', 'Livrări', 'livrari'), ctx)
+}
+
+/** Banii (Bani și rapoarte, Vânzări, Cheltuieli, Investiții) sunt doar ai proprietarului. */
+export const vedeBanii = (ctx: ContextMeniu) => !esteOperator(ctx)
+
+export function meniuDesktop(ctx: ContextMeniu): MeniuDesktop {
+  const comenzi = intrareComenzi(ctx)
+  const vanzari: IntrareMeniu[] = [
+    ...(comenzi ? [comenzi] : []),
+    intrare('/clienti', 'Clienți', 'clienti'),
+    intrare('/stocuri', 'Stocuri', 'stocuri'),
+    intrare('/vanzari', 'Vânzări', 'vanzari'),
+    intrare('/produse', 'Produse', 'produse'),
+    intrare('/vanzari-butasi', 'Material săditor', 'butasi'),
+  ].filter((rand) => rand === comenzi || vedeIntrarea(rand, ctx))
+  // Vânzările (bani) nu apar la operator, chiar dacă regula modulelor l-ar lăsa.
+  const vanzariFiltrate = vedeBanii(ctx) ? vanzari : vanzari.filter((rand) => rand.href !== '/vanzari')
+  const ferma = [
+    intrare('/parcele', 'Parcele', 'parcele'),
+    intrare('/tratamente', 'Tratamente', 'tratamente'),
+    intrare('/recoltari', 'Recoltări', 'recoltari'),
+    intrare('/lucrari', 'Lucrări', 'lucrari'),
+    intrare('/culegatori', 'Culegători', 'culegatori'),
+  ].filter((rand) => vedeIntrarea(rand, ctx))
+  const bani = vedeBanii(ctx)
+    ? [intrare('/rapoarte', 'Bani și rapoarte', 'rapoarte', 'info'), intrare('/cheltuieli', 'Cheltuieli', 'cheltuieli', 'info'), intrare('/investitii', 'Investiții', 'investitii', 'info')]
+    : []
+
+  const grupuri: GrupMeniu[] = [
+    { titlu: 'Vânzări', intrari: vanzariFiltrate },
+    { titlu: 'Ferma', intrari: ferma },
+    { titlu: 'Bani', intrari: bani },
+    { titlu: 'Asociația', intrari: ctx.associationRole ? [ASOCIATIE] : [] },
+  ].filter((grup) => grup.intrari.length > 0)
+
+  const jos = meniuFinal(ctx)
+  return {
+    sus: [ACASA],
+    grupuri,
+    admin: meniuAdmin(ctx),
+    // Operatorul nu are Setări; „Mai mult” îi dă notificările și ieșirea din cont, ca pe telefon.
+    jos: esteOperator(ctx) ? [{ href: '/mai-mult', label: 'Mai mult', iconita: 'mai-mult', ton: 'neutral' }, ...jos] : jos,
+  }
+}
+
+/** Toate intrările barei laterale de desktop, în ordine. */
+export function intrariMeniuDesktop(meniu: MeniuDesktop): IntrareMeniu[] {
+  return [...meniu.sus, ...meniu.grupuri.flatMap((grup) => grup.intrari), ...meniu.admin, ...meniu.jos]
+}
+
+/**
+ * Intrarea activă în bara laterală de desktop: ca `hrefActiv`, plus două alăturări — Livrări stă sub „Comenzi și
+ * livrări”, Magazia sub Tratamente.
+ */
+export function hrefActivDesktop(pathname: string, hrefs: readonly string[], search: string = ''): string | null {
+  const direct = hrefActiv(pathname, hrefs, search)
+  if (direct) return direct
+  if ((pathname === '/livrari' || pathname.startsWith('/livrari/')) && hrefs.includes('/comenzi')) return '/comenzi'
+  return null
+}
+
 /**
  * Intrarea activă pentru o adresă: cea mai lungă potrivire de prefix (pe `/tratamente/magazie` e Magazia, nu
  * Tratamente). Investițiile stau pe pagina Cheltuieli, fila a doua (`/investitii` redirecționează acolo): pe
