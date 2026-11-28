@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRouter } from 'next/navigation'
-import { ChevronLeft, ChevronRight, MessageCircle, Phone, ReceiptText, Search, ShoppingBasket, Zap } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { ChevronLeft, ChevronRight, ReceiptText, Search, Zap } from 'lucide-react'
 
 import { AppShell } from '@/components/app/AppShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
@@ -18,17 +17,16 @@ import {
   Segments,
   StatTile,
   StatusPill,
-  SummaryList,
-  SummaryRow,
-  buttonVariants,
   kitFocus,
   kitText,
-  parseDecimal,
 } from '@/components/kit'
 import { VanzareRapidaForm } from '@/components/vanzari/VanzareRapidaForm'
+import { useVanzareFisa } from '@/components/vanzari/useVanzareFisa'
+import { VanzariDesktop } from '@/components/vanzari/VanzariDesktop'
+import { ComutatorVedere } from '@/components/comenzi/ComutatoareComenzi'
+import { useIdDinUrl, useVedereDinUrl } from '@/lib/ui/useIdDinUrl'
 import { track } from '@/lib/analytics/track'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
-import { phoneForLinks } from '@/lib/comenzi/display'
 import { groupByDay, isSameMonth, monthOfIso, shiftMonthRef, type MonthRef } from '@/lib/financial/view'
 import {
   capitalizeRo,
@@ -44,9 +42,8 @@ import { queryKeys } from '@/lib/query-keys'
 import { useSchemaFeatures } from '@/lib/schema-features'
 import { getClienți } from '@/lib/supabase/queries/clienti'
 import { getComenzi } from '@/lib/supabase/queries/comenzi'
-import { generateClientId } from '@/lib/offline/generateClientId'
-import { adaugaPlataVanzare, getVanzari, setVanzareStatusPlata } from '@/lib/supabase/queries/vanzari'
-import { aplicaPlata, restDeIncasat } from '@/lib/vanzari/incasari'
+import { getVanzari } from '@/lib/supabase/queries/vanzari'
+import { restDeIncasat } from '@/lib/vanzari/incasari'
 import {
   buildVanzareRows,
   incasatInLuna,
@@ -56,16 +53,10 @@ import {
   vanzariNeincasate,
   type VanzareRow,
 } from '@/lib/vanzari/view'
-import { toast } from '@/lib/ui/toast'
 import { useTodayIso } from '@/lib/ui/use-today-iso'
 import { cn } from '@/lib/utils'
 
 type Tab = 'toate' | 'neincasate'
-type SheetView = 'detalii' | 'parte'
-
-/** Vânzările care depind de o plată: registrul, comenzile (statusul plății) și Acasă. */
-const PAYMENT_INVALIDATED = [queryKeys.vanzari, queryKeys.comenzi, queryKeys.dashboard] as const
-
 function errorText(cause: unknown, fallback: string): string {
   return cause instanceof Error && cause.message ? cause.message : fallback
 }
@@ -77,8 +68,6 @@ function errorText(cause: unknown, fallback: string): string {
 export function VanzariPageClient() {
   useTrackModuleView('vanzari')
 
-  const router = useRouter()
-  const queryClient = useQueryClient()
   const { memberRole, accessLevel } = useDashboardAuth()
   const canWrite = memberRole !== 'operator' || accessLevel === 'write'
   const todayIso = useTodayIso()
@@ -93,13 +82,6 @@ export function VanzariPageClient() {
 
   const [openedId, setOpenedId] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [sheetView, setSheetView] = useState<SheetView>('detalii')
-  const [parteText, setParteText] = useState('')
-  // Cheia plății: una pe deschiderea „Cât a dat acum”, păstrată la reîncercare (nu se adună de două ori).
-  const plataIdRef = useRef<string | null>(null)
-  const [busy, setBusy] = useState<'incasat' | 'neincasat' | 'parte' | null>(null)
-  const [sheetError, setSheetError] = useState<string | null>(null)
-
   // ─── Date ───
   const vanzariQuery = useQuery({
     queryKey: queryKeys.vanzari,
@@ -126,8 +108,8 @@ export function VanzariPageClient() {
   )
 
   // ─── Perioada ───
-  const currentMonth: MonthRef | null = todayIso ? monthOfIso(todayIso) : null
-  const month = currentMonth ? shiftMonthRef(currentMonth, monthOffset) : null
+  const currentMonth = useMemo<MonthRef | null>(() => (todayIso ? monthOfIso(todayIso) : null), [todayIso])
+  const month = useMemo(() => (currentMonth ? shiftMonthRef(currentMonth, monthOffset) : null), [currentMonth, monthOffset])
   const monthLabel = month ? monthYearRo(month.year, month.month) : ''
   const atPresent = Boolean(month && currentMonth && isSameMonth(month, currentMonth))
 
@@ -151,61 +133,36 @@ export function VanzariPageClient() {
   // ─── Foaia unei vânzări ───
   const openRow = (row: VanzareRow) => {
     setOpenedId(row.id)
-    setSheetView('detalii')
-    setParteText('')
-    setSheetError(null)
     setSheetOpen(true)
   }
-
-  const refreshPayments = () => {
-    for (const queryKey of PAYMENT_INVALIDATED) void queryClient.invalidateQueries({ queryKey })
-  }
-
-  const markStatus = async (row: VanzareRow, status: 'platit' | 'restanta') => {
-    if (busy || !todayIso) return
-    setBusy(status === 'platit' ? 'incasat' : 'neincasat')
-    setSheetError(null)
-    try {
-      await setVanzareStatusPlata(row.id, status, todayIso)
-      toast.success(status === 'platit' ? `Încasat: ${formatLei(row.total)}` : 'Trecută ca neîncasată')
-      setSheetOpen(false)
-    } catch (cause) {
-      setSheetError(errorText(cause, 'Nu s-a salvat. Verifică internetul și încearcă din nou.'))
-    } finally {
-      refreshPayments()
-      setBusy(null)
-    }
-  }
-
-  const parteLei = parseDecimal(parteText)
-  const plataNoua = opened && parteLei !== null && todayIso ? aplicaPlata(opened, parteLei, todayIso) : null
-  const parteValid = plataNoua !== null && plataNoua.ok
-
-  const savePartial = async () => {
-    if (busy || !opened || !parteValid || parteLei === null || !todayIso || !plataNoua?.ok) return
-    if (!plataIdRef.current) plataIdRef.current = generateClientId()
-    setBusy('parte')
-    setSheetError(null)
-    try {
-      await adaugaPlataVanzare({ vanzareId: opened.id, sumaLei: parteLei, dataIso: todayIso, plataId: plataIdRef.current })
-      plataIdRef.current = null
-      toast.success(
-        plataNoua.completeaza
-          ? `Încasat tot: ${formatLei(opened.total)}`
-          : `A dat ${formatLei(parteLei)} · rest ${formatLei(plataNoua.rest)}`,
-      )
-      if (plataNoua.completeaza) setSheetOpen(false)
-      else setSheetView('detalii')
-    } catch (cause) {
-      setSheetError(errorText(cause, 'Nu s-a salvat. Verifică internetul și încearcă din nou.'))
-    } finally {
-      refreshPayments()
-      setBusy(null)
-    }
-  }
+  // Conținutul foii (promptul 35, §8: același în fișa de desktop), în `useVanzareFisa`.
+  const fisa = useVanzareFisa({ activ: sheetOpen, vanzare: opened, todayIso, canWrite, vanzariPlataPartiala, onClose: () => setSheetOpen(false) })
 
   const loading = todayIso === null || vanzariQuery.isLoading
-  const phone = opened ? phoneForLinks(opened.telefon) : null
+  // Desktop (promptul 35, §8): vânzarea aleasă și vederea, în adresă.
+  const [idAles, alegeId] = useIdDinUrl()
+  const [vedere, setVedere] = useVedereDinUrl()
+
+  const navLuna = (
+    <div className="flex items-center gap-2">
+      <Button type="button" variant="neutral" size="icon-touch" aria-label="Luna dinainte" onClick={() => setMonthOffset((value) => value - 1)}>
+        <ChevronLeft aria-hidden />
+      </Button>
+      <p className={cn('min-w-0 flex-1 truncate text-center font-extrabold text-fg', kitText.card)} aria-live="polite">
+        {monthLabel ? capitalizeRo(monthLabel) : '…'}
+      </p>
+      <Button
+        type="button"
+        variant="neutral"
+        size="icon-touch"
+        aria-label="Luna următoare"
+        disabled={atPresent}
+        onClick={() => setMonthOffset((value) => value + 1)}
+      >
+        <ChevronRight aria-hidden />
+      </Button>
+    </div>
+  )
 
   const rapidaButton = (
     <Button type="button" variant="primary" size="touch-lg" className="w-full" onClick={() => setRapidaOpen(true)}>
@@ -216,7 +173,15 @@ export function VanzariPageClient() {
 
   return (
     <AppShell
-      header={<PageHeader title="Vânzări" subtitle={monthLabel ? capitalizeRo(monthLabel) : undefined} contentVariant="workspace" />}
+      header={
+        <PageHeader
+          title="Vânzări"
+          subtitle={monthLabel ? capitalizeRo(monthLabel) : undefined}
+          contentVariant="workspace"
+          actiune={canWrite && todayIso ? { label: 'Vânzare rapidă', onClick: () => setRapidaOpen(true), icon: <Zap aria-hidden /> } : null}
+          comutatoare={<ComutatorVedere vedere={vedere} onVedere={setVedere} />}
+        />
+      }
       bottomBarFixed
       bottomBar={
         // Butonul mare ține locul butonului plutitor (+).
@@ -227,26 +192,41 @@ export function VanzariPageClient() {
         ) : undefined
       }
     >
-      <div className="mx-auto w-full max-w-modul space-y-4 pt-3">
-        {/* Luna: schimbă cardul „Încasat” și lista „Toate”. */}
-        <div className="flex items-center gap-2">
-          <Button type="button" variant="neutral" size="icon-touch" aria-label="Luna dinainte" onClick={() => setMonthOffset((value) => value - 1)}>
-            <ChevronLeft aria-hidden />
-          </Button>
-          <p className={cn('min-w-0 flex-1 truncate text-center font-extrabold text-fg', kitText.card)} aria-live="polite">
-            {monthLabel ? capitalizeRo(monthLabel) : '…'}
-          </p>
-          <Button
-            type="button"
-            variant="neutral"
-            size="icon-touch"
-            aria-label="Luna următoare"
-            disabled={atPresent}
-            onClick={() => setMonthOffset((value) => value + 1)}
-          >
-            <ChevronRight aria-hidden />
-          </Button>
+      {!loading && todayIso ? (
+        <div className="mx-auto hidden w-full max-w-modul pt-3 lg:block">
+          <VanzariDesktop
+            randuri={tabRows}
+            todayIso={todayIso}
+            canWrite={canWrite}
+            vanzariPlataPartiala={vanzariPlataPartiala}
+            vedere={vedere}
+            idAles={idAles}
+            onAlege={(id, { push }) => alegeId(id, { push })}
+            onDeschideDinTabel={(id) => {
+              setVedere('lista')
+              alegeId(id, { push: true })
+            }}
+            sus={
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="w-[300px]">{navLuna}</div>
+                <Segments<Tab>
+                  aria-label="Ce vânzări arăt"
+                  value={tab}
+                  onValueChange={setTab}
+                  options={[
+                    { value: 'toate', label: 'Luna' },
+                    { value: 'neincasate', label: 'Neîncasate', count: rest.count },
+                  ]}
+                  className="w-[260px]"
+                />
+              </div>
+            }
+          />
         </div>
+      ) : null}
+      <div className={cn('mx-auto w-full max-w-modul space-y-4 pt-3', !loading && todayIso && 'lg:hidden')}>
+        {/* Luna: schimbă cardul „Încasat” și lista „Toate”. */}
+        {navLuna}
 
         {vanzariQuery.isError ? (
           <Notice
@@ -287,7 +267,7 @@ export function VanzariPageClient() {
           )}
         </div>
 
-        {canWrite ? <div className="hidden md:block">{rapidaButton}</div> : null}
+        {canWrite ? <div className="hidden md:block lg:hidden">{rapidaButton}</div> : null}
 
         <Segments<Tab>
           aria-label="Ce vânzări arăt"
@@ -374,180 +354,8 @@ export function VanzariPageClient() {
         <VanzareRapidaForm open={rapidaOpen} onOpenChange={setRapidaOpen} todayIso={todayIso} clienti={clienti} comenzi={comenzi} />
       ) : null}
 
-      <BottomSheet
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        title={sheetView === 'parte' ? 'Cât a dat acum?' : (opened?.clientNume ?? 'Vânzare')}
-        description={
-          opened
-            ? sheetView === 'parte'
-              ? `${opened.clientNume} · total ${formatLei(opened.total)}`
-              : `${capitalizeRo(weekdayDateRo(opened.data))} · ${opened.rapida ? 'vânzare rapidă' : opened.comanda_id ? 'din comanda livrată' : 'vânzare directă'}`
-            : undefined
-        }
-      >
-        {opened ? (
-          sheetView === 'parte' ? (
-            <form
-              className="space-y-4"
-              onSubmit={(event) => {
-                event.preventDefault()
-                void savePartial()
-              }}
-            >
-              {sheetError ? (
-                <Notice tone="danger" title="Nu s-a salvat">
-                  {sheetError}
-                </Notice>
-              ) : null}
-              <BigInput
-                label="Cât a dat acum"
-                inputMode="decimal"
-                autoComplete="off"
-                enterKeyHint="done"
-                placeholder="ex. 50"
-                value={parteText}
-                onChange={(event) => setParteText(event.target.value)}
-                trailing={<span className={cn('font-bold text-fg-muted', kitText.base)}>lei</span>}
-                error={plataNoua && !plataNoua.ok && parteText.trim() !== '' ? plataNoua.motiv : undefined}
-                hint={`A dat până acum: ${formatLei(opened.primit)} · rest ${formatLei(opened.rest)}`}
-              />
-              {plataNoua?.ok ? (
-                <p className={cn('text-fg-muted', kitText.secondary)}>
-                  {plataNoua.completeaza
-                    ? 'Cu asta a dat tot: vânzarea devine încasată azi.'
-                    : `După plată: rest ${formatLei(plataNoua.rest)}. Vânzarea rămâne neîncasată până vine restul.`}
-                </p>
-              ) : null}
-              <Button type="submit" variant="primary" size="touch-lg" className="w-full" loading={busy === 'parte'} disabled={!parteValid}>
-                {parteValid && parteLei !== null ? `Notează ${formatLei(parteLei)}` : 'Notează suma'}
-              </Button>
-              <Button
-                type="button"
-                variant="neutral"
-                size="touch-lg"
-                className="w-full"
-                onClick={() => {
-                  setSheetError(null)
-                  setSheetView('detalii')
-                }}
-              >
-                Înapoi
-              </Button>
-            </form>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex">
-                <StatusPill tone={opened.incasata ? 'success' : 'warning'}>
-                  {opened.incasata
-                    ? opened.data_incasare
-                      ? `Încasat · ${shortDateRo(opened.data_incasare)}`
-                      : 'Încasat'
-                    : 'Neîncasat'}
-                </StatusPill>
-              </div>
-
-              {sheetError ? (
-                <Notice tone="danger" title="Nu s-a salvat">
-                  {sheetError}
-                </Notice>
-              ) : null}
-
-              <SummaryList>
-                <SummaryRow label="Cantitate" value={formatKg(Number(opened.cantitate_kg) || 0)} />
-                <SummaryRow label="Preț" value={formatLeiKg(Number(opened.pret_lei_kg) || 0)} />
-                <SummaryRow label="Total" value={formatLei(opened.total)} />
-                {!opened.incasata && opened.primit > 0 ? (
-                  <>
-                    <SummaryRow
-                      label="A dat"
-                      value={`${formatLei(opened.primit)}${opened.data_incasare_partiala ? ` · ${shortDateRo(opened.data_incasare_partiala)}` : ''}`}
-                    />
-                    <SummaryRow label="Rest de primit" value={formatLei(opened.rest)} />
-                  </>
-                ) : null}
-              </SummaryList>
-
-              <div className="flex flex-col gap-2.5">
-                {canWrite && !opened.incasata ? (
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="touch-lg"
-                    className="w-full"
-                    loading={busy === 'incasat'}
-                    disabled={busy !== null}
-                    onClick={() => void markStatus(opened, 'platit')}
-                  >
-                    Marchează încasat azi
-                  </Button>
-                ) : null}
-                {canWrite && !opened.incasata && vanzariPlataPartiala ? (
-                  <Button
-                    type="button"
-                    variant="neutral"
-                    size="touch"
-                    className="w-full"
-                    disabled={busy !== null}
-                    onClick={() => {
-                      setSheetError(null)
-                      setParteText('')
-                      plataIdRef.current = null
-                      setSheetView('parte')
-                    }}
-                  >
-                    A dat doar o parte…
-                  </Button>
-                ) : null}
-                {phone ? (
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <a href={`tel:${phone.tel}`} className={cn(buttonVariants({ variant: 'neutral', size: 'touch' }), 'w-full')}>
-                      <Phone aria-hidden />
-                      Sună clientul
-                    </a>
-                    <a
-                      href={`https://wa.me/${phone.wa}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={cn(buttonVariants({ variant: 'neutral', size: 'touch' }), 'w-full')}
-                    >
-                      <MessageCircle aria-hidden />
-                      WhatsApp
-                    </a>
-                  </div>
-                ) : null}
-                {opened.comanda_id && !opened.rapida ? (
-                  <Button
-                    type="button"
-                    variant="neutral"
-                    size="touch"
-                    className="w-full"
-                    onClick={() => {
-                      setSheetOpen(false)
-                      router.push('/comenzi?filter=livrate')
-                    }}
-                  >
-                    <ShoppingBasket aria-hidden />
-                    Vezi comanda
-                  </Button>
-                ) : null}
-                {canWrite && opened.incasata ? (
-                  <Button
-                    type="button"
-                    variant="quiet"
-                    size="touch"
-                    className="w-full"
-                    loading={busy === 'neincasat'}
-                    disabled={busy !== null}
-                    onClick={() => void markStatus(opened, 'restanta')}
-                  >
-                    Marchează neîncasat
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-          )
-        ) : null}
+      <BottomSheet open={sheetOpen} onOpenChange={setSheetOpen} title={fisa?.title ?? 'Vânzare'} description={fisa?.description}>
+        {fisa?.content ?? null}
       </BottomSheet>
     </AppShell>
   )

@@ -175,3 +175,29 @@ export function numeFisier(baza: string, azi: string, extensie: 'xls'): string {
     .replace(/^-|-$/g, '')
   return `${slug}-${azi}.${extensie}`
 }
+
+/** Registrul de încasări și plăți pe o lună (promptul 35, §8), pentru `.xls` / tipărire. */
+export function documentRegistruCasa(registru: {
+  luna: string
+  randuri: readonly { data: string; explicatie: string; incasare: number; plata: number }[]
+  totalIncasari: number
+  totalPlati: number
+  diferenta: number
+}): DocumentExport {
+  const [an, luna] = registru.luna.split('-')
+  return {
+    titlu: 'Registrul de încasări și plăți',
+    subtitlu: `Luna: ${luna}.${an} · încasările la ziua încasării, plățile = cheltuieli și investiții; fără sold de casă`,
+    tabele: [
+      {
+        titlu: 'Înregistrări',
+        coloane: ['Data', 'Explicație', 'Încasări (lei)', 'Plăți (lei)'],
+        randuri: [
+          ...registru.randuri.map((rand) => [dataRo(rand.data), rand.explicatie, rand.incasare > 0 ? formatNumber(rand.incasare) : '', rand.plata > 0 ? formatNumber(rand.plata) : '']),
+          ['', 'Total', formatNumber(registru.totalIncasari), formatNumber(registru.totalPlati)],
+          ['', 'Diferența (încasări − plăți)', formatNumber(registru.diferenta), ''],
+        ],
+      },
+    ],
+  }
+}

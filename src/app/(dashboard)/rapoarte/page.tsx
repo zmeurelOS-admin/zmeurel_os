@@ -1,4 +1,5 @@
 import type { MiscareStoc } from '@/lib/magazie/stoc'
+import type { IesireMagazieParcela } from '@/lib/rapoarte/profit-parcela'
 import { createClient } from '@/lib/supabase/server'
 import { RapoartePageClient } from './RapoartePageClient'
 
@@ -17,7 +18,7 @@ export default async function RapoartePage() {
         .order('data', { ascending: false }),
       supabase
         .from('cheltuieli_diverse')
-        .select('id,data,categorie,suma_lei')
+        .select('id,data,categorie,suma_lei,furnizor,descriere,document_url')
         .order('data', { ascending: false }),
       // `rol`: parcelele personale nu intră la kg recoltate în plăci.
       supabase.from('parcele').select('id,nume_parcela,nr_plante,rol'),
@@ -31,7 +32,7 @@ export default async function RapoartePage() {
       // Investițiile: secțiune proprie, nu intră la cheltuieli și nu scad din profit.
       supabase
         .from('investitii')
-        .select('id,data,categorie,suma_lei')
+        .select('id,data,categorie,suma_lei,furnizor,descriere,document_url')
         .order('data', { ascending: false }),
     ])
 
@@ -41,7 +42,7 @@ export default async function RapoartePage() {
     from: (table: string) => { select: (columns: string) => PromiseLike<{ data: unknown; error: unknown }> }
   })
     .from('magazie_miscari')
-    .select('produs_id,tip,cantitate,data,created_at,pret_total_lei')
+    .select('produs_id,tip,cantitate,data,created_at,pret_total_lei,aplicare_produs_id')
   const magazieMiscari: MiscareStoc[] = magazie.error
     ? []
     : ((magazie.data ?? []) as Array<Record<string, unknown>>).map((row) => ({
@@ -53,9 +54,14 @@ export default async function RapoartePage() {
         pret_total_lei: row.pret_total_lei === null || row.pret_total_lei === undefined ? null : Number(row.pret_total_lei),
       }))
 
+  // Promptul 35, §8: parcela fiecărei ieșiri din Magazie (ieșirea → produsul aplicării → aplicarea, câte una pe
+  // parcelă), pentru tratamentele din profitul estimat pe parcelă. Doar citire, cu RLS-ul proprietarului.
+  const iesiriParcele = await parcelaIesirilor(supabase, magazie.error ? [] : ((magazie.data ?? []) as Array<Record<string, unknown>>))
+
   return (
     <RapoartePageClient
       magazieMiscari={magazieMiscari}
+      iesiriParcele={iesiriParcele}
       date={{
         recoltari: recoltari ?? [],
         vanzari: vanzari ?? [],
@@ -68,4 +74,37 @@ export default async function RapoartePage() {
       }}
     />
   )
+}
+
+type ClientSupabase = Awaited<ReturnType<typeof createClient>>
+
+async function inBucati<T>(ids: string[], citeste: (bucata: string[]) => PromiseLike<{ data: unknown; error: unknown }>): Promise<T[]> {
+  const rezultat: T[] = []
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data, error } = await citeste(ids.slice(i, i + 200))
+    if (error) return []
+    rezultat.push(...((data ?? []) as T[]))
+  }
+  return rezultat
+}
+
+async function parcelaIesirilor(supabase: ClientSupabase, randuri: Array<Record<string, unknown>>): Promise<IesireMagazieParcela[]> {
+  const iesiri = randuri.filter((row) => row.tip === 'iesire_tratament' && row.aplicare_produs_id)
+  if (iesiri.length === 0) return []
+  const produse = await inBucati<{ id: string; aplicare_id: string }>(
+    [...new Set(iesiri.map((row) => String(row.aplicare_produs_id)))],
+    (bucata) => supabase.from('aplicari_tratament_produse').select('id,aplicare_id').in('id', bucata),
+  )
+  const aplicarePeProdus = new Map(produse.map((row) => [row.id, row.aplicare_id]))
+  const aplicari = await inBucati<{ id: string; parcela_id: string | null }>(
+    [...new Set(produse.map((row) => row.aplicare_id))],
+    (bucata) => supabase.from('aplicari_tratament').select('id,parcela_id').in('id', bucata),
+  )
+  const parcelaPeAplicare = new Map(aplicari.map((row) => [row.id, row.parcela_id]))
+  return iesiri.map((row) => ({
+    produs_id: String(row.produs_id),
+    cantitate: Number(row.cantitate) || 0,
+    data: String(row.data ?? '').slice(0, 10),
+    parcela_id: parcelaPeAplicare.get(aplicarePeProdus.get(String(row.aplicare_produs_id)) ?? '') ?? null,
+  }))
 }

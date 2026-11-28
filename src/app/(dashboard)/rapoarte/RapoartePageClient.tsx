@@ -5,7 +5,10 @@ import { Download } from 'lucide-react'
 
 import { AppShell } from '@/components/app/AppShell'
 import { Button, EmptyState, ListRow, Segments, StatHero, StatTile, kitText } from '@/components/kit'
+import { BaniDesktop } from '@/components/rapoarte/BaniDesktop'
 import { ExportRaportSheet } from '@/components/rapoarte/ExportRaportSheet'
+import type { IesireMagazieParcela } from '@/lib/rapoarte/profit-parcela'
+import { useEsteDesktop } from '@/lib/ui/useEsteDesktop'
 import { ScreenBody, ScreenHeader } from '@/components/setari/SetariUi'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { formatKg, formatLei, formatNumber } from '@/lib/format-ro'
@@ -92,14 +95,28 @@ function GraficLuni({ luni }: { luni: LunaRaport[] }) {
 
 const cifra = (text: string) => <span className={cn('whitespace-nowrap font-extrabold tabular-nums text-fg', kitText.base)}>{text}</span>
 
-export function RapoartePageClient({ date, magazieMiscari = [] }: { date: DateRaport; magazieMiscari?: readonly MiscareStoc[] }) {
+export function RapoartePageClient({
+  date,
+  magazieMiscari = [],
+  iesiriParcele = [],
+}: {
+  date: DateRaport
+  magazieMiscari?: readonly MiscareStoc[]
+  /** Ieșirile din Magazie cu parcela aplicării (profitul estimat pe parcelă, desktop). */
+  iesiriParcele?: readonly IesireMagazieParcela[]
+}) {
   useTrackModuleView('rapoarte')
   const azi = useSyncExternalStore(subscribeToDayChange, readToday, noServerDay)
   const [tip, setTip] = useState<TipPerioada>('sezon')
+  // Desktop (promptul 35, §8): implicit anul, cu comutatorul în antet.
+  const [tipDesktop, setTipDesktop] = useState<TipPerioada>('an')
   const [lista, setLista] = useState<Lista>('parcele')
   const [exportOpen, setExportOpen] = useState(false)
 
-  const perioada = useMemo(() => (azi ? perioadaRaport(tip, azi, date.recoltari) : null), [azi, tip, date.recoltari])
+  // Pe desktop, exporturile urmează perioada aleasă în antet; pe telefon, segmentele din pagină.
+  const esteDesktop = useEsteDesktop()
+  const tipEfectiv = esteDesktop ? tipDesktop : tip
+  const perioada = useMemo(() => (azi ? perioadaRaport(tipEfectiv, azi, date.recoltari) : null), [azi, tipEfectiv, date.recoltari])
   const sumar = useMemo(() => (perioada ? sumarRaport(date, perioada) : null), [date, perioada])
   const luni = useMemo(() => (perioada ? luniRaport(date, perioada) : []), [date, perioada])
   const parcele = useMemo(() => (perioada ? peParcele(date, perioada) : []), [date, perioada])
@@ -150,16 +167,43 @@ export function RapoartePageClient({ date, magazieMiscari = [] }: { date: DateRa
       header={
         <ScreenHeader
           title="Rapoarte"
+          titleDesktop="Bani și rapoarte"
           backHref="/mai-mult"
           right={
-            <Button type="button" variant="quiet" size="icon-touch" aria-label="Exportă" disabled={!perioada} onClick={() => setExportOpen(true)}>
+            <Button type="button" variant="quiet" size="icon-touch" aria-label="Exportă" disabled={!perioada} onClick={() => setExportOpen(true)} className="lg:hidden">
               <Download aria-hidden />
             </Button>
           }
+          desktop={{
+            comutatoare: (
+              <Segments
+                aria-label="Perioada"
+                options={[
+                  { value: 'luna', label: 'Luna' },
+                  { value: 'sezon', label: 'Sezonul' },
+                  { value: 'an', label: 'Anul' },
+                ]}
+                value={tipDesktop}
+                onValueChange={setTipDesktop}
+                className="w-[300px]"
+              />
+            ),
+            alte: (
+              <Button type="button" variant="neutral" size="touch" disabled={!perioada} onClick={() => setExportOpen(true)}>
+                <Download aria-hidden />
+                Exportă
+              </Button>
+            ),
+          }}
         />
       }
     >
-      <ScreenBody className="space-y-3.5 pb-8">
+      {azi ? (
+        <div className="mx-auto w-full max-w-modul">
+          <BaniDesktop azi={azi} tip={tipDesktop} date={date} magazieMiscari={magazieMiscari} iesiriParcele={iesiriParcele} onExporturi={() => setExportOpen(true)} />
+        </div>
+      ) : null}
+      <ScreenBody className="space-y-3.5 pb-8 lg:hidden">
         <Segments
           aria-label="Perioada"
           options={[

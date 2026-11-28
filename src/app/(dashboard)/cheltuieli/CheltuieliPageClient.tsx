@@ -9,6 +9,8 @@ import { AppShell } from '@/components/app/AppShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { PageHeader } from '@/components/app/PageHeader'
 import { CategorieIcon } from '@/components/cheltuieli/CategorieIcon'
+import { CheltuieliDesktop } from '@/components/cheltuieli/CheltuieliDesktop'
+import { ComutatorVedere } from '@/components/comenzi/ComutatoareComenzi'
 import {
   CheltuialaStepForm,
   type FinancialKind,
@@ -17,6 +19,7 @@ import {
 import {
   BigInput,
   BottomSheet,
+  elementAles,
   Button,
   EmptyState,
   ListRow,
@@ -51,6 +54,8 @@ import { deleteInvestitie, getInvestitii, type Investitie } from '@/lib/supabase
 import { isAutoManoperaCheltuiala } from '@/lib/supabase/queries/manopera-auto'
 import { toast } from '@/lib/ui/toast'
 import { useTodayIso } from '@/lib/ui/use-today-iso'
+import { useEsteDesktop } from '@/lib/ui/useEsteDesktop'
+import { useIdDinUrl, useVedereDinUrl } from '@/lib/ui/useIdDinUrl'
 import { cn } from '@/lib/utils'
 
 type Tab = 'cheltuieli' | 'investitii'
@@ -98,6 +103,9 @@ export function CheltuieliPageClient({ initialCheltuieli, initialInvestitii, par
   const queryString = searchParams.toString()
 
   const [tab, setTab] = useState<Tab>(initialTab)
+  const esteDesktop = useEsteDesktop()
+  const [idAles, alegeId] = useIdDinUrl()
+  const [vedere, setVedere] = useVedereDinUrl()
   const [query, setQuery] = useState('')
   const [monthOffset, setMonthOffset] = useState(0)
   const [yearOffset, setYearOffset] = useState(0)
@@ -107,7 +115,7 @@ export function CheltuieliPageClient({ initialCheltuieli, initialInvestitii, par
   const [prefill, setPrefill] = useState<FinancialPrefill | null>(null)
   const [editing, setEditing] = useState<Cheltuiala | Investitie | null>(null)
 
-  const [opened, setOpened] = useState<Row | null>(null)
+  const [openedTelefon, setOpenedTelefon] = useState<Row | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -188,7 +196,7 @@ export function CheltuieliPageClient({ initialCheltuieli, initialInvestitii, par
   }, [tab])
 
   const openRow = useCallback((row: Row) => {
-    setOpened(row)
+    setOpenedTelefon(row)
     setConfirmingDelete(false)
     setDeleteError(null)
     setSheetOpen(true)
@@ -268,6 +276,17 @@ export function CheltuieliPageClient({ initialCheltuieli, initialInvestitii, par
     </Button>
   )
 
+  // Desktop (promptul 35, §8): rândul ales (`?id=`) are fișa în dreapta, cu același conținut ca foaia.
+  const alesDesktop = elementAles(visibleRows, (item) => item.row.id, idAles)
+  const opened = esteDesktop ? alesDesktop : openedTelefon
+  const cheieFisa = esteDesktop ? (alesDesktop?.row.id ?? null) : null
+  const [cheieVazuta, setCheieVazuta] = useState<string | null>(null)
+  if (cheieVazuta !== cheieFisa) {
+    setCheieVazuta(cheieFisa)
+    setConfirmingDelete(false)
+    setDeleteError(null)
+  }
+
   const openedAuto = opened?.kind === 'cheltuiala' && isAutoManoperaCheltuiala(opened.row)
   const openedBon = resolveBonLink(opened?.row.document_url)
   // Un bon din bucket se deschide printr-un URL semnat (1 oră), cerut cât e foaia deschisă.
@@ -275,7 +294,7 @@ export function CheltuieliPageClient({ initialCheltuieli, initialInvestitii, par
   const signedBonQuery = useQuery({
     queryKey: queryKeys.bonUrl(openedBonPath ?? ''),
     queryFn: () => signedBonUrl(openedBonPath),
-    enabled: sheetOpen && openedBonPath !== null,
+    enabled: (sheetOpen || esteDesktop) && openedBonPath !== null,
     staleTime: 45 * 60_000,
     gcTime: 50 * 60_000,
     refetchOnWindowFocus: false,
@@ -283,180 +302,7 @@ export function CheltuieliPageClient({ initialCheltuieli, initialInvestitii, par
   const openedBonUrl = openedBon ? (openedBon.kind === 'direct' ? openedBon.url : (signedBonQuery.data ?? null)) : null
   const openedBonLoading = openedBonPath !== null && signedBonQuery.isPending
 
-  return (
-    <AppShell
-      header={<PageHeader title="Cheltuieli" subtitle={periodLabel || undefined} contentVariant="workspace" />}
-      bottomBarFixed
-      bottomBar={
-        // Butonul mare ține locul butonului plutitor (+).
-        canWrite && !loading ? (
-          <div className="mx-auto w-full max-w-md px-4">
-            <div className="rounded-box shadow-2">{addButton}</div>
-          </div>
-        ) : undefined
-      }
-    >
-      <div className="mx-auto w-full max-w-modul space-y-4 pt-3">
-        <Segments<Tab>
-          aria-label="Ce arăt"
-          panelId="cheltuieli-lista"
-          value={tab}
-          onValueChange={(next) => {
-            setTab(next)
-            setQuery('')
-          }}
-          options={[
-            { value: 'cheltuieli', label: 'Cheltuieli' },
-            { value: 'investitii', label: 'Investiții' },
-          ]}
-        />
-
-        {/* Perioada: luna la cheltuieli, anul la investiții. */}
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="neutral"
-            size="icon-touch"
-            aria-label={isCheltuieli ? 'Luna dinainte' : 'Anul dinainte'}
-            onClick={() => (isCheltuieli ? setMonthOffset((value) => value - 1) : setYearOffset((value) => value - 1))}
-          >
-            <ChevronLeft aria-hidden />
-          </Button>
-          <p className={cn('min-w-0 flex-1 truncate text-center font-extrabold text-fg', kitText.card)} aria-live="polite">
-            {periodLabel || '…'}
-          </p>
-          <Button
-            type="button"
-            variant="neutral"
-            size="icon-touch"
-            aria-label={isCheltuieli ? 'Luna următoare' : 'Anul următor'}
-            disabled={atPresent}
-            onClick={() => (isCheltuieli ? setMonthOffset((value) => value + 1) : setYearOffset((value) => value + 1))}
-          >
-            <ChevronRight aria-hidden />
-          </Button>
-        </div>
-
-        {activeQuery.isError ? (
-          <Notice
-            tone="danger"
-            title="Nu s-au încărcat"
-            action={
-              <Button type="button" variant="neutral" size="touch" loading={activeQuery.isRefetching} onClick={() => void activeQuery.refetch()}>
-                Reîncearcă
-              </Button>
-            }
-          >
-            {errorText(activeQuery.error, 'Verifică internetul și încearcă din nou.')}
-          </Notice>
-        ) : null}
-
-        <div className="grid grid-cols-2 gap-2.5">
-          <StatTile
-            tone="inverse"
-            value={formatLei(sumLei(rows.map((item) => item.row)))}
-            label={`${isCheltuieli ? 'Luna aceasta' : `În ${year ?? ''}`} · ${rows.length} ${rows.length === 1 ? 'înregistrare' : 'înregistrări'}`}
-          />
-          {isCheltuieli ? (
-            <StatTile value={formatLei(sumLei(cheltuieliAn))} label={`Tot anul ${month?.year ?? ''}`} />
-          ) : (
-            <StatTile value={formatLei(sumLei(investitiiAnTrecut))} label={`Anul trecut (${year ? year - 1 : ''})`} />
-          )}
-        </div>
-
-        {canWrite ? <div className="hidden md:block">{addButton}</div> : null}
-
-        {rows.length > 5 ? (
-          <BigInput
-            aria-label="Caută după categorie, furnizor sau descriere"
-            placeholder="Caută: categorie, furnizor…"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            leading={<Search aria-hidden />}
-            autoComplete="off"
-            autoCorrect="off"
-            enterKeyHint="search"
-          />
-        ) : null}
-
-        <section id="cheltuieli-lista" role="tabpanel" aria-label={isCheltuieli ? 'Cheltuieli' : 'Investiții'}>
-          {loading ? (
-            <div className="space-y-2" aria-busy="true" aria-label="Se încarcă">
-              <div className="h-[68px] animate-pulse rounded-box bg-surface-muted" />
-              <div className="h-[68px] animate-pulse rounded-box bg-surface-muted" />
-            </div>
-          ) : visibleRows.length === 0 && rows.length > 0 ? (
-            <EmptyState icon={<Search />} title="Nimic găsit" description="Caută după categorie, furnizor sau ce ai cumpărat." />
-          ) : rows.length === 0 ? (
-            <EmptyState
-              icon={<Wallet />}
-              title={isCheltuieli ? 'Nicio cheltuială în această lună' : 'Nicio investiție în acest an'}
-              description={
-                canWrite
-                  ? isCheltuieli
-                    ? 'Notează ce ai plătit: motorină, ambalaje, tratamente.'
-                    : 'Notează ce ai cumpărat pe termen lung: butași, irigație, utilaje.'
-                  : undefined
-              }
-            />
-          ) : (
-            <ul className="space-y-2">
-              {visibleRows.map((item) => {
-                const categorie =
-                  item.kind === 'cheltuiala' ? resolveCheltuialaCategorie(item.row.categorie) : resolveInvestitieCategorie(item.row.categorie)
-                const auto = item.kind === 'cheltuiala' && isAutoManoperaCheltuiala(item.row)
-                const parcelaId = item.kind === 'investitie' ? item.row.parcela_id : null
-                const title = auto ? 'Manoperă cules' : item.row.descriere?.trim() || categorie
-                const detail = [
-                  auto ? 'Automat din Recoltări' : title === categorie ? null : categorie,
-                  shortDateRo(item.row.data),
-                  item.row.furnizor?.trim() || null,
-                  parcelaId ? parcelaNames.get(parcelaId) ?? null : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')
-                return (
-                  <li key={`${item.kind}-${item.row.id}`}>
-                    <ListRow
-                      avatar={false}
-                      leading={
-                        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-surface-muted text-fg [&_svg]:size-5" aria-hidden>
-                          <CategorieIcon kind={item.kind} categorie={item.row.categorie} />
-                        </span>
-                      }
-                      title={title}
-                      detail={detail}
-                      onClick={() => openRow(item)}
-                      chevron={false}
-                      aria-label={`${title}, ${formatLei(Number(item.row.suma_lei) || 0)}, ${shortDateRo(item.row.data)}. Deschide`}
-                      trailing={
-                        <span className={cn('font-extrabold text-fg', kitText.base)}>{formatLei(Number(item.row.suma_lei) || 0)}</span>
-                      }
-                    />
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </section>
-      </div>
-
-      {todayIso ? (
-        <CheltuialaStepForm
-          kind={formKind}
-          open={formOpen}
-          onOpenChange={setFormOpen}
-          todayIso={todayIso}
-          parcele={parcele}
-          prefill={prefill}
-          editing={editing}
-        />
-      ) : null}
-
-      <BottomSheet
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        title={
+  const titluFisa =
           confirmingDelete
             ? opened?.kind === 'investitie'
               ? 'Ștergi investiția?'
@@ -464,10 +310,8 @@ export function CheltuieliPageClient({ initialCheltuieli, initialInvestitii, par
             : opened
               ? formatLei(Number(opened.row.suma_lei) || 0)
               : 'Detalii'
-        }
-        description={opened ? capitalizeRo(weekdayDateRo(opened.row.data)) : undefined}
-      >
-        {opened ? (
+  const descriereFisa = opened ? capitalizeRo(weekdayDateRo(opened.row.data)) : undefined
+  const continutFisa = opened ? (
           confirmingDelete ? (
             <div className="space-y-4">
               {deleteError ? (
@@ -567,7 +411,231 @@ export function CheltuieliPageClient({ initialCheltuieli, initialInvestitii, par
               </div>
             </div>
           )
+  ) : null
+
+  const navPerioada = (
+    <div className="flex items-center gap-2">
+      <Button
+        type="button"
+        variant="neutral"
+        size="icon-touch"
+        aria-label={isCheltuieli ? 'Luna dinainte' : 'Anul dinainte'}
+        onClick={() => (isCheltuieli ? setMonthOffset((value) => value - 1) : setYearOffset((value) => value - 1))}
+      >
+        <ChevronLeft aria-hidden />
+      </Button>
+      <p className={cn('min-w-0 flex-1 truncate text-center font-extrabold text-fg', kitText.card)} aria-live="polite">
+        {periodLabel || '…'}
+      </p>
+      <Button
+        type="button"
+        variant="neutral"
+        size="icon-touch"
+        aria-label={isCheltuieli ? 'Luna următoare' : 'Anul următor'}
+        disabled={atPresent}
+        onClick={() => (isCheltuieli ? setMonthOffset((value) => value + 1) : setYearOffset((value) => value + 1))}
+      >
+        <ChevronRight aria-hidden />
+      </Button>
+    </div>
+  )
+
+  return (
+    <AppShell
+      header={
+        <PageHeader
+          title="Cheltuieli"
+          subtitle={periodLabel || undefined}
+          contentVariant="workspace"
+          actiune={canWrite && !loading ? { label: isCheltuieli ? 'Cheltuială' : 'Investiție', onClick: openCreate } : null}
+          comutatoare={<ComutatorVedere vedere={vedere} onVedere={setVedere} />}
+        />
+      }
+      bottomBarFixed
+      bottomBar={
+        // Butonul mare ține locul butonului plutitor (+).
+        canWrite && !loading ? (
+          <div className="mx-auto w-full max-w-md px-4">
+            <div className="rounded-box shadow-2">{addButton}</div>
+          </div>
+        ) : undefined
+      }
+    >
+      {!loading ? (
+        <div className="mx-auto hidden w-full max-w-modul pt-3 lg:block">
+          <CheltuieliDesktop
+            randuri={visibleRows}
+            parcelaNames={parcelaNames}
+            todayIso={todayIso ?? ''}
+            vedere={vedere}
+            idAles={idAles}
+            onAlege={(id, { push }) => alegeId(id, { push })}
+            onDeschideDinTabel={(id) => {
+              setVedere('lista')
+              alegeId(id, { push: true })
+            }}
+            titluFisa={titluFisa}
+            descriereFisa={descriereFisa}
+            continutFisa={continutFisa}
+            sus={
+              <div className="flex flex-wrap items-center gap-2">
+                <Segments<Tab>
+                  aria-label="Ce arăt"
+                  value={tab}
+                  onValueChange={(next) => {
+                    setTab(next)
+                    setQuery('')
+                  }}
+                  options={[
+                    { value: 'cheltuieli', label: 'Cheltuieli' },
+                    { value: 'investitii', label: 'Investiții' },
+                  ]}
+                  className="w-[260px]"
+                />
+                <div className="w-[300px]">{navPerioada}</div>
+              </div>
+            }
+            cautare={query}
+            onCautare={setQuery}
+          />
+        </div>
+      ) : null}
+      <div className={cn('mx-auto w-full max-w-modul space-y-4 pt-3', !loading && 'lg:hidden')}>
+        <Segments<Tab>
+          aria-label="Ce arăt"
+          panelId="cheltuieli-lista"
+          value={tab}
+          onValueChange={(next) => {
+            setTab(next)
+            setQuery('')
+          }}
+          options={[
+            { value: 'cheltuieli', label: 'Cheltuieli' },
+            { value: 'investitii', label: 'Investiții' },
+          ]}
+        />
+
+        {/* Perioada: luna la cheltuieli, anul la investiții. */}
+        {navPerioada}
+
+        {activeQuery.isError ? (
+          <Notice
+            tone="danger"
+            title="Nu s-au încărcat"
+            action={
+              <Button type="button" variant="neutral" size="touch" loading={activeQuery.isRefetching} onClick={() => void activeQuery.refetch()}>
+                Reîncearcă
+              </Button>
+            }
+          >
+            {errorText(activeQuery.error, 'Verifică internetul și încearcă din nou.')}
+          </Notice>
         ) : null}
+
+        <div className="grid grid-cols-2 gap-2.5">
+          <StatTile
+            tone="inverse"
+            value={formatLei(sumLei(rows.map((item) => item.row)))}
+            label={`${isCheltuieli ? 'Luna aceasta' : `În ${year ?? ''}`} · ${rows.length} ${rows.length === 1 ? 'înregistrare' : 'înregistrări'}`}
+          />
+          {isCheltuieli ? (
+            <StatTile value={formatLei(sumLei(cheltuieliAn))} label={`Tot anul ${month?.year ?? ''}`} />
+          ) : (
+            <StatTile value={formatLei(sumLei(investitiiAnTrecut))} label={`Anul trecut (${year ? year - 1 : ''})`} />
+          )}
+        </div>
+
+        {canWrite ? <div className="hidden md:block lg:hidden">{addButton}</div> : null}
+
+        {rows.length > 5 ? (
+          <BigInput
+            aria-label="Caută după categorie, furnizor sau descriere"
+            placeholder="Caută: categorie, furnizor…"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            leading={<Search aria-hidden />}
+            autoComplete="off"
+            autoCorrect="off"
+            enterKeyHint="search"
+          />
+        ) : null}
+
+        <section id="cheltuieli-lista" role="tabpanel" aria-label={isCheltuieli ? 'Cheltuieli' : 'Investiții'}>
+          {loading ? (
+            <div className="space-y-2" aria-busy="true" aria-label="Se încarcă">
+              <div className="h-[68px] animate-pulse rounded-box bg-surface-muted" />
+              <div className="h-[68px] animate-pulse rounded-box bg-surface-muted" />
+            </div>
+          ) : visibleRows.length === 0 && rows.length > 0 ? (
+            <EmptyState icon={<Search />} title="Nimic găsit" description="Caută după categorie, furnizor sau ce ai cumpărat." />
+          ) : rows.length === 0 ? (
+            <EmptyState
+              icon={<Wallet />}
+              title={isCheltuieli ? 'Nicio cheltuială în această lună' : 'Nicio investiție în acest an'}
+              description={
+                canWrite
+                  ? isCheltuieli
+                    ? 'Notează ce ai plătit: motorină, ambalaje, tratamente.'
+                    : 'Notează ce ai cumpărat pe termen lung: butași, irigație, utilaje.'
+                  : undefined
+              }
+            />
+          ) : (
+            <ul className="space-y-2">
+              {visibleRows.map((item) => {
+                const categorie =
+                  item.kind === 'cheltuiala' ? resolveCheltuialaCategorie(item.row.categorie) : resolveInvestitieCategorie(item.row.categorie)
+                const auto = item.kind === 'cheltuiala' && isAutoManoperaCheltuiala(item.row)
+                const parcelaId = item.kind === 'investitie' ? item.row.parcela_id : null
+                const title = auto ? 'Manoperă cules' : item.row.descriere?.trim() || categorie
+                const detail = [
+                  auto ? 'Automat din Recoltări' : title === categorie ? null : categorie,
+                  shortDateRo(item.row.data),
+                  item.row.furnizor?.trim() || null,
+                  parcelaId ? parcelaNames.get(parcelaId) ?? null : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
+                return (
+                  <li key={`${item.kind}-${item.row.id}`}>
+                    <ListRow
+                      avatar={false}
+                      leading={
+                        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-surface-muted text-fg [&_svg]:size-5" aria-hidden>
+                          <CategorieIcon kind={item.kind} categorie={item.row.categorie} />
+                        </span>
+                      }
+                      title={title}
+                      detail={detail}
+                      onClick={() => openRow(item)}
+                      chevron={false}
+                      aria-label={`${title}, ${formatLei(Number(item.row.suma_lei) || 0)}, ${shortDateRo(item.row.data)}. Deschide`}
+                      trailing={
+                        <span className={cn('font-extrabold text-fg', kitText.base)}>{formatLei(Number(item.row.suma_lei) || 0)}</span>
+                      }
+                    />
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </section>
+      </div>
+
+      {todayIso ? (
+        <CheltuialaStepForm
+          kind={formKind}
+          open={formOpen}
+          onOpenChange={setFormOpen}
+          todayIso={todayIso}
+          parcele={parcele}
+          prefill={prefill}
+          editing={editing}
+        />
+      ) : null}
+
+      <BottomSheet open={sheetOpen} onOpenChange={setSheetOpen} title={titluFisa} description={descriereFisa}>
+        {continutFisa}
       </BottomSheet>
     </AppShell>
   )

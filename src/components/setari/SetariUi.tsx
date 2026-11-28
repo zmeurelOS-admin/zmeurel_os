@@ -63,8 +63,11 @@ export function ScreenHeader({
   large = false,
   subtitle,
   desktop,
+  titleDesktop,
 }: {
   title: string
+  /** Alt titlu de la 1024 px (ex. „Bani și rapoarte” pentru Rapoarte). */
+  titleDesktop?: string
   /** Rândul de context de sub titlu; pe telefon apare doar dacă e dat (promptul 35, §1). */
   subtitle?: string
   /** Partea din dreapta a antetului pe desktop (căutarea, comutatoarele, acțiunea principală). */
@@ -101,7 +104,16 @@ export function ScreenHeader({
           </Link>
         ) : null}
         <div className="min-w-0 flex-1">
-          <h1 className={cn('truncate font-extrabold text-fg', large ? kitText.screen : kitText.section)}>{title}</h1>
+          <h1 className={cn('truncate font-extrabold text-fg', large ? kitText.screen : kitText.section)}>
+            {titleDesktop ? (
+              <>
+                <span className="lg:hidden">{title}</span>
+                <span className="hidden lg:inline">{titleDesktop}</span>
+              </>
+            ) : (
+              title
+            )}
+          </h1>
           {subtitle ? <p className={cn('mt-0.5 break-words text-fg-muted', kitText.helper)}>{subtitle}</p> : null}
         </div>
         {right ? <div className="flex shrink-0 items-center gap-2">{right}</div> : null}
