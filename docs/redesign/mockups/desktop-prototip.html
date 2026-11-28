@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caietul Fermei · Desktop — 2 variante</title>
+<style>
+:root{--page:#f4f5f2;--surface:#fff;--surface-muted:#ededeb;--fg:#102015;--fg-muted:#3d4a41;--fg-subtle:#64748b;--border:#d7e2d9;--border-strong:#c8d4cb;--primary:#3d7a5f;--primary-contrast:#fff;--primary-soft:#e6f3ea;--success:#15803d;--success-bg:#ecfdf3;--warning:#b45309;--warning-bg:#fffbeb;--danger:#b91c1c;--danger-bg:#fef2f2;--info:#1d4ed8;--info-bg:#eff6ff}
+.dark{--page:#0d1015;--surface:#12161d;--surface-muted:#171c23;--fg:#f5f6f7;--fg-muted:#949ba4;--fg-subtle:#6c737d;--border:#20262f;--border-strong:#2d343e;--primary:#5ca882;--primary-contrast:#08140e;--primary-soft:#0f2218;--success:#6fbe95;--success-bg:#0f1d16;--warning:#c9a154;--warning-bg:#1d1812;--danger:#e0796a;--danger-bg:#1f1416;--info:#6fa3e0;--info-bg:#131a26}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--page);color:var(--fg);font-size:14px;height:100vh;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+.top{height:44px;display:flex;align-items:center;gap:10px;padding:0 14px;background:#0b2016;color:#e6f3ea;font-size:13px}
+.top b{font-weight:600}.top .sp{flex:1}
+.seg{display:inline-flex;background:rgba(255,255,255,.08);border-radius:8px;padding:3px}
+.seg button{padding:5px 12px;border-radius:6px;color:#cfe3d6}.seg button.on{background:#e6f3ea;color:#0b2016;font-weight:600}
+.tbtn{padding:5px 10px;border-radius:6px;background:rgba(255,255,255,.08)}
+.app{display:flex;height:calc(100vh - 44px)}
+.side{width:232px;flex:none;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column}
+.logo{display:flex;align-items:center;gap:9px;padding:16px 16px 12px;font-weight:700;font-size:15px}
+.logo i{width:28px;height:28px;border-radius:7px;background:var(--primary);display:grid;place-items:center;color:var(--primary-contrast);font-style:normal;font-size:13px}
+.farm{margin:0 12px 10px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;display:flex;justify-content:space-between;color:var(--fg-muted)}
+.nav{flex:1;overflow:auto;padding:4px 8px}
+.nav h6{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-subtle);padding:12px 8px 4px;font-weight:600}
+.nav button{display:flex;width:100%;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;font-size:14px;color:var(--fg-muted);text-align:left}
+.nav button:hover{background:var(--surface-muted)}
+.nav button.on{background:var(--primary-soft);color:var(--primary);font-weight:600}
+.nav .cnt{margin-left:auto;font-size:12px;background:var(--surface-muted);padding:1px 7px;border-radius:9px}
+.me{border-top:1px solid var(--border);padding:12px 14px;display:flex;align-items:center;gap:9px;font-size:13px}
+.av{width:28px;height:28px;border-radius:50%;background:var(--primary-soft);color:var(--primary);display:grid;place-items:center;font-weight:700;font-size:12px}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.head{height:60px;flex:none;display:flex;align-items:center;gap:12px;padding:0 24px;border-bottom:1px solid var(--border);background:var(--surface)}
+.head h1{font-size:20px;font-weight:700}.head .sub{color:var(--fg-subtle);font-size:13px}
+.head .sp{flex:1}
+.search{width:300px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--page);color:var(--fg-subtle);font-size:13px}
+.btn{padding:8px 14px;border-radius:8px;font-weight:600;font-size:14px;border:1px solid var(--border);background:var(--surface)}
+.btn.p{background:var(--primary);color:var(--primary-contrast);border-color:var(--primary)}
+.btn.s{padding:5px 10px;font-size:13px}
+.body{flex:1;overflow:auto;padding:20px 24px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px}
+.ch{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px}
+.ch h3{font-size:15px;font-weight:650}.ch a{font-size:13px;color:var(--primary);cursor:pointer}
+.grid{display:grid;gap:16px}
+.k{padding:14px 16px}.k small{color:var(--fg-subtle);font-size:12px;display:block}.k b{font-size:24px;font-weight:700;display:block;margin:4px 0 2px}.k em{font-style:normal;font-size:12px}
+.up{color:var(--success)}.dn{color:var(--danger)}
+.pill{display:inline-block;font-size:12px;padding:2px 8px;border-radius:10px;font-weight:600;white-space:nowrap}
+.pill.ok{background:var(--success-bg);color:var(--success)}.pill.wa{background:var(--warning-bg);color:var(--warning)}.pill.da{background:var(--danger-bg);color:var(--danger)}.pill.in{background:var(--info-bg);color:var(--info)}.pill.mu{background:var(--surface-muted);color:var(--fg-muted)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-weight:600;color:var(--fg-subtle);font-size:12px;padding:9px 12px;border-bottom:1px solid var(--border);white-space:nowrap;background:var(--surface);position:sticky;top:0}
+td{padding:10px 12px;border-bottom:1px solid var(--border);white-space:nowrap}
+tr.r{cursor:pointer}tr.r:hover td{background:var(--surface-muted)}tr.sel td{background:var(--primary-soft)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.row{display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid var(--border);cursor:pointer}
+.row:hover{background:var(--surface-muted)}.row.sel{background:var(--primary-soft)}
+.row .t{flex:1;min-width:0}.row .t b{display:block;font-weight:600}.row .t small{color:var(--fg-subtle);font-size:12.5px}
+.ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--surface-muted);flex:none;font-size:14px}
+.split{display:grid;grid-template-columns:minmax(360px,420px) 1fr;gap:0;height:100%;margin:-20px -24px}
+.split>.l{border-right:1px solid var(--border);overflow:auto;background:var(--surface)}
+.split>.d{overflow:auto;padding:22px 28px}
+.lh{padding:12px 16px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:1}
+.chip{padding:5px 11px;border-radius:16px;border:1px solid var(--border);font-size:13px}.chip.on{background:var(--fg);color:var(--surface);border-color:var(--fg)}
+.dt h2{font-size:22px;font-weight:700}.dt .meta{color:var(--fg-subtle);margin:4px 0 16px}
+.kv{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.kv div{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px}.kv small{color:var(--fg-subtle);font-size:12px}.kv b{display:block;font-size:17px;margin-top:2px}
+.acts{display:flex;gap:8px;margin-bottom:18px}
+.tl{position:relative;padding-left:18px}.tl div{position:relative;padding:0 0 14px}.tl div:before{content:"";position:absolute;left:-14px;top:5px;width:8px;height:8px;border-radius:50%;background:var(--primary)}.tl div:after{content:"";position:absolute;left:-11px;top:15px;bottom:0;width:2px;background:var(--border)}.tl small{color:var(--fg-subtle)}
+.bars{display:flex;align-items:flex-end;gap:6px;height:140px;padding:0 16px 8px}
+.bars div{flex:1;background:var(--primary);border-radius:4px 4px 0 0;opacity:.85;position:relative}
+.bars div span{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--fg-subtle)}
+.mx td{padding:6px 8px;text-align:center}.mx td:first-child{text-align:left;font-weight:600}
+.dot{display:inline-block;width:12px;height:12px;border-radius:50%}
+.panel{position:fixed;top:44px;right:0;bottom:0;width:460px;background:var(--surface);border-left:1px solid var(--border);box-shadow:-12px 0 32px rgba(0,0,0,.12);transform:translateX(100%);transition:.2s;z-index:20;display:flex;flex-direction:column}
+.panel.on{transform:none}
+.panel .ph{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}.panel .ph h3{font-size:17px}
+.panel .pb{flex:1;overflow:auto;padding:18px 20px;display:grid;gap:14px;align-content:start}
+.panel .pf{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+.f label{display:block;font-size:13px;font-weight:600;margin-bottom:5px}
+.f .in{border:1px solid var(--border);border-radius:8px;padding:9px 11px;background:var(--page);color:var(--fg-muted)}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.notes{position:fixed;right:16px;bottom:16px;width:380px;max-height:70vh;overflow:auto;background:var(--surface);border:1px solid var(--border-strong);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.18);z-index:30;font-size:13.5px}
+.notes.min .nb{display:none}
+.notes .nh{padding:12px 14px;display:flex;justify-content:space-between;align-items:center;font-weight:700;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface)}
+.nb{padding:12px 14px}.nb h4{font-size:13px;margin:10px 0 6px;color:var(--primary)}.nb li{margin:0 0 6px 16px;line-height:1.4}
+.wx{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 16px 14px}.wx div{border:1px solid var(--border);border-radius:9px;padding:8px 10px;font-size:13px}.wx b{display:block;font-size:16px}
+.mut{color:var(--fg-subtle)}
+.bar2{height:8px;border-radius:4px;background:var(--surface-muted);overflow:hidden}.bar2 i{display:block;height:100%;background:var(--primary)}
+</style>
+</head>
+<body>
+<div class="top">
+  <b>Prototip desktop · Caietul Fermei</b>
+  <div class="seg" id="vsel"><button data-v="A" class="on">A · Listă + detaliu</button><button data-v="B">B · Tablouri și tabele</button></div>
+  <div class="sp"></div>
+  <button class="tbtn" id="dk">Noapte / zi</button>
+  <button class="tbtn" id="nt">Ce se schimbă</button>
+</div>
+<div class="app">
+  <aside class="side">
+    <div class="logo"><i>CF</i>Caietul Fermei</div>
+    <div class="farm"><span>Ferma Zmeurel</span><span>▾</span></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="me"><div class="av">AN</div><div style="flex:1">Andrei<br><span class="mut">Proprietar</span></div><span>🔔</span></div>
+  </aside>
+  <main class="main">
+    <div class="head"><div><h1 id="h1"></h1><div class="sub" id="h2"></div></div><div class="sp"></div><div class="search">Caută comandă, client, parcelă…  ⌘K</div><div id="hb"></div></div>
+    <div class="body" id="body"></div>
+  </main>
+</div>
+<div class="panel" id="panel"><div class="ph"><h3 id="pt"></h3><button onclick="closeP()">✕</button></div><div class="pb" id="pb"></div><div class="pf"><button class="btn" onclick="closeP()">Renunță</button><button class="btn p" onclick="closeP()">Salvează</button></div></div>
+<div class="notes" id="notes"><div class="nh"><span>Ce se schimbă · întrebări</span><button onclick="notes.classList.toggle('min')">–</button></div><div class="nb" id="nb"></div></div>
+
+<script>
+let V='A',S='acasa',sel={};
+const NAV=[
+ [null,[['acasa','Acasă','🏠'],['cauta','Azi pe ferma','📋',5]]],
+ ['Vânzări',[['comenzi','Comenzi și livrări','📦',6],['clienti','Clienți','👥'],['stoc','Stoc fructe','🧺']]],
+ ['Ferma',[['parcele','Parcele','🗺️'],['tratamente','Tratamente','🧪',2],['recoltari','Recoltări','⚖️'],['lucrari','Lucrări','🛠️'],['echipa','Culegători și echipă','👷']]],
+ ['Bani',[['bani','Bani și rapoarte','📊'],['registre','Registre și exporturi','🗂️']]],
+ ['Asociația',[['asociatie','Gustă din Bucovina','🤝']]],
+ [null,[['setari','Setări','⚙️']]]
+];
+const CMD=[
+ {id:1,cl:'Mega Image Suceava',tel:'0744 112 233',kg:12,pret:28,zi:'Azi',ora:'10:00',st:'De pregătit',adr:'Str. Universității 21',plata:'Neîncasat'},
+ {id:2,cl:'Selgros',tel:'0230 555 010',kg:15,pret:26,zi:'Azi',ora:'12:30',st:'În livrare',adr:'Calea Unirii 42',plata:'Avans 100 lei'},
+ {id:3,cl:'Piața Centrală · Ana',tel:'0751 220 114',kg:18,pret:30,zi:'Mâine',ora:'08:00',st:'De pregătit',adr:'La poartă',plata:'Neîncasat'},
+ {id:4,cl:'Restaurant Bucovina',tel:'0740 998 001',kg:6,pret:32,zi:'Mâine',ora:'11:00',st:'De pregătit',adr:'Str. Ștefan cel Mare 8',plata:'Neîncasat'},
+ {id:5,cl:'Ion Popescu',tel:'0722 300 400',kg:4,pret:30,zi:'Joi',ora:'—',st:'Livrată',adr:'La poartă',plata:'Încasat'},
+ {id:6,cl:'Cofetăria Dulce',tel:'0745 600 700',kg:8,pret:29,zi:'Vineri',ora:'09:00',st:'De pregătit',adr:'Str. Mărășești 3',plata:'Neîncasat · 34 zile'}
+];
+const PAR=[
+ {id:'m1',n:'Maravilla 1',c:'Zmeură Maravilla',pl:900,s:'3.000 m²',st:'An 2: În repaus · An 1: Tăiat pe 24 nov.',kg:1240,trat:'Pauză încheiată',ult:'Stropire Kelpak · 23 nov.'},
+ {id:'m2',n:'Maravilla 2',c:'Zmeură Maravilla',pl:600,s:'2.000 m²',st:'După recoltare',kg:820,trat:'Tratament întârziat',ult:'Fertirigare A · 18 nov.'},
+ {id:'m3',n:'Maravilla 3',c:'Zmeură Maravilla',pl:400,s:'1.400 m²',st:'După recoltare',kg:510,trat:'—',ult:'Tăiere lăstari · 15 nov.'},
+ {id:'de',n:'DELNIWA',c:'Zmeură Delniwa',pl:1000,s:'3.500 m²',st:'Repaus',kg:1580,trat:'—',ult:'Gunoi de grajd · 3 t/ha · 10 nov.'},
+ {id:'li',n:'Livadă',c:'Mix fructe',pl:60,s:'1.200 m²',st:'Repaus',kg:0,trat:'—',ult:'Var pe tulpini · 2 nov.'},
+ {id:'so',n:'Solar',c:'Legume',pl:0,s:'200 m²',st:'—',kg:0,trat:'—',ult:'—'}
+];
+const TR=[
+ {d:'23 nov.',p:'Maravilla 1',t:'Stropire',pr:'Switch 62,5 WG 60 g · Kelpak 150 ml',st:'Făcut',pa:'Pauză 3 zile, încheiată'},
+ {d:'22 nov.',p:'Maravilla 1, 2',t:'Stropire',pr:'Kelpak 150 ml',st:'Făcut',pa:'—'},
+ {d:'18 nov.',p:'Maravilla 2',t:'Fertirigare',pr:'Soluția A · 4 g/plantă',st:'Făcut',pa:'—'},
+ {d:'10 nov.',p:'DELNIWA',t:'La sol',pr:'Gunoi de grajd · 1,05 t (3 t/ha)',st:'Făcut',pa:'—'},
+ {d:'29 nov.',p:'Maravilla 2',t:'Stropire',pr:'Zeamă bordeleză 300 g',st:'Planificat',pa:'—'}
+];
+const fmt=n=>n.toLocaleString('ro-RO');
+const stp=s=>({'De pregătit':'wa','În livrare':'in','Livrată':'ok','Făcut':'ok','Planificat':'in'}[s]||'mu');
+
+function nav(){document.getElementById('nav').innerHTML=NAV.map(([h,it])=>(h?`<h6>${h}</h6>`:'')+it.map(([k,l,i,c])=>`<button class="${k===S?'on':''}" onclick="go('${k}')"><span>${i}</span>${l}${c?`<span class="cnt">${c}</span>`:''}</button>`).join('')).join('')}
+function go(k){S=k;render()}
+function setH(t,s,b){h1.textContent=t;h2.textContent=s;hb.innerHTML=b||''}
+function openP(t,html){pt.textContent=t;pb.innerHTML=html;panel.classList.add('on')}
+function openC(id){const c=CMD.find(x=>x.id===id);openP('Comanda #'+(1040+id)+' · '+c.cl,`<div class="kv" style="grid-template-columns:1fr 1fr;margin:0"><div><small>Cantitate</small><b>${c.kg} kg</b></div><div><small>Total</small><b>${c.kg*c.pret} lei</b></div></div>`+formCmd())}
+function closeP(){panel.classList.remove('on')}
+const formCmd=()=>`<div class="f"><label>Client</label><div class="in">Caută sau adaugă client…</div></div><div class="f2"><div class="f"><label>Cantitate</label><div class="in">12 kg</div></div><div class="f"><label>Preț</label><div class="in">28 lei/kg</div></div></div><div class="f2"><div class="f"><label>Ziua livrării</label><div class="in">Sâmbătă, 29 nov.</div></div><div class="f"><label>Ora</label><div class="in">10:00</div></div></div><div class="f"><label>Livrare</label><div class="in">La adresă · Str. Universității 21</div></div><div class="f"><label>Avans</label><div class="in">0 lei</div></div><div class="f"><label>Notă</label><div class="in" style="height:64px">—</div></div><div class="mut">Stoc disponibil: 256 kg zmeură cal. I</div>`;
+const formTr=()=>`<div class="f"><label>Parcele</label><div class="in">Maravilla 1, Maravilla 2</div></div><div class="f2"><div class="f"><label>Tip</label><div class="in">Stropire</div></div><div class="f"><label>Data</label><div class="in">Azi, 28 nov.</div></div></div><div class="f"><label>Produse (din magazie)</label><div class="in">Zeamă bordeleză · 300 g / 100 l</div></div><div class="f2"><div class="f"><label>Apă</label><div class="in">500 l/ha</div></div><div class="f"><label>Stadiu</label><div class="in">După recoltare</div></div></div><div class="mut">Pauza până la cules: 14 zile · Magazia: 2,4 kg rămân</div>`;
+
+/* ---------- ACASĂ ---------- */
+function acasaA(){return `<div class="grid" style="grid-template-columns:1.2fr 1fr 340px">
+ <div class="card"><div class="ch"><h3>De făcut azi</h3><a>Toate</a></div>
+  ${[['📦','2 comenzi de pus în livrare','Mega Image 12 kg · Selgros 15 kg','wa'],['🪤','Verifică 3 capcane','Maravilla · atractantul se schimbă azi','wa'],['🧪','Tratament întârziat','Maravilla 2 · Zeamă bordeleză','da'],['💰','2 clienți neîncasați ≥ 30 zile','Cofetăria Dulce 232 lei','in'],['❄️','Îngheț mâine: −6 °C','Acoperă răsadurile din solar','in']].map(r=>`<div class="row"><div class="ic">${r[0]}</div><div class="t"><b>${r[1]}</b><small>${r[2]}</small></div><span class="pill ${r[3]}">Azi</span></div>`).join('')}
+ </div>
+ <div class="card"><div class="ch"><h3>Comenzi azi și mâine</h3><a onclick="go('comenzi')">Comenzi</a></div>
+  ${CMD.slice(0,4).map(c=>`<div class="row" onclick="sel.c=${c.id};go('comenzi')"><div class="t"><b>${c.cl}</b><small>${c.zi} · ${c.ora} · ${c.adr}</small></div><b>${c.kg} kg</b><span class="pill ${stp(c.st)}">${c.st}</span></div>`).join('')}
+  <div class="row"><div class="t"><b>Total de livrat</b><small>Stoc cal. I: 256 kg</small></div><b>51 kg</b></div>
+ </div>
+ <div class="grid">
+  <div class="card"><div class="ch"><h3>Vremea · Văratec</h3><span class="mut">−1 °C</span></div><div class="wx"><div>Mâine<b>−1° / −6°</b>2 mm</div><div>Dum.<b>−5° / −8°</b>0 mm</div><div>Luni<b>−5° / −12°</b>0 mm</div></div></div>
+  <div class="card k"><small>Bani de încasat</small><b>1.464 lei</b><em class="mut">5 comenzi · 1 peste 30 zile</em></div>
+  <div class="card k"><small>Sezonul 2026 · zmeură</small><b>4.150 kg</b><em class="up">+18% față de 2025</em></div>
+ </div>
+</div>
+<div class="grid" style="grid-template-columns:1fr 1fr;margin-top:16px">
+ <div class="card"><div class="ch"><h3>Parcelele acum</h3><a onclick="go('parcele')">Parcele</a></div>${PAR.slice(0,4).map(p=>`<div class="row" onclick="sel.p='${p.id}';go('parcele')"><div class="t"><b>${p.n}</b><small>${p.st}</small></div>${p.trat.includes('întârziat')?'<span class="pill da">Tratament întârziat</span>':'<span class="pill mu">'+p.ult.split(' · ')[0]+'</span>'}</div>`).join('')}</div>
+ <div class="card"><div class="ch"><h3>Ultimele înregistrări</h3><a>Jurnal</a></div>${[['⚖️','Recoltare · 42 kg','Maravilla 1 · 5 culegători · 22 nov.'],['🧪','Stropire · Kelpak','Maravilla 1 · 23 nov.'],['💰','Încasare · 120 lei','Ion Popescu · 21 nov.'],['🛠️','Altele: Plasă de umbrire demontată','Maravilla 2 · 20 nov.']].map(r=>`<div class="row"><div class="ic">${r[0]}</div><div class="t"><b>${r[1]}</b><small>${r[2]}</small></div></div>`).join('')}</div>
+</div>`}
+function acasaB(){const w=[12,30,55,80,120,160,190,175,140,110,70,40,20,8];return `<div class="grid" style="grid-template-columns:repeat(5,1fr)">
+ ${[['Venit sezon','118.400 lei','+12%','up'],['Recoltat','4.150 kg','+18%','up'],['De încasat','1.464 lei','1 peste 30 zile','dn'],['Stoc cal. I','256 kg','51 kg comandate',''],['Cheltuieli sezon','41.900 lei','profit 76.500 lei','up']].map(k=>`<div class="card k"><small>${k[0]}</small><b>${k[1]}</b><em class="${k[3]}">${k[2]}</em></div>`).join('')}
+</div>
+<div class="grid" style="grid-template-columns:2fr 1fr;margin-top:16px">
+ <div class="card"><div class="ch"><h3>Recoltă pe săptămâni · 2026</h3><span class="mut">kg · toate parcelele</span></div><div class="bars" style="margin-bottom:22px">${w.map((v,i)=>`<div style="height:${v/2}%"><span>S${24+i*2}</span></div>`).join('')}</div></div>
+ <div class="card"><div class="ch"><h3>De făcut azi</h3></div>${[['2 comenzi de livrat','wa'],['3 capcane de verificat','wa'],['Tratament întârziat · Maravilla 2','da'],['Îngheț mâine −6 °C','in']].map(r=>`<div class="row"><div class="t"><b>${r[0]}</b></div><span class="pill ${r[1]}">Azi</span></div>`).join('')}</div>
+</div>
+<div class="grid" style="grid-template-columns:1fr 1fr 1fr;margin-top:16px">
+ <div class="card"><div class="ch"><h3>Producție pe parcelă</h3></div><div style="padding:0 16px 14px;display:grid;gap:10px">${PAR.slice(0,4).map(p=>`<div><div style="display:flex;justify-content:space-between;font-size:13px"><span>${p.n}</span><b>${fmt(p.kg)} kg</b></div><div class="bar2"><i style="width:${p.kg/16}%"></i></div></div>`).join('')}</div></div>
+ <div class="card"><div class="ch"><h3>Comenzi pe zile</h3><a onclick="go('comenzi')">Toate</a></div><table><tr><th>Zi</th><th class="n">Comenzi</th><th class="n">kg</th></tr>${[['Azi',2,27],['Mâine',2,24],['Joi',1,4],['Vineri',1,8]].map(r=>`<tr><td>${r[0]}</td><td class="n">${r[1]}</td><td class="n">${r[2]}</td></tr>`).join('')}</table></div>
+ <div class="card"><div class="ch"><h3>Vremea · 3 zile</h3></div><div class="wx" style="grid-template-columns:1fr"><div>Mâine <b>−1° / −6° · 2 mm</b></div><div>Duminică <b>−5° / −8°</b></div><div>Luni <b>−5° / −12°</b></div></div></div>
+</div>`}
+
+/* ---------- COMENZI ---------- */
+function comenziA(){const c=CMD.find(x=>x.id===(sel.c||1));return `<div class="split"><div class="l"><div class="lh">${['Toate 6','Azi 2','Mâine 2','De pregătit 4','În livrare 1','Neîncasate 5'].map((t,i)=>`<span class="chip ${i==0?'on':''}">${t}</span>`).join('')}</div>
+ ${CMD.map(x=>`<div class="row ${x.id===c.id?'sel':''}" onclick="sel.c=${x.id};render()"><div class="t"><b>${x.cl}</b><small>${x.zi} · ${x.ora} · ${x.adr}</small></div><div style="text-align:right"><b>${x.kg} kg</b><br><span class="pill ${stp(x.st)}">${x.st}</span></div></div>`).join('')}</div>
+ <div class="d dt"><h2>${c.cl}</h2><div class="meta">Comanda #${1040+c.id} · ${c.tel} · ${c.adr}</div>
+  <div class="acts"><button class="btn p">${c.st==='De pregătit'?'Pune în livrare':c.st==='În livrare'?'Marchează livrată':'Încasează'}</button><button class="btn">Încasează</button><button class="btn">Editează</button><button class="btn">WhatsApp</button></div>
+  <div class="kv"><div><small>Cantitate</small><b>${c.kg} kg</b></div><div><small>Preț</small><b>${c.pret} lei/kg</b></div><div><small>Total</small><b>${c.kg*c.pret} lei</b></div><div><small>Plată</small><b>${c.plata}</b></div></div>
+  <div class="grid" style="grid-template-columns:1fr 1fr"><div class="card"><div class="ch"><h3>Istoric</h3></div><div class="tl" style="padding:0 16px 6px 34px"><div>Creată<br><small>25 nov. · Andrei</small></div><div>Confirmată telefonic<br><small>26 nov.</small></div><div>${c.st}<br><small>${c.zi}</small></div></div></div>
+  <div class="card"><div class="ch"><h3>Clientul</h3><a>Fișa clientului</a></div><div style="padding:0 16px 14px;display:grid;gap:6px"><span>14 comenzi în 2026 · 186 kg</span><span>Plătește de obicei la livrare</span><span class="mut">Ultima: 18 nov. · 12 kg</span></div></div></div>
+  <div class="card" style="margin-top:16px"><div class="ch"><h3>Livrările de azi · traseu</h3><a>Deschide în hărți</a></div>${CMD.filter(x=>x.zi==='Azi').map((x,i)=>`<div class="row"><div class="ic">${i+1}</div><div class="t"><b>${x.cl}</b><small>${x.ora} · ${x.adr}</small></div><b>${x.kg} kg</b></div>`).join('')}</div>
+ </div></div>`}
+function comenziB(){return `<div class="card"><div class="lh" style="border-radius:12px 12px 0 0">${['Toate','Azi','Mâine','Săpt. asta','De pregătit','În livrare','Neîncasate'].map((t,i)=>`<span class="chip ${i==0?'on':''}">${t}</span>`).join('')}<span style="flex:1"></span><button class="btn s">Pune 2 selectate în livrare</button><button class="btn s">Exportă</button></div>
+ <table><tr><th><input type="checkbox"></th><th>#</th><th>Client</th><th>Telefon</th><th>Livrare</th><th>Adresă</th><th class="n">kg</th><th class="n">lei/kg</th><th class="n">Total</th><th>Plată</th><th>Stare</th></tr>
+ ${CMD.map(c=>`<tr class="r" onclick="openC(${c.id})"><td><input type="checkbox" onclick="event.stopPropagation()"></td><td>${1040+c.id}</td><td><b>${c.cl}</b></td><td>${c.tel}</td><td>${c.zi} ${c.ora}</td><td>${c.adr}</td><td class="n">${c.kg}</td><td class="n">${c.pret}</td><td class="n">${c.kg*c.pret}</td><td>${c.plata}</td><td><span class="pill ${stp(c.st)}">${c.st}</span></td></tr>`).join('')}
+ <tr><td></td><td></td><td><b>Total</b></td><td></td><td></td><td></td><td class="n"><b>63</b></td><td></td><td class="n"><b>1.802</b></td><td></td><td></td></tr></table></div>
+ <div class="grid" style="grid-template-columns:1fr 1fr 1fr;margin-top:16px"><div class="card k"><small>Stoc cal. I disponibil</small><b>256 kg</b><em class="mut">după comenzi: 193 kg</em></div><div class="card k"><small>Livrări azi</small><b>2 · 27 kg</b><em class="mut">Livrator: Mihai</em></div><div class="card k"><small>Neîncasat</small><b>1.464 lei</b><em class="dn">Cofetăria Dulce · 34 zile</em></div></div>`}
+
+/* ---------- PARCELE ---------- */
+function parceleA(){const p=PAR.find(x=>x.id===(sel.p||'m1'));return `<div class="split"><div class="l"><div class="lh"><span class="chip on">Toate 6</span><span class="chip">Comerciale 4</span><span class="chip">Personale 2</span></div>
+ ${PAR.map(x=>`<div class="row ${x.id===p.id?'sel':''}" onclick="sel.p='${x.id}';render()"><div class="t"><b>${x.n}</b><small>${x.c} · ${x.pl?fmt(x.pl)+' plante · ':''}${x.s}</small></div><div style="text-align:right"><b>${fmt(x.kg)} kg</b><br><small class="mut">2026</small></div></div>`).join('')}</div>
+ <div class="d dt"><h2>${p.n}</h2><div class="meta">${p.c} · ${p.pl?fmt(p.pl)+' plante · ':''}${p.s} · Lucrezi lăstarii: An 1 + an 2</div>
+  <div class="acts"><button class="btn p" onclick="openP('Tratament nou',formTr())">+ Tratament</button><button class="btn">+ Lucrare</button><button class="btn">+ Recoltare</button><button class="btn">Stadiul</button></div>
+  <div class="kv"><div><small>Stadiul acum</small><b style="font-size:14px">${p.st}</b></div><div><small>Recoltat 2026</small><b>${fmt(p.kg)} kg</b></div><div><small>kg / plantă</small><b>${p.pl?(p.kg/p.pl).toFixed(2):'—'}</b></div><div><small>Profit pe parcelă</small><b>${p.kg?fmt(Math.round(p.kg*18.4))+' lei':'—'}</b></div></div>
+  <div class="grid" style="grid-template-columns:1.3fr 1fr"><div class="card"><div class="ch"><h3>Jurnal</h3><span class="chip on">Tot</span></div>${[['🧪','Stropire · Switch + Kelpak','23 nov. · pauză 3 zile, încheiată'],['✂️','Lăstar an 1: Tăiat','24 nov.'],['⚖️','Recoltare · 42 kg','22 nov. · 5 culegători'],['💧','Fertirigare A · 4 g/plantă','18 nov.'],['🛠️','Altele: Plasă de umbrire demontată','20 nov.']].map(r=>`<div class="row"><div class="ic">${r[0]}</div><div class="t"><b>${r[1]}</b><small>${r[2]}</small></div></div>`).join('')}</div>
+  <div class="grid"><div class="card"><div class="ch"><h3>Sezonul pe lăstari</h3></div><div style="padding:0 16px 14px;display:grid;gap:8px"><div>An 2 (floricane) <span class="pill mu">În repaus</span></div><div>An 1 (primocane) <span class="pill mu">Tăiat pe 24 nov.</span></div><div class="mut">Data culesului 2027: nepusă · <a style="color:var(--primary)">Pune data</a></div></div></div>
+  <div class="card"><div class="ch"><h3>Recoltă pe săptămâni</h3></div><div class="bars" style="height:90px;margin-bottom:20px">${[20,45,80,110,95,60,30].map((v,i)=>`<div style="height:${v*.8}%"><span>S${30+i*2}</span></div>`).join('')}</div></div></div></div>
+ </div></div>`}
+function parceleB(){return `<div class="grid" style="grid-template-columns:repeat(3,1fr)">${PAR.map(p=>`<div class="card" style="cursor:pointer" onclick="sel.p='${p.id}';V='A';syncV();render()"><div class="ch"><h3>${p.n}</h3><span class="pill ${p.trat.includes('întârziat')?'da':'mu'}">${p.trat.includes('întârziat')?'Tratament întârziat':p.st.split(' · ')[0]}</span></div><div style="padding:0 16px 14px"><div class="mut" style="margin-bottom:10px">${p.c} · ${p.s}</div><div class="grid" style="grid-template-columns:1fr 1fr 1fr;gap:8px"><div><small class="mut">2026</small><br><b>${fmt(p.kg)} kg</b></div><div><small class="mut">kg/plantă</small><br><b>${p.pl?(p.kg/p.pl).toFixed(2):'—'}</b></div><div><small class="mut">Ultima</small><br><b style="font-size:12.5px">${p.ult.split(' · ')[0]}</b></div></div></div></div>`).join('')}</div>
+ <div class="card" style="margin-top:16px"><div class="ch"><h3>Lucrări și tratamente · toate parcelele</h3><a>Exportă</a></div><table><tr><th>Data</th><th>Parcelă</th><th>Ce</th><th>Detalii</th><th>Cine</th></tr>${[['24 nov.','Maravilla 1','Tăiere lăstari','An 1: tăiat tot','Andrei'],['23 nov.','Maravilla 1','Stropire','Switch 60 g · Kelpak 150 ml','Andrei'],['20 nov.','Maravilla 2','Altele','Plasă de umbrire demontată','Mihai'],['18 nov.','Maravilla 2','Fertirigare','Soluția A · 4 g/plantă','Andrei'],['10 nov.','DELNIWA','La sol','Gunoi de grajd · 3 t/ha','Andrei']].map(r=>`<tr class="r">${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</table></div>`}
+
+/* ---------- TRATAMENTE ---------- */
+function tratA(){const i=sel.t??0,t=TR[i];return `<div class="split"><div class="l"><div class="lh">${['Aplicări','Plan','Capcane','Analize','Magazia'].map((x,j)=>`<span class="chip ${j==0?'on':''}">${x}</span>`).join('')}</div>
+ <div class="row" style="background:var(--info-bg)"><div class="t"><b>Plan: Maravilla, „După recoltare”</b><small>1 intervenție de făcut</small></div><button class="btn s">Vezi</button></div>
+ ${TR.map((x,j)=>`<div class="row ${j===i?'sel':''}" onclick="sel.t=${j};render()"><div class="t"><b>${x.t} · ${x.p}</b><small>${x.d} · ${x.pr}</small></div><span class="pill ${stp(x.st)}">${x.st}</span></div>`).join('')}</div>
+ <div class="d dt"><h2>${t.t} · ${t.p}</h2><div class="meta">${t.d} · ${t.st}</div><div class="acts"><button class="btn p">Repetă</button><button class="btn">Editează</button><button class="btn">Registrul de tratamente</button></div>
+ <div class="kv"><div><small>Produse</small><b style="font-size:14px">${t.pr}</b></div><div><small>Pauza</small><b style="font-size:14px">${t.pa}</b></div><div><small>Apă</small><b>500 l/ha</b></div><div><small>Stadiu</small><b style="font-size:14px">După recoltare</b></div></div>
+ <div class="grid" style="grid-template-columns:1fr 1fr"><div class="card"><div class="ch"><h3>Magazia · ce a scăzut</h3></div><table><tr><th>Produs</th><th class="n">Folosit</th><th class="n">Rămas</th></tr><tr><td>Switch 62,5 WG</td><td class="n">0,06 kg</td><td class="n">0,34 kg</td></tr><tr><td>Kelpak</td><td class="n">0,15 l</td><td class="n">0,85 l</td></tr></table></div>
+ <div class="card"><div class="ch"><h3>Pe sezon · Switch</h3></div><div style="padding:0 16px 14px">2 din 3 aplicări permise<div class="bar2" style="margin-top:8px"><i style="width:66%"></i></div></div></div></div></div></div>`}
+function tratB(){const wk=['S44','S45','S46','S47','S48','S49','S50'];const m={'Maravilla 1':[0,1,0,2,1,0,0],'Maravilla 2':[1,0,2,0,1,3,0],'Maravilla 3':[0,0,1,0,0,0,0],'DELNIWA':[0,2,0,0,0,0,0],'Livadă':[1,0,0,0,0,0,0]};const col=['','var(--primary)','var(--warning)','var(--info)'];return `<div class="card"><div class="ch"><h3>Calendarul tratamentelor · parcele × săptămâni</h3><span class="mut"><span class="dot" style="background:var(--primary)"></span> stropire &nbsp;<span class="dot" style="background:var(--warning)"></span> fertirigare / la sol &nbsp;<span class="dot" style="background:var(--info)"></span> planificat</span></div>
+ <table class="mx"><tr><th>Parcelă</th>${wk.map(w=>`<th style="text-align:center">${w}</th>`).join('')}</tr>${Object.entries(m).map(([p,a])=>`<tr><td>${p}</td>${a.map(v=>`<td>${v?`<span class="dot" style="background:${col[v]}"></span>`:''}</td>`).join('')}</tr>`).join('')}</table></div>
+ <div class="grid" style="grid-template-columns:1.4fr 1fr;margin-top:16px"><div class="card"><div class="ch"><h3>Aplicări</h3><a>Registrul de tratamente</a></div><table><tr><th>Data</th><th>Parcele</th><th>Tip</th><th>Produse</th><th>Stare</th></tr>${TR.map(t=>`<tr class="r"><td>${t.d}</td><td>${t.p}</td><td>${t.t}</td><td>${t.pr}</td><td><span class="pill ${stp(t.st)}">${t.st}</span></td></tr>`).join('')}</table></div>
+ <div class="card"><div class="ch"><h3>Magazia</h3><a>+ Am cumpărat</a></div><table><tr><th>Produs</th><th class="n">Stoc</th><th></th></tr>${[['Switch 62,5 WG','0,34 kg','wa','Pe terminate'],['Kelpak','0,85 l','ok',''],['Zeamă bordeleză','2,4 kg','ok',''],['Soluția A','12 kg','ok',''],['Calypso','0,1 l','da','Pe terminate']].map(r=>`<tr><td>${r[0]}</td><td class="n">${r[1]}</td><td>${r[3]?`<span class="pill ${r[2]}">${r[3]}</span>`:''}</td></tr>`).join('')}</table></div></div>`}
+
+/* ---------- BANI ---------- */
+function baniA(){const L=[['22 nov.','Încasare','Selgros','+390','ok'],['21 nov.','Încasare','Ion Popescu','+120','ok'],['20 nov.','Cheltuială','Agrofarm · tratamente','−412','da'],['18 nov.','Cheltuială','Plata culegători','−1.250','da'],['15 nov.','Investiție','Sistem irigare','−3.800','mu']];const i=sel.b??0,x=L[i];return `<div class="split"><div class="l"><div class="lh">${['Toate','Încasări','Cheltuieli','Investiții','Neîncasate'].map((t,j)=>`<span class="chip ${j==0?'on':''}">${t}</span>`).join('')}</div>
+ <div class="grid" style="grid-template-columns:1fr 1fr;padding:12px 16px;gap:10px"><div class="card k"><small>Venit nov.</small><b>6.420</b></div><div class="card k"><small>Cheltuieli nov.</small><b>3.180</b></div></div>
+ ${L.map((r,j)=>`<div class="row ${j===i?'sel':''}" onclick="sel.b=${j};render()"><div class="t"><b>${r[2]}</b><small>${r[0]} · ${r[1]}</small></div><b class="${r[4]==='ok'?'up':r[4]==='da'?'dn':''}">${r[3]} lei</b></div>`).join('')}</div>
+ <div class="d dt"><h2>${x[1]} · ${x[2]}</h2><div class="meta">${x[0]}</div><div class="acts"><button class="btn">Editează</button><button class="btn">Bonul</button></div><div class="kv"><div><small>Sumă</small><b>${x[3]} lei</b></div><div><small>Categorie</small><b style="font-size:14px">${x[1]}</b></div><div><small>Parcelă</small><b style="font-size:14px">Toate</b></div><div><small>Metodă</small><b style="font-size:14px">Numerar</b></div></div>
+ <div class="card"><div class="ch"><h3>Rapoarte rapide</h3></div>${['Registru de încasări și plăți · 2026','Profit pe parcelă și pe an','Registrul de tratamente (ANSVSA)','Situația pentru contabil · noiembrie'].map(r=>`<div class="row"><div class="ic">📄</div><div class="t"><b>${r}</b></div><button class="btn s">Exportă</button></div>`).join('')}</div></div></div>`}
+function baniB(){const mo=['Iun','Iul','Aug','Sep','Oct','Nov'];const v=[8,28,42,22,12,6],c=[9,7,8,6,5,3];return `<div class="grid" style="grid-template-columns:repeat(4,1fr)">${[['Venit 2026','118.400 lei'],['Cheltuieli 2026','41.900 lei'],['Profit 2026','76.500 lei'],['Investiții','12.300 lei']].map(k=>`<div class="card k"><small>${k[0]}</small><b>${k[1]}</b></div>`).join('')}</div>
+ <div class="grid" style="grid-template-columns:1.3fr 1fr;margin-top:16px"><div class="card"><div class="ch"><h3>Venit și cheltuieli pe luni · mii lei</h3></div><div class="bars" style="margin-bottom:22px">${mo.map((m,i)=>`<div style="height:${v[i]*2}%;"><span>${m}</span></div><div style="height:${c[i]*2}%;background:var(--danger);opacity:.6"></div>`).join('')}</div></div>
+ <div class="card"><div class="ch"><h3>Profit pe parcelă · 2026</h3></div><table><tr><th>Parcelă</th><th class="n">kg</th><th class="n">Venit</th><th class="n">Chelt.</th><th class="n">Profit</th></tr>${PAR.slice(0,4).map(p=>`<tr><td>${p.n}</td><td class="n">${fmt(p.kg)}</td><td class="n">${fmt(p.kg*28)}</td><td class="n">${fmt(p.kg*9)}</td><td class="n"><b>${fmt(p.kg*19)}</b></td></tr>`).join('')}</table></div></div>
+ <div class="card" style="margin-top:16px"><div class="ch"><h3>Registru de încasări și plăți · noiembrie</h3><a>Exportă PDF / Excel</a></div><table><tr><th>Data</th><th>Document</th><th>Explicație</th><th class="n">Încasări</th><th class="n">Plăți</th><th class="n">Sold</th></tr>${[['15 nov.','Factură 221','Sistem irigare','','3.800','8.120'],['18 nov.','Stat plată','Culegători','','1.250','6.870'],['20 nov.','Bon 0451','Agrofarm','','412','6.458'],['21 nov.','Chitanță 12','Ion Popescu','120','','6.578'],['22 nov.','Chitanță 13','Selgros','390','','6.968']].map(r=>`<tr>${r.map((c,i)=>`<td class="${i>2?'n':''}">${c}</td>`).join('')}</tr>`).join('')}</table></div>`}
+
+/* ---------- ASOCIAȚIA ---------- */
+function asoc(){const F=[['Ferma Zmeurel','Văratec','Zmeură',4150,6,'ok'],['Livada Rusu','Fălticeni','Mere, pere',12800,3,'ok'],['Afinele Moldovei','Gura Humorului','Afine',2300,0,'wa'],['Ferma Ionescu','Rădăuți','Căpșuni',0,0,'mu']];return `<div class="grid" style="grid-template-columns:repeat(4,1fr)">${[['Fermieri','12 · 4 activi'],['Recoltat 2026','19.250 kg'],['Comenzi vitrină','9 deschise'],['Atestate de expirat','2 în 30 zile']].map(k=>`<div class="card k"><small>${k[0]}</small><b>${k[1]}</b></div>`).join('')}</div>
+ <div class="card" style="margin-top:16px"><div class="ch"><h3>Fermierii asociației</h3><a>Invită fermier</a></div><table><tr><th>Fermă</th><th>Localitate</th><th>Culturi</th><th class="n">kg 2026</th><th class="n">Comenzi</th><th>Acte</th></tr>${F.map(f=>`<tr class="r"><td><b>${f[0]}</b></td><td>${f[1]}</td><td>${f[2]}</td><td class="n">${fmt(f[3])}</td><td class="n">${f[4]}</td><td><span class="pill ${f[5]}">${f[5]==='ok'?'În regulă':f[5]==='wa'?'Atestat expiră':'Lipsă'}</span></td></tr>`).join('')}</table></div>
+ <div class="mut" style="margin-top:10px">Asociația e amânată în plan; aici e doar locul ei în navigație.</div>`}
+
+function stub(t){return `<div class="card" style="padding:40px;text-align:center" class="mut">Ecranul „${t}” urmează același tipar ca varianta aleasă (${V==='A'?'listă + detaliu':'tabel pe toată lățimea + panou'}).</div>`}
+
+const NOTES={A:`<h4>Varianta A · Listă + detaliu</h4><ul><li>Fiecare modul: lista în stânga (~400 px), fișa elementului ales în dreapta, fără să schimbi pagina. Ca în Gmail.</li><li>Acasă: 3 coloane — de făcut azi, comenzile de azi/mâine, vremea + bani + sezon.</li><li>Formularele se deschid într-un panou în dreapta, pe o singură pagină (nu pe pași ca pe telefon).</li><li>Bun pentru lucrul zilnic: comenzi, parcele, tratamente.</li></ul>`,B:`<h4>Varianta B · Tablouri și tabele</h4><ul><li>Acasă = tablou de bord: 5 cifre, grafic de recoltă, producție pe parcelă.</li><li>Modulele = tabele pe toată lățimea, cu coloane, totaluri, selecție multiplă, export.</li><li>Tratamente: calendar parcele × săptămâni + Magazia alături.</li><li>Bani: registrul de încasări și plăți, profit pe parcelă, grafic pe luni.</li><li>Clic pe un rând → panou în dreapta.</li></ul>`};
+const COMMON=`<h4>În ambele</h4><ul><li>Bara laterală grupată după treabă: Vânzări · Ferma · Bani · Asociația (nu copia barei de jos de pe telefon).</li><li>Căutare globală sus (⌘K), butonul principal al paginii sus-dreapta.</li><li>Telefonul rămâne cum e.</li></ul><h4>Întrebări</h4><ul><li><b>1.</b> A sau B? Recomandarea mea: <b>hibrid</b> — Acasă și Bani din B (tablou, registre, grafice), Comenzi, Parcele, Tratamente din A (listă + fișă), cu buton „Tabel” pe listă pentru export.</li><li><b>2.</b> Formularele pe desktop într-un panou pe o pagină? Recomand: da.</li><li><b>3.</b> „Azi pe ferma” (o pagină cu tot ce e de făcut) separat de Acasă? Recomand: nu, rămâne în Acasă.</li><li><b>4.</b> Asociația în bara laterală doar pentru conturile de asociație. Recomand: da.</li></ul>`;
+
+function syncV(){document.querySelectorAll('#vsel button').forEach(b=>b.classList.toggle('on',b.dataset.v===V))}
+function render(){nav();closeP();const b=document.getElementById('body');nb.innerHTML=NOTES[V]+COMMON;
+ const map={acasa:['Acasă','Sâmbătă, 28 noiembrie · Ferma Zmeurel','<button class="btn p" onclick="openP(\'Comandă nouă\',formCmd())">+ Înregistrează</button>',acasaA,acasaB],
+ comenzi:['Comenzi și livrări','6 comenzi deschise · 63 kg','<button class="btn p" onclick="openP(\'Comandă nouă\',formCmd())">+ Comandă</button>',comenziA,comenziB],
+ parcele:['Parcele','6 parcele · 11.300 m²','<button class="btn p">+ Parcelă</button>',parceleA,parceleB],
+ tratamente:['Tratamente','Noiembrie · 5 făcute · 1 planificat','<button class="btn p" onclick="openP(\'Tratament nou\',formTr())">+ Tratament</button>',tratA,tratB],
+ bani:['Bani și rapoarte','Sezonul 2026','<button class="btn p">+ Cheltuială</button>',baniA,baniB],
+ asociatie:['Gustă din Bucovina','Asociația · 12 fermieri','',asoc,asoc]};
+ const m=map[S];if(m){setH(m[0],m[1],m[2]);b.innerHTML=(V==='A'?m[3]:m[4])()}else{const l=NAV.flatMap(x=>x[1]).find(x=>x[0]===S);setH(l[1],'','');b.innerHTML=stub(l[1])}
+ b.style.padding=(V==='A'&&['comenzi','parcele','tratamente','bani'].includes(S))?'20px 24px':'20px 24px';}
+document.querySelectorAll('#vsel button').forEach(b=>b.onclick=()=>{V=b.dataset.v;syncV();render()});
+dk.onclick=()=>document.documentElement.classList.toggle('dark');
+nt.onclick=()=>notes.classList.toggle('min');
+render();
+</script>
+</body>
+</html>
