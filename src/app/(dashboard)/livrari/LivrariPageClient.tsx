@@ -39,6 +39,12 @@ import {
 } from '@/components/kit'
 import { AranjeazaTraseu } from '@/components/livrari/AranjeazaTraseu'
 import { StopSheet, type RouteStop, type StopSheetEntry } from '@/components/livrari/StopSheet'
+import { ComandaFisa } from '@/components/comenzi/ComandaFisa'
+import { ComutatorComenziLivrari } from '@/components/comenzi/ComutatoareComenzi'
+import { useEsteDesktop } from '@/lib/ui/useEsteDesktop'
+import { useIdDinUrl } from '@/lib/ui/useIdDinUrl'
+import { useRouter } from 'next/navigation'
+import { elementAles } from '@/components/kit'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { bucketOfComanda } from '@/lib/comenzi/day-view'
 import { comandaClientName, comandaNeincasata, comandaNota, comandaTelefon, phoneForLinks } from '@/lib/comenzi/display'
@@ -85,6 +91,10 @@ export function LivrariPageClient() {
   const features = useSchemaFeatures()
   const todayIso = useTodayIso()
 
+  // Desktop (promptul 35, §5): oprirea aleasă (`?id=`) are fișa comenzii în dreapta.
+  const esteDesktop = useEsteDesktop()
+  const router = useRouter()
+  const [idAles, alegeId] = useIdDinUrl()
   const [sheet, setSheet] = useState<{ stop: RouteStop; entry: StopSheetEntry } | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [arranging, setArranging] = useState(false)
@@ -134,6 +144,7 @@ export function LivrariPageClient() {
     [clientMap, comenzi],
   )
   const delivered = useMemo(() => (todayIso ? deliveredToday(comenzi, todayIso) : []), [comenzi, todayIso])
+  const opritAles = elementAles(stops, (stop) => stop.comanda.id, idAles)
   const progress = useMemo(() => routeProgress(stops.map((stop) => stop.comanda), delivered.length), [delivered.length, stops])
   const notInDelivery = useMemo(
     () =>
@@ -233,10 +244,18 @@ export function LivrariPageClient() {
   }
 
   // ─── Foaia unei opriri ───
-  const openStop = useCallback((stop: RouteStop, entry: StopSheetEntry) => {
-    setSheet({ stop, entry })
-    setSheetOpen(true)
-  }, [])
+  const openStop = useCallback(
+    (stop: RouteStop, entry: StopSheetEntry) => {
+      // Pe desktop, meniul opririi e fișa din dreapta; livrarea și apelul se deschid tot în foaie.
+      if (esteDesktop && entry === 'meniu') {
+        alegeId(stop.comanda.id, { push: true })
+        return
+      }
+      setSheet({ stop, entry })
+      setSheetOpen(true)
+    },
+    [alegeId, esteDesktop],
+  )
 
   // Datele la zi ale opririi deschise. După livrare oprirea iese din traseu, dar foaia mai are nevoie de ea
   // (întrebarea despre locație vine chiar atunci): rămâne cea de la deschidere.
@@ -578,10 +597,40 @@ export function LivrariPageClient() {
           title={arranging ? 'Aranjează traseul' : 'Livrări'}
           subtitle={todayIso ? capitalizeRo(longDayRo(todayIso)) : undefined}
           contentVariant="workspace"
+          comutatoare={<ComutatorComenziLivrari activ="livrari" />}
         />
       }
     >
-      <div className="mx-auto w-full max-w-modul space-y-4 pt-3">{body}</div>
+      {/* Pe desktop: traseul în stânga (aceeași listă), fișa comenzii alese în dreapta. */}
+      <div className="mx-auto w-full max-w-modul pt-3 lg:grid lg:grid-cols-[440px_minmax(0,1fr)] lg:items-start lg:gap-4">
+        <div className="space-y-4">{body}</div>
+        {opritAles && todayIso ? (
+          <div className="hidden min-w-0 lg:block">
+            <ComandaFisa
+              key={opritAles.comanda.id}
+              comanda={opritAles.comanda}
+              comenzi={comenzi}
+              clientName={opritAles.name}
+              numeClient={(comanda) => comandaClientName(comanda, clientMap)}
+              clientTelefon={opritAles.client?.telefon ?? null}
+              todayIso={todayIso}
+              canWrite={canWrite}
+              canDelete={memberRole !== 'operator'}
+              hasPrioritara={features.comenziPrioritara}
+              onEdit={(comanda) => router.push(`/comenzi?edit=${comanda.id}`)}
+              onAlege={(id) => alegeId(id, { push: true })}
+            />
+          </div>
+        ) : (
+          <div className="hidden min-w-0 lg:block">
+            <EmptyState
+              icon={<Truck />}
+              title="Nicio comandă în livrare acum"
+              description="Pune comenzile de azi în livrare din Comenzi; fișa celei alese apare aici."
+            />
+          </div>
+        )}
+      </div>
 
       {todayIso ? (
         <StopSheet

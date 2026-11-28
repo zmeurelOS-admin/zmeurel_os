@@ -12,6 +12,8 @@ import { PageHeader } from '@/components/app/PageHeader'
 import { ComandaCard } from '@/components/comenzi/ComandaCard'
 import { ComandaSheet } from '@/components/comenzi/ComandaSheet'
 import { ComandaStepForm, type ComandaPrefill } from '@/components/comenzi/ComandaStepForm'
+import { ComenziDesktop } from '@/components/comenzi/ComenziDesktop'
+import { ComutatorComenziLivrari, ComutatorVedere } from '@/components/comenzi/ComutatoareComenzi'
 import { PuneInLivrareSheet } from '@/components/comenzi/PuneInLivrareSheet'
 import {
   BigInput,
@@ -54,6 +56,8 @@ import { getParcele } from '@/lib/supabase/queries/parcele'
 import { culturileFermei } from '@/lib/parcele/culturi-ferma'
 import { etichetaStocFerma } from '@/lib/stocuri/pe-cultura'
 import { useTodayIso } from '@/lib/ui/use-today-iso'
+import { useIdDinUrl, useVedereDinUrl } from '@/lib/ui/useIdDinUrl'
+import type { FiltruComenziDesktop } from '@/lib/comenzi/tabel'
 import { cn } from '@/lib/utils'
 
 // Deschis doar la cerere: nu intră în primul JS al paginii.
@@ -160,6 +164,14 @@ function initialFromFilter(filter: string | null): { bucket: ComenziBucket; view
   return { bucket: 'azi', view: { kind: 'zile' } }
 }
 
+/** Aceleași legături vechi (`?filter=…`), pe desktop (promptul 35, §5): filtrul listei. */
+function filtruDesktopDin(filter: string | null): FiltruComenziDesktop {
+  if (filter === 'neincasat' || filter === 'neincasat30') return 'neincasate'
+  if (filter === 'livrate' || filter === 'toate') return 'toate'
+  if (filter === 'viitoare' || filter === 'programate') return 'saptamana'
+  return 'azi'
+}
+
 // ─── Pagina ────────────────────────────────────────────────────────────────────
 
 export function ComenziPageClient() {
@@ -181,6 +193,12 @@ export function ComenziPageClient() {
   const [initial] = useState(() =>
     initialFromFilter(typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('filter')),
   )
+  const [filtruDesktop] = useState(() =>
+    filtruDesktopDin(typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('filter')),
+  )
+  // Desktop (promptul 35, §5): comanda aleasă și vederea, în adresă.
+  const [idAles, alegeId] = useIdDinUrl()
+  const [vedere, setVedere] = useVedereDinUrl()
   const [bucket, setBucket] = useState<ComenziBucket>(initial.bucket)
   const [view, setView] = useState<PageView>(initial.view)
   const [archiveSearch, setArchiveSearch] = useState('')
@@ -385,6 +403,8 @@ export function ComenziPageClient() {
 
   const loading = todayIso === null || isLoading
   const hasAny = comenzi.length > 0
+  // Pe desktop, lista + fișa înlocuiesc pagina de telefon după ce datele au venit (până atunci, același schelet).
+  const desktopGata = !loading && !isError
 
   const addButton = (
     <Button type="button" variant="primary" size="touch-lg" className="w-full" onClick={openCreate}>
@@ -531,7 +551,7 @@ export function ComenziPageClient() {
           </Button>
         </div>
 
-        {canWrite ? <div className="hidden md:block">{addButton}</div> : null}
+        {canWrite ? <div className="hidden md:block lg:hidden">{addButton}</div> : null}
 
         <Segments<ComenziBucket>
           aria-label="Ce zi arăt"
@@ -617,6 +637,21 @@ export function ComenziPageClient() {
           title="Comenzi"
           subtitle={todayIso ? capitalizeRo(longDayRo(todayIso)) : undefined}
           contentVariant="workspace"
+          actiune={canWrite ? { label: 'Comandă', onClick: openCreate } : null}
+          alteActiuni={
+            canWrite ? (
+              <Button type="button" variant="neutral" size="touch" onClick={openDinMesaj}>
+                <MessageSquareText aria-hidden />
+                Din mesaj
+              </Button>
+            ) : null
+          }
+          comutatoare={
+            <>
+              <ComutatorComenziLivrari activ="comenzi" />
+              <ComutatorVedere vedere={vedere} onVedere={setVedere} />
+            </>
+          }
         />
       }
       bottomBarFixed
@@ -629,7 +664,29 @@ export function ComenziPageClient() {
         ) : undefined
       }
     >
-      <div className="mx-auto w-full max-w-modul space-y-4 pt-3">{body}</div>
+      <div className={cn('mx-auto w-full max-w-modul space-y-4 pt-3', desktopGata && 'lg:hidden')}>{body}</div>
+      {desktopGata && todayIso ? (
+        <div className="hidden pt-3 lg:block">
+          <ComenziDesktop
+            comenzi={comenzi}
+            numeClient={clientName}
+            telefonClient={(comanda) => (comanda.client_id ? (clientMap.get(comanda.client_id)?.telefon ?? null) : null)}
+            todayIso={todayIso}
+            canWrite={canWrite}
+            canDelete={canDelete}
+            hasPrioritara={features.comenziPrioritara}
+            onEdit={openEdit}
+            vedere={vedere}
+            idAles={idAles}
+            onAlege={(id, { push }) => alegeId(id, { push })}
+            onDeschideDinTabel={(id) => {
+              setVedere('lista')
+              alegeId(id, { push: true })
+            }}
+            filtruInitial={filtruDesktop}
+          />
+        </div>
+      ) : null}
 
       {todayIso ? (
         <>

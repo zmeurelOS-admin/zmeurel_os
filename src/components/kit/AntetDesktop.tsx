@@ -44,14 +44,14 @@ export function CampCautare({ className }: { className?: string }) {
       aria-label="Caută comandă, client, parcelă (Ctrl K)"
       aria-keyshortcuts="Control+K Meta+K"
       className={cn(
-        'flex h-touch w-[min(320px,28vw)] min-w-[200px] items-center gap-2 rounded-control border border-border bg-surface px-3 text-left text-fg-muted hover:bg-surface-muted',
+        'flex h-touch w-[min(260px,20vw)] min-w-[150px] items-center gap-2 rounded-control border border-border bg-surface px-3 text-left text-fg-muted hover:bg-surface-muted',
         kitText.secondary,
         kitFocus,
         className,
       )}
     >
       <Search className="size-5 shrink-0" aria-hidden />
-      <span className="min-w-0 flex-1 break-words">Caută comandă, client, parcelă…</span>
+      <span className="min-w-0 flex-1 break-words">Caută…</span>
       <kbd className={cn('shrink-0 rounded-control border border-border-subtle bg-surface-muted px-1.5 font-semibold', kitText.helper)}>Ctrl K</kbd>
     </button>
   )

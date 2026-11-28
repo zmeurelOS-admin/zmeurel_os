@@ -35,7 +35,7 @@ export function CompactPageHeader({ title, phoneTitle, subtitle, rightSlot, summ
         )}
       >
         {title || subtitle ? (
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 lg:min-w-[220px]">
             {title ? (
               <h1 className={cn('break-words font-extrabold text-fg', kitText.section)}>
                 {phoneTitle ? (
